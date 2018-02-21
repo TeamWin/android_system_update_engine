@@ -88,21 +88,24 @@ check_payload() {
 
 apply_full_payload() {
   payload_file=$1
-  dst_kern_part="$2/$3"
-  dst_root_part="$2/$4"
+  out_dst_kern_part="$2/$3"
+  out_dst_root_part="$2/$4"
 
   time ${paycheck} ${payload_file} \
-    --dst_kern ${dst_kern_part} --dst_root ${dst_root_part}
+    --out_dst_kern ${out_dst_kern_part} --out_dst_root ${out_dst_root_part}
 }
 
 apply_delta_payload() {
   payload_file=$1
-  dst_kern_part="$2/$3"
-  dst_root_part="$2/$4"
-  src_kern_part="$2/$5"
-  src_root_part="$2/$6"
+  out_dst_kern_part="$2/$3"
+  out_dst_root_part="$2/$4"
+  dst_kern_part="$2/$5"
+  dst_root_part="$2/$6"
+  src_kern_part="$2/$7"
+  src_root_part="$2/$8"
 
   time ${paycheck} ${payload_file} \
+    --out_dst_kern ${out_dst_kern_part} --out_dst_root ${out_dst_root_part} \
     --dst_kern ${dst_kern_part} --dst_root ${dst_root_part} \
     --src_kern ${src_kern_part} --src_root ${src_root_part}
 }
@@ -140,14 +143,15 @@ main() {
     "${OLD_ROOT_PART}"
   log "Done"
 
-  log "Applying delta payload to old partitions..."
-  apply_delta_payload "${delta_payload}" "${tmpdir}" "${NEW_DELTA_KERN_PART}" \
-    "${NEW_DELTA_ROOT_PART}" "${OLD_KERN_PART}" "${OLD_ROOT_PART}"
-  log "Done"
-
   log "Applying new full payload..."
   apply_full_payload "${new_full_payload}" "${tmpdir}" "${NEW_FULL_KERN_PART}" \
     "${NEW_FULL_ROOT_PART}"
+  log "Done"
+
+  log "Applying delta payload to old partitions..."
+  apply_delta_payload "${delta_payload}" "${tmpdir}" "${NEW_DELTA_KERN_PART}" \
+    "${NEW_DELTA_ROOT_PART}" "${NEW_FULL_KERN_PART}" \
+    "${NEW_FULL_ROOT_PART}" "${OLD_KERN_PART}" "${OLD_ROOT_PART}"
   log "Done"
 
   log "Comparing results of delta and new full updates..."

@@ -21,8 +21,12 @@ from __future__ import print_function
 
 # pylint: disable=import-error
 import argparse
+import filecmp
 import os
 import sys
+import tempfile
+
+from update_payload import error
 
 lib_dir = os.path.join(os.path.dirname(__file__), 'lib')
 if os.path.exists(lib_dir) and os.path.isdir(lib_dir):
@@ -110,6 +114,10 @@ def ParseArguments(argv):
                           help='source kernel partition file')
   apply_args.add_argument('--src_root', metavar='FILE',
                           help='source root partition file')
+  apply_args.add_argument('--out_dst_kern', metavar='FILE',
+                          help='created destination kernel partition file')
+  apply_args.add_argument('--out_dst_root', metavar='FILE',
+                          help='created destination root partition file')
 
   parser.add_argument('payload', metavar='PAYLOAD', help='the payload file')
 
@@ -127,8 +135,11 @@ def ParseArguments(argv):
     parser.error('--src_kern and --src_root should be given together')
   if (args.dst_kern is None) != (args.dst_root is None):
     parser.error('--dst_kern and --dst_root should be given together')
+  if (args.out_dst_kern is None) != (args.out_dst_root is None):
+    parser.error('--out_dst_kern and --out_dst_root should be given together')
 
-  if args.dst_kern and args.dst_root:
+  if (args.dst_kern and args.dst_root) or \
+     (args.out_dst_kern and args.out_dst_root):
     if args.src_kern and args.src_root:
       if args.assert_type == _TYPE_FULL:
         parser.error('%s payload does not accept source partition arguments'
@@ -205,7 +216,8 @@ def main(argv):
             report_file.close()
 
       # Apply payload.
-      if args.dst_root or args.dst_kern:
+      if (args.dst_root and args.dst_kern) or \
+         (args.out_dst_root and args.out_dst_kern):
         dargs = {'bsdiff_in_place': not args.extract_bsdiff}
         if args.bspatch_path:
           dargs['bspatch_path'] = args.bspatch_path
@@ -215,9 +227,36 @@ def main(argv):
           dargs['old_kernel_part'] = args.src_kern
           dargs['old_rootfs_part'] = args.src_root
 
-        payload.Apply(args.dst_kern, args.dst_root, **dargs)
+        if args.out_dst_kern and args.out_dst_root:
+          out_dst_kern = open(args.out_dst_kern, 'w+')
+          out_dst_root = open(args.out_dst_root, 'w+')
+        else:
+          out_dst_kern = tempfile.NamedTemporaryFile()
+          out_dst_root = tempfile.NamedTemporaryFile()
 
-    except update_payload.PayloadError, e:
+        payload.Apply(out_dst_kern.name, out_dst_root.name, **dargs)
+
+        # If destination kernel and rootfs partitions are not given, then this
+        # just becomes an apply operation with no check.
+        if args.dst_kern and args.dst_root:
+          # Prior to comparing, add the unused space past the filesystem
+          # boundary in the new target partitions to become the same size as
+          # the given partitions. This will truncate to larger size.
+          out_dst_kern.truncate(os.path.getsize(args.dst_kern))
+          out_dst_root.truncate(os.path.getsize(args.dst_root))
+
+          # Compare resulting partitions with the ones from the target image.
+          if not filecmp.cmp(out_dst_kern.name, args.dst_kern):
+            raise error.PayloadError('Resulting kernel partition corrupted.')
+          if not filecmp.cmp(out_dst_root.name, args.dst_root):
+            raise error.PayloadError('Resulting rootfs partition corrupted.')
+
+        # Close the output files. If args.out_dst_* was not given, then these
+        # files are created as temp files and will be deleted upon close().
+        out_dst_kern.close()
+        out_dst_root.close()
+
+    except error.PayloadError, e:
       sys.stderr.write('Error: %s\n' % e)
       return 1
 
