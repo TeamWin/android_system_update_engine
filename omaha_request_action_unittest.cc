@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/bind.h>
@@ -35,6 +36,8 @@
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
+#include <policy/libpolicy.h>
+#include <policy/mock_libpolicy.h>
 
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/constants.h"
@@ -49,9 +52,11 @@
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/update_manager/rollback_prefs.h"
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_manager::kRollforwardInfinity;
 using std::string;
 using std::vector;
 using testing::AllOf;
@@ -61,12 +66,17 @@ using testing::Ge;
 using testing::Le;
 using testing::NiceMock;
 using testing::Return;
+using testing::ReturnRef;
 using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgPointee;
 using testing::_;
 
 namespace {
+
+static_assert(kRollforwardInfinity == 0xfffffffe,
+              "Don't change the value of kRollforward infinity unless its "
+              "size has been changed in firmware.");
 
 const char kTestAppId[] = "test-app-id";
 const char kTestAppId2[] = "test-app2-id";
@@ -254,12 +264,31 @@ class OmahaRequestActionTest : public ::testing::Test {
   bool TestUpdateCheck(const string& http_response,
                        int fail_http_response_code,
                        bool ping_only,
+                       bool is_consumer_device,
+                       int rollback_allowed_milestones,
+                       bool is_policy_loaded,
                        ErrorCode expected_code,
                        metrics::CheckResult expected_check_result,
                        metrics::CheckReaction expected_check_reaction,
                        metrics::DownloadErrorCode expected_download_error_code,
                        OmahaResponse* out_response,
                        brillo::Blob* out_post_data);
+
+  // Overload of TestUpdateCheck that does not supply |is_consumer_device| or
+  // |rollback_allowed_milestones| which are only required for rollback tests.
+  bool TestUpdateCheck(const string& http_response,
+                       int fail_http_response_code,
+                       bool ping_only,
+                       ErrorCode expected_code,
+                       metrics::CheckResult expected_check_result,
+                       metrics::CheckReaction expected_check_reaction,
+                       metrics::DownloadErrorCode expected_download_error_code,
+                       OmahaResponse* out_response,
+                       brillo::Blob* out_post_data);
+
+  void TestRollbackCheck(bool is_consumer_device,
+                         int rollback_allowed_milestones,
+                         bool is_policy_loaded);
 
   // Runs and checks a ping test. |ping_only| indicates whether it should send
   // only a ping or also an updatecheck.
@@ -357,6 +386,9 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     const string& http_response,
     int fail_http_response_code,
     bool ping_only,
+    bool is_consumer_device,
+    int rollback_allowed_milestones,
+    bool is_policy_loaded,
     ErrorCode expected_code,
     metrics::CheckResult expected_check_result,
     metrics::CheckReaction expected_check_reaction,
@@ -379,6 +411,24 @@ bool OmahaRequestActionTest::TestUpdateCheck(
                             nullptr,
                             base::WrapUnique(fetcher),
                             ping_only);
+  auto mock_policy_provider =
+      std::make_unique<NiceMock<policy::MockPolicyProvider>>();
+  EXPECT_CALL(*mock_policy_provider, IsConsumerDevice())
+      .WillRepeatedly(Return(is_consumer_device));
+
+  EXPECT_CALL(*mock_policy_provider, device_policy_is_loaded())
+      .WillRepeatedly(Return(is_policy_loaded));
+
+  const policy::MockDevicePolicy device_policy;
+  const bool get_allowed_milestone_succeeds = rollback_allowed_milestones >= 0;
+  EXPECT_CALL(device_policy, GetRollbackAllowedMilestones(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(rollback_allowed_milestones),
+                            Return(get_allowed_milestone_succeeds)));
+
+  EXPECT_CALL(*mock_policy_provider, GetDevicePolicy())
+      .WillRepeatedly(ReturnRef(device_policy));
+
+  action.policy_provider_ = std::move(mock_policy_provider);
   OmahaRequestActionTestProcessorDelegate delegate;
   delegate.expected_code_ = expected_code;
 
@@ -411,6 +461,50 @@ bool OmahaRequestActionTest::TestUpdateCheck(
   if (out_post_data)
     *out_post_data = fetcher->post_data();
   return collector_action.has_input_object_;
+}
+
+bool OmahaRequestActionTest::TestUpdateCheck(
+    const string& http_response,
+    int fail_http_response_code,
+    bool ping_only,
+    ErrorCode expected_code,
+    metrics::CheckResult expected_check_result,
+    metrics::CheckReaction expected_check_reaction,
+    metrics::DownloadErrorCode expected_download_error_code,
+    OmahaResponse* out_response,
+    brillo::Blob* out_post_data) {
+  return TestUpdateCheck(http_response,
+                         fail_http_response_code,
+                         ping_only,
+                         true,   // is_consumer_device
+                         0,      // rollback_allowed_milestones
+                         false,  // is_policy_loaded
+                         expected_code,
+                         expected_check_result,
+                         expected_check_reaction,
+                         expected_download_error_code,
+                         out_response,
+                         out_post_data);
+}
+
+void OmahaRequestActionTest::TestRollbackCheck(bool is_consumer_device,
+                                               int rollback_allowed_milestones,
+                                               bool is_policy_loaded) {
+  OmahaResponse response;
+  fake_update_response_.deadline = "20101020";
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              is_consumer_device,
+                              rollback_allowed_milestones,
+                              is_policy_loaded,
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  ASSERT_TRUE(response.update_exists);
 }
 
 // Tests Event requests -- they should always succeed. |out_post_data|
@@ -2591,6 +2685,110 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedDateChanges) {
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), 28);
   EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 28);
+}
+
+// Verifies that a device with no device policy, and is not a consumer
+// device sets the max kernel key version to the current version.
+// ie. the same behavior as if rollback is enabled.
+TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int min_kernel_version = 4;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  TestRollbackCheck(false /* is_consumer_device */,
+                    3 /* rollback_allowed_milestones */,
+                    false /* is_policy_loaded */);
+
+  // Verify max_kernel_rollforward was set to the current minimum
+  // kernel key version. This has the effect of freezing roll
+  // forwards indefinitely. This will hold the rollback window
+  // open until a future change will be able to move this forward
+  // relative the configured window.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+// Verifies that a conmsumer device with no device policy sets the
+// max kernel key version to the current version. ie. the same
+// behavior as if rollback is enabled.
+TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int min_kernel_version = 3;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  TestRollbackCheck(true /* is_consumer_device */,
+                    3 /* rollback_allowed_milestones */,
+                    false /* is_policy_loaded */);
+
+  // Verify that with rollback disabled that max_kernel_rollforward
+  // was set to logical infinity. This is the expected behavior for
+  // consumer devices and matches the existing behavior prior to the
+  // rollback features.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+// Verifies that a device with rollback enabled sets max_kernel_rollforward
+// in the TPM to prevent roll forward.
+TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int allowed_milestones = 4;
+  const int min_kernel_version = 3;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  TestRollbackCheck(false /* is_consumer_device */,
+                    allowed_milestones,
+                    true /* is_policy_loaded */);
+
+  // Verify that with rollback enabled that max_kernel_rollforward
+  // was set to the current minimum kernel key version. This has
+  // the effect of freezing roll forwards indefinitely. This will
+  // hold the rollback window open until a future change will
+  // be able to move this forward relative the configured window.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+// Verifies that a device with rollback disabled sets max_kernel_rollforward
+// in the TPM to logical infinity, to allow roll forward.
+TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int allowed_milestones = 0;
+  const int min_kernel_version = 3;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  TestRollbackCheck(false /* is_consumer_device */,
+                    allowed_milestones,
+                    true /* is_policy_loaded */);
+
+  // Verify that with rollback disabled that max_kernel_rollforward
+  // was set to logical infinity.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 }
 
 }  // namespace chromeos_update_engine

@@ -35,6 +35,7 @@
 #include <brillo/key_value_store.h>
 #include <expat.h>
 #include <metrics/metrics_library.h>
+#include <policy/libpolicy.h>
 
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/constants.h"
@@ -52,6 +53,7 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_manager::kRollforwardInfinity;
 using std::map;
 using std::string;
 using std::vector;
@@ -619,12 +621,14 @@ OmahaRequestAction::OmahaRequestAction(
     std::unique_ptr<HttpFetcher> http_fetcher,
     bool ping_only)
     : system_state_(system_state),
+      params_(system_state->request_params()),
       event_(event),
       http_fetcher_(std::move(http_fetcher)),
+      policy_provider_(std::make_unique<policy::PolicyProvider>()),
       ping_only_(ping_only),
       ping_active_days_(0),
       ping_roll_call_days_(0) {
-  params_ = system_state->request_params();
+  policy_provider_->Reload();
 }
 
 OmahaRequestAction::~OmahaRequestAction() {}
@@ -1194,6 +1198,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
               << "requested by Omaha.";
     payload_state->SetUsingP2PForSharing(false);
   }
+
+  // Set the max kernel key version based on whether rollback is allowed.
+  SetMaxKernelKeyVersionForRollback();
 
   // Update the payload state with the current response. The payload state
   // will automatically reset all stale state if this response is different
@@ -1797,6 +1804,64 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
             << connection_utils::StringForConnectionType(type)
             << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
   return is_allowed;
+}
+
+bool OmahaRequestAction::IsRollbackEnabled() const {
+  if (policy_provider_->IsConsumerDevice()) {
+    LOG(INFO) << "Rollback is not enabled for consumer devices.";
+    return false;
+  }
+
+  if (!policy_provider_->device_policy_is_loaded()) {
+    LOG(INFO) << "No device policy is loaded. Assuming rollback enabled.";
+    return true;
+  }
+
+  int allowed_milestones;
+  if (!policy_provider_->GetDevicePolicy().GetRollbackAllowedMilestones(
+          &allowed_milestones)) {
+    LOG(INFO) << "RollbackAllowedMilestones policy can't be read. "
+                 "Defaulting to rollback enabled.";
+    return true;
+  }
+
+  LOG(INFO) << "Rollback allows " << allowed_milestones << " milestones.";
+  return allowed_milestones > 0;
+}
+
+void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
+  bool max_rollforward_set = false;
+  if (IsRollbackEnabled()) {
+    // If rollback is enabled, set the max kernel key version to the current
+    // kernel key version. This has the effect of freezing kernel key roll
+    // forwards.
+    //
+    // TODO(zentaro): This behavior is temporary, and ensures that no kernel
+    // key roll forward happens until the server side components of rollback
+    // are implemented. Future changes will allow the Omaha server to return
+    // the kernel key version from max_rollback_versions in the past. At that
+    // point the max kernel key version will be set to that value, creating a
+    // sliding window of versions that can be rolled back to.
+    int min_kernel_version =
+        system_state_->hardware()->GetMinKernelKeyVersion();
+    LOG(INFO) << "Rollback is enabled. Setting max_kernel_rollforward to "
+              << min_kernel_version;
+    max_rollforward_set = system_state_->hardware()->SetMaxKernelKeyRollforward(
+        min_kernel_version);
+  } else {
+    // For devices that are not rollback enabled (ie. consumer devices), the
+    // max kernel key version is set to 0xfffffffe, which is logically
+    // infinity. This maintains the previous behavior that that kernel key
+    // versions roll forward each time they are incremented.
+    LOG(INFO) << "Rollback is disabled. Setting max_kernel_rollforward to "
+              << kRollforwardInfinity;
+    max_rollforward_set = system_state_->hardware()->SetMaxKernelKeyRollforward(
+        kRollforwardInfinity);
+  }
+
+  if (!max_rollforward_set) {
+    LOG(ERROR) << "Failed to set max_kernel_rollforward";
+  }
 }
 
 }  // namespace chromeos_update_engine

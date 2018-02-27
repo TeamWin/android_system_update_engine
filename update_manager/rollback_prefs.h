@@ -19,6 +19,10 @@
 
 namespace chromeos_update_manager {
 
+// Value used to represent that kernel key versions can always roll-forward.
+// This is the maximum value of a kernel key version.
+constexpr int kRollforwardInfinity = 0xfffffffe;
+
 // Whether the device should roll back to the target version, and if yes, which
 // type of rollback should it do. Matches chrome_device_policy.proto's
 // AutoUpdateSettingsProto::RollbackToTargetVersion.

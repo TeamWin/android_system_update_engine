@@ -39,6 +39,10 @@
 // The Omaha Request action makes a request to Omaha and can output
 // the response on the output ActionPipe.
 
+namespace policy {
+class PolicyProvider;
+}
+
 namespace chromeos_update_engine {
 
 // Encodes XML entities in a given string. Input must be ASCII-7 valid. If
@@ -172,6 +176,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool IsEvent() const { return event_.get() != nullptr; }
 
  private:
+  friend class OmahaRequestActionTest;
   FRIEND_TEST(OmahaRequestActionTest, GetInstallDateWhenNoPrefsNorOOBE);
   FRIEND_TEST(OmahaRequestActionTest,
               GetInstallDateWhenOOBECompletedWithInvalidDate);
@@ -303,6 +308,14 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool IsUpdateAllowedOverCurrentConnection(
       ErrorCode* error, const OmahaResponse& response) const;
 
+  // Returns true if rollback is enabled. Always returns false for consumer
+  // devices.
+  bool IsRollbackEnabled() const;
+
+  // Sets the appropriate max kernel key version based on whether rollback is
+  // enabled.
+  void SetMaxKernelKeyVersionForRollback() const;
+
   // Global system context.
   SystemState* system_state_;
 
@@ -314,6 +327,9 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
   // pointer to the HttpFetcher that does the http work
   std::unique_ptr<HttpFetcher> http_fetcher_;
+
+  // Used for fetching information about the device policy.
+  std::unique_ptr<policy::PolicyProvider> policy_provider_;
 
   // If true, only include the <ping> element in the request.
   bool ping_only_;
