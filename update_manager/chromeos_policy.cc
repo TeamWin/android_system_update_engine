@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <base/logging.h>
 #include <base/strings/string_util.h>
@@ -28,6 +29,11 @@
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/device_policy_provider.h"
+#include "update_engine/update_manager/enough_slots_ab_updates_policy_impl.h"
+#include "update_engine/update_manager/enterprise_device_policy_impl.h"
+#include "update_engine/update_manager/interactive_update_policy_impl.h"
+#include "update_engine/update_manager/official_build_check_policy_impl.h"
+#include "update_engine/update_manager/out_of_box_experience_policy_impl.h"
 #include "update_engine/update_manager/policy_utils.h"
 #include "update_engine/update_manager/shill_provider.h"
 
@@ -38,10 +44,10 @@ using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::InstallPlan;
 using std::get;
-using std::max;
 using std::min;
 using std::set;
 using std::string;
+using std::vector;
 
 namespace {
 
@@ -172,21 +178,16 @@ bool IsUrlUsable(const string& url, bool http_allowed) {
 
 namespace chromeos_update_manager {
 
-const int ChromeOSPolicy::kTimeoutInitialInterval =  7 * 60;
+const NextUpdateCheckPolicyConstants
+    ChromeOSPolicy::kNextUpdateCheckPolicyConstants = {
+        .timeout_initial_interval = 7 * 60,
+        .timeout_periodic_interval = 45 * 60,
+        .timeout_max_backoff_interval = 4 * 60 * 60,
+        .timeout_regular_fuzz = 10 * 60,
+        .attempt_backoff_max_interval_in_days = 16,
+        .attempt_backoff_fuzz_in_hours = 12,
+};
 
-// TODO(deymo): Split the update_manager policies for Brillo and ChromeOS and
-// make the update check periodic interval configurable.
-#ifdef __ANDROID__
-const int ChromeOSPolicy::kTimeoutPeriodicInterval = 5 * 60 * 60;
-const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 26 * 60 * 60;
-#else
-const int ChromeOSPolicy::kTimeoutPeriodicInterval = 45 * 60;
-const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 4 * 60 * 60;
-#endif  // __ANDROID__
-
-const int ChromeOSPolicy::kTimeoutRegularFuzz = 10 * 60;
-const int ChromeOSPolicy::kAttemptBackoffMaxIntervalInDays = 16;
-const int ChromeOSPolicy::kAttemptBackoffFuzzInHours = 12;
 const int ChromeOSPolicy::kMaxP2PAttempts = 10;
 const int ChromeOSPolicy::kMaxP2PAttemptsPeriodInSeconds = 5 * 24 * 60 * 60;
 
@@ -199,130 +200,53 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   result->target_version_prefix.clear();
   result->is_interactive = false;
 
-  DevicePolicyProvider* const dp_provider = state->device_policy_provider();
-  UpdaterProvider* const updater_provider = state->updater_provider();
-  SystemProvider* const system_provider = state->system_provider();
+  EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;
+  EnterpriseDevicePolicyImpl enterprise_device_policy;
+  OnlyUpdateOfficialBuildsPolicyImpl only_update_official_builds_policy;
+  InteractiveUpdatePolicyImpl interactive_update_policy;
+  OobePolicyImpl oobe_policy;
+  NextUpdateCheckTimePolicyImpl next_update_check_time_policy(
+      kNextUpdateCheckPolicyConstants);
 
-  // Do not perform any updates if booted from removable device. This decision
-  // is final.
-  const unsigned int* num_slots_p = ec->GetValue(
-      system_provider->var_num_slots());
-  if (!num_slots_p || *num_slots_p < 2) {
-    LOG(INFO) << "Not enough slots for A/B updates, disabling update checks.";
-    result->updates_enabled = false;
+  vector<Policy const*> policies_to_consult = {
+      // Do not perform any updates if there are not enough slots to do A/B
+      // updates.
+      &enough_slots_ab_updates_policy,
+
+      // Check to see if Enterprise-managed (has DevicePolicy) and/or
+      // Kiosk-mode.  If so, then defer to those settings.
+      &enterprise_device_policy,
+
+      // Check to see if an interactive update was requested.
+      &interactive_update_policy,
+
+      // Unofficial builds should not perform periodic update checks.
+      &only_update_official_builds_policy,
+
+      // If OOBE is enabled, wait until it is completed.
+      &oobe_policy,
+
+      // Ensure that periodic update checks are timed properly.
+      &next_update_check_time_policy,
+  };
+
+  // Now that the list of policy implementations, and the order to consult them,
+  // has been setup, consult the policies. If none of the policies make a
+  // definitive decisions about whether or not to check for updates, then allow
+  // the update check to happen.
+  EvalStatus status = ConsultPolicies(policies_to_consult,
+                                      &Policy::UpdateCheckAllowed,
+                                      ec,
+                                      state,
+                                      error,
+                                      result);
+  if (EvalStatus::kContinue != status) {
+    return status;
+  } else {
+    // It is time to check for an update.
+    LOG(INFO) << "Allowing update check.";
     return EvalStatus::kSucceeded;
   }
-
-  const bool* device_policy_is_loaded_p = ec->GetValue(
-      dp_provider->var_device_policy_is_loaded());
-  if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
-    bool kiosk_app_control_chrome_version = false;
-
-    // Check whether updates are disabled by policy.
-    const bool* update_disabled_p = ec->GetValue(
-        dp_provider->var_update_disabled());
-    if (update_disabled_p && *update_disabled_p) {
-      // Check whether allow kiosk app to control chrome version policy. This
-      // policy is only effective when AU is disabled by admin.
-      const bool* allow_kiosk_app_control_chrome_version_p = ec->GetValue(
-          dp_provider->var_allow_kiosk_app_control_chrome_version());
-      kiosk_app_control_chrome_version =
-          allow_kiosk_app_control_chrome_version_p &&
-          *allow_kiosk_app_control_chrome_version_p;
-      if (!kiosk_app_control_chrome_version) {
-        // No kiosk pin chrome version policy. AU is really disabled.
-        LOG(INFO) << "Updates disabled by policy, blocking update checks.";
-        return EvalStatus::kAskMeAgainLater;
-      }
-    }
-
-    if (kiosk_app_control_chrome_version) {
-      // Get the required platform version from Chrome.
-      const string* kiosk_required_platform_version_p =
-          ec->GetValue(system_provider->var_kiosk_required_platform_version());
-      if (!kiosk_required_platform_version_p) {
-        LOG(INFO) << "Kiosk app required platform version is not fetched, "
-                     "blocking update checks";
-        return EvalStatus::kAskMeAgainLater;
-      }
-
-      result->target_version_prefix = *kiosk_required_platform_version_p;
-      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set, "
-                << "target version is "
-                << (!kiosk_required_platform_version_p->empty()
-                        ? *kiosk_required_platform_version_p
-                        : std::string("latest"));
-    } else {
-      // Determine whether a target version prefix is dictated by policy.
-      const string* target_version_prefix_p = ec->GetValue(
-          dp_provider->var_target_version_prefix());
-      if (target_version_prefix_p)
-        result->target_version_prefix = *target_version_prefix_p;
-    }
-
-    // Determine whether a target channel is dictated by policy.
-    const bool* release_channel_delegated_p = ec->GetValue(
-        dp_provider->var_release_channel_delegated());
-    if (release_channel_delegated_p && !(*release_channel_delegated_p)) {
-      const string* release_channel_p = ec->GetValue(
-          dp_provider->var_release_channel());
-      if (release_channel_p)
-        result->target_channel = *release_channel_p;
-    }
-  }
-
-  // First, check to see if an interactive update was requested.
-  const UpdateRequestStatus* forced_update_requested_p = ec->GetValue(
-      updater_provider->var_forced_update_requested());
-  if (forced_update_requested_p &&
-      *forced_update_requested_p != UpdateRequestStatus::kNone) {
-    result->is_interactive =
-        (*forced_update_requested_p == UpdateRequestStatus::kInteractive);
-    LOG(INFO) << "Forced update signaled ("
-              << (result->is_interactive ?  "interactive" : "periodic")
-              << "), allowing update check.";
-    return EvalStatus::kSucceeded;
-  }
-
-  // The logic thereafter applies to periodic updates. Bear in mind that we
-  // should not return a final "no" if any of these criteria are not satisfied,
-  // because the system may still update due to an interactive update request.
-
-  // Unofficial builds should not perform periodic update checks.
-  const bool* is_official_build_p = ec->GetValue(
-      system_provider->var_is_official_build());
-  if (is_official_build_p && !(*is_official_build_p)) {
-    LOG(INFO) << "Unofficial build, blocking periodic update checks.";
-    return EvalStatus::kAskMeAgainLater;
-  }
-
-  // If OOBE is enabled, wait until it is completed.
-  const bool* is_oobe_enabled_p = ec->GetValue(
-      state->config_provider()->var_is_oobe_enabled());
-  if (is_oobe_enabled_p && *is_oobe_enabled_p) {
-    const bool* is_oobe_complete_p = ec->GetValue(
-        system_provider->var_is_oobe_complete());
-    if (is_oobe_complete_p && !(*is_oobe_complete_p)) {
-      LOG(INFO) << "OOBE not completed, blocking update checks.";
-      return EvalStatus::kAskMeAgainLater;
-    }
-  }
-
-  // Ensure that periodic update checks are timed properly.
-  Time next_update_check;
-  if (NextUpdateCheckTime(ec, state, error, &next_update_check) !=
-      EvalStatus::kSucceeded) {
-    return EvalStatus::kFailed;
-  }
-  if (!ec->IsWallclockTimeGreaterThan(next_update_check)) {
-    LOG(INFO) << "Periodic check interval not satisfied, blocking until "
-              << chromeos_update_engine::utils::ToString(next_update_check);
-    return EvalStatus::kAskMeAgainLater;
-  }
-
-  // It is time to check for an update.
-  LOG(INFO) << "Allowing update check.";
-  return EvalStatus::kSucceeded;
 }
 
 EvalStatus ChromeOSPolicy::UpdateCanBeApplied(EvaluationContext* ec,
@@ -626,92 +550,6 @@ EvalStatus ChromeOSPolicy::P2PEnabledChanged(EvaluationContext* ec,
   return status;
 }
 
-EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
-                                               State* state, string* error,
-                                               Time* next_update_check) const {
-  UpdaterProvider* const updater_provider = state->updater_provider();
-
-  // Don't check for updates too often. We limit the update checks to once every
-  // some interval. The interval is kTimeoutInitialInterval the first time and
-  // kTimeoutPeriodicInterval for the subsequent update checks. If the update
-  // check fails, we increase the interval between the update checks
-  // exponentially until kTimeoutMaxBackoffInterval. Finally, to avoid having
-  // many chromebooks running update checks at the exact same time, we add some
-  // fuzz to the interval.
-  const Time* updater_started_time =
-      ec->GetValue(updater_provider->var_updater_started_time());
-  POLICY_CHECK_VALUE_AND_FAIL(updater_started_time, error);
-
-  const Time* last_checked_time =
-      ec->GetValue(updater_provider->var_last_checked_time());
-
-  const uint64_t* seed = ec->GetValue(state->random_provider()->var_seed());
-  POLICY_CHECK_VALUE_AND_FAIL(seed, error);
-
-  PRNG prng(*seed);
-
-  // If this is the first attempt, compute and return an initial value.
-  if (!last_checked_time || *last_checked_time < *updater_started_time) {
-    *next_update_check = *updater_started_time + FuzzedInterval(
-        &prng, kTimeoutInitialInterval, kTimeoutRegularFuzz);
-    return EvalStatus::kSucceeded;
-  }
-
-  // Check whether the server is enforcing a poll interval; if not, this value
-  // will be zero.
-  const unsigned int* server_dictated_poll_interval = ec->GetValue(
-      updater_provider->var_server_dictated_poll_interval());
-  POLICY_CHECK_VALUE_AND_FAIL(server_dictated_poll_interval, error);
-
-  int interval = *server_dictated_poll_interval;
-  int fuzz = 0;
-
-  // If no poll interval was dictated by server compute a back-off period,
-  // starting from a predetermined base periodic interval and increasing
-  // exponentially by the number of consecutive failed attempts.
-  if (interval == 0) {
-    const unsigned int* consecutive_failed_update_checks = ec->GetValue(
-        updater_provider->var_consecutive_failed_update_checks());
-    POLICY_CHECK_VALUE_AND_FAIL(consecutive_failed_update_checks, error);
-
-    interval = kTimeoutPeriodicInterval;
-    unsigned int num_failures = *consecutive_failed_update_checks;
-    while (interval < kTimeoutMaxBackoffInterval && num_failures) {
-      interval *= 2;
-      num_failures--;
-    }
-  }
-
-  // We cannot back off longer than the predetermined maximum interval.
-  if (interval > kTimeoutMaxBackoffInterval)
-    interval = kTimeoutMaxBackoffInterval;
-
-  // We cannot back off shorter than the predetermined periodic interval. Also,
-  // in this case set the fuzz to a predetermined regular value.
-  if (interval <= kTimeoutPeriodicInterval) {
-    interval = kTimeoutPeriodicInterval;
-    fuzz = kTimeoutRegularFuzz;
-  }
-
-  // If not otherwise determined, defer to a fuzz of +/-(interval / 2).
-  if (fuzz == 0)
-    fuzz = interval;
-
-  *next_update_check = *last_checked_time + FuzzedInterval(
-      &prng, interval, fuzz);
-  return EvalStatus::kSucceeded;
-}
-
-TimeDelta ChromeOSPolicy::FuzzedInterval(PRNG* prng, int interval, int fuzz) {
-  DCHECK_GE(interval, 0);
-  DCHECK_GE(fuzz, 0);
-  int half_fuzz = fuzz / 2;
-  // This guarantees the output interval is non negative.
-  int interval_min = max(interval - half_fuzz, 0);
-  int interval_max = interval + half_fuzz;
-  return TimeDelta::FromSeconds(prng->RandMinMax(interval_min, interval_max));
-}
-
 EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
     EvaluationContext* ec, State* state, string* error,
     UpdateBackoffAndDownloadUrlResult* result,
@@ -883,11 +721,13 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
     PRNG prng(*seed);
     int exp = min(update_state.num_failures,
                        static_cast<int>(sizeof(int)) * 8 - 2);
-    TimeDelta backoff_interval = TimeDelta::FromDays(
-        min(1 << exp, kAttemptBackoffMaxIntervalInDays));
-    TimeDelta backoff_fuzz = TimeDelta::FromHours(kAttemptBackoffFuzzInHours);
-    TimeDelta wait_period = FuzzedInterval(&prng, backoff_interval.InSeconds(),
-                                           backoff_fuzz.InSeconds());
+    TimeDelta backoff_interval = TimeDelta::FromDays(min(
+        1 << exp,
+        kNextUpdateCheckPolicyConstants.attempt_backoff_max_interval_in_days));
+    TimeDelta backoff_fuzz = TimeDelta::FromHours(
+        kNextUpdateCheckPolicyConstants.attempt_backoff_fuzz_in_hours);
+    TimeDelta wait_period = NextUpdateCheckTimePolicyImpl::FuzzedInterval(
+        &prng, backoff_interval.InSeconds(), backoff_fuzz.InSeconds());
     backoff_expiry = err_time + wait_period;
 
     // If the newly computed backoff already expired, nullify it.
