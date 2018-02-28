@@ -20,10 +20,9 @@
 #include <string>
 
 #include <base/time/time.h>
-#include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#include "update_engine/update_manager/policy.h"
-#include "update_engine/update_manager/prng.h"
+#include "update_engine/update_manager/next_update_check_policy_impl.h"
+#include "update_engine/update_manager/policy_utils.h"
 
 namespace chromeos_update_manager {
 
@@ -98,12 +97,6 @@ class ChromeOSPolicy : public Policy {
 
  private:
   friend class UmChromeOSPolicyTest;
-  FRIEND_TEST(UmChromeOSPolicyTest,
-              FirstCheckIsAtMostInitialIntervalAfterStart);
-  FRIEND_TEST(UmChromeOSPolicyTest, RecurringCheckBaseIntervalAndFuzz);
-  FRIEND_TEST(UmChromeOSPolicyTest, RecurringCheckBackoffIntervalAndFuzz);
-  FRIEND_TEST(UmChromeOSPolicyTest, RecurringCheckServerDictatedPollInterval);
-  FRIEND_TEST(UmChromeOSPolicyTest, ExponentialBackoffIsCapped);
   FRIEND_TEST(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout);
   FRIEND_TEST(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE);
   FRIEND_TEST(UmChromeOSPolicyTest,
@@ -125,37 +118,12 @@ class ChromeOSPolicy : public Policy {
   // Auxiliary constant (zero by default).
   const base::TimeDelta kZeroInterval;
 
-  // Default update check timeout interval/fuzz values used to compute the
-  // NextUpdateCheckTime(), in seconds. Actual fuzz is within +/- half of the
-  // indicated value.
-  static const int kTimeoutInitialInterval;
-  static const int kTimeoutPeriodicInterval;
-  static const int kTimeoutMaxBackoffInterval;
-  static const int kTimeoutRegularFuzz;
-
-  // Maximum update attempt backoff interval and fuzz.
-  static const int kAttemptBackoffMaxIntervalInDays;
-  static const int kAttemptBackoffFuzzInHours;
+  static const NextUpdateCheckPolicyConstants kNextUpdateCheckPolicyConstants;
 
   // Maximum number of times we'll allow using P2P for the same update payload.
   static const int kMaxP2PAttempts;
   // Maximum period of time allowed for download a payload via P2P, in seconds.
   static const int kMaxP2PAttemptsPeriodInSeconds;
-
-  // A private policy implementation returning the wallclock timestamp when
-  // the next update check should happen.
-  // TODO(garnold) We should probably change that to infer a monotonic
-  // timestamp, which will make the update check intervals more resilient to
-  // clock skews. Might require switching some of the variables exported by the
-  // UpdaterProvider to report monotonic time, as well.
-  EvalStatus NextUpdateCheckTime(EvaluationContext* ec, State* state,
-                                 std::string* error,
-                                 base::Time* next_update_check) const;
-
-  // Returns a TimeDelta based on the provided |interval| seconds +/- half
-  // |fuzz| seconds. The return value is guaranteed to be a non-negative
-  // TimeDelta.
-  static base::TimeDelta FuzzedInterval(PRNG* prng, int interval, int fuzz);
 
   // A private policy for determining backoff and the download URL to use.
   // Within |update_state|, |backoff_expiry| and |is_backoff_disabled| are used
