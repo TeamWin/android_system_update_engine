@@ -16,72 +16,35 @@
 
 #include "update_engine/update_manager/chromeos_policy.h"
 
+#include <memory>
 #include <set>
-#include <string>
-#include <tuple>
-#include <vector>
 
-#include <base/time/time.h>
-#include <brillo/message_loops/fake_message_loop.h>
-#include <gtest/gtest.h>
-
-#include "update_engine/common/fake_clock.h"
-#include "update_engine/update_manager/evaluation_context.h"
-#include "update_engine/update_manager/fake_state.h"
-#include "update_engine/update_manager/umtest_utils.h"
+#include "update_engine/update_manager/next_update_check_policy_impl.h"
+#include "update_engine/update_manager/policy_test_utils.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ConnectionTethering;
 using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::ErrorCode;
-using chromeos_update_engine::FakeClock;
 using std::set;
 using std::string;
-using std::tuple;
-using std::vector;
 
 namespace chromeos_update_manager {
 
-class UmChromeOSPolicyTest : public ::testing::Test {
+class UmChromeOSPolicyTest : public UmPolicyTestBase {
  protected:
+  UmChromeOSPolicyTest() : UmPolicyTestBase() {
+    policy_ = std::make_unique<ChromeOSPolicy>();
+  }
+
   void SetUp() override {
-    loop_.SetAsCurrent();
-    SetUpDefaultClock();
-    eval_ctx_ = new EvaluationContext(&fake_clock_, TimeDelta::FromSeconds(5));
-    SetUpDefaultState();
+    UmPolicyTestBase::SetUp();
     SetUpDefaultDevicePolicy();
   }
 
-  void TearDown() override {
-    EXPECT_FALSE(loop_.PendingTasks());
-  }
-
-  // Sets the clock to fixed values.
-  void SetUpDefaultClock() {
-    fake_clock_.SetMonotonicTime(Time::FromInternalValue(12345678L));
-    fake_clock_.SetWallclockTime(Time::FromInternalValue(12345678901234L));
-  }
-
-  void SetUpDefaultState() {
-    fake_state_.updater_provider()->var_updater_started_time()->reset(
-        new Time(fake_clock_.GetWallclockTime()));
-    fake_state_.updater_provider()->var_last_checked_time()->reset(
-        new Time(fake_clock_.GetWallclockTime()));
-    fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-        reset(new unsigned int{0});
-    fake_state_.updater_provider()->var_server_dictated_poll_interval()->
-        reset(new unsigned int{0});
-    fake_state_.updater_provider()->var_forced_update_requested()->
-        reset(new UpdateRequestStatus{UpdateRequestStatus::kNone});
-
-    fake_state_.random_provider()->var_seed()->reset(
-        new uint64_t(4));  // chosen by fair dice roll.
-                           // guaranteed to be random.
-
-    // No device policy loaded by default.
-    fake_state_.device_policy_provider()->var_device_policy_is_loaded()->reset(
-        new bool(false));
+  void SetUpDefaultState() override {
+    UmPolicyTestBase::SetUpDefaultState();
 
     // OOBE is enabled by default.
     fake_state_.config_provider()->var_is_oobe_enabled()->reset(
@@ -122,14 +85,17 @@ class UmChromeOSPolicyTest : public ::testing::Test {
         reset(new bool(true));
   }
 
-  // Configures the UpdateCheckAllowed policy to return a desired value by
+  // Configures the policy to return a desired value from UpdateCheckAllowed by
   // faking the current wall clock time as needed. Restores the default state.
   // This is used when testing policies that depend on this one.
-  void SetUpdateCheckAllowed(bool allow_check) {
+  //
+  // Note that the default implementation relies on NextUpdateCheckPolicyImpl to
+  // set the FakeClock to the appropriate time.
+  virtual void SetUpdateCheckAllowed(bool allow_check) {
     Time next_update_check;
-    ExpectPolicyStatus(EvalStatus::kSucceeded,
-                       &ChromeOSPolicy::NextUpdateCheckTime,
-                       &next_update_check);
+    CallMethodWithContext(&NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime,
+                          &next_update_check,
+                          ChromeOSPolicy::kNextUpdateCheckPolicyConstants);
     SetUpDefaultState();
     SetUpDefaultDevicePolicy();
     Time curr_time = next_update_check;
@@ -139,177 +105,7 @@ class UmChromeOSPolicyTest : public ::testing::Test {
       curr_time -= TimeDelta::FromSeconds(1);
     fake_clock_.SetWallclockTime(curr_time);
   }
-
-  // Returns a default UpdateState structure:
-  UpdateState GetDefaultUpdateState(TimeDelta first_seen_period) {
-    Time first_seen_time = fake_clock_.GetWallclockTime() - first_seen_period;
-    UpdateState update_state = UpdateState();
-
-    // This is a non-interactive check returning a delta payload, seen for the
-    // first time (|first_seen_period| ago). Clearly, there were no failed
-    // attempts so far.
-    update_state.is_interactive = false;
-    update_state.is_delta_payload = false;
-    update_state.first_seen = first_seen_time;
-    update_state.num_checks = 1;
-    update_state.num_failures = 0;
-    update_state.failures_last_updated = Time();  // Needs to be zero.
-    // There's a single HTTP download URL with a maximum of 10 retries.
-    update_state.download_urls = vector<string>{"http://fake/url/"};
-    update_state.download_errors_max = 10;
-    // Download was never attempted.
-    update_state.last_download_url_idx = -1;
-    update_state.last_download_url_num_errors = 0;
-    // There were no download errors.
-    update_state.download_errors = vector<tuple<int, ErrorCode, Time>>();
-    // P2P is not disabled by Omaha.
-    update_state.p2p_downloading_disabled = false;
-    update_state.p2p_sharing_disabled = false;
-    // P2P was not attempted.
-    update_state.p2p_num_attempts = 0;
-    update_state.p2p_first_attempted = Time();
-    // No active backoff period, backoff is not disabled by Omaha.
-    update_state.backoff_expiry = Time();
-    update_state.is_backoff_disabled = false;
-    // There is no active scattering wait period (max 7 days allowed) nor check
-    // threshold (none allowed).
-    update_state.scatter_wait_period = TimeDelta();
-    update_state.scatter_check_threshold = 0;
-    update_state.scatter_wait_period_max = TimeDelta::FromDays(7);
-    update_state.scatter_check_threshold_min = 0;
-    update_state.scatter_check_threshold_max = 0;
-
-    return update_state;
-  }
-
-  // Runs the passed |policy_method| policy and expects it to return the
-  // |expected| return value.
-  template<typename T, typename R, typename... Args>
-  void ExpectPolicyStatus(
-      EvalStatus expected,
-      T policy_method,
-      R* result, Args... args) {
-    string error = "<None>";
-    eval_ctx_->ResetEvaluation();
-    EXPECT_EQ(expected,
-              (policy_.*policy_method)(eval_ctx_.get(), &fake_state_, &error,
-                                       result, args...))
-        << "Returned error: " << error
-        << "\nEvaluation context: " << eval_ctx_->DumpContext();
-  }
-
-  brillo::FakeMessageLoop loop_{nullptr};
-  FakeClock fake_clock_;
-  FakeState fake_state_;
-  scoped_refptr<EvaluationContext> eval_ctx_;
-  ChromeOSPolicy policy_;  // ChromeOSPolicy under test.
 };
-
-TEST_F(UmChromeOSPolicyTest, FirstCheckIsAtMostInitialIntervalAfterStart) {
-  Time next_update_check;
-
-  // Set the last update time so it'll appear as if this is a first update check
-  // in the lifetime of the current updater.
-  fake_state_.updater_provider()->var_last_checked_time()->reset(
-      new Time(fake_clock_.GetWallclockTime() - TimeDelta::FromMinutes(10)));
-
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
-
-  EXPECT_LE(fake_clock_.GetWallclockTime(), next_update_check);
-  EXPECT_GE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          ChromeOSPolicy::kTimeoutInitialInterval +
-          ChromeOSPolicy::kTimeoutRegularFuzz / 2),
-      next_update_check);
-}
-
-TEST_F(UmChromeOSPolicyTest, RecurringCheckBaseIntervalAndFuzz) {
-  // Ensure that we're using the correct interval (kPeriodicInterval) and fuzz
-  // (kTimeoutRegularFuzz) as base values for period updates.
-  Time next_update_check;
-
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
-
-  EXPECT_LE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          ChromeOSPolicy::kTimeoutPeriodicInterval -
-          ChromeOSPolicy::kTimeoutRegularFuzz / 2),
-      next_update_check);
-  EXPECT_GE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          ChromeOSPolicy::kTimeoutPeriodicInterval +
-          ChromeOSPolicy::kTimeoutRegularFuzz / 2),
-      next_update_check);
-}
-
-TEST_F(UmChromeOSPolicyTest, RecurringCheckBackoffIntervalAndFuzz) {
-  // Ensure that we're properly backing off and fuzzing in the presence of
-  // failed updates attempts.
-  Time next_update_check;
-
-  fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-      reset(new unsigned int{2});
-
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
-
-  int expected_interval = ChromeOSPolicy::kTimeoutPeriodicInterval * 4;
-  EXPECT_LE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          expected_interval - expected_interval / 2),
-      next_update_check);
-  EXPECT_GE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          expected_interval + expected_interval / 2),
-      next_update_check);
-}
-
-TEST_F(UmChromeOSPolicyTest, RecurringCheckServerDictatedPollInterval) {
-  // Policy honors the server provided check poll interval.
-  Time next_update_check;
-
-  const unsigned int kInterval = ChromeOSPolicy::kTimeoutPeriodicInterval * 4;
-  fake_state_.updater_provider()->var_server_dictated_poll_interval()->
-      reset(new unsigned int{kInterval});
-  // We should not be backing off in this case.
-  fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-      reset(new unsigned int{2});
-
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
-
-  EXPECT_LE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          kInterval - kInterval / 2),
-      next_update_check);
-  EXPECT_GE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          kInterval + kInterval / 2),
-      next_update_check);
-}
-
-TEST_F(UmChromeOSPolicyTest, ExponentialBackoffIsCapped) {
-  Time next_update_check;
-
-  fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-      reset(new unsigned int{100});
-
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
-
-  EXPECT_LE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          ChromeOSPolicy::kTimeoutMaxBackoffInterval -
-          ChromeOSPolicy::kTimeoutMaxBackoffInterval / 2),
-      next_update_check);
-  EXPECT_GE(
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-          ChromeOSPolicy::kTimeoutMaxBackoffInterval +
-          ChromeOSPolicy::kTimeoutMaxBackoffInterval /2),
-      next_update_check);
-}
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
   // We get the next update_check timestamp from the policy's private method
@@ -321,8 +117,9 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
 
   fake_state_.updater_provider()->var_last_checked_time()->reset(
       new Time(last_checked_time));
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
+  CallMethodWithContext(&NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime,
+                        &next_update_check,
+                        ChromeOSPolicy::kNextUpdateCheckPolicyConstants);
 
   UpdateCheckParams result;
 
@@ -356,8 +153,9 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
 
   fake_state_.updater_provider()->var_last_checked_time()->reset(
       new Time(last_checked_time));
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
+  CallMethodWithContext(&NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime,
+                        &next_update_check,
+                        ChromeOSPolicy::kNextUpdateCheckPolicyConstants);
 
   SetUpDefaultClock();
   SetUpDefaultState();
