@@ -47,12 +47,17 @@ bool DBusUpdateEngineService::AttemptUpdateWithFlags(
     int32_t in_flags_as_int) {
   update_engine::AttemptUpdateFlags flags =
       static_cast<update_engine::AttemptUpdateFlags>(in_flags_as_int);
-  bool interactive = !(flags &
-      update_engine::kAttemptUpdateFlagNonInteractive);
-
+  bool interactive = !(flags & update_engine::kAttemptUpdateFlagNonInteractive);
+  bool result;
   return common_->AttemptUpdate(
-      error, in_app_version, in_omaha_url,
-      interactive ? 0 : UpdateEngineService::kAttemptUpdateFlagNonInteractive);
+             error,
+             in_app_version,
+             in_omaha_url,
+             interactive
+                 ? 0
+                 : update_engine::UpdateAttemptFlags::kFlagNonInteractive,
+             &result) &&
+         result;
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,
@@ -75,12 +80,16 @@ bool DBusUpdateEngineService::GetStatus(ErrorPtr* error,
                                         string* out_current_operation,
                                         string* out_new_version,
                                         int64_t* out_new_size) {
-  return common_->GetStatus(error,
-                            out_last_checked_time,
-                            out_progress,
-                            out_current_operation,
-                            out_new_version,
-                            out_new_size);
+  UpdateEngineStatus status;
+  if (!common_->GetStatus(error, &status)) {
+    return false;
+  }
+  *out_last_checked_time = status.last_checked_time;
+  *out_progress = status.progress;
+  *out_current_operation = UpdateStatusToString(status.status);
+  *out_new_version = status.new_version;
+  *out_new_size = status.new_size_bytes;
+  return true;
 }
 
 bool DBusUpdateEngineService::RebootIfNeeded(ErrorPtr* error) {
@@ -179,7 +188,7 @@ void UpdateEngineAdaptor::SendStatusUpdate(
                          update_engine_status.progress,
                          UpdateStatusToString(update_engine_status.status),
                          update_engine_status.new_version,
-                         update_engine_status.new_size);
+                         update_engine_status.new_size_bytes);
 }
 
 }  // namespace chromeos_update_engine
