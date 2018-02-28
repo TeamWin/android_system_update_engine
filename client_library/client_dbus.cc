@@ -49,7 +49,9 @@ bool DBusUpdateEngineClient::AttemptUpdate(const string& in_app_version,
   return proxy_->AttemptUpdateWithFlags(
       in_app_version,
       in_omaha_url,
-      (at_user_request) ? 0 : kAttemptUpdateFlagNonInteractive,
+      (at_user_request)
+          ? 0
+          : update_engine::UpdateAttemptFlags::kFlagNonInteractive,
       nullptr);
 }
 
