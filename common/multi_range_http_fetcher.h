@@ -67,7 +67,7 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
   }
 
   // HttpFetcher overrides.
-  void SetOffset(off_t offset) override {}  // for now, doesn't support this
+  void SetOffset(off_t offset) override;
 
   void SetLength(size_t length) override {}  // unsupported
   void UnsetLength() override {}
