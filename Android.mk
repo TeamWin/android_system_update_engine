@@ -979,9 +979,11 @@ LOCAL_SRC_FILES += \
     update_manager/boxed_value_unittest.cc \
     update_manager/chromeos_policy.cc \
     update_manager/chromeos_policy_unittest.cc \
+    update_manager/enterprise_device_policy_impl.cc \
     update_manager/evaluation_context_unittest.cc \
     update_manager/generic_variables_unittest.cc \
     update_manager/next_update_check_policy_impl_unittest.cc \
+    update_manager/out_of_box_experience_policy_impl.cc \
     update_manager/policy_test_utils.cc \
     update_manager/prng_unittest.cc \
     update_manager/real_device_policy_provider_unittest.cc \

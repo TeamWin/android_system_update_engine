@@ -188,4 +188,27 @@ std::string MultiRangeHttpFetcher::Range::ToString() const {
   return range_str;
 }
 
+void MultiRangeHttpFetcher::SetOffset(off_t offset) {
+  current_index_ = 0;
+  for (const Range& range : ranges_) {
+    if (!range.HasLength() || static_cast<size_t>(offset) < range.length()) {
+      bytes_received_this_range_ = offset;
+
+      base_fetcher_->SetOffset(range.offset() + offset);
+      if (range.HasLength())
+        base_fetcher_->SetLength(range.length());
+      else
+        base_fetcher_->UnsetLength();
+      if (delegate_)
+        delegate_->SeekToOffset(range.offset() + offset);
+      return;
+    }
+    current_index_++;
+    offset -= range.length();
+  }
+  if (offset > 0) {
+    LOG(ERROR) << "Offset too large.";
+  }
+}
+
 }  // namespace chromeos_update_engine
