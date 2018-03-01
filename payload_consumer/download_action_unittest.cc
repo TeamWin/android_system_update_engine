@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <base/bind.h>
 #include <base/files/file_path.h>
@@ -603,7 +604,7 @@ class P2PDownloadActionTest : public testing::Test {
   // Callback used in StartDownload() method.
   void StartProcessorInRunLoopForP2P() {
     processor_.StartProcessing();
-    http_fetcher_->SetOffset(start_at_offset_);
+    download_action_->http_fetcher()->SetOffset(start_at_offset_);
   }
 
   // The requested starting offset passed to SetupDownload().
