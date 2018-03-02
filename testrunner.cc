@@ -16,18 +16,14 @@
 
 // based on pam_google_testrunner.cc
 
-#include <string>
-
 #include <xz.h>
 
 #include <base/at_exit.h>
 #include <base/command_line.h>
-#include <base/environment.h>
 #include <brillo/test_helpers.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/terminator.h"
-#include "update_engine/common/test_utils.h"
 #include "update_engine/payload_generator/xz.h"
 
 int main(int argc, char **argv) {
@@ -44,15 +40,6 @@ int main(int argc, char **argv) {
   // the default exit status of 1.  Corresponding reverts are necessary in
   // terminator_unittest.cc.
   chromeos_update_engine::Terminator::Init(2);
-  // In Android bsdiff is located in update_engine_unittests, add it to PATH.
-#ifdef __ANDROID__
-  std::unique_ptr<base::Environment> env(base::Environment::Create());
-  std::string path_env;
-  CHECK(env->GetVar("PATH", &path_env));
-  path_env +=
-      ":" + chromeos_update_engine::test_utils::GetBuildArtifactsPath().value();
-  CHECK(env->SetVar("PATH", path_env));
-#endif
   LOG(INFO) << "parsing command line arguments";
   base::CommandLine::Init(argc, argv);
   LOG(INFO) << "initializing gtest";
