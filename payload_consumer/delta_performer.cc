@@ -1220,26 +1220,26 @@ namespace {
 class PuffinExtentStream : public puffin::StreamInterface {
  public:
   // Constructor for creating a stream for reading from an |ExtentReader|.
-  PuffinExtentStream(std::unique_ptr<ExtentReader> reader, size_t size)
+  PuffinExtentStream(std::unique_ptr<ExtentReader> reader, uint64_t size)
       : PuffinExtentStream(std::move(reader), nullptr, size) {}
 
   // Constructor for creating a stream for writing to an |ExtentWriter|.
-  PuffinExtentStream(std::unique_ptr<ExtentWriter> writer, size_t size)
+  PuffinExtentStream(std::unique_ptr<ExtentWriter> writer, uint64_t size)
       : PuffinExtentStream(nullptr, std::move(writer), size) {}
 
   ~PuffinExtentStream() override = default;
 
-  bool GetSize(size_t* size) const override {
+  bool GetSize(uint64_t* size) const override {
     *size = size_;
     return true;
   }
 
-  bool GetOffset(size_t* offset) const override {
+  bool GetOffset(uint64_t* offset) const override {
     *offset = offset_;
     return true;
   }
 
-  bool Seek(size_t offset) override {
+  bool Seek(uint64_t offset) override {
     if (is_read_) {
       TEST_AND_RETURN_FALSE(reader_->Seek(offset));
       offset_ = offset;
@@ -1275,7 +1275,7 @@ class PuffinExtentStream : public puffin::StreamInterface {
  private:
   PuffinExtentStream(std::unique_ptr<ExtentReader> reader,
                      std::unique_ptr<ExtentWriter> writer,
-                     size_t size)
+                     uint64_t size)
       : reader_(std::move(reader)),
         writer_(std::move(writer)),
         size_(size),
