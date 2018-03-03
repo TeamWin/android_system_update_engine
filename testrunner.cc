@@ -44,6 +44,8 @@ int main(int argc, char **argv) {
   base::CommandLine::Init(argc, argv);
   LOG(INFO) << "initializing gtest";
   SetUpTests(&argc, argv, true);
+  // Logging to string is not thread safe.
+  brillo::LogToString(false);
   LOG(INFO) << "running unit tests";
   int test_result = RUN_ALL_TESTS();
   LOG(INFO) << "unittest return value: " << test_result;
