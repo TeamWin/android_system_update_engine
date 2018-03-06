@@ -67,9 +67,7 @@ Time FixedTime() {
   now_exp.minute = 5;
   now_exp.second = 33;
   now_exp.millisecond = 675;
-  Time time;
-  ignore_result(Time::FromLocalExploded(now_exp, &time));
-  return time;
+  return Time::FromLocalExploded(now_exp);
 }
 
 }  // namespace

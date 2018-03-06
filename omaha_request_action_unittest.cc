@@ -2109,7 +2109,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_update_check_count_wait_enabled(false);
 
   Time arbitrary_date;
-  ASSERT_TRUE(Time::FromString("6/4/1989", &arbitrary_date));
+  Time::FromString("6/4/1989", &arbitrary_date);
   fake_system_state_.fake_clock()->SetWallclockTime(arbitrary_date);
   ASSERT_FALSE(TestUpdateCheck(&params,
                                fake_update_response_.GetUpdateResponse(),
@@ -2150,8 +2150,8 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   params.set_update_check_count_wait_enabled(false);
 
   Time t1, t2;
-  ASSERT_TRUE(Time::FromString("1/1/2012", &t1));
-  ASSERT_TRUE(Time::FromString("1/3/2012", &t2));
+  Time::FromString("1/1/2012", &t1);
+  Time::FromString("1/3/2012", &t2);
   ASSERT_TRUE(
       fake_prefs_.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
   fake_system_state_.fake_clock()->SetWallclockTime(t2);

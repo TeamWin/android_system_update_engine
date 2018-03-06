@@ -303,9 +303,8 @@ TEST(UtilsTest, TimeFromStructTimespecTest) {
   base::Time::Exploded exploded = (base::Time::Exploded) {
     .year = 2001, .month = 9, .day_of_week = 0, .day_of_month = 9,
     .hour = 1, .minute = 46, .second = 40, .millisecond = 42};
-  base::Time time;
-  EXPECT_TRUE(base::Time::FromUTCExploded(exploded, &time));
-  EXPECT_EQ(time, utils::TimeFromStructTimespec(&ts));
+  EXPECT_EQ(base::Time::FromUTCExploded(exploded),
+            utils::TimeFromStructTimespec(&ts));
 }
 
 TEST(UtilsTest, DecodeAndStoreBase64String) {

@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 
 #include <base/bind.h>
+#include <brillo/bind_lambda.h>
 #include <brillo/message_loops/fake_message_loop.h>
 
 using std::deque;
