@@ -813,11 +813,13 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
+#ifdef __ANDROID__
   if (status_ != UpdateStatus::UPDATED_NEED_REBOOT) {
     LOG(INFO) << "Reboot requested, but status is "
               << UpdateStatusToString(status_) << ", so not rebooting.";
     return false;
   }
+#endif  // __ANDROID__
 
   if (system_state_->power_manager()->RequestReboot())
     return true;
