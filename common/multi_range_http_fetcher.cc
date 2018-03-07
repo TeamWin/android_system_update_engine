@@ -101,6 +101,12 @@ void MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
   LOG_IF(WARNING, next_size <= 0) << "Asked to write length <= 0";
   if (delegate_) {
     delegate_->ReceivedBytes(this, bytes, next_size);
+    // If the transfer was already terminated by |delegate_|, return immediately
+    // to avoid calling TerminateTransfer() again.
+    if (!base_fetcher_active_) {
+      LOG(INFO) << "Delegate has terminated the transfer.";
+      return;
+    }
   }
   bytes_received_this_range_ += length;
   if (range.HasLength() && bytes_received_this_range_ >= range.length()) {
