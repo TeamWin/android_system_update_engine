@@ -629,7 +629,6 @@ bool GenerateBestFullOperation(const brillo::Blob& new_data,
 
   bool out_blob_set = false;
 
-#if 0  // Temporarily disable XZ operations until crbug.com/806613 is fixed.
   // Try compressing |new_data| with xz first.
   if (version.OperationAllowed(InstallOperation::REPLACE_XZ)) {
     brillo::Blob new_data_xz;
@@ -639,7 +638,6 @@ bool GenerateBestFullOperation(const brillo::Blob& new_data,
       out_blob_set = true;
     }
   }
-#endif
 
   // Try compressing it with bzip2.
   if (version.OperationAllowed(InstallOperation::REPLACE_BZ)) {
