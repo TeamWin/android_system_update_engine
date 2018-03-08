@@ -1231,13 +1231,14 @@ class PayloadChecker(object):
         raise error.PayloadError('Unknown signature version (%d).' %
                                  sig.version)
 
-  def Run(self, pubkey_file_name=None, metadata_sig_file=None,
+  def Run(self, pubkey_file_name=None, metadata_sig_file=None, metadata_size=0,
           rootfs_part_size=0, kernel_part_size=0, report_out_file=None):
     """Checker entry point, invoking all checks.
 
     Args:
       pubkey_file_name: Public key used for signature verification.
       metadata_sig_file: Metadata signature, if verification is desired.
+      metadata_size: metadata size, if verification is desired
       rootfs_part_size: The size of rootfs partitions in bytes (default: infer
                         based on payload type and version).
       kernel_part_size: The size of kernel partitions in bytes (default: use
@@ -1258,6 +1259,12 @@ class PayloadChecker(object):
     self.payload.ResetFile()
 
     try:
+      # Check metadata_size (if provided).
+      if metadata_size and self.payload.data_offset != metadata_size:
+        raise error.PayloadError('Invalid payload metadata size in payload(%d) '
+                                 'vs given(%d)' % (self.payload.data_offset,
+                                                   metadata_size))
+
       # Check metadata signature (if provided).
       if metadata_sig_file:
         metadata_sig = base64.b64decode(metadata_sig_file.read())

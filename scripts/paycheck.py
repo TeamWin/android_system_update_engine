@@ -89,6 +89,9 @@ def ParseArguments(argv):
                                 'validation'))
   check_args.add_argument('-m', '--meta-sig', metavar='FILE',
                           help='verify metadata against its signature')
+  check_args.add_argument('-s', '--metadata-size', metavar='NUM', default=0,
+                          help='the metadata size to verify with the one in'
+                          ' payload')
   check_args.add_argument('-p', '--root-part-size', metavar='NUM',
                           default=0, type=int,
                           help='override rootfs partition size auto-inference')
@@ -128,7 +131,8 @@ def ParseArguments(argv):
   args.check = (args.check or args.report or args.assert_type or
                 args.block_size or args.allow_unhashed or
                 args.disabled_tests or args.meta_sig or args.key or
-                args.root_part_size or args.kern_part_size)
+                args.root_part_size or args.kern_part_size or
+                args.metadata_size)
 
   # Check the arguments, enforce payload type accordingly.
   if (args.src_kern is None) != (args.src_root is None):
@@ -202,6 +206,7 @@ def main(argv):
           payload.Check(
               pubkey_file_name=args.key,
               metadata_sig_file=metadata_sig_file,
+              metadata_size=int(args.metadata_size),
               report_out_file=report_file,
               assert_type=args.assert_type,
               block_size=int(args.block_size),

@@ -273,14 +273,15 @@ class Payload(object):
     return not self.IsDelta()
 
   def Check(self, pubkey_file_name=None, metadata_sig_file=None,
-            report_out_file=None, assert_type=None, block_size=0,
-            rootfs_part_size=0, kernel_part_size=0, allow_unhashed=False,
-            disabled_tests=()):
+            metadata_size=0, report_out_file=None, assert_type=None,
+            block_size=0, rootfs_part_size=0, kernel_part_size=0,
+            allow_unhashed=False, disabled_tests=()):
     """Checks the payload integrity.
 
     Args:
       pubkey_file_name: public key used for signature verification
       metadata_sig_file: metadata signature, if verification is desired
+      metadata_size: metadata size, if verification is desired
       report_out_file: file object to dump the report to
       assert_type: assert that payload is either 'full' or 'delta'
       block_size: expected filesystem / payload block size
@@ -300,6 +301,7 @@ class Payload(object):
         allow_unhashed=allow_unhashed, disabled_tests=disabled_tests)
     helper.Run(pubkey_file_name=pubkey_file_name,
                metadata_sig_file=metadata_sig_file,
+               metadata_size=metadata_size,
                rootfs_part_size=rootfs_part_size,
                kernel_part_size=kernel_part_size,
                report_out_file=report_out_file)
