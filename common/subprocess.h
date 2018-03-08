@@ -104,6 +104,11 @@ class Subprocess {
   // Returns true iff there is at least one subprocess we're waiting on.
   bool SubprocessInFlight();
 
+  // Tries to log all in flight processes's output. It is used right before
+  // exiting the update_engine, probably when the subprocess caused a system
+  // shutdown.
+  void FlushBufferedLogsAtExit();
+
  private:
   FRIEND_TEST(SubprocessTest, CancelTest);
 

@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/bind.h>
@@ -288,6 +289,22 @@ bool Subprocess::SubprocessInFlight() {
   }
   return false;
 }
+
+void Subprocess::FlushBufferedLogsAtExit() {
+  if (!subprocess_records_.empty()) {
+    LOG(INFO) << "We are exiting, but there are still in flight subprocesses!";
+    for (auto& pid_record : subprocess_records_) {
+      SubprocessRecord* record = pid_record.second.get();
+      // Make sure we read any remaining process output.
+      OnStdoutReady(record);
+      if (!record->stdout.empty()) {
+        LOG(INFO) << "Subprocess(" << pid_record.first << ") output:\n"
+                  << record->stdout;
+      }
+    }
+  }
+}
+
 
 Subprocess* Subprocess::subprocess_singleton_ = nullptr;
 
