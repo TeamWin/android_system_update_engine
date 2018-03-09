@@ -16,6 +16,7 @@
 
 #include "update_engine/connection_manager.h"
 
+#include <memory>
 #include <set>
 #include <string>
 

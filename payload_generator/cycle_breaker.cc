@@ -18,14 +18,15 @@
 
 #include <inttypes.h>
 
+#include <limits>
 #include <set>
 #include <string>
 #include <utility>
 
+#include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/payload_generator/tarjan.h"
 
@@ -83,7 +84,7 @@ void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
            jt != component_indexes.end(); ++jt) {
         // If there's a link from *it -> *jt in the graph,
         // add a subgraph_ edge
-        if (utils::MapContainsKey(subgraph_[*it].out_edges, *jt))
+        if (base::ContainsKey(subgraph_[*it].out_edges, *jt))
           subgraph_[*it].subgraph_edges.insert(*jt);
       }
     }
@@ -146,7 +147,7 @@ bool CycleBreaker::StackContainsCutEdge() const {
   for (vector<Vertex::Index>::const_iterator it = ++stack_.begin(),
            e = stack_.end(); it != e; ++it) {
     Edge edge = make_pair(*(it - 1), *it);
-    if (utils::SetContainsKey(cut_edges_, edge)) {
+    if (base::ContainsKey(cut_edges_, edge)) {
       return true;
     }
   }
