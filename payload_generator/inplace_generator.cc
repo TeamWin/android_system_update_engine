@@ -23,6 +23,8 @@
 #include <utility>
 #include <vector>
 
+#include <base/stl_util.h>
+
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/cycle_breaker.h"
@@ -341,7 +343,7 @@ bool ConvertCutsToFull(
   vector<Vertex::Index> new_op_indexes;
   new_op_indexes.reserve(op_indexes->size());
   for (Vertex::Index vertex_index : *op_indexes) {
-    if (utils::SetContainsKey(deleted_nodes, vertex_index))
+    if (base::ContainsKey(deleted_nodes, vertex_index))
       continue;
     new_op_indexes.push_back(vertex_index);
   }

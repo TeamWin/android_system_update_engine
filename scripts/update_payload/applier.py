@@ -1,6 +1,18 @@
-# Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#
+# Copyright (C) 2013 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 """Applying a Chrome OS update payload.
 
@@ -18,6 +30,20 @@ import array
 import bz2
 import hashlib
 import itertools
+# Not everywhere we can have the lzma library so we ignore it if we didn't have
+# it because it is not going to be used. For example, 'cros flash' uses
+# devserver code which eventually loads this file, but the lzma library is not
+# included in the client test devices, and it is not necessary to do so. But
+# lzma is not used in 'cros flash' so it should be fine. Python 3.x include
+# lzma, but for backward compatibility with Python 2.7, backports-lzma is
+# needed.
+try:
+  import lzma
+except ImportError:
+  try:
+    from backports import lzma
+  except ImportError:
+    pass
 import os
 import shutil
 import subprocess
@@ -216,7 +242,7 @@ class PayloadApplier(object):
     self.truncate_to_expected_size = truncate_to_expected_size
 
   def _ApplyReplaceOperation(self, op, op_name, out_data, part_file, part_size):
-    """Applies a REPLACE{,_BZ} operation.
+    """Applies a REPLACE{,_BZ,_XZ} operation.
 
     Args:
       op: the operation object
@@ -234,6 +260,10 @@ class PayloadApplier(object):
     # Decompress data if needed.
     if op.type == common.OpType.REPLACE_BZ:
       out_data = bz2.decompress(out_data)
+      data_length = len(out_data)
+    elif op.type == common.OpType.REPLACE_XZ:
+      # pylint: disable=no-member
+      out_data = lzma.decompress(out_data)
       data_length = len(out_data)
 
     # Write data to blocks specified in dst extents.
@@ -508,7 +538,8 @@ class PayloadApplier(object):
       # Read data blob.
       data = self.payload.ReadDataBlob(op.data_offset, op.data_length)
 
-      if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
+      if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ,
+                     common.OpType.REPLACE_XZ):
         self._ApplyReplaceOperation(op, op_name, data, new_part_file, part_size)
       elif op.type == common.OpType.MOVE:
         self._ApplyMoveOperation(op, op_name, new_part_file)
@@ -557,6 +588,7 @@ class PayloadApplier(object):
         shutil.copyfile(old_part_file_name, new_part_file_name)
       elif (self.minor_version == common.SOURCE_MINOR_PAYLOAD_VERSION or
             self.minor_version == common.OPSRCHASH_MINOR_PAYLOAD_VERSION or
+            self.minor_version == common.BROTLI_BSDIFF_MINOR_PAYLOAD_VERSION or
             self.minor_version == common.PUFFDIFF_MINOR_PAYLOAD_VERSION):
         # In minor version >= 2, we don't want to copy the partitions, so
         # instead just make the new partition file.

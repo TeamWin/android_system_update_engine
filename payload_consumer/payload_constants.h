@@ -43,6 +43,9 @@ extern const uint32_t kSourceMinorPayloadVersion;
 // The minor version that allows per-operation source hash.
 extern const uint32_t kOpSrcHashMinorPayloadVersion;
 
+// The minor version that allows BROTLI_BSDIFF, ZERO and DISCARD operation.
+extern const uint32_t kBrotliBsdiffMinorPayloadVersion;
+
 // The minor version that allows PUFFDIFF operation.
 extern const uint32_t kPuffdiffMinorPayloadVersion;
 

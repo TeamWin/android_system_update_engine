@@ -18,6 +18,7 @@
 
 #include <endian.h>
 #include <inttypes.h>
+#include <time.h>
 
 #include <string>
 #include <vector>
@@ -736,16 +737,17 @@ TEST_F(DeltaPerformerTest, ValidateManifestDowngrade) {
 }
 
 TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
+  unsigned int seed = time(nullptr);
   EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
 
   uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
   EXPECT_TRUE(performer_.Write(&major_version, 8));
 
-  uint64_t manifest_size = 222;
+  uint64_t manifest_size = rand_r(&seed) % 256;
   uint64_t manifest_size_be = htobe64(manifest_size);
   EXPECT_TRUE(performer_.Write(&manifest_size_be, 8));
 
-  uint32_t metadata_signature_size = 111;
+  uint32_t metadata_signature_size = rand_r(&seed) % 256;
   uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
   EXPECT_TRUE(performer_.Write(&metadata_signature_size_be, 4));
 
@@ -847,8 +849,10 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   // Non-official build, non-existing public-key, key in response -> true
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
-  // result of 'echo "Test" | base64'
-  install_plan_.public_key_rsa = "VGVzdAo=";
+  // This is the result of 'echo "Test" | base64' and is not meant to be a
+  // valid public key, but it is valid base-64.
+  constexpr char kBase64TestKey[] = "VGVzdAo=";
+  install_plan_.public_key_rsa = kBase64TestKey;
   EXPECT_TRUE(performer_.GetPublicKeyFromResponse(&key_path));
   EXPECT_FALSE(key_path.empty());
   EXPECT_EQ(unlink(key_path.value().c_str()), 0);
@@ -859,8 +863,7 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   // Non-official build, existing public-key, key in response -> false
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = existing_file;
-  // result of 'echo "Test" | base64'
-  install_plan_.public_key_rsa = "VGVzdAo=";
+  install_plan_.public_key_rsa = kBase64TestKey;
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
   fake_hardware_.SetIsOfficialBuild(true);

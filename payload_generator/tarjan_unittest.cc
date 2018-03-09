@@ -20,9 +20,9 @@
 #include <utility>
 
 #include <base/logging.h>
+#include <base/stl_util.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/graph_types.h"
 
 using std::make_pair;
@@ -66,11 +66,11 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
     tarjan.Execute(i, &graph, &vertex_indexes);
 
     EXPECT_EQ(5U, vertex_indexes.size());
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_a));
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_b));
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_c));
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_d));
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_e));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_a));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_b));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_c));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_d));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_e));
   }
 
   {
@@ -78,7 +78,7 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
     tarjan.Execute(n_f, &graph, &vertex_indexes);
 
     EXPECT_EQ(1U, vertex_indexes.size());
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_f));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_f));
   }
 
   for (Vertex::Index i = n_g; i <= n_h; i++) {
@@ -86,8 +86,8 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
     tarjan.Execute(i, &graph, &vertex_indexes);
 
     EXPECT_EQ(2U, vertex_indexes.size());
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_g));
-    EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_h));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_g));
+    EXPECT_TRUE(base::ContainsValue(vertex_indexes, n_h));
   }
 }
 

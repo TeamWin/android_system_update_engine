@@ -128,6 +128,7 @@ bool PayloadVersion::Validate() const {
                         minor == kInPlaceMinorPayloadVersion ||
                         minor == kSourceMinorPayloadVersion ||
                         minor == kOpSrcHashMinorPayloadVersion ||
+                        minor == kBrotliBsdiffMinorPayloadVersion ||
                         minor == kPuffdiffMinorPayloadVersion);
   return true;
 }
@@ -151,7 +152,7 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
       // The implementation of these operations had a bug in earlier versions
       // that prevents them from being used in any payload. We will enable
       // them for delta payloads for now.
-      return minor >= kPuffdiffMinorPayloadVersion;
+      return minor >= kBrotliBsdiffMinorPayloadVersion;
 
     // Delta operations:
     case InstallOperation::MOVE:
@@ -166,10 +167,10 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
       return minor >= kSourceMinorPayloadVersion;
 
     case InstallOperation::BROTLI_BSDIFF:
-      return minor >= kPuffdiffMinorPayloadVersion;
-    // TODO(*) Revert the disablement of puffdiff after we fix b/72815313.
+      return minor >= kBrotliBsdiffMinorPayloadVersion;
+
     case InstallOperation::PUFFDIFF:
-      return false;
+      return minor >= kPuffdiffMinorPayloadVersion;
   }
   return false;
 }
