@@ -164,9 +164,10 @@ const int kDownloadP2PLowSpeedLimitBps = 25 * 1000;
 //
 // For non-official builds (e.g. typically built on a developer's
 // workstation and served via devserver) bump this since it takes time
-// for the workstation to generate the payload. For p2p, make this
-// relatively low since we want to fail fast.
-const int kDownloadLowSpeedTimeSeconds = 90;
+// for the workstation to generate the payload. For normal operation
+// and p2p, make this relatively low since we want to fail fast in
+// those cases.
+const int kDownloadLowSpeedTimeSeconds = 30;
 const int kDownloadDevModeLowSpeedTimeSeconds = 180;
 const int kDownloadP2PLowSpeedTimeSeconds = 60;
 
