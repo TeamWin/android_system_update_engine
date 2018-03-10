@@ -115,12 +115,7 @@ class ZipTest<XzTest> : public ::testing::Test {
   }
 };
 
-#ifdef __ANDROID__
 typedef ::testing::Types<BzipTest, XzTest> ZipTestTypes;
-#else
-// Chrome OS implementation of Xz compressor just returns false.
-typedef ::testing::Types<BzipTest> ZipTestTypes;
-#endif  // __ANDROID__
 
 TYPED_TEST_CASE(ZipTest, ZipTestTypes);
 

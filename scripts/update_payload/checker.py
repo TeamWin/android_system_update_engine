@@ -1,6 +1,18 @@
-# Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#
+# Copyright (C) 2013 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 """Verifying the integrity of a Chrome OS update payload.
 
@@ -57,6 +69,7 @@ _SUPPORTED_MINOR_VERSIONS = {
     2: (_TYPE_DELTA,),
     3: (_TYPE_DELTA,),
     4: (_TYPE_DELTA,),
+    5: (_TYPE_DELTA,),
 }
 
 _OLD_DELTA_USABLE_PART_SIZE = 2 * 1024 * 1024 * 1024
@@ -322,6 +335,10 @@ class PayloadChecker(object):
     self.new_rootfs_fs_size = 0
     self.new_kernel_fs_size = 0
     self.minor_version = None
+    # TODO(*): When fixing crbug.com/794404, the major version should be
+    # correclty handled in update_payload scripts. So stop forcing
+    # major_verions=1 here and set it to the correct value.
+    self.major_version = 1
 
   @staticmethod
   def _CheckElem(msg, name, report, is_mandatory, is_submsg, convert=str,
@@ -701,7 +718,7 @@ class PayloadChecker(object):
     return total_num_blocks
 
   def _CheckReplaceOperation(self, op, data_length, total_dst_blocks, op_name):
-    """Specific checks for REPLACE/REPLACE_BZ operations.
+    """Specific checks for REPLACE/REPLACE_BZ/REPLACE_XZ operations.
 
     Args:
       op: The operation object from the manifest.
@@ -996,6 +1013,9 @@ class PayloadChecker(object):
     # Type-specific checks.
     if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
+    elif op.type == common.OpType.REPLACE_XZ and (self.minor_version >= 3 or
+                                                  self.major_version >= 2):
+      self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.MOVE and self.minor_version == 1:
       self._CheckMoveOperation(op, data_offset, total_src_blocks,
                                total_dst_blocks, op_name)
@@ -1010,8 +1030,10 @@ class PayloadChecker(object):
     elif op.type == common.OpType.SOURCE_BSDIFF and self.minor_version >= 2:
       self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
-    elif (op.type in (common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF) and
-          self.minor_version >= 4):
+    elif op.type == common.OpType.BROTLI_BSDIFF and self.minor_version >= 4:
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
+      self._CheckAnySourceOperation(op, total_src_blocks, op_name)
+    elif op.type == common.OpType.PUFFDIFF and self.minor_version >= 5:
       self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
     else:
@@ -1068,6 +1090,7 @@ class PayloadChecker(object):
     op_counts = {
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
+        common.OpType.REPLACE_XZ: 0,
         common.OpType.MOVE: 0,
         common.OpType.ZERO: 0,
         common.OpType.BSDIFF: 0,
@@ -1080,6 +1103,7 @@ class PayloadChecker(object):
     op_blob_totals = {
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
+        common.OpType.REPLACE_XZ: 0,
         # MOVE operations don't have blobs.
         common.OpType.BSDIFF: 0,
         # SOURCE_COPY operations don't have blobs.

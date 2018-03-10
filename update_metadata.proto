@@ -169,8 +169,10 @@ message InstallOperation {
     // On minor version 4 or newer, these operations are supported:
     ZERO = 6;  // Write zeros in the destination.
     DISCARD = 7;  // Discard the destination blocks, reading as undefined.
-    PUFFDIFF = 9;  // The data is in puffdiff format.
     BROTLI_BSDIFF = 10;  // Like SOURCE_BSDIFF, but compressed with brotli.
+
+    // On minor version 5 or newer, these operations are supported:
+    PUFFDIFF = 9;  // The data is in puffdiff format.
   }
   required Type type = 1;
   // The offset into the delta file (after the protobuf)

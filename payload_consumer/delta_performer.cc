@@ -65,7 +65,7 @@ using std::vector;
 namespace chromeos_update_engine {
 
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 2;
-const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 4;
+const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 5;
 
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
