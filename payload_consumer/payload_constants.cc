@@ -25,7 +25,8 @@ const uint32_t kFullPayloadMinorVersion = 0;
 const uint32_t kInPlaceMinorPayloadVersion = 1;
 const uint32_t kSourceMinorPayloadVersion = 2;
 const uint32_t kOpSrcHashMinorPayloadVersion = 3;
-const uint32_t kPuffdiffMinorPayloadVersion = 4;
+const uint32_t kBrotliBsdiffMinorPayloadVersion = 4;
+const uint32_t kPuffdiffMinorPayloadVersion = 5;
 
 const char kLegacyPartitionNameKernel[] = "boot";
 const char kLegacyPartitionNameRoot[] = "system";

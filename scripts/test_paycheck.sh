@@ -1,8 +1,19 @@
 #!/bin/bash
 #
-# Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+# Copyright (C) 2013 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 # A test script for paycheck.py and the update_payload.py library.
 #
@@ -21,9 +32,6 @@
 #   payload type. Another artifact is a human-readable payload report, which
 #   is output to stdout to be inspected by the user.
 #
-# - It performs a random block trace on the delta payload (both kernel and
-#   rootfs blocks), dumping the traces to stdout for the user to inspect.
-#
 # - It applies old_full_payload to yield old kernel (old_kern.part) and rootfs
 #   (old_root.part) partitions.
 #
@@ -37,11 +45,9 @@
 #   ensure that they are binary identical.
 #
 # If all steps have completed successfully we know with high certainty that
-# paycheck.py (and hence update_payload.py) correctly parses both full and
-# delta payloads, and applies them to yield the expected result. We also know
-# that tracing works, to the extent it does not crash. Manual inspection of
-# payload reports and block traces will improve this our confidence and are
-# strongly encouraged. Finally, each paycheck.py execution is timed.
+# paycheck.py (and hence update_payload.py) correctly parses both full and delta
+# payloads, and applies them to yield the expected result. Finally, each
+# paycheck.py execution is timed.
 
 
 # Stop on errors, unset variables.
@@ -80,35 +86,28 @@ check_payload() {
   time ${paycheck} -t ${payload_type} ${payload_file}
 }
 
-trace_kern_block() {
-  payload_file=$1
-  block=$2
-  time ${paycheck} -B ${block} ${payload_file}
-}
-
-trace_root_block() {
-  payload_file=$1
-  block=$2
-  time ${paycheck} -b ${block} ${payload_file}
-}
-
 apply_full_payload() {
   payload_file=$1
-  dst_kern_part="$2/$3"
-  dst_root_part="$2/$4"
+  out_dst_kern_part="$2/$3"
+  out_dst_root_part="$2/$4"
 
-  time ${paycheck} ${payload_file} ${dst_kern_part} ${dst_root_part}
+  time ${paycheck} ${payload_file} \
+    --out_dst_kern ${out_dst_kern_part} --out_dst_root ${out_dst_root_part}
 }
 
 apply_delta_payload() {
   payload_file=$1
-  dst_kern_part="$2/$3"
-  dst_root_part="$2/$4"
-  src_kern_part="$2/$5"
-  src_root_part="$2/$6"
+  out_dst_kern_part="$2/$3"
+  out_dst_root_part="$2/$4"
+  dst_kern_part="$2/$5"
+  dst_root_part="$2/$6"
+  src_kern_part="$2/$7"
+  src_root_part="$2/$8"
 
-  time ${paycheck} ${payload_file} ${dst_kern_part} ${dst_root_part} \
-    ${src_kern_part} ${src_root_part}
+  time ${paycheck} ${payload_file} \
+    --out_dst_kern ${out_dst_kern_part} --out_dst_root ${out_dst_root_part} \
+    --dst_kern ${dst_kern_part} --dst_root ${dst_root_part} \
+    --src_kern ${src_kern_part} --src_root ${src_root_part}
 }
 
 main() {
@@ -135,15 +134,6 @@ main() {
   check_payload "${delta_payload}" delta
   log "Done"
 
-  # Trace a random block between 0-1024 on all payloads.
-  block=$((RANDOM * 1024 / 32767))
-  log "Tracing a random block (${block}) in full/delta payloads..."
-  trace_kern_block "${new_full_payload}" ${block}
-  trace_root_block "${new_full_payload}" ${block}
-  trace_kern_block "${delta_payload}" ${block}
-  trace_root_block "${delta_payload}" ${block}
-  log "Done"
-
   # Apply full/delta payloads and verify results are identical.
   tmpdir="$(mktemp -d --tmpdir test_paycheck.XXXXXXXX)"
   log "Initiating application of payloads at $tmpdir"
@@ -153,14 +143,15 @@ main() {
     "${OLD_ROOT_PART}"
   log "Done"
 
-  log "Applying delta payload to old partitions..."
-  apply_delta_payload "${delta_payload}" "${tmpdir}" "${NEW_DELTA_KERN_PART}" \
-    "${NEW_DELTA_ROOT_PART}" "${OLD_KERN_PART}" "${OLD_ROOT_PART}"
-  log "Done"
-
   log "Applying new full payload..."
   apply_full_payload "${new_full_payload}" "${tmpdir}" "${NEW_FULL_KERN_PART}" \
     "${NEW_FULL_ROOT_PART}"
+  log "Done"
+
+  log "Applying delta payload to old partitions..."
+  apply_delta_payload "${delta_payload}" "${tmpdir}" "${NEW_DELTA_KERN_PART}" \
+    "${NEW_DELTA_ROOT_PART}" "${NEW_FULL_KERN_PART}" \
+    "${NEW_FULL_ROOT_PART}" "${OLD_KERN_PART}" "${OLD_ROOT_PART}"
   log "Done"
 
   log "Comparing results of delta and new full updates..."

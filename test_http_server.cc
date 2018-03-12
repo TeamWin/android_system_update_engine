@@ -496,7 +496,7 @@ class UrlTerms {
     CHECK_EQ(terms.size(), num_terms);
   }
 
-  inline string Get(const off_t index) const {
+  inline const string& Get(const off_t index) const {
     return terms[index];
   }
   inline const char *GetCStr(const off_t index) const {
