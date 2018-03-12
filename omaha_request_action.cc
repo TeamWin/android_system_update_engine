@@ -79,10 +79,10 @@ static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 
 static const char* kOmahaUpdaterVersion = "0.1.0.0";
 
-// X-GoogleUpdate headers.
-static const char* kXGoogleUpdateInteractivity = "X-GoogleUpdate-Interactivity";
-static const char* kXGoogleUpdateAppId = "X-GoogleUpdate-AppId";
-static const char* kXGoogleUpdateUpdater = "X-GoogleUpdate-Updater";
+// X-Goog-Update headers.
+static const char* kXGoogleUpdateInteractivity = "X-Goog-Update-Interactivity";
+static const char* kXGoogleUpdateAppId = "X-Goog-Update-AppId";
+static const char* kXGoogleUpdateUpdater = "X-Goog-Update-Updater";
 
 // updatecheck attributes (without the underscore prefix).
 static const char* kEolAttr = "eol";
@@ -762,7 +762,7 @@ void OmahaRequestAction::PerformAction() {
                                     GetInstallDate(system_state_),
                                     system_state_));
 
-  // Set X-GoogleUpdate headers.
+  // Set X-Goog-Update headers.
   http_fetcher_->SetHeader(kXGoogleUpdateInteractivity,
                            params_->interactive() ? "fg" : "bg");
   http_fetcher_->SetHeader(kXGoogleUpdateAppId, params_->GetAppId());
