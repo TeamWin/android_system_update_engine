@@ -1,6 +1,18 @@
-# Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#
+# Copyright (C) 2013 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 """Utilities for unit testing."""
 
@@ -276,7 +288,7 @@ class EnhancedPayloadGenerator(PayloadGenerator):
 
     Args:
       is_kernel: whether this is a kernel (True) or rootfs (False) operation
-      op_type: one of REPLACE, REPLACE_BZ, MOVE or BSDIFF
+      op_type: one of REPLACE, REPLACE_BZ, REPLACE_XZ, MOVE or BSDIFF
       src_extents: list of (start, length) pairs indicating src block ranges
       src_length: size of the src data in bytes (needed for BSDIFF)
       dst_extents: list of (start, length) pairs indicating dst block ranges

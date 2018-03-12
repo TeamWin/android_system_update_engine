@@ -124,7 +124,7 @@
       'dependencies': [
         'update_metadata-protos',
       ],
-      #TODO(deymo): Remove unused dependencies once we stop including files
+      # TODO(deymo): Remove unused dependencies once we stop including files
       # from the root directory.
       'variables': {
         'exported_deps': [
@@ -364,6 +364,7 @@
         'exported_deps': [
           'ext2fs',
           'libpuffdiff',
+          'liblzma',
         ],
         'deps': ['<@(exported_deps)'],
       },

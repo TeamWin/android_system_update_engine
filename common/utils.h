@@ -228,20 +228,6 @@ inline void HexDumpVector(const brillo::Blob& vect) {
   HexDumpArray(vect.data(), vect.size());
 }
 
-template<typename KeyType, typename ValueType>
-bool MapContainsKey(const std::map<KeyType, ValueType>& m, const KeyType& k) {
-  return m.find(k) != m.end();
-}
-template<typename KeyType>
-bool SetContainsKey(const std::set<KeyType>& s, const KeyType& k) {
-  return s.find(k) != s.end();
-}
-
-template<typename T>
-bool VectorContainsValue(const std::vector<T>& vect, const T& value) {
-  return std::find(vect.begin(), vect.end(), value) != vect.end();
-}
-
 template<typename T>
 bool VectorIndexOf(const std::vector<T>& vect, const T& value,
                    typename std::vector<T>::size_type* out_index) {

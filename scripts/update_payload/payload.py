@@ -1,6 +1,18 @@
-# Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#
+# Copyright (C) 2013 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 """Tools for reading, verifying and applying Chrome OS update payloads."""
 
@@ -10,7 +22,6 @@ import hashlib
 import struct
 
 from update_payload import applier
-from update_payload import block_tracer
 from update_payload import checker
 from update_payload import common
 from update_payload import update_metadata_pb2
@@ -323,23 +334,3 @@ class Payload(object):
     helper.Run(new_kernel_part, new_rootfs_part,
                old_kernel_part=old_kernel_part,
                old_rootfs_part=old_rootfs_part)
-
-  def TraceBlock(self, block, skip, trace_out_file, is_kernel):
-    """Traces the origin(s) of a given dest partition block.
-
-    The tracing tries to find origins transitively, when possible (it currently
-    only works for move operations, where the mapping of src/dst is
-    one-to-one). It will dump a list of operations and source blocks
-    responsible for the data in the given dest block.
-
-    Args:
-      block: the block number whose origin to trace
-      skip: the number of first origin mappings to skip
-      trace_out_file: file object to dump the trace to
-      is_kernel: trace through kernel (True) or rootfs (False) operations
-    """
-    self._AssertInit()
-
-    # Create a short-lived payload block tracer object and run it.
-    helper = block_tracer.PayloadBlockTracer(self)
-    helper.Run(block, skip, trace_out_file, is_kernel)
