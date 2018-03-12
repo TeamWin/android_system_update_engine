@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
@@ -201,6 +202,13 @@ bool BindToUnusedLoopDevice(const string& filename,
   device_info.lo_file_name[LO_NAME_SIZE - 1] = '\0';
   TEST_AND_RETURN_FALSE_ERRNO(
       ioctl(loop_device_fd, LOOP_SET_STATUS64, &device_info) == 0);
+  if (writable) {
+    // Make sure loop device isn't read only.
+    int ro = 0;
+    if (ioctl(loop_device_fd, BLKROSET, &ro) != 0) {
+      PLOG(WARNING) << "Failed to mark loop device writable.";
+    }
+  }
   return true;
 }
 

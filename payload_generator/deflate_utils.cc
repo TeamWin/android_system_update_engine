@@ -255,7 +255,7 @@ bool PreprocessParitionFiles(const PartitionConfig& part,
   part.fs_interface->GetFiles(&tmp_files);
   result_files->reserve(tmp_files.size());
 
-  for (const auto& file : tmp_files) {
+  for (auto& file : tmp_files) {
     if (IsSquashfsImage(part.path, file)) {
       // Read the image into a file.
       base::FilePath path;
@@ -285,7 +285,34 @@ bool PreprocessParitionFiles(const PartitionConfig& part,
                      << " was a Squashfs file, but it was not.";
       }
     }
-    // TODO(ahassani): Process other types of files like apk, zip, etc.
+
+    // Search for deflates if the file is in zip format.
+    bool is_zip =
+        base::EndsWith(
+            file.name, ".apk", base::CompareCase::INSENSITIVE_ASCII) ||
+        base::EndsWith(
+            file.name, ".zip", base::CompareCase::INSENSITIVE_ASCII) ||
+        base::EndsWith(file.name, ".jar", base::CompareCase::INSENSITIVE_ASCII);
+
+    if (is_zip && extract_deflates) {
+      brillo::Blob data;
+      TEST_AND_RETURN_FALSE(
+          utils::ReadExtents(part.path,
+                             file.extents,
+                             &data,
+                             kBlockSize * utils::BlocksInExtents(file.extents),
+                             kBlockSize));
+      std::vector<puffin::BitExtent> deflates_sub_blocks;
+      TEST_AND_RETURN_FALSE(puffin::LocateDeflateSubBlocksInZipArchive(
+          data, &deflates_sub_blocks));
+      // Shift the deflate's extent to the offset starting from the beginning
+      // of the current partition; and the delta processor will align the
+      // extents in a continuous buffer later.
+      TEST_AND_RETURN_FALSE(
+          ShiftBitExtentsOverExtents(file.extents, &deflates_sub_blocks));
+      file.deflates = std::move(deflates_sub_blocks);
+    }
+
     result_files->push_back(file);
   }
   return true;

@@ -46,8 +46,6 @@
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
 
-class MetricsLibraryInterface;
-
 namespace policy {
 class PolicyProvider;
 }
@@ -62,6 +60,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                         public PostinstallRunnerAction::DelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
+  using UpdateAttemptFlags = update_engine::UpdateAttemptFlags;
   static const int kMaxDeltaUpdateFailures;
 
   UpdateAttempter(SystemState* system_state, CertificateChecker* cert_checker);
@@ -105,12 +104,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // for testing purposes.
   virtual bool ResetStatus();
 
-  // Returns the current status in the out params. Returns true on success.
-  virtual bool GetStatus(int64_t* last_checked_time,
-                         double* progress,
-                         std::string* current_operation,
-                         std::string* new_version,
-                         int64_t* new_size);
+  // Returns the current status in the out param. Returns true on success.
+  virtual bool GetStatus(update_engine::UpdateEngineStatus* out_status);
 
   // Runs chromeos-setgoodkernel, whose responsibility it is to mark the
   // currently booted partition has high priority/permanent/etc. The execution
@@ -127,12 +122,28 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int http_response_code() const { return http_response_code_; }
   void set_http_response_code(int code) { http_response_code_ = code; }
 
+  // Set flags that influence how updates and checks are performed.  These
+  // influence all future checks and updates until changed or the device
+  // reboots.
+  void SetUpdateAttemptFlags(UpdateAttemptFlags flags) {
+    update_attempt_flags_ = flags;
+  }
+
+  // Returns the update attempt flags that are in place for the current update
+  // attempt.  These are cached at the start of an update attempt so that they
+  // remain constant throughout the process.
+  virtual UpdateAttemptFlags GetCurrentUpdateAttemptFlags() {
+    return current_update_attempt_flags_;
+  }
+
   // This is the internal entry point for going through an
   // update. If the current status is idle invokes Update.
   // This is called by the DBus implementation.
-  virtual void CheckForUpdate(const std::string& app_version,
+  // This returns true if an update check was started, false if a check or an
+  // update was already in progress.
+  virtual bool CheckForUpdate(const std::string& app_version,
                               const std::string& omaha_url,
-                              bool is_interactive);
+                              UpdateAttemptFlags flags);
 
   // This is the internal entry point for going through a rollback. This will
   // attempt to run the postinstall on the non-active partition and set it as
@@ -243,17 +254,23 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedDownloadTest);
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedErrorTest);
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedOmahaRequestTest);
+  FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
+  FRIEND_TEST(UpdateAttempterTest, BroadcastCompleteDownloadTest);
+  FRIEND_TEST(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest);
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventTest);
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
   FRIEND_TEST(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest);
+  FRIEND_TEST(UpdateAttempterTest, DownloadProgressAccumulationTest);
   FRIEND_TEST(UpdateAttempterTest, MarkDeltaUpdateFailureTest);
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
+  FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
-  FRIEND_TEST(UpdateAttempterTest, UpdateTest);
-  FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
-  FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
+  FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
+  FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
+  FRIEND_TEST(UpdateAttempterTest, UpdateTest);
 
   // CertificateChecker::Observer method.
   // Report metrics about the certificate being checked.
@@ -271,9 +288,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Sets the status to the given status and notifies a status update over dbus.
   void SetStatusAndNotify(UpdateStatus status);
-
-  // Sets up the download parameters after receiving the update check response.
-  void SetupDownload();
 
   // Creates an error event object in |error_event_| to be included in an
   // OmahaRequestAction once the current action processor is done.
@@ -432,7 +446,13 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int64_t last_checked_time_ = 0;
   std::string prev_version_;
   std::string new_version_ = "0.0.0.0";
-  int64_t new_payload_size_ = 0;
+  std::string new_system_version_;
+  uint64_t new_payload_size_ = 0;
+  // Flags influencing all periodic update checks
+  UpdateAttemptFlags update_attempt_flags_ = UpdateAttemptFlags::kNone;
+  // Flags influencing the currently in-progress check (cached at the start of
+  // the update check).
+  UpdateAttemptFlags current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams* omaha_request_params_ = nullptr;

@@ -77,7 +77,14 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   LOG(INFO) << "Running from channel " << image_props_.current_channel;
 
   os_platform_ = constants::kOmahaPlatformName;
-  os_version_ = OmahaRequestParams::kOsVersion;
+  if (!image_props_.system_version.empty()) {
+    if (in_app_version == "ForcedUpdate") {
+      image_props_.system_version = in_app_version;
+    }
+    os_version_ = image_props_.system_version;
+  } else {
+    os_version_ = OmahaRequestParams::kOsVersion;
+  }
   if (!in_app_version.empty())
     image_props_.version = in_app_version;
 
@@ -147,16 +154,7 @@ bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,
             << ", existing target channel = "
             << mutable_image_props_.target_channel
             << ", download channel = " << download_channel_;
-  if (!IsValidChannel(new_target_channel)) {
-    string valid_channels = brillo::string_utils::JoinRange(
-        ", ",
-        std::begin(kChannelsByStability),
-        std::end(kChannelsByStability));
-    if (error_message) {
-      *error_message = base::StringPrintf(
-          "Invalid channel name \"%s\", valid names are: %s",
-          new_target_channel.c_str(), valid_channels.c_str());
-    }
+  if (!IsValidChannel(new_target_channel, error_message)) {
     return false;
   }
 
@@ -188,8 +186,31 @@ string OmahaRequestParams::GetMachineType() const {
   return ret;
 }
 
-bool OmahaRequestParams::IsValidChannel(const string& channel) const {
-  return GetChannelIndex(channel) >= 0;
+bool OmahaRequestParams::IsValidChannel(const string& channel,
+                                        string* error_message) const {
+  if (image_props_.allow_arbitrary_channels) {
+    if (!base::EndsWith(channel, "-channel", base::CompareCase::SENSITIVE)) {
+      if (error_message) {
+        *error_message = base::StringPrintf(
+            "Invalid channel name \"%s\", must ends with -channel.",
+            channel.c_str());
+      }
+      return false;
+    }
+    return true;
+  }
+  if (GetChannelIndex(channel) < 0) {
+    string valid_channels = brillo::string_utils::JoinRange(
+        ", ", std::begin(kChannelsByStability), std::end(kChannelsByStability));
+    if (error_message) {
+      *error_message =
+          base::StringPrintf("Invalid channel name \"%s\", valid names are: %s",
+                             channel.c_str(),
+                             valid_channels.c_str());
+    }
+    return false;
+  }
+  return true;
 }
 
 void OmahaRequestParams::set_root(const string& root) {
@@ -205,11 +226,22 @@ int OmahaRequestParams::GetChannelIndex(const string& channel) const {
   return -1;
 }
 
-bool OmahaRequestParams::to_more_stable_channel() const {
+bool OmahaRequestParams::ToMoreStableChannel() const {
   int current_channel_index = GetChannelIndex(image_props_.current_channel);
   int download_channel_index = GetChannelIndex(download_channel_);
 
   return download_channel_index > current_channel_index;
+}
+
+bool OmahaRequestParams::ShouldPowerwash() const {
+  if (!mutable_image_props_.is_powerwash_allowed)
+    return false;
+  // If arbitrary channels are allowed, always powerwash on channel change.
+  if (image_props_.allow_arbitrary_channels)
+    return image_props_.current_channel != download_channel_;
+  // Otherwise only powerwash if we are moving from less stable (higher version)
+  // to more stable channel (lower version).
+  return ToMoreStableChannel();
 }
 
 string OmahaRequestParams::GetAppId() const {

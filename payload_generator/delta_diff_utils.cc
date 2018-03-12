@@ -38,7 +38,9 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/threading/simple_thread.h>
+#include <brillo/data_encoding.h>
 #include <bsdiff/bsdiff.h>
+#include <bsdiff/patch_writer_factory.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/subprocess.h"
@@ -71,6 +73,8 @@ const uint64_t kMaxBsdiffDestinationSize = 200 * 1024 * 1024;  // bytes
 // should work for arbitrary big files, but the payload application is quite
 // memory intensive, so we limit these operations to 150 MiB.
 const uint64_t kMaxPuffdiffDestinationSize = 150 * 1024 * 1024;  // bytes
+
+const int kBrotliCompressionQuality = 11;
 
 // Process a range of blocks from |range_start| to |range_end| in the extent at
 // position |*idx_p| of |extents|. If |do_remove| is true, this range will be
@@ -210,8 +214,8 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
   void MergeOperation(vector<AnnotatedOperation>* aops);
 
  private:
-  const string old_part_;
-  const string new_part_;
+  const string& old_part_;
+  const string& new_part_;
   const PayloadVersion& version_;
 
   // The block ranges of the old/new file within the src/tgt image
@@ -739,21 +743,33 @@ bool ReadExtentsToDiff(const string& old_part,
         TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&patch));
         ScopedPathUnlinker unlinker(patch.value());
 
+        std::unique_ptr<bsdiff::PatchWriterInterface> bsdiff_patch_writer;
+        InstallOperation_Type operation_type = InstallOperation::BSDIFF;
+        if (version.OperationAllowed(InstallOperation::BROTLI_BSDIFF)) {
+          bsdiff_patch_writer =
+              bsdiff::CreateBSDF2PatchWriter(patch.value(),
+                                             bsdiff::CompressorType::kBrotli,
+                                             kBrotliCompressionQuality);
+          operation_type = InstallOperation::BROTLI_BSDIFF;
+        } else {
+          bsdiff_patch_writer = bsdiff::CreateBsdiffPatchWriter(patch.value());
+          if (version.OperationAllowed(InstallOperation::SOURCE_BSDIFF)) {
+            operation_type = InstallOperation::SOURCE_BSDIFF;
+          }
+        }
+
         brillo::Blob bsdiff_delta;
         TEST_AND_RETURN_FALSE(0 == bsdiff::bsdiff(old_data.data(),
                                                   old_data.size(),
                                                   new_data.data(),
                                                   new_data.size(),
-                                                  patch.value().c_str(),
+                                                  bsdiff_patch_writer.get(),
                                                   nullptr));
 
         TEST_AND_RETURN_FALSE(utils::ReadFile(patch.value(), &bsdiff_delta));
         CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
         if (bsdiff_delta.size() < data_blob.size()) {
-          operation.set_type(
-              version.OperationAllowed(InstallOperation::SOURCE_BSDIFF)
-                  ? InstallOperation::SOURCE_BSDIFF
-                  : InstallOperation::BSDIFF);
+          operation.set_type(operation_type);
           data_blob = std::move(bsdiff_delta);
         }
       }
@@ -883,7 +899,8 @@ bool InitializePartitionInfo(const PartitionConfig& part, PartitionInfo* info) {
   TEST_AND_RETURN_FALSE(hasher.Finalize());
   const brillo::Blob& hash = hasher.raw_hash();
   info->set_hash(hash.data(), hash.size());
-  LOG(INFO) << part.path << ": size=" << part.size << " hash=" << hasher.hash();
+  LOG(INFO) << part.path << ": size=" << part.size
+            << " hash=" << brillo::data_encoding::Base64Encode(hash);
   return true;
 }
 

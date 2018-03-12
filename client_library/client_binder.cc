@@ -25,15 +25,15 @@
 #include "update_engine/parcelable_update_engine_status.h"
 #include "update_engine/update_status_utils.h"
 
-using android::OK;
-using android::String16;
-using android::String8;
 using android::binder::Status;
 using android::brillo::ParcelableUpdateEngineStatus;
 using android::getService;
+using android::OK;
+using android::String16;
+using android::String8;
 using chromeos_update_engine::StringToUpdateStatus;
-using chromeos_update_engine::UpdateEngineService;
 using std::string;
+using update_engine::UpdateAttemptFlags;
 
 namespace update_engine {
 namespace internal {
@@ -48,10 +48,14 @@ bool BinderUpdateEngineClient::Init() {
 bool BinderUpdateEngineClient::AttemptUpdate(const string& in_app_version,
                                              const string& in_omaha_url,
                                              bool at_user_request) {
-  return service_->AttemptUpdate(String16{in_app_version.c_str()},
-      String16{in_omaha_url.c_str()},
-      at_user_request ? 0 :
-          UpdateEngineService::kAttemptUpdateFlagNonInteractive).isOk();
+  bool started;
+  return service_
+      ->AttemptUpdate(
+          String16{in_app_version.c_str()},
+          String16{in_omaha_url.c_str()},
+          at_user_request ? 0 : UpdateAttemptFlags::kFlagNonInteractive,
+          &started)
+      .isOk();
 }
 
 bool BinderUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
@@ -143,18 +147,18 @@ bool BinderUpdateEngineClient::ResetStatus() {
 }
 
 Status BinderUpdateEngineClient::StatusUpdateCallback::HandleStatusUpdate(
-    int64_t last_checked_time,
-    double progress,
-    const String16& current_operation,
-    const String16& new_version,
-    int64_t new_size) {
+    const ParcelableUpdateEngineStatus& status) {
   UpdateStatus update_status;
 
-  StringToUpdateStatus(String8{current_operation}.string(), &update_status);
+  StringToUpdateStatus(String8{status.current_operation_}.string(),
+                       &update_status);
 
   for (auto& handler : client_->handlers_) {
-    handler->HandleStatusUpdate(last_checked_time, progress, update_status,
-                                String8{new_version}.string(), new_size);
+    handler->HandleStatusUpdate(status.last_checked_time_,
+                                status.progress_,
+                                update_status,
+                                String8{status.new_version_}.string(),
+                                status.new_size_);
   }
 
   return Status::ok();

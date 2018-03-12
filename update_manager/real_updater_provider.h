@@ -64,7 +64,7 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_new_version_.get();
   }
 
-  Variable<int64_t>* var_payload_size() override {
+  Variable<uint64_t>* var_payload_size() override {
     return var_payload_size_.get();
   }
 
@@ -96,6 +96,10 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_forced_update_requested_.get();
   }
 
+  Variable<UpdateRestrictions>* var_update_restrictions() override {
+    return var_update_restrictions_.get();
+  }
+
  private:
   // A pointer to the update engine's system state aggregator.
   chromeos_update_engine::SystemState* system_state_;
@@ -107,7 +111,7 @@ class RealUpdaterProvider : public UpdaterProvider {
   std::unique_ptr<Variable<double>> var_progress_;
   std::unique_ptr<Variable<Stage>> var_stage_;
   std::unique_ptr<Variable<std::string>> var_new_version_;
-  std::unique_ptr<Variable<int64_t>> var_payload_size_;
+  std::unique_ptr<Variable<uint64_t>> var_payload_size_;
   std::unique_ptr<Variable<std::string>> var_curr_channel_;
   std::unique_ptr<Variable<std::string>> var_new_channel_;
   std::unique_ptr<Variable<bool>> var_p2p_enabled_;
@@ -115,6 +119,7 @@ class RealUpdaterProvider : public UpdaterProvider {
   std::unique_ptr<Variable<unsigned int>> var_consecutive_failed_update_checks_;
   std::unique_ptr<Variable<unsigned int>> var_server_dictated_poll_interval_;
   std::unique_ptr<Variable<UpdateRequestStatus>> var_forced_update_requested_;
+  std::unique_ptr<Variable<UpdateRestrictions>> var_update_restrictions_;
 
   DISALLOW_COPY_AND_ASSIGN(RealUpdaterProvider);
 };

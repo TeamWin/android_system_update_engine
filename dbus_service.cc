@@ -25,6 +25,7 @@ namespace chromeos_update_engine {
 using brillo::ErrorPtr;
 using chromeos_update_engine::UpdateEngineService;
 using std::string;
+using update_engine::UpdateEngineStatus;
 
 DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
     : common_(new UpdateEngineService{system_state}) {
@@ -46,12 +47,17 @@ bool DBusUpdateEngineService::AttemptUpdateWithFlags(
     int32_t in_flags_as_int) {
   update_engine::AttemptUpdateFlags flags =
       static_cast<update_engine::AttemptUpdateFlags>(in_flags_as_int);
-  bool interactive = !(flags &
-      update_engine::kAttemptUpdateFlagNonInteractive);
-
+  bool interactive = !(flags & update_engine::kAttemptUpdateFlagNonInteractive);
+  bool result;
   return common_->AttemptUpdate(
-      error, in_app_version, in_omaha_url,
-      interactive ? 0 : UpdateEngineService::kAttemptUpdateFlagNonInteractive);
+             error,
+             in_app_version,
+             in_omaha_url,
+             interactive
+                 ? 0
+                 : update_engine::UpdateAttemptFlags::kFlagNonInteractive,
+             &result) &&
+         result;
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,
@@ -74,12 +80,16 @@ bool DBusUpdateEngineService::GetStatus(ErrorPtr* error,
                                         string* out_current_operation,
                                         string* out_new_version,
                                         int64_t* out_new_size) {
-  return common_->GetStatus(error,
-                            out_last_checked_time,
-                            out_progress,
-                            out_current_operation,
-                            out_new_version,
-                            out_new_size);
+  UpdateEngineStatus status;
+  if (!common_->GetStatus(error, &status)) {
+    return false;
+  }
+  *out_last_checked_time = status.last_checked_time;
+  *out_progress = status.progress;
+  *out_current_operation = UpdateStatusToString(status.status);
+  *out_new_version = status.new_version;
+  *out_new_size = status.new_size_bytes;
+  return true;
 }
 
 bool DBusUpdateEngineService::RebootIfNeeded(ErrorPtr* error) {
@@ -121,14 +131,6 @@ bool DBusUpdateEngineService::GetP2PUpdatePermission(ErrorPtr* error,
 bool DBusUpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
                                                               bool in_allowed) {
   return common_->SetUpdateOverCellularPermission(error, in_allowed);
-}
-
-bool DBusUpdateEngineService::SetUpdateOverCellularTarget(
-    brillo::ErrorPtr* error,
-    const std::string& target_version,
-    int64_t target_size) {
-  return common_->SetUpdateOverCellularTarget(error, target_version,
-                                              target_size);
 }
 
 bool DBusUpdateEngineService::GetUpdateOverCellularPermission(
@@ -180,14 +182,13 @@ bool UpdateEngineAdaptor::RequestOwnership() {
                                         dbus::Bus::REQUIRE_PRIMARY);
 }
 
-void UpdateEngineAdaptor::SendStatusUpdate(int64_t last_checked_time,
-                                           double progress,
-                                           update_engine::UpdateStatus status,
-                                           const string& new_version,
-                                           int64_t new_size) {
-  const string str_status = UpdateStatusToString(status);
-  SendStatusUpdateSignal(
-      last_checked_time, progress, str_status, new_version, new_size);
+void UpdateEngineAdaptor::SendStatusUpdate(
+    const UpdateEngineStatus& update_engine_status) {
+  SendStatusUpdateSignal(update_engine_status.last_checked_time,
+                         update_engine_status.progress,
+                         UpdateStatusToString(update_engine_status.status),
+                         update_engine_status.new_version,
+                         update_engine_status.new_size_bytes);
 }
 
 }  // namespace chromeos_update_engine

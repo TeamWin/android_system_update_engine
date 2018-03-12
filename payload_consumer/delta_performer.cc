@@ -50,6 +50,7 @@
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
+#include "update_engine/payload_consumer/mount_history.h"
 #if USE_MTD
 #include "update_engine/payload_consumer/mtd_file_descriptor.h"
 #endif
@@ -203,7 +204,7 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   }
 
   // Format download total count and percentage.
-  size_t payload_size = install_plan_->payload_size;
+  size_t payload_size = payload_->size;
   string payload_size_str("?");
   string downloaded_percentage_str("");
   if (payload_size) {
@@ -238,7 +239,7 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
   // eliminated once we ensure that the payload_size in the install plan is
   // always given and is non-zero. This currently isn't the case during unit
   // tests (see chromium-os:37969).
-  size_t payload_size = install_plan_->payload_size;
+  size_t payload_size = payload_->size;
   unsigned actual_operations_weight = kProgressOperationsWeight;
   if (payload_size)
     new_overall_progress += min(
@@ -287,6 +288,7 @@ size_t DeltaPerformer::CopyDataToBuffer(const char** bytes_p, size_t* count_p,
   size_t read_len = min(count, max - buffer_.size());
   const char* bytes_start = *bytes_p;
   const char* bytes_end = bytes_start + read_len;
+  buffer_.reserve(max);
   buffer_.insert(buffer_.end(), bytes_start, bytes_end);
   *bytes_p = bytes_end;
   *count_p = count - read_len;
@@ -351,10 +353,14 @@ bool DeltaPerformer::OpenCurrentPartition() {
     return false;
 
   const PartitionUpdate& partition = partitions_[current_partition_];
+  size_t num_previous_partitions =
+      install_plan_->partitions.size() - partitions_.size();
+  const InstallPlan::Partition& install_part =
+      install_plan_->partitions[num_previous_partitions + current_partition_];
   // Open source fds if we have a delta payload with minor version >= 2.
-  if (install_plan_->payload_type == InstallPayloadType::kDelta &&
+  if (payload_->type == InstallPayloadType::kDelta &&
       GetMinorVersion() != kInPlaceMinorPayloadVersion) {
-    source_path_ = install_plan_->partitions[current_partition_].source_path;
+    source_path_ = install_part.source_path;
     int err;
     source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
     if (!source_fd_) {
@@ -366,7 +372,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
     }
   }
 
-  target_path_ = install_plan_->partitions[current_partition_].target_path;
+  target_path_ = install_part.target_path;
   int err;
 
   int flags = O_RDWR;
@@ -390,8 +396,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
             << "\"";
 
   // Discard the end of the partition, but ignore failures.
-  DiscardPartitionTail(
-      target_fd_, install_plan_->partitions[current_partition_].target_size);
+  DiscardPartitionTail(target_fd_, install_part.target_size);
 
   return true;
 }
@@ -406,8 +411,10 @@ void LogPartitionInfoHash(const PartitionInfo& info, const string& tag) {
 
 void LogPartitionInfo(const vector<PartitionUpdate>& partitions) {
   for (const PartitionUpdate& partition : partitions) {
-    LogPartitionInfoHash(partition.old_partition_info(),
-                         "old " + partition.partition_name());
+    if (partition.has_old_partition_info()) {
+      LogPartitionInfoHash(partition.old_partition_info(),
+                           "old " + partition.partition_name());
+    }
     LogPartitionInfoHash(partition.new_partition_info(),
                          "new " + partition.partition_name());
   }
@@ -452,7 +459,7 @@ uint32_t DeltaPerformer::GetMinorVersion() const {
   if (manifest_.has_minor_version()) {
     return manifest_.minor_version();
   } else {
-    return install_plan_->payload_type == InstallPayloadType::kDelta
+    return payload_->type == InstallPayloadType::kDelta
                ? kSupportedMinorPayloadVersion
                : kFullPayloadMinorVersion;
   }
@@ -542,9 +549,9 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     // beyond the expected metadata size.
     metadata_size_ = manifest_offset + manifest_size_;
     if (install_plan_->hash_checks_mandatory) {
-      if (install_plan_->metadata_size != metadata_size_) {
+      if (payload_->metadata_size != metadata_size_) {
         LOG(ERROR) << "Mandatory metadata size in Omaha response ("
-                   << install_plan_->metadata_size
+                   << payload_->metadata_size
                    << ") is missing/incorrect, actual = " << metadata_size_;
         *error = ErrorCode::kDownloadInvalidMetadataSize;
         return kMetadataParseError;
@@ -561,13 +568,13 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   // here. This is logged here (after we received the full metadata data) so
   // that we just log once (instead of logging n times) if it takes n
   // DeltaPerformer::Write calls to download the full manifest.
-  if (install_plan_->metadata_size == metadata_size_) {
+  if (payload_->metadata_size == metadata_size_) {
     LOG(INFO) << "Manifest size in payload matches expected value from Omaha";
   } else {
     // For mandatory-cases, we'd have already returned a kMetadataParseError
     // above. We'll be here only for non-mandatory cases. Just send a UMA stat.
     LOG(WARNING) << "Ignoring missing/incorrect metadata size ("
-                 << install_plan_->metadata_size
+                 << payload_->metadata_size
                  << ") in Omaha response as validation is not mandatory. "
                  << "Trusting metadata size in payload = " << metadata_size_;
   }
@@ -655,6 +662,12 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     if (!ParseManifestPartitions(error))
       return false;
 
+    // |install_plan.partitions| was filled in, nothing need to be done here if
+    // the payload was already applied, returns false to terminate http fetcher,
+    // but keep |error| as ErrorCode::kSuccess.
+    if (payload_->already_applied)
+      return false;
+
     num_total_operations_ = 0;
     for (const auto& partition : partitions_) {
       num_total_operations_ += partition.operations_size();
@@ -719,7 +732,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     // NOTE: If hash checks are mandatory and if metadata_signature is empty,
     // we would have already failed in ParsePayloadMetadata method and thus not
     // even be here. So no need to handle that case again here.
-    if (!install_plan_->metadata_signature.empty()) {
+    if (!payload_->metadata_signature.empty()) {
       // Note: Validate must be called only if CanPerformInstallOperation is
       // called. Otherwise, we might be failing operations before even if there
       // isn't sufficient data to compute the proper hash.
@@ -876,7 +889,6 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
 
   // Fill in the InstallPlan::partitions based on the partitions from the
   // payload.
-  install_plan_->partitions.clear();
   for (const auto& partition : partitions_) {
     InstallPlan::Partition install_part;
     install_part.name = partition.partition_name();
@@ -1000,9 +1012,9 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
       if (target_fd_->BlkIoctl(request, start, length, &result) && result == 0)
         continue;
       attempt_ioctl = false;
-      zeros.resize(16 * block_size_);
     }
     // In case of failure, we fall back to writing 0 to the selected region.
+    zeros.resize(16 * block_size_);
     for (uint64_t offset = 0; offset < length; offset += zeros.size()) {
       uint64_t chunk_length = min(length - offset,
                                   static_cast<uint64_t>(zeros.size()));
@@ -1068,8 +1080,10 @@ namespace {
 
 // Compare |calculated_hash| with source hash in |operation|, return false and
 // dump hash and set |error| if don't match.
+// |source_fd| is the file descriptor of the source partition.
 bool ValidateSourceHash(const brillo::Blob& calculated_hash,
                         const InstallOperation& operation,
+                        const FileDescriptorPtr source_fd,
                         ErrorCode* error) {
   brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
                                     operation.src_sha256_hash().end());
@@ -1096,6 +1110,9 @@ bool ValidateSourceHash(const brillo::Blob& calculated_hash,
     LOG(ERROR) << "Operation source (offset:size) in blocks: "
                << base::JoinString(source_extents, ",");
 
+    // Log remount history if this device is an ext4 partition.
+    LogMountHistory(source_fd);
+
     *error = ErrorCode::kDownloadStateInitializationError;
     return false;
   }
@@ -1120,7 +1137,8 @@ bool DeltaPerformer::PerformSourceCopyOperation(
                                                      &source_hash));
 
   if (operation.has_src_sha256_hash()) {
-    TEST_AND_RETURN_FALSE(ValidateSourceHash(source_hash, operation, error));
+    TEST_AND_RETURN_FALSE(
+        ValidateSourceHash(source_hash, operation, source_fd_, error));
   }
 
   return true;
@@ -1186,28 +1204,6 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
     TEST_AND_RETURN_FALSE(utils::PWriteAll(
         target_fd_, zeros.data(), end_byte - begin_byte, begin_byte));
   }
-  return true;
-}
-
-bool DeltaPerformer::CalculateAndValidateSourceHash(
-    const InstallOperation& operation, ErrorCode* error) {
-  const uint64_t kMaxBlocksToRead = 256;  // 1MB if block size is 4KB
-  auto total_blocks = utils::BlocksInExtents(operation.src_extents());
-  brillo::Blob buf(std::min(kMaxBlocksToRead, total_blocks) * block_size_);
-  DirectExtentReader reader;
-  TEST_AND_RETURN_FALSE(
-      reader.Init(source_fd_, operation.src_extents(), block_size_));
-  HashCalculator source_hasher;
-  while (total_blocks > 0) {
-    auto read_blocks = std::min(total_blocks, kMaxBlocksToRead);
-    TEST_AND_RETURN_FALSE(reader.Read(buf.data(), read_blocks * block_size_));
-    TEST_AND_RETURN_FALSE(
-        source_hasher.Update(buf.data(), read_blocks * block_size_));
-    total_blocks -= read_blocks;
-  }
-  TEST_AND_RETURN_FALSE(source_hasher.Finalize());
-  TEST_AND_RETURN_FALSE(
-      ValidateSourceHash(source_hasher.raw_hash(), operation, error));
   return true;
 }
 
@@ -1291,7 +1287,11 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
   if (operation.has_src_sha256_hash()) {
-    TEST_AND_RETURN_FALSE(CalculateAndValidateSourceHash(operation, error));
+    brillo::Blob source_hash;
+    TEST_AND_RETURN_FALSE(fd_utils::ReadAndHashExtents(
+        source_fd_, operation.src_extents(), block_size_, &source_hash));
+    TEST_AND_RETURN_FALSE(
+        ValidateSourceHash(source_hash, operation, source_fd_, error));
   }
 
   auto reader = std::make_unique<DirectExtentReader>();
@@ -1404,7 +1404,11 @@ bool DeltaPerformer::PerformPuffDiffOperation(const InstallOperation& operation,
   TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
 
   if (operation.has_src_sha256_hash()) {
-    TEST_AND_RETURN_FALSE(CalculateAndValidateSourceHash(operation, error));
+    brillo::Blob source_hash;
+    TEST_AND_RETURN_FALSE(fd_utils::ReadAndHashExtents(
+        source_fd_, operation.src_extents(), block_size_, &source_hash));
+    TEST_AND_RETURN_FALSE(
+        ValidateSourceHash(source_hash, operation, source_fd_, error));
   }
 
   auto reader = std::make_unique<DirectExtentReader>();
@@ -1491,18 +1495,18 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return ErrorCode::kDownloadMetadataSignatureError;
 
   brillo::Blob metadata_signature_blob, metadata_signature_protobuf_blob;
-  if (!install_plan_->metadata_signature.empty()) {
+  if (!payload_->metadata_signature.empty()) {
     // Convert base64-encoded signature to raw bytes.
-    if (!brillo::data_encoding::Base64Decode(
-        install_plan_->metadata_signature, &metadata_signature_blob)) {
+    if (!brillo::data_encoding::Base64Decode(payload_->metadata_signature,
+                                             &metadata_signature_blob)) {
       LOG(ERROR) << "Unable to decode base64 metadata signature: "
-                 << install_plan_->metadata_signature;
+                 << payload_->metadata_signature;
       return ErrorCode::kDownloadMetadataSignatureError;
     }
   } else if (major_payload_version_ == kBrilloMajorPayloadVersion) {
-    metadata_signature_protobuf_blob.assign(payload.begin() + metadata_size_,
-                                            payload.begin() + metadata_size_ +
-                                            metadata_signature_size_);
+    metadata_signature_protobuf_blob.assign(
+        payload.begin() + metadata_size_,
+        payload.begin() + metadata_size_ + metadata_signature_size_);
   }
 
   if (metadata_signature_blob.empty() &&
@@ -1529,14 +1533,13 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   LOG(INFO) << "Verifying metadata hash signature using public key: "
             << path_to_public_key.value();
 
-  HashCalculator metadata_hasher;
-  metadata_hasher.Update(payload.data(), metadata_size_);
-  if (!metadata_hasher.Finalize()) {
+  brillo::Blob calculated_metadata_hash;
+  if (!HashCalculator::RawHashOfBytes(
+          payload.data(), metadata_size_, &calculated_metadata_hash)) {
     LOG(ERROR) << "Unable to compute actual hash of manifest";
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
-  brillo::Blob calculated_metadata_hash = metadata_hasher.raw_hash();
   PayloadVerifier::PadRSA2048SHA256Hash(&calculated_metadata_hash);
   if (calculated_metadata_hash.empty()) {
     LOG(ERROR) << "Computed actual hash of metadata is empty.";
@@ -1588,14 +1591,14 @@ ErrorCode DeltaPerformer::ValidateManifest() {
   InstallPayloadType actual_payload_type =
       has_old_fields ? InstallPayloadType::kDelta : InstallPayloadType::kFull;
 
-  if (install_plan_->payload_type == InstallPayloadType::kUnknown) {
+  if (payload_->type == InstallPayloadType::kUnknown) {
     LOG(INFO) << "Detected a '"
               << InstallPayloadTypeToString(actual_payload_type)
               << "' payload.";
-    install_plan_->payload_type = actual_payload_type;
-  } else if (install_plan_->payload_type != actual_payload_type) {
+    payload_->type = actual_payload_type;
+  } else if (payload_->type != actual_payload_type) {
     LOG(ERROR) << "InstallPlan expected a '"
-               << InstallPayloadTypeToString(install_plan_->payload_type)
+               << InstallPayloadTypeToString(payload_->type)
                << "' payload but the downloaded manifest contains a '"
                << InstallPayloadTypeToString(actual_payload_type)
                << "' payload.";
@@ -1683,15 +1686,14 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
                           (operation.data_sha256_hash().data() +
                            operation.data_sha256_hash().size()));
 
-  HashCalculator operation_hasher;
-  operation_hasher.Update(buffer_.data(), operation.data_length());
-  if (!operation_hasher.Finalize()) {
+  brillo::Blob calculated_op_hash;
+  if (!HashCalculator::RawHashOfBytes(
+          buffer_.data(), operation.data_length(), &calculated_op_hash)) {
     LOG(ERROR) << "Unable to compute actual hash of operation "
                << next_operation_num_;
     return ErrorCode::kDownloadOperationHashVerificationError;
   }
 
-  brillo::Blob calculated_op_hash = operation_hasher.raw_hash();
   if (calculated_op_hash != expected_op_hash) {
     LOG(ERROR) << "Hash verification failed for operation "
                << next_operation_num_ << ". Expected hash = ";
@@ -1714,7 +1716,7 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
   } while (0);
 
 ErrorCode DeltaPerformer::VerifyPayload(
-    const string& update_check_response_hash,
+    const brillo::Blob& update_check_response_hash,
     const uint64_t update_check_response_size) {
 
   // See if we should use the public RSA key in the Omaha response.
@@ -1736,11 +1738,11 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       buffer_offset_);
 
   // Verifies the payload hash.
-  const string& payload_hash_data = payload_hash_calculator_.hash();
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
-                      !payload_hash_data.empty());
-  TEST_AND_RETURN_VAL(ErrorCode::kPayloadHashMismatchError,
-                      payload_hash_data == update_check_response_hash);
+                      !payload_hash_calculator_.raw_hash().empty());
+  TEST_AND_RETURN_VAL(
+      ErrorCode::kPayloadHashMismatchError,
+      payload_hash_calculator_.raw_hash() == update_check_response_hash);
 
   // Verifies the signed payload hash.
   if (!utils::FileExists(path_to_public_key.value().c_str())) {
@@ -1841,7 +1843,6 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
   TEST_AND_RETURN_FALSE(prefs->SetInt64(kPrefsUpdateStateNextOperation,
                                         kUpdateStateOperationInvalid));
   if (!quick) {
-    prefs->SetString(kPrefsUpdateCheckResponseHash, "");
     prefs->SetInt64(kPrefsUpdateStateNextDataOffset, -1);
     prefs->SetInt64(kPrefsUpdateStateNextDataLength, 0);
     prefs->SetString(kPrefsUpdateStateSHA256Context, "");
@@ -1850,6 +1851,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetInt64(kPrefsManifestMetadataSize, -1);
     prefs->SetInt64(kPrefsManifestSignatureSize, -1);
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
+    prefs->Delete(kPrefsPostInstallSucceeded);
   }
   return true;
 }

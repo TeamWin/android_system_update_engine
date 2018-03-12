@@ -22,13 +22,13 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/location.h>
 #include <base/strings/stringprintf.h>
-#include <brillo/bind_lambda.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 
@@ -40,6 +40,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/mock_file_writer.h"
 #include "update_engine/payload_consumer/mock_download_action.h"
 #include "update_engine/update_manager/fake_update_manager.h"
 
@@ -54,6 +55,7 @@ using test_utils::ScopedTempFile;
 using testing::AtLeast;
 using testing::InSequence;
 using testing::Return;
+using testing::SetArgPointee;
 using testing::_;
 
 class DownloadActionTest : public ::testing::Test { };
@@ -137,13 +139,13 @@ void TestWithData(const brillo::Blob& data,
       0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
   writer.set_fail_write(fail_write);
 
-  // We pull off the first byte from data and seek past it.
-  string hash = HashCalculator::HashOfBytes(&data[1], data.size() - 1);
-  uint64_t size = data.size();
+  uint64_t size = data.size() - 1;
   InstallPlan install_plan;
-  install_plan.payload_type = InstallPayloadType::kDelta;
-  install_plan.payload_size = size;
-  install_plan.payload_hash = hash;
+  install_plan.payloads.push_back(
+      {.size = size, .type = InstallPayloadType::kDelta});
+  // We pull off the first byte from data and seek past it.
+  EXPECT_TRUE(HashCalculator::RawHashOfBytes(
+      &data[1], data.size() - 1, &install_plan.payloads[0].hash));
   install_plan.source_slot = 0;
   install_plan.target_slot = 1;
   // We mark both slots as bootable. Only the target slot should be unbootable
@@ -173,7 +175,7 @@ void TestWithData(const brillo::Blob& data,
     download_action.set_delegate(&download_delegate);
     if (data.size() > kMockHttpFetcherChunkSize)
       EXPECT_CALL(download_delegate,
-                  BytesReceived(_, 1 + kMockHttpFetcherChunkSize, _));
+                  BytesReceived(_, kMockHttpFetcherChunkSize, _));
     EXPECT_CALL(download_delegate, BytesReceived(_, _, _)).Times(AtLeast(1));
   }
   ErrorCode expected_code = ErrorCode::kSuccess;
@@ -241,6 +243,93 @@ TEST(DownloadActionTest, NoDownloadDelegateTest) {
                false);  // use_download_delegate
 }
 
+TEST(DownloadActionTest, MultiPayloadProgressTest) {
+  std::vector<brillo::Blob> payload_datas;
+  // the first payload must be the largest, as it's the actual payload used by
+  // the MockHttpFetcher for all downloaded data.
+  payload_datas.emplace_back(4 * kMockHttpFetcherChunkSize + 256);
+  payload_datas.emplace_back(2 * kMockHttpFetcherChunkSize);
+  brillo::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
+  FakeSystemState fake_system_state;
+  EXPECT_CALL(*fake_system_state.mock_payload_state(), NextPayload())
+      .WillOnce(Return(true));
+
+  MockFileWriter mock_file_writer;
+  EXPECT_CALL(mock_file_writer, Close()).WillRepeatedly(Return(0));
+  EXPECT_CALL(mock_file_writer, Write(_, _, _))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<2>(ErrorCode::kSuccess), Return(true)));
+
+  InstallPlan install_plan;
+  uint64_t total_expected_download_size{0};
+  for (const auto& data : payload_datas) {
+    uint64_t size = data.size();
+    install_plan.payloads.push_back(
+        {.size = size, .type = InstallPayloadType::kFull});
+    total_expected_download_size += size;
+  }
+  ObjectFeederAction<InstallPlan> feeder_action;
+  feeder_action.set_obj(install_plan);
+  MockPrefs prefs;
+  MockHttpFetcher* http_fetcher = new MockHttpFetcher(
+      payload_datas[0].data(), payload_datas[0].size(), nullptr);
+  // takes ownership of passed in HttpFetcher
+  DownloadAction download_action(&prefs,
+                                 fake_system_state.boot_control(),
+                                 fake_system_state.hardware(),
+                                 &fake_system_state,
+                                 http_fetcher,
+                                 false /* is_interactive */);
+  download_action.SetTestFileWriter(&mock_file_writer);
+  BondActions(&feeder_action, &download_action);
+  MockDownloadActionDelegate download_delegate;
+  {
+    InSequence s;
+    download_action.set_delegate(&download_delegate);
+    // these are hand-computed based on the payloads specified above
+    EXPECT_CALL(download_delegate,
+                BytesReceived(kMockHttpFetcherChunkSize,
+                              kMockHttpFetcherChunkSize,
+                              total_expected_download_size));
+    EXPECT_CALL(download_delegate,
+                BytesReceived(kMockHttpFetcherChunkSize,
+                              kMockHttpFetcherChunkSize * 2,
+                              total_expected_download_size));
+    EXPECT_CALL(download_delegate,
+                BytesReceived(kMockHttpFetcherChunkSize,
+                              kMockHttpFetcherChunkSize * 3,
+                              total_expected_download_size));
+    EXPECT_CALL(download_delegate,
+                BytesReceived(kMockHttpFetcherChunkSize,
+                              kMockHttpFetcherChunkSize * 4,
+                              total_expected_download_size));
+    EXPECT_CALL(download_delegate,
+                BytesReceived(256,
+                              kMockHttpFetcherChunkSize * 4 + 256,
+                              total_expected_download_size));
+    EXPECT_CALL(download_delegate,
+                BytesReceived(kMockHttpFetcherChunkSize,
+                              kMockHttpFetcherChunkSize * 5 + 256,
+                              total_expected_download_size));
+    EXPECT_CALL(download_delegate,
+                BytesReceived(kMockHttpFetcherChunkSize,
+                              total_expected_download_size,
+                              total_expected_download_size));
+  }
+  ActionProcessor processor;
+  processor.EnqueueAction(&feeder_action);
+  processor.EnqueueAction(&download_action);
+
+  loop.PostTask(
+      FROM_HERE,
+      base::Bind(
+          [](ActionProcessor* processor) { processor->StartProcessing(); },
+          base::Unretained(&processor)));
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
+}
+
 namespace {
 class TerminateEarlyTestProcessorDelegate : public ActionProcessorDelegate {
  public:
@@ -271,6 +360,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
     InstallPlan install_plan;
+    install_plan.payloads.resize(1);
     feeder_action.set_obj(install_plan);
     FakeSystemState fake_system_state_;
     MockPrefs prefs;
@@ -370,8 +460,9 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 
   // takes ownership of passed in HttpFetcher
   InstallPlan install_plan;
-  install_plan.payload_size = 1;
-  install_plan.payload_hash = HashCalculator::HashOfString("x");
+  install_plan.payloads.push_back({.size = 1});
+  EXPECT_TRUE(
+      HashCalculator::RawHashOfData({'x'}, &install_plan.payloads[0].hash));
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
@@ -456,8 +547,9 @@ class P2PDownloadActionTest : public testing::Test {
     EXPECT_EQ(
         0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
     InstallPlan install_plan;
-    install_plan.payload_size = data_.length();
-    install_plan.payload_hash = "1234hash";
+    install_plan.payloads.push_back(
+        {.size = data_.length(),
+         .hash = {'1', '2', '3', '4', 'h', 'a', 's', 'h'}});
     ObjectFeederAction<InstallPlan> feeder_action;
     feeder_action.set_obj(install_plan);
     MockPrefs prefs;
@@ -512,7 +604,7 @@ class P2PDownloadActionTest : public testing::Test {
   // Callback used in StartDownload() method.
   void StartProcessorInRunLoopForP2P() {
     processor_.StartProcessing();
-    http_fetcher_->SetOffset(start_at_offset_);
+    download_action_->http_fetcher()->SetOffset(start_at_offset_);
   }
 
   // The requested starting offset passed to SetupDownload().
@@ -571,7 +663,8 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
 
   // Prepare the file with existing data before starting to write to
   // it via DownloadAction.
-  string file_id = utils::CalculateP2PFileId("1234hash", data_.length());
+  string file_id = utils::CalculateP2PFileId(
+      {'1', '2', '3', '4', 'h', 'a', 's', 'h'}, data_.length());
   ASSERT_TRUE(p2p_manager_->FileShare(file_id, data_.length()));
   string existing_data;
   for (unsigned int i = 0; i < 1000; i++)
@@ -608,7 +701,8 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
 
   // Prepare the file with all existing data before starting to write
   // to it via DownloadAction.
-  string file_id = utils::CalculateP2PFileId("1234hash", data_.length());
+  string file_id = utils::CalculateP2PFileId(
+      {'1', '2', '3', '4', 'h', 'a', 's', 'h'}, data_.length());
   ASSERT_TRUE(p2p_manager_->FileShare(file_id, data_.length()));
   string existing_data;
   for (unsigned int i = 0; i < 1000; i++)

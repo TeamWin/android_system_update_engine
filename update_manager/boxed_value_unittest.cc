@@ -21,6 +21,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
@@ -229,6 +230,16 @@ TEST(UmBoxedValueTest, DeleterMarkerToString) {
   EXPECT_EQ("DeleterMarker:false", value.ToString());
   marker = true;
   EXPECT_EQ("DeleterMarker:true", value.ToString());
+}
+
+TEST(UmBoxedValueTest, UpdateRestrictionsToString) {
+  EXPECT_EQ(
+      "None",
+      BoxedValue(new UpdateRestrictions(UpdateRestrictions::kNone)).ToString());
+  EXPECT_EQ("Flags: RestrictDownloading",
+            BoxedValue(new UpdateRestrictions(
+                           UpdateRestrictions::kRestrictDownloading))
+                .ToString());
 }
 
 }  // namespace chromeos_update_manager

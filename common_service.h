@@ -24,17 +24,13 @@
 #include <base/memory/ref_counted.h>
 #include <brillo/errors/error.h>
 
+#include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/system_state.h"
 
 namespace chromeos_update_engine {
 
 class UpdateEngineService {
  public:
-  // Flags used in the AttemptUpdateWithFlags() D-Bus method.
-  typedef enum {
-    kAttemptUpdateFlagNonInteractive = (1<<0)
-  } AttemptUpdateFlags;
-
   // Error domain for all the service errors.
   static const char* const kErrorDomain;
 
@@ -44,10 +40,17 @@ class UpdateEngineService {
   explicit UpdateEngineService(SystemState* system_state);
   virtual ~UpdateEngineService() = default;
 
+  // Set flags that influence how updates and checks are performed.  These
+  // influence all future checks and updates until changed or the device
+  // reboots.  The |in_flags_as_int| values are a union of values from
+  // |UpdateAttemptFlags|
+  bool SetUpdateAttemptFlags(brillo::ErrorPtr* error, int32_t in_flags_as_int);
+
   bool AttemptUpdate(brillo::ErrorPtr* error,
                      const std::string& in_app_version,
                      const std::string& in_omaha_url,
-                     int32_t in_flags_as_int);
+                     int32_t in_flags_as_int,
+                     bool* out_result);
 
   bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash);
 
@@ -63,11 +66,7 @@ class UpdateEngineService {
   // progress, the number of operations, size to download and overall progress
   // is reported.
   bool GetStatus(brillo::ErrorPtr* error,
-                 int64_t* out_last_checked_time,
-                 double* out_progress,
-                 std::string* out_current_operation,
-                 std::string* out_new_version,
-                 int64_t* out_new_size);
+                 update_engine::UpdateEngineStatus* out_status);
 
   // Reboots the device if an update is applied and a reboot is required.
   bool RebootIfNeeded(brillo::ErrorPtr* error);
@@ -114,12 +113,6 @@ class UpdateEngineService {
   // with an error since this setting is overridden by the applied policy.
   bool SetUpdateOverCellularPermission(brillo::ErrorPtr* error,
                                        bool in_allowed);
-
-  // If there's no device policy installed, sets the update over cellular
-  // target. Otherwise, this method returns with an error.
-  bool SetUpdateOverCellularTarget(brillo::ErrorPtr* error,
-                                   const std::string& target_version,
-                                   int64_t target_size);
 
   // Returns the current value of the update over cellular network setting,
   // either forced by the device policy if the device is enrolled or the current

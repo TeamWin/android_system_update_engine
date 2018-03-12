@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_STATE_H_
 #define UPDATE_ENGINE_PAYLOAD_STATE_H_
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -24,7 +25,7 @@
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/common/prefs_interface.h"
-#include "update_engine/metrics.h"
+#include "update_engine/metrics_constants.h"
 #include "update_engine/payload_state_interface.h"
 
 namespace chromeos_update_engine {
@@ -79,7 +80,9 @@ class PayloadState : public PayloadStateInterface {
   }
 
   inline std::string GetCurrentUrl() override {
-    return candidate_urls_.size() ? candidate_urls_[url_index_] : "";
+    return candidate_urls_.size() && candidate_urls_[payload_index_].size()
+               ? candidate_urls_[payload_index_][url_index_]
+               : "";
   }
 
   inline uint32_t GetUrlFailureCount() override {
@@ -150,6 +153,8 @@ class PayloadState : public PayloadStateInterface {
   inline ErrorCode GetAttemptErrorCode() const override {
     return attempt_error_code_;
   }
+
+  bool NextPayload() override;
 
  private:
   enum class AttemptType {
@@ -236,10 +241,6 @@ class PayloadState : public PayloadStateInterface {
   // reset on a new update.
   void ResetDownloadSourcesOnNewUpdate();
 
-  // Returns the persisted value from prefs_ for the given key. It also
-  // validates that the value returned is non-negative.
-  int64_t GetPersistedValue(const std::string& key);
-
   // Calculates the response "signature", which is basically a string composed
   // of the subset of the fields in the current response that affect the
   // behavior of the PayloadState.
@@ -269,6 +270,11 @@ class PayloadState : public PayloadStateInterface {
   // persists the value being set so that we resume from the same value in case
   // of a process restart.
   void SetFullPayloadAttemptNumber(int payload_attempt_number);
+
+  // Sets the current payload index to the given value. Also persists the value
+  // being set so that we resume from the same value in case of a process
+  // restart.
+  void SetPayloadIndex(size_t payload_index);
 
   // Initializes the current URL index from the persisted state.
   void LoadUrlIndex();
@@ -368,7 +374,9 @@ class PayloadState : public PayloadStateInterface {
   void ResetRollbackVersion();
 
   inline uint32_t GetUrlIndex() {
-    return url_index_;
+    return url_index_ ? std::min(candidate_urls_[payload_index_].size() - 1,
+                                 url_index_)
+                      : 0;
   }
 
   // Computes the list of candidate URLs from the total list of payload URLs in
@@ -393,16 +401,7 @@ class PayloadState : public PayloadStateInterface {
   // increments num_reboots.
   void UpdateNumReboots();
 
-  // Writes the current wall-clock time to the kPrefsSystemUpdatedMarker
-  // state variable.
-  void CreateSystemUpdatedMarkerFile();
 
-  // Called at program startup if the device booted into a new update.
-  // The |time_to_reboot| parameter contains the (wall-clock) duration
-  // from when the update successfully completed (the value written
-  // into the kPrefsSystemUpdatedMarker state variable) until the device
-  // was booted into the update (current wall-clock time).
-  void BootedIntoUpdate(base::TimeDelta time_to_reboot);
 
   // Loads the |kPrefsP2PFirstAttemptTimestamp| state variable from disk
   // into |p2p_first_attempt_timestamp_|.
@@ -419,6 +418,9 @@ class PayloadState : public PayloadStateInterface {
 
   // Loads the persisted scattering wallclock-based wait period.
   void LoadScatteringWaitPeriod();
+
+  // Get the total size of all payloads.
+  int64_t GetPayloadSize();
 
   // The global state of the system.
   SystemState* system_state_;
@@ -468,12 +470,15 @@ class PayloadState : public PayloadStateInterface {
   // we resume from the same value in case of a process restart.
   int full_payload_attempt_number_;
 
+  // The index of the current payload.
+  size_t payload_index_ = 0;
+
   // The index of the current URL.  This type is different from the one in the
   // accessor methods because PrefsInterface supports only int64_t but we want
   // to provide a stronger abstraction of uint32_t.  Each update to this value
   // is persisted so we resume from the same value in case of a process
   // restart.
-  int64_t url_index_;
+  size_t url_index_;
 
   // The count of failures encountered in the current attempt to download using
   // the current URL (specified by url_index_).  Each update to this value is
@@ -543,7 +548,7 @@ class PayloadState : public PayloadStateInterface {
 
   // The ordered list of the subset of payload URL candidates which are
   // allowed as per device policy.
-  std::vector<std::string> candidate_urls_;
+  std::vector<std::vector<std::string>> candidate_urls_;
 
   // This stores a blacklisted version set as part of rollback. When we rollback
   // we store the version of the os from which we are rolling back from in order

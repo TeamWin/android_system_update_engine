@@ -27,7 +27,7 @@ FakeSystemState::FakeSystemState()
       clock_(&fake_clock_),
       connection_manager_(&mock_connection_manager_),
       hardware_(&fake_hardware_),
-      metrics_lib_(&mock_metrics_lib_),
+      metrics_reporter_(&mock_metrics_reporter_),
       prefs_(&mock_prefs_),
       powerwash_safe_prefs_(&mock_powerwash_safe_prefs_),
       payload_state_(&mock_payload_state_),

@@ -27,6 +27,7 @@
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/mock_connection_manager.h"
+#include "update_engine/mock_metrics_reporter.h"
 #include "update_engine/mock_omaha_request_params.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
@@ -66,8 +67,9 @@ class FakeSystemState : public SystemState {
 
   inline HardwareInterface* hardware() override { return hardware_; }
 
-  inline MetricsLibraryInterface* metrics_lib() override {
-    return metrics_lib_;
+  inline MetricsReporterInterface* metrics_reporter() override {
+    CHECK(metrics_reporter_ != nullptr);
+    return metrics_reporter_;
   }
 
   inline PrefsInterface* prefs() override { return prefs_; }
@@ -122,8 +124,9 @@ class FakeSystemState : public SystemState {
     hardware_ = hardware ? hardware : &fake_hardware_;
   }
 
-  inline void set_metrics_lib(MetricsLibraryInterface* metrics_lib) {
-    metrics_lib_ = metrics_lib ? metrics_lib : &mock_metrics_lib_;
+  inline void set_metrics_reporter(MetricsReporterInterface* metrics_reporter) {
+    metrics_reporter_ =
+        metrics_reporter ? metrics_reporter : &mock_metrics_reporter_;
   }
 
   inline void set_prefs(PrefsInterface* prefs) {
@@ -187,9 +190,9 @@ class FakeSystemState : public SystemState {
     return &fake_hardware_;
   }
 
-  inline testing::NiceMock<MetricsLibraryMock>* mock_metrics_lib() {
-    CHECK(metrics_lib_ == &mock_metrics_lib_);
-    return &mock_metrics_lib_;
+  inline testing::NiceMock<MockMetricsReporter>* mock_metrics_reporter() {
+    CHECK(metrics_reporter_ == &mock_metrics_reporter_);
+    return &mock_metrics_reporter_;
   }
 
   inline testing::NiceMock<MockPrefs> *mock_prefs() {
@@ -233,7 +236,7 @@ class FakeSystemState : public SystemState {
   FakeClock fake_clock_;
   testing::NiceMock<MockConnectionManager> mock_connection_manager_;
   FakeHardware fake_hardware_;
-  testing::NiceMock<MetricsLibraryMock> mock_metrics_lib_;
+  testing::NiceMock<MockMetricsReporter> mock_metrics_reporter_;
   testing::NiceMock<MockPrefs> mock_prefs_;
   testing::NiceMock<MockPrefs> mock_powerwash_safe_prefs_;
   testing::NiceMock<MockPayloadState> mock_payload_state_;
@@ -249,7 +252,7 @@ class FakeSystemState : public SystemState {
   ClockInterface* clock_;
   ConnectionManagerInterface* connection_manager_;
   HardwareInterface* hardware_;
-  MetricsLibraryInterface* metrics_lib_;
+  MetricsReporterInterface* metrics_reporter_;
   PrefsInterface* prefs_;
   PrefsInterface* powerwash_safe_prefs_;
   PayloadStateInterface* payload_state_;

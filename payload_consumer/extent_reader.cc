@@ -68,9 +68,10 @@ bool DirectExtentReader::Read(void* buffer, size_t count) {
     if (cur_extent_ == extents_.end()) {
       TEST_AND_RETURN_FALSE(bytes_read == count);
     }
-    uint64_t bytes_to_read = std::min(
-        count - bytes_read,
-        cur_extent_->num_blocks() * block_size_ - cur_extent_bytes_read_);
+    uint64_t cur_extent_bytes_left =
+        cur_extent_->num_blocks() * block_size_ - cur_extent_bytes_read_;
+    uint64_t bytes_to_read =
+        std::min(count - bytes_read, cur_extent_bytes_left);
 
     ssize_t out_bytes_read;
     TEST_AND_RETURN_FALSE(utils::PReadAll(

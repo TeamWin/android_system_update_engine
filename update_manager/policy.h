@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "update_engine/common/error_code.h"
+#include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/update_manager/evaluation_context.h"
 #include "update_engine/update_manager/state.h"
 
@@ -32,6 +33,7 @@ enum class EvalStatus {
   kFailed,
   kSucceeded,
   kAskMeAgainLater,
+  kContinue,
 };
 
 std::string ToString(EvalStatus status);
@@ -204,6 +206,9 @@ class Policy {
     if (reinterpret_cast<typeof(&Policy::UpdateCheckAllowed)>(
             policy_method) == &Policy::UpdateCheckAllowed)
       return class_name + "UpdateCheckAllowed";
+    if (reinterpret_cast<typeof(&Policy::UpdateCanBeApplied)>(policy_method) ==
+        &Policy::UpdateCanBeApplied)
+      return class_name + "UpdateCanBeApplied";
     if (reinterpret_cast<typeof(&Policy::UpdateCanStart)>(
             policy_method) == &Policy::UpdateCanStart)
       return class_name + "UpdateCanStart";
@@ -234,6 +239,17 @@ class Policy {
   virtual EvalStatus UpdateCheckAllowed(
       EvaluationContext* ec, State* state, std::string* error,
       UpdateCheckParams* result) const = 0;
+
+  // UpdateCanBeApplied returns whether the given |install_plan| can be acted
+  // on at this time.  The reason for not applying is returned in |result|.
+  // The Policy may modify the passed-in |install_plan|, based on the
+  // implementation in the Policy and values provided by the EvaluationContext.
+  virtual EvalStatus UpdateCanBeApplied(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      chromeos_update_engine::ErrorCode* result,
+      chromeos_update_engine::InstallPlan* install_plan) const = 0;
 
   // Returns EvalStatus::kSucceeded if either an update can start being
   // processed, or the attempt needs to be aborted. In cases where the update

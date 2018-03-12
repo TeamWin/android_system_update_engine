@@ -20,7 +20,8 @@ import android.brillo.IUpdateEngineStatusCallback;
 import android.brillo.ParcelableUpdateEngineStatus;
 
 interface IUpdateEngine {
-  void AttemptUpdate(in String app_version, in String omaha_url, in int flags);
+  void SetUpdateAttemptFlags(in int flags);
+  boolean AttemptUpdate(in String app_version, in String omaha_url, in int flags);
   void AttemptRollback(in boolean powerwash);
   boolean CanRollback();
   void ResetStatus();
@@ -33,8 +34,6 @@ interface IUpdateEngine {
   void SetP2PUpdatePermission(in boolean enabled);
   boolean GetP2PUpdatePermission();
   void SetUpdateOverCellularPermission(in boolean enabled);
-  void SetUpdateOverCellularTarget(in String target_version,
-                                   in long target_size);
   boolean GetUpdateOverCellularPermission();
   long GetDurationSinceUpdate();
   String GetPrevVersion();

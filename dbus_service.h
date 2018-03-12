@@ -114,12 +114,6 @@ class DBusUpdateEngineService
   bool SetUpdateOverCellularPermission(brillo::ErrorPtr* error,
                                        bool in_allowed) override;
 
-  // If there's no device policy installed, sets the update over cellular
-  // target. Otherwise, this method returns with an error.
-  bool SetUpdateOverCellularTarget(brillo::ErrorPtr* error,
-                                   const std::string& target_version,
-                                   int64_t target_size) override;
-
   // Returns the current value of the update over cellular network setting,
   // either forced by the device policy if the device is enrolled or the current
   // user preference otherwise.
@@ -173,11 +167,8 @@ class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
   bool RequestOwnership();
 
   // ServiceObserverInterface overrides.
-  void SendStatusUpdate(int64_t last_checked_time,
-                        double progress,
-                        update_engine::UpdateStatus status,
-                        const std::string& new_version,
-                        int64_t new_size) override;
+  void SendStatusUpdate(
+      const update_engine::UpdateEngineStatus& update_engine_status) override;
 
   void SendPayloadApplicationComplete(ErrorCode error_code) override {}
 

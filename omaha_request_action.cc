@@ -21,15 +21,18 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
 #include <base/strings/string_number_conversions.h>
+#include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
+#include <brillo/key_value_store.h>
 #include <expat.h>
 #include <metrics/metrics_library.h>
 
@@ -41,7 +44,7 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_manager_interface.h"
-#include "update_engine/metrics.h"
+#include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
@@ -70,17 +73,16 @@ static const char* kTagMetadataSize = "MetadataSize";
 static const char* kTagMoreInfo = "MoreInfo";
 // Deprecated: "NeedsAdmin"
 static const char* kTagPrompt = "Prompt";
-static const char* kTagSha256 = "sha256";
 static const char* kTagDisableP2PForDownloading = "DisableP2PForDownloading";
 static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
 static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 
 static const char* kOmahaUpdaterVersion = "0.1.0.0";
 
-// X-GoogleUpdate headers.
-static const char* kXGoogleUpdateInteractivity = "X-GoogleUpdate-Interactivity";
-static const char* kXGoogleUpdateAppId = "X-GoogleUpdate-AppId";
-static const char* kXGoogleUpdateUpdater = "X-GoogleUpdate-Updater";
+// X-Goog-Update headers.
+static const char* kXGoogleUpdateInteractivity = "X-Goog-Update-Interactivity";
+static const char* kXGoogleUpdateAppId = "X-Goog-Update-AppId";
+static const char* kXGoogleUpdateUpdater = "X-Goog-Update-Updater";
 
 // updatecheck attributes (without the underscore prefix).
 static const char* kEolAttr = "eol";
@@ -204,10 +206,25 @@ string GetCohortArgXml(PrefsInterface* prefs,
                             arg_name.c_str(), escaped_xml_value.c_str());
 }
 
+struct OmahaAppData {
+  string id;
+  string version;
+  string product_components;
+};
+
+bool IsValidComponentID(const string& id) {
+  for (char c : id) {
+    if (!isalnum(c) && c != '-' && c != '_' && c != '.')
+      return false;
+  }
+  return true;
+}
+
 // Returns an XML that corresponds to the entire <app> node of the Omaha
 // request based on the given parameters.
 string GetAppXml(const OmahaEvent* event,
                  OmahaRequestParams* params,
+                 const OmahaAppData& app_data,
                  bool ping_only,
                  bool include_ping,
                  int ping_active_days,
@@ -219,17 +236,17 @@ string GetAppXml(const OmahaEvent* event,
                                system_state->prefs());
   string app_versions;
 
-  // If we are upgrading to a more stable channel and we are allowed to do
+  // If we are downgrading to a more stable channel and we are allowed to do
   // powerwash, then pass 0.0.0.0 as the version. This is needed to get the
   // highest-versioned payload on the destination channel.
-  if (params->to_more_stable_channel() && params->is_powerwash_allowed()) {
+  if (params->ShouldPowerwash()) {
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
     app_versions = "version=\"0.0.0.0\" from_version=\"" +
-        XmlEncodeWithDefault(params->app_version(), "0.0.0.0") + "\" ";
+                   XmlEncodeWithDefault(app_data.version, "0.0.0.0") + "\" ";
   } else {
     app_versions = "version=\"" +
-        XmlEncodeWithDefault(params->app_version(), "0.0.0.0") + "\" ";
+                   XmlEncodeWithDefault(app_data.version, "0.0.0.0") + "\" ";
   }
 
   string download_channel = params->download_channel();
@@ -260,16 +277,52 @@ string GetAppXml(const OmahaEvent* event,
 
   string fingerprint_arg;
   if (!params->os_build_fingerprint().empty()) {
-    fingerprint_arg =
-        "fingerprint=\"" + XmlEncodeWithDefault(params->os_build_fingerprint(), "") + "\" ";
+    fingerprint_arg = "fingerprint=\"" +
+                      XmlEncodeWithDefault(params->os_build_fingerprint(), "") +
+                      "\" ";
   }
 
+  string buildtype_arg;
+  if (!params->os_build_type().empty()) {
+    buildtype_arg = "os_build_type=\"" +
+                    XmlEncodeWithDefault(params->os_build_type(), "") + "\" ";
+  }
+
+  string product_components_args;
+  if (!params->ShouldPowerwash() && !app_data.product_components.empty()) {
+    brillo::KeyValueStore store;
+    if (store.LoadFromString(app_data.product_components)) {
+      for (const string& key : store.GetKeys()) {
+        if (!IsValidComponentID(key)) {
+          LOG(ERROR) << "Invalid component id: " << key;
+          continue;
+        }
+        string version;
+        if (!store.GetString(key, &version)) {
+          LOG(ERROR) << "Failed to get version for " << key
+                     << " in product_components.";
+          continue;
+        }
+        product_components_args +=
+            base::StringPrintf("_%s.version=\"%s\" ",
+                               key.c_str(),
+                               XmlEncodeWithDefault(version, "").c_str());
+      }
+    } else {
+      LOG(ERROR) << "Failed to parse product_components:\n"
+                 << app_data.product_components;
+    }
+  }
+
+  // clang-format off
   string app_xml = "    <app "
-      "appid=\"" + XmlEncodeWithDefault(params->GetAppId(), "") + "\" " +
+      "appid=\"" + XmlEncodeWithDefault(app_data.id, "") + "\" " +
       app_cohort_args +
       app_versions +
       app_channels +
+      product_components_args +
       fingerprint_arg +
+      buildtype_arg +
       "lang=\"" + XmlEncodeWithDefault(params->app_lang(), "en-US") + "\" " +
       "board=\"" + XmlEncodeWithDefault(params->os_board(), "") + "\" " +
       "hardware_class=\"" + XmlEncodeWithDefault(params->hwid(), "") + "\" " +
@@ -280,7 +333,7 @@ string GetAppXml(const OmahaEvent* event,
       ">\n" +
          app_body +
       "    </app>\n";
-
+  // clang-format on
   return app_xml;
 }
 
@@ -306,9 +359,32 @@ string GetRequestXml(const OmahaEvent* event,
                      int install_date_in_days,
                      SystemState* system_state) {
   string os_xml = GetOsXml(params);
-  string app_xml = GetAppXml(event, params, ping_only, include_ping,
-                             ping_active_days, ping_roll_call_days,
-                             install_date_in_days, system_state);
+  OmahaAppData product_app = {
+      .id = params->GetAppId(),
+      .version = params->app_version(),
+      .product_components = params->product_components()};
+  string app_xml = GetAppXml(event,
+                             params,
+                             product_app,
+                             ping_only,
+                             include_ping,
+                             ping_active_days,
+                             ping_roll_call_days,
+                             install_date_in_days,
+                             system_state);
+  if (!params->system_app_id().empty()) {
+    OmahaAppData system_app = {.id = params->system_app_id(),
+                               .version = params->system_version()};
+    app_xml += GetAppXml(event,
+                         params,
+                         system_app,
+                         ping_only,
+                         include_ping,
+                         ping_active_days,
+                         ping_roll_call_days,
+                         install_date_in_days,
+                         system_state);
+  }
 
   string install_source = base::StringPrintf("installsource=\"%s\" ",
       (params->interactive() ? "ondemandupdate" : "scheduler"));
@@ -346,22 +422,32 @@ struct OmahaParserData {
   string current_path;
 
   // These are the values extracted from the XML.
-  string app_cohort;
-  string app_cohorthint;
-  string app_cohortname;
-  bool app_cohort_set = false;
-  bool app_cohorthint_set = false;
-  bool app_cohortname_set = false;
-  string updatecheck_status;
   string updatecheck_poll_interval;
   map<string, string> updatecheck_attrs;
   string daystart_elapsed_days;
   string daystart_elapsed_seconds;
-  vector<string> url_codebase;
-  string package_name;
-  string package_size;
-  string manifest_version;
-  map<string, string> action_postinstall_attrs;
+
+  struct App {
+    string id;
+    vector<string> url_codebase;
+    string manifest_version;
+    map<string, string> action_postinstall_attrs;
+    string updatecheck_status;
+    string cohort;
+    string cohorthint;
+    string cohortname;
+    bool cohort_set = false;
+    bool cohorthint_set = false;
+    bool cohortname_set = false;
+
+    struct Package {
+      string name;
+      string size;
+      string hash;
+    };
+    vector<Package> packages;
+  };
+  vector<App> apps;
 };
 
 namespace {
@@ -386,22 +472,28 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
   }
 
   if (data->current_path == "/response/app") {
+    OmahaParserData::App app;
+    if (attrs.find("appid") != attrs.end()) {
+      app.id = attrs["appid"];
+    }
     if (attrs.find("cohort") != attrs.end()) {
-      data->app_cohort_set = true;
-      data->app_cohort = attrs["cohort"];
+      app.cohort_set = true;
+      app.cohort = attrs["cohort"];
     }
     if (attrs.find("cohorthint") != attrs.end()) {
-      data->app_cohorthint_set = true;
-      data->app_cohorthint = attrs["cohorthint"];
+      app.cohorthint_set = true;
+      app.cohorthint = attrs["cohorthint"];
     }
     if (attrs.find("cohortname") != attrs.end()) {
-      data->app_cohortname_set = true;
-      data->app_cohortname = attrs["cohortname"];
+      app.cohortname_set = true;
+      app.cohortname = attrs["cohortname"];
     }
+    data->apps.push_back(std::move(app));
   } else if (data->current_path == "/response/app/updatecheck") {
-    // There is only supposed to be a single <updatecheck> element.
-    data->updatecheck_status = attrs["status"];
-    data->updatecheck_poll_interval = attrs["PollInterval"];
+    if (!data->apps.empty())
+      data->apps.back().updatecheck_status = attrs["status"];
+    if (data->updatecheck_poll_interval.empty())
+      data->updatecheck_poll_interval = attrs["PollInterval"];
     // Omaha sends arbitrary key-value pairs as extra attributes starting with
     // an underscore.
     for (const auto& attr : attrs) {
@@ -414,20 +506,24 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
     data->daystart_elapsed_seconds = attrs["elapsed_seconds"];
   } else if (data->current_path == "/response/app/updatecheck/urls/url") {
     // Look at all <url> elements.
-    data->url_codebase.push_back(attrs["codebase"]);
-  } else if (data->package_name.empty() && data->current_path ==
+    if (!data->apps.empty())
+      data->apps.back().url_codebase.push_back(attrs["codebase"]);
+  } else if (data->current_path ==
              "/response/app/updatecheck/manifest/packages/package") {
-    // Only look at the first <package>.
-    data->package_name = attrs["name"];
-    data->package_size = attrs["size"];
+    // Look at all <package> elements.
+    if (!data->apps.empty())
+      data->apps.back().packages.push_back({.name = attrs["name"],
+                                            .size = attrs["size"],
+                                            .hash = attrs["hash_sha256"]});
   } else if (data->current_path == "/response/app/updatecheck/manifest") {
     // Get the version.
-    data->manifest_version = attrs[kTagVersion];
+    if (!data->apps.empty())
+      data->apps.back().manifest_version = attrs[kTagVersion];
   } else if (data->current_path ==
              "/response/app/updatecheck/manifest/actions/action") {
     // We only care about the postinstall action.
-    if (attrs["event"] == "postinstall") {
-      data->action_postinstall_attrs = attrs;
+    if (attrs["event"] == "postinstall" && !data->apps.empty()) {
+      data->apps.back().action_postinstall_attrs = std::move(attrs);
     }
   }
 }
@@ -666,7 +762,7 @@ void OmahaRequestAction::PerformAction() {
                                     GetInstallDate(system_state_),
                                     system_state_));
 
-  // Set X-GoogleUpdate headers.
+  // Set X-Goog-Update headers.
   http_fetcher_->SetHeader(kXGoogleUpdateInteractivity,
                            params_->interactive() ? "fg" : "bg");
   http_fetcher_->SetHeader(kXGoogleUpdateAppId, params_->GetAppId());
@@ -731,15 +827,112 @@ bool UpdateLastPingDays(OmahaParserData *parser_data, PrefsInterface* prefs) {
   prefs->SetInt64(kPrefsLastRollCallPingDay, daystart.ToInternalValue());
   return true;
 }
+
+// Parses the package node in the given XML document and populates
+// |output_object| if valid. Returns true if we should continue the parsing.
+// False otherwise, in which case it sets any error code using |completer|.
+bool ParsePackage(OmahaParserData::App* app,
+                  OmahaResponse* output_object,
+                  ScopedActionCompleter* completer) {
+  if (app->updatecheck_status == "noupdate") {
+    if (!app->packages.empty()) {
+      LOG(ERROR) << "No update in this <app> but <package> is not empty.";
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    return true;
+  }
+  if (app->packages.empty()) {
+    LOG(ERROR) << "Omaha Response has no packages";
+    completer->set_code(ErrorCode::kOmahaResponseInvalid);
+    return false;
+  }
+  if (app->url_codebase.empty()) {
+    LOG(ERROR) << "No Omaha Response URLs";
+    completer->set_code(ErrorCode::kOmahaResponseInvalid);
+    return false;
+  }
+  LOG(INFO) << "Found " << app->url_codebase.size() << " url(s)";
+  vector<string> metadata_sizes =
+      base::SplitString(app->action_postinstall_attrs[kTagMetadataSize],
+                        ":",
+                        base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
+  vector<string> metadata_signatures =
+      base::SplitString(app->action_postinstall_attrs[kTagMetadataSignatureRsa],
+                        ":",
+                        base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
+  vector<string> is_delta_payloads =
+      base::SplitString(app->action_postinstall_attrs[kTagIsDeltaPayload],
+                        ":",
+                        base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
+  for (size_t i = 0; i < app->packages.size(); i++) {
+    const auto& package = app->packages[i];
+    if (package.name.empty()) {
+      LOG(ERROR) << "Omaha Response has empty package name";
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Found package " << package.name;
+
+    OmahaResponse::Package out_package;
+    for (const string& codebase : app->url_codebase) {
+      if (codebase.empty()) {
+        LOG(ERROR) << "Omaha Response URL has empty codebase";
+        completer->set_code(ErrorCode::kOmahaResponseInvalid);
+        return false;
+      }
+      out_package.payload_urls.push_back(codebase + package.name);
+    }
+    // Parse the payload size.
+    base::StringToUint64(package.size, &out_package.size);
+    if (out_package.size <= 0) {
+      LOG(ERROR) << "Omaha Response has invalid payload size: " << package.size;
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Payload size = " << out_package.size << " bytes";
+
+    if (i < metadata_sizes.size())
+      base::StringToUint64(metadata_sizes[i], &out_package.metadata_size);
+    LOG(INFO) << "Payload metadata size = " << out_package.metadata_size
+              << " bytes";
+
+    if (i < metadata_signatures.size())
+      out_package.metadata_signature = metadata_signatures[i];
+    LOG(INFO) << "Payload metadata signature = "
+              << out_package.metadata_signature;
+
+    out_package.hash = package.hash;
+    if (out_package.hash.empty()) {
+      LOG(ERROR) << "Omaha Response has empty hash_sha256 value";
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Payload hash = " << out_package.hash;
+
+    if (i < is_delta_payloads.size())
+      out_package.is_delta = ParseBool(is_delta_payloads[i]);
+    LOG(INFO) << "Payload is delta = " << utils::ToString(out_package.is_delta);
+
+    output_object->packages.push_back(std::move(out_package));
+  }
+
+  return true;
+}
+
 }  // namespace
 
 bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
                                        OmahaResponse* output_object,
                                        ScopedActionCompleter* completer) {
-  if (parser_data->updatecheck_status.empty()) {
+  if (parser_data->apps.empty()) {
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
+  LOG(INFO) << "Found " << parser_data->apps.size() << " <app>.";
 
   // chromium-os:37289: The PollInterval is not supported by Omaha server
   // currently.  But still keeping this existing code in case we ever decide to
@@ -778,12 +971,17 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   }
 
   // We persist the cohorts sent by omaha even if the status is "noupdate".
-  if (parser_data->app_cohort_set)
-    PersistCohortData(kPrefsOmahaCohort, parser_data->app_cohort);
-  if (parser_data->app_cohorthint_set)
-    PersistCohortData(kPrefsOmahaCohortHint, parser_data->app_cohorthint);
-  if (parser_data->app_cohortname_set)
-    PersistCohortData(kPrefsOmahaCohortName, parser_data->app_cohortname);
+  for (const auto& app : parser_data->apps) {
+    if (app.id == params_->GetAppId()) {
+      if (app.cohort_set)
+        PersistCohortData(kPrefsOmahaCohort, app.cohort);
+      if (app.cohorthint_set)
+        PersistCohortData(kPrefsOmahaCohortHint, app.cohorthint);
+      if (app.cohortname_set)
+        PersistCohortData(kPrefsOmahaCohortName, app.cohortname);
+      break;
+    }
+  }
 
   // Parse the updatecheck attributes.
   PersistEolStatus(parser_data->updatecheck_attrs);
@@ -791,16 +989,14 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   if (!ParseStatus(parser_data, output_object, completer))
     return false;
 
-  // Note: ParseUrls MUST be called before ParsePackage as ParsePackage
-  // appends the package name to the URLs populated in this method.
-  if (!ParseUrls(parser_data, output_object, completer))
-    return false;
-
-  if (!ParsePackage(parser_data, output_object, completer))
-    return false;
-
   if (!ParseParams(parser_data, output_object, completer))
     return false;
+
+  // Package has to be parsed after Params now because ParseParams need to make
+  // sure that postinstall action exists.
+  for (auto& app : parser_data->apps)
+    if (!ParsePackage(&app, output_object, completer))
+      return false;
 
   return true;
 }
@@ -808,80 +1004,55 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
-  const string& status = parser_data->updatecheck_status;
-  if (status == "noupdate") {
-    LOG(INFO) << "No update.";
-    output_object->update_exists = false;
-    SetOutputObject(*output_object);
-    completer->set_code(ErrorCode::kSuccess);
-    return false;
-  }
-
-  if (status != "ok") {
-    LOG(ERROR) << "Unknown Omaha response status: " << status;
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  return true;
-}
-
-bool OmahaRequestAction::ParseUrls(OmahaParserData* parser_data,
-                                   OmahaResponse* output_object,
-                                   ScopedActionCompleter* completer) {
-  if (parser_data->url_codebase.empty()) {
-    LOG(ERROR) << "No Omaha Response URLs";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  LOG(INFO) << "Found " << parser_data->url_codebase.size() << " url(s)";
-  output_object->payload_urls.clear();
-  for (const auto& codebase : parser_data->url_codebase) {
-    if (codebase.empty()) {
-      LOG(ERROR) << "Omaha Response URL has empty codebase";
+  output_object->update_exists = false;
+  for (size_t i = 0; i < parser_data->apps.size(); i++) {
+    const string& status = parser_data->apps[i].updatecheck_status;
+    if (status == "noupdate") {
+      // Don't update if any app has status="noupdate".
+      LOG(INFO) << "No update for <app> " << i;
+      output_object->update_exists = false;
+      break;
+    } else if (status == "ok") {
+      if (parser_data->apps[i].action_postinstall_attrs["noupdate"] == "true") {
+        // noupdate="true" in postinstall attributes means it's an update to
+        // self, only update if there's at least one app really have update.
+        LOG(INFO) << "Update to self for <app> " << i;
+      } else {
+        LOG(INFO) << "Update for <app> " << i;
+        output_object->update_exists = true;
+      }
+    } else {
+      LOG(ERROR) << "Unknown Omaha response status: " << status;
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
       return false;
     }
-    output_object->payload_urls.push_back(codebase);
+  }
+  if (!output_object->update_exists) {
+    SetOutputObject(*output_object);
+    completer->set_code(ErrorCode::kSuccess);
   }
 
-  return true;
-}
-
-bool OmahaRequestAction::ParsePackage(OmahaParserData* parser_data,
-                                      OmahaResponse* output_object,
-                                      ScopedActionCompleter* completer) {
-  if (parser_data->package_name.empty()) {
-    LOG(ERROR) << "Omaha Response has empty package name";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  // Append the package name to each URL in our list so that we don't
-  // propagate the urlBase vs packageName distinctions beyond this point.
-  // From now on, we only need to use payload_urls.
-  for (auto& payload_url : output_object->payload_urls)
-    payload_url += parser_data->package_name;
-
-  // Parse the payload size.
-  off_t size = ParseInt(parser_data->package_size);
-  if (size <= 0) {
-    LOG(ERROR) << "Omaha Response has invalid payload size: " << size;
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-  output_object->size = size;
-
-  LOG(INFO) << "Payload size = " << output_object->size << " bytes";
-
-  return true;
+  return output_object->update_exists;
 }
 
 bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
-  output_object->version = parser_data->manifest_version;
+  map<string, string> attrs;
+  for (auto& app : parser_data->apps) {
+    if (app.id == params_->GetAppId()) {
+      // this is the app (potentially the only app)
+      output_object->version = app.manifest_version;
+    } else if (!params_->system_app_id().empty() &&
+               app.id == params_->system_app_id()) {
+      // this is the system app (this check is intentionally skipped if there is
+      // no system_app_id set)
+      output_object->system_version = app.manifest_version;
+    }
+    if (!app.action_postinstall_attrs.empty() && attrs.empty()) {
+      attrs = app.action_postinstall_attrs;
+    }
+  }
   if (output_object->version.empty()) {
     LOG(ERROR) << "Omaha Response does not have version in manifest!";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -891,24 +1062,14 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
   LOG(INFO) << "Received omaha response to update to version "
             << output_object->version;
 
-  map<string, string> attrs = parser_data->action_postinstall_attrs;
   if (attrs.empty()) {
     LOG(ERROR) << "Omaha Response has no postinstall event action";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
 
-  output_object->hash = attrs[kTagSha256];
-  if (output_object->hash.empty()) {
-    LOG(ERROR) << "Omaha Response has empty sha256 value";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
   // Get the optional properties one by one.
   output_object->more_info_url = attrs[kTagMoreInfo];
-  output_object->metadata_size = ParseInt(attrs[kTagMetadataSize]);
-  output_object->metadata_signature = attrs[kTagMetadataSignatureRsa];
   output_object->prompt = ParseBool(attrs[kTagPrompt]);
   output_object->deadline = attrs[kTagDeadline];
   output_object->max_days_to_scatter = ParseInt(attrs[kTagMaxDaysToScatter]);
@@ -921,8 +1082,6 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
   string max = attrs[kTagMaxFailureCountPerUrl];
   if (!base::StringToUint(max, &output_object->max_failure_count_per_url))
     output_object->max_failure_count_per_url = kDefaultMaxFailureCountPerUrl;
-
-  output_object->is_delta_payload = ParseBool(attrs[kTagIsDeltaPayload]);
 
   output_object->disable_payload_backoff =
       ParseBool(attrs[kTagDisablePayloadBackoff]);
@@ -1016,11 +1175,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   output_object.update_exists = true;
   SetOutputObject(output_object);
 
-  ErrorCode error = ErrorCode::kSuccess;
-  if (ShouldIgnoreUpdate(&error, output_object)) {
-    // No need to change output_object.update_exists here, since the value
-    // has been output to the pipe.
-    completer.set_code(error);
+  if (ShouldIgnoreUpdate(output_object)) {
+    output_object.update_exists = false;
+    completer.set_code(ErrorCode::kOmahaUpdateIgnoredPerPolicy);
     return;
   }
 
@@ -1150,10 +1307,15 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
                    next_data_offset + next_data_length;
   }
 
-  string file_id = utils::CalculateP2PFileId(response.hash, response.size);
+  // TODO(senj): Fix P2P for multiple package.
+  brillo::Blob raw_hash;
+  if (!base::HexStringToBytes(response.packages[0].hash, &raw_hash))
+    return;
+  string file_id =
+      utils::CalculateP2PFileId(raw_hash, response.packages[0].size);
   if (system_state_->p2p_manager()) {
-    LOG(INFO) << "Checking if payload is available via p2p, file_id="
-              << file_id << " minimum_size=" << minimum_size;
+    LOG(INFO) << "Checking if payload is available via p2p, file_id=" << file_id
+              << " minimum_size=" << minimum_size;
     system_state_->p2p_manager()->LookupUrlForFile(
         file_id,
         minimum_size,
@@ -1416,12 +1578,9 @@ bool OmahaRequestAction::PersistInstallDate(
   if (!prefs->SetInt64(kPrefsInstallDateDays, install_date_days))
     return false;
 
-  string metric_name = metrics::kMetricInstallDateProvisioningSource;
-  system_state->metrics_lib()->SendEnumToUMA(
-      metric_name,
+  system_state->metrics_reporter()->ReportInstallDateProvisioningSource(
       static_cast<int>(source),  // Sample.
       kProvisionedMax);          // Maximum.
-
   return true;
 }
 
@@ -1478,7 +1637,6 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
     break;
 
   case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
-  case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     result = metrics::CheckResult::kUpdateAvailable;
     reaction = metrics::CheckReaction::kIgnored;
     break;
@@ -1508,12 +1666,12 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
     break;
   }
 
-  metrics::ReportUpdateCheckMetrics(system_state_,
-                                    result, reaction, download_error_code);
+  system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
+      system_state_, result, reaction, download_error_code);
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(
-    ErrorCode* error, const OmahaResponse& response) const {
+    const OmahaResponse& response) const {
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       system_state_->payload_state()->GetRollbackVersion();
@@ -1521,12 +1679,11 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
     if (rollback_version == response.version) {
       LOG(INFO) << "Received version that we rolled back from. Ignoring.";
-      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
       return true;
     }
   }
 
-  if (!IsUpdateAllowedOverCurrentConnection(error, response)) {
+  if (!IsUpdateAllowedOverCurrentConnection()) {
     LOG(INFO) << "Update is not allowed over current connection.";
     return true;
   }
@@ -1541,59 +1698,7 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
   return false;
 }
 
-bool OmahaRequestAction::IsUpdateAllowedOverCellularByPrefs(
-    const OmahaResponse& response) const {
-  PrefsInterface* prefs = system_state_->prefs();
-
-  if (!prefs) {
-    LOG(INFO) << "Disabling updates over cellular as the preferences are "
-                 "not available.";
-    return false;
-  }
-
-  bool is_allowed;
-
-  if (prefs->Exists(kPrefsUpdateOverCellularPermission) &&
-      prefs->GetBoolean(kPrefsUpdateOverCellularPermission, &is_allowed) &&
-      is_allowed) {
-    LOG(INFO) << "Allowing updates over cellular as permission preference is "
-                 "set to true.";
-    return true;
-  }
-
-  if (!prefs->Exists(kPrefsUpdateOverCellularTargetVersion) ||
-      !prefs->Exists(kPrefsUpdateOverCellularTargetSize)) {
-    LOG(INFO) << "Disabling updates over cellular as permission preference is "
-                 "set to false or does not exist while target does not exist.";
-    return false;
-  }
-
-  std::string target_version;
-  int64_t target_size;
-
-  if (!prefs->GetString(kPrefsUpdateOverCellularTargetVersion,
-                        &target_version) ||
-      !prefs->GetInt64(kPrefsUpdateOverCellularTargetSize,
-                       &target_size)) {
-    LOG(INFO) << "Disabling updates over cellular as the target version or "
-                 "size is not accessible.";
-    return false;
-  }
-
-  if (target_version == response.version && target_size == response.size) {
-    LOG(INFO) << "Allowing updates over cellular as the target matches the"
-                 "omaha response.";
-    return true;
-  } else {
-    LOG(INFO) << "Disabling updates over cellular as the target does not"
-                 "match the omaha response.";
-    return false;
-  }
-}
-
-bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
-    ErrorCode* error,
-    const OmahaResponse& response) const {
+bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
   ConnectionType type;
   ConnectionTethering tethering;
   ConnectionManagerInterface* connection_manager =
@@ -1603,32 +1708,7 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
               << "Defaulting to allow updates.";
     return true;
   }
-
   bool is_allowed = connection_manager->IsUpdateAllowedOver(type, tethering);
-  bool is_device_policy_set = connection_manager->
-                                  IsAllowedConnectionTypesForUpdateSet();
-  // Treats tethered connection as if it is cellular connection.
-  bool is_over_cellular = type == ConnectionType::kCellular ||
-                          tethering == ConnectionTethering::kConfirmed;
-
-  if (!is_over_cellular) {
-    // There's no need to further check user preferences as we are not over
-    // cellular connection.
-    if (!is_allowed)
-      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
-  } else if (is_device_policy_set) {
-    // There's no need to further check user preferences as the device policy
-    // is set regarding updates over cellular.
-    if (!is_allowed)
-      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
-  } else {
-    // Deivce policy is not set, so user preferences overwrite whether to
-    // allow updates over cellular.
-    is_allowed = IsUpdateAllowedOverCellularByPrefs(response);
-    if (!is_allowed)
-      *error = ErrorCode::kOmahaUpdateIgnoredOverCellular;
-  }
-
   LOG(INFO) << "We are connected via "
             << connection_utils::StringForConnectionType(type)
             << ", Updates allowed: " << (is_allowed ? "Yes" : "No");

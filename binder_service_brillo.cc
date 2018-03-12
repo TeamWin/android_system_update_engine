@@ -33,6 +33,7 @@ using android::brillo::ParcelableUpdateEngineStatus;
 using android::sp;
 using brillo::ErrorPtr;
 using std::string;
+using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
 
@@ -57,12 +58,20 @@ Status BinderUpdateEngineBrilloService::CallCommonHandler(
   return ToStatus(&error);
 }
 
+Status BinderUpdateEngineBrilloService::SetUpdateAttemptFlags(int flags) {
+  return CallCommonHandler(&UpdateEngineService::SetUpdateAttemptFlags, flags);
+}
+
 Status BinderUpdateEngineBrilloService::AttemptUpdate(
-    const String16& app_version, const String16& omaha_url, int flags) {
+    const String16& app_version,
+    const String16& omaha_url,
+    int flags,
+    bool* out_result) {
   return CallCommonHandler(&UpdateEngineService::AttemptUpdate,
                            NormalString(app_version),
                            NormalString(omaha_url),
-                           flags);
+                           flags,
+                           out_result);
 }
 
 Status BinderUpdateEngineBrilloService::AttemptRollback(bool powerwash) {
@@ -79,19 +88,12 @@ Status BinderUpdateEngineBrilloService::ResetStatus() {
 
 Status BinderUpdateEngineBrilloService::GetStatus(
     ParcelableUpdateEngineStatus* status) {
-  string current_op;
-  string new_version;
-
-  auto ret = CallCommonHandler(&UpdateEngineService::GetStatus,
-                               &status->last_checked_time_,
-                               &status->progress_,
-                               &current_op,
-                               &new_version,
-                               &status->new_size_);
+  UpdateEngineStatus update_engine_status;
+  auto ret =
+      CallCommonHandler(&UpdateEngineService::GetStatus, &update_engine_status);
 
   if (ret.isOk()) {
-    status->current_operation_ = String16{current_op.c_str()};
-    status->new_version_ = String16{new_version.c_str()};
+    *status = ParcelableUpdateEngineStatus(update_engine_status);
   }
 
   return ret;
@@ -149,14 +151,6 @@ Status BinderUpdateEngineBrilloService::SetUpdateOverCellularPermission(
     bool enabled) {
   return CallCommonHandler(
       &UpdateEngineService::SetUpdateOverCellularPermission, enabled);
-}
-
-Status BinderUpdateEngineBrilloService::SetUpdateOverCellularTarget(
-    const String16& target_version,
-    int64_t target_size) {
-  return CallCommonHandler(
-      &UpdateEngineService::SetUpdateOverCellularTarget,
-      NormalString(target_version), target_size);
 }
 
 Status BinderUpdateEngineBrilloService::GetUpdateOverCellularPermission(
@@ -236,18 +230,10 @@ void BinderUpdateEngineBrilloService::UnregisterStatusCallback(
 }
 
 void BinderUpdateEngineBrilloService::SendStatusUpdate(
-    int64_t last_checked_time,
-    double progress,
-    update_engine::UpdateStatus status,
-    const string& new_version,
-    int64_t new_size) {
-  const string str_status = UpdateStatusToString(status);
+    const UpdateEngineStatus& update_engine_status) {
+  ParcelableUpdateEngineStatus parcelable_status(update_engine_status);
   for (auto& callback : callbacks_) {
-    callback->HandleStatusUpdate(last_checked_time,
-                                 progress,
-                                 String16{str_status.c_str()},
-                                 String16{new_version.c_str()},
-                                 new_size);
+    callback->HandleStatusUpdate(parcelable_status);
   }
 }
 

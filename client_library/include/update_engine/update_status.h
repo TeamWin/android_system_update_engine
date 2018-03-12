@@ -17,15 +17,16 @@
 #ifndef UPDATE_ENGINE_CLIENT_LIBRARY_INCLUDE_UPDATE_ENGINE_UPDATE_STATUS_H_
 #define UPDATE_ENGINE_CLIENT_LIBRARY_INCLUDE_UPDATE_ENGINE_UPDATE_STATUS_H_
 
+#include <string>
+
+#include <brillo/enum_flags.h>
+
 namespace update_engine {
 
 enum class UpdateStatus {
   IDLE = 0,
   CHECKING_FOR_UPDATE,
   UPDATE_AVAILABLE,
-  // Broadcast this state when an update aborts because user preferences does
-  // not allow update over cellular.
-  NEED_PERMISSION_TO_UPDATE,
   DOWNLOADING,
   VERIFYING,
   FINALIZING,
@@ -33,6 +34,39 @@ enum class UpdateStatus {
   REPORTING_ERROR_EVENT,
   ATTEMPTING_ROLLBACK,
   DISABLED,
+};
+
+// Enum of bit-wise flags for controlling how updates are attempted.
+enum UpdateAttemptFlags : int32_t {
+  kNone = 0,
+  // Treat the update like a non-interactive update, even when being triggered
+  // by the interactive APIs.
+  kFlagNonInteractive = (1 << 0),
+  // Restrict (disallow) downloading of updates.
+  kFlagRestrictDownload = (1 << 1),
+};
+
+// Enable bit-wise operators for the above enumeration of flag values.
+DECLARE_FLAGS_ENUM(UpdateAttemptFlags);
+
+struct UpdateEngineStatus {
+  // When the update_engine last checked for updates (time_t: seconds from unix
+  // epoch)
+  int64_t last_checked_time;
+  // the current status/operation of the update_engine
+  UpdateStatus status;
+  // the current product version (oem bundle id)
+  std::string current_version;
+  // the current system version
+  std::string current_system_version;
+  // The current progress (0.0f-1.0f).
+  double progress;
+  // the size of the update (bytes)
+  uint64_t new_size_bytes;
+  // the new product version
+  std::string new_version;
+  // the new system version, if there is one (empty, otherwise)
+  std::string new_system_version;
 };
 
 }  // namespace update_engine

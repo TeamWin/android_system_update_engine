@@ -38,9 +38,11 @@ using chromeos_update_engine::FakeSystemState;
 using chromeos_update_engine::OmahaRequestParams;
 using std::string;
 using std::unique_ptr;
+using testing::_;
+using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
-using testing::_;
+using update_engine::UpdateAttemptFlags;
 
 namespace {
 
@@ -55,7 +57,9 @@ Time FixedTime() {
   now_exp.minute = 5;
   now_exp.second = 33;
   now_exp.millisecond = 675;
-  return Time::FromLocalExploded(now_exp);
+  Time time;
+  ignore_result(Time::FromLocalExploded(now_exp, &time));
+  return time;
 }
 
 // Rounds down a timestamp to the nearest second. This is useful when faking
@@ -64,7 +68,29 @@ Time RoundedToSecond(Time time) {
   Time::Exploded exp;
   time.LocalExplode(&exp);
   exp.millisecond = 0;
-  return Time::FromLocalExploded(exp);
+  Time rounded_time;
+  ignore_result(Time::FromLocalExploded(exp, &rounded_time));
+  return rounded_time;
+}
+
+ACTION_P(ActionSetUpdateEngineStatusLastCheckedTime, time) {
+  arg0->last_checked_time = time;
+};
+
+ACTION_P(ActionSetUpdateEngineStatusProgress, progress) {
+  arg0->progress = progress;
+};
+
+ACTION_P(ActionSetUpdateEngineStatusStatus, status) {
+  arg0->status = status;
+}
+
+ACTION_P(ActionSetUpdateEngineStatusNewVersion, new_version) {
+  arg0->new_version = new_version;
+}
+
+ACTION_P(ActionSetUpdateEngineStatusNewSizeBytes, new_size_bytes) {
+  arg0->new_size_bytes = new_size_bytes;
 }
 
 }  // namespace
@@ -116,222 +142,186 @@ TEST_F(UmRealUpdaterProviderTest, UpdaterStartedTimeIsWallclockTime) {
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetLastCheckedTimeOkay) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<0>(FixedTime().ToTimeT()), Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(
+          ActionSetUpdateEngineStatusLastCheckedTime(FixedTime().ToTimeT()),
+          Return(true)));
   UmTestUtils::ExpectVariableHasValue(RoundedToSecond(FixedTime()),
                                       provider_->var_last_checked_time());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetLastCheckedTimeFailNoValue) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
       .WillOnce(Return(false));
   UmTestUtils::ExpectVariableNotSet(provider_->var_last_checked_time());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetProgressOkayMin) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(0.0), Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusProgress(0.0), Return(true)));
   UmTestUtils::ExpectVariableHasValue(0.0, provider_->var_progress());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetProgressOkayMid) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(0.3), Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusProgress(0.3), Return(true)));
   UmTestUtils::ExpectVariableHasValue(0.3, provider_->var_progress());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetProgressOkayMax) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(1.0), Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusProgress(1.0), Return(true)));
   UmTestUtils::ExpectVariableHasValue(1.0, provider_->var_progress());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetProgressFailNoValue) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
       .WillOnce(Return(false));
   UmTestUtils::ExpectVariableNotSet(provider_->var_progress());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetProgressFailTooSmall) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(-2.0), Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusProgress(-2.0), Return(true)));
   UmTestUtils::ExpectVariableNotSet(provider_->var_progress());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetProgressFailTooBig) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(2.0), Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusProgress(2.0), Return(true)));
   UmTestUtils::ExpectVariableNotSet(provider_->var_progress());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayIdle) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusIdle),
-                      Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(
+          ActionSetUpdateEngineStatusStatus(update_engine::UpdateStatus::IDLE),
+          Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kIdle, provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayCheckingForUpdate) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(
-              SetArgPointee<2>(update_engine::kUpdateStatusCheckingForUpdate),
-              Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::CHECKING_FOR_UPDATE),
+                      Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kCheckingForUpdate,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayUpdateAvailable) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(
-              SetArgPointee<2>(update_engine::kUpdateStatusUpdateAvailable),
-              Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::UPDATE_AVAILABLE),
+                      Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kUpdateAvailable,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayDownloading) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusDownloading),
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::DOWNLOADING),
                       Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kDownloading,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayVerifying) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusVerifying),
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::VERIFYING),
                       Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kVerifying,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayFinalizing) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusFinalizing),
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::FINALIZING),
                       Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kFinalizing,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayUpdatedNeedReboot) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(
-              SetArgPointee<2>(update_engine::kUpdateStatusUpdatedNeedReboot),
-              Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::UPDATED_NEED_REBOOT),
+                      Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kUpdatedNeedReboot,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayReportingErrorEvent) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(
-              SetArgPointee<2>(update_engine::kUpdateStatusReportingErrorEvent),
-              Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::REPORTING_ERROR_EVENT),
+                      Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kReportingErrorEvent,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageOkayAttemptingRollback) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(
-              SetArgPointee<2>(update_engine::kUpdateStatusAttemptingRollback),
-              Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusStatus(
+                          update_engine::UpdateStatus::ATTEMPTING_ROLLBACK),
+                      Return(true)));
   UmTestUtils::ExpectVariableHasValue(Stage::kAttemptingRollback,
                                       provider_->var_stage());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetStageFailNoValue) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
       .WillOnce(Return(false));
   UmTestUtils::ExpectVariableNotSet(provider_->var_stage());
 }
 
-TEST_F(UmRealUpdaterProviderTest, GetStageFailUnknown) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<2>("FooUpdateEngineState"),
-                      Return(true)));
-  UmTestUtils::ExpectVariableNotSet(provider_->var_stage());
-}
-
-TEST_F(UmRealUpdaterProviderTest, GetStageFailEmpty) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<2>(""), Return(true)));
-  UmTestUtils::ExpectVariableNotSet(provider_->var_stage());
-}
-
 TEST_F(UmRealUpdaterProviderTest, GetNewVersionOkay) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<3>("1.2.0"), Return(true)));
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(
+          DoAll(ActionSetUpdateEngineStatusNewVersion("1.2.0"), Return(true)));
   UmTestUtils::ExpectVariableHasValue(string("1.2.0"),
                                       provider_->var_new_version());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetNewVersionFailNoValue) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
       .WillOnce(Return(false));
   UmTestUtils::ExpectVariableNotSet(provider_->var_new_version());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetPayloadSizeOkayZero) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(0)), Return(true)));
-  UmTestUtils::ExpectVariableHasValue(static_cast<int64_t>(0),
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(
+          ActionSetUpdateEngineStatusNewSizeBytes(static_cast<uint64_t>(0)),
+          Return(true)));
+  UmTestUtils::ExpectVariableHasValue(static_cast<uint64_t>(0),
                                       provider_->var_payload_size());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetPayloadSizeOkayArbitrary) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(567890)),
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusNewSizeBytes(
+                          static_cast<uint64_t>(567890)),
                       Return(true)));
-  UmTestUtils::ExpectVariableHasValue(static_cast<int64_t>(567890),
+  UmTestUtils::ExpectVariableHasValue(static_cast<uint64_t>(567890),
                                       provider_->var_payload_size());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetPayloadSizeOkayTwoGigabytes) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(1) << 31),
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
+      .WillOnce(DoAll(ActionSetUpdateEngineStatusNewSizeBytes(
+                          static_cast<uint64_t>(1) << 31),
                       Return(true)));
-  UmTestUtils::ExpectVariableHasValue(static_cast<int64_t>(1) << 31,
+  UmTestUtils::ExpectVariableHasValue(static_cast<uint64_t>(1) << 31,
                                       provider_->var_payload_size());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetPayloadSizeFailNoValue) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetStatus(_))
       .WillOnce(Return(false));
-  UmTestUtils::ExpectVariableNotSet(provider_->var_payload_size());
-}
-
-TEST_F(UmRealUpdaterProviderTest, GetPayloadSizeFailNegative) {
-  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
-              GetStatus(_, _, _, _, _))
-      .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(-1024)),
-                      Return(true)));
   UmTestUtils::ExpectVariableNotSet(provider_->var_payload_size());
 }
 
@@ -440,4 +430,20 @@ TEST_F(UmRealUpdaterProviderTest, GetServerDictatedPollInterval) {
       kPollInterval, provider_->var_server_dictated_poll_interval());
 }
 
+TEST_F(UmRealUpdaterProviderTest, GetUpdateRestrictions) {
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
+              GetCurrentUpdateAttemptFlags())
+      .WillRepeatedly(Return(UpdateAttemptFlags::kFlagRestrictDownload |
+                             UpdateAttemptFlags::kFlagNonInteractive));
+  UmTestUtils::ExpectVariableHasValue(UpdateRestrictions::kRestrictDownloading,
+                                      provider_->var_update_restrictions());
+}
+
+TEST_F(UmRealUpdaterProviderTest, GetUpdateRestrictionsNone) {
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
+              GetCurrentUpdateAttemptFlags())
+      .WillRepeatedly(Return(UpdateAttemptFlags::kNone));
+  UmTestUtils::ExpectVariableHasValue(UpdateRestrictions::kNone,
+                                      provider_->var_update_restrictions());
+}
 }  // namespace chromeos_update_manager

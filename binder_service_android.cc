@@ -24,6 +24,7 @@
 
 using android::binder::Status;
 using android::os::IUpdateEngineCallback;
+using update_engine::UpdateEngineStatus;
 
 namespace {
 Status ErrorPtrToStatus(const brillo::ErrorPtr& error) {
@@ -40,13 +41,9 @@ BinderUpdateEngineAndroidService::BinderUpdateEngineAndroidService(
 }
 
 void BinderUpdateEngineAndroidService::SendStatusUpdate(
-    int64_t /* last_checked_time */,
-    double progress,
-    update_engine::UpdateStatus status,
-    const std::string& /* new_version  */,
-    int64_t /* new_size */) {
-  last_status_ = static_cast<int>(status);
-  last_progress_ = progress;
+    const UpdateEngineStatus& update_engine_status) {
+  last_status_ = static_cast<int>(update_engine_status.status);
+  last_progress_ = update_engine_status.progress;
   for (auto& callback : callbacks_) {
     callback->onStatusUpdate(last_status_, last_progress_);
   }
@@ -63,12 +60,15 @@ Status BinderUpdateEngineAndroidService::bind(
     const android::sp<IUpdateEngineCallback>& callback, bool* return_value) {
   callbacks_.emplace_back(callback);
 
+  const android::sp<IBinder>& callback_binder =
+      IUpdateEngineCallback::asBinder(callback);
   auto binder_wrapper = android::BinderWrapper::Get();
   binder_wrapper->RegisterForDeathNotifications(
-      IUpdateEngineCallback::asBinder(callback),
-      base::Bind(&BinderUpdateEngineAndroidService::UnbindCallback,
-                 base::Unretained(this),
-                 base::Unretained(callback.get())));
+      callback_binder,
+      base::Bind(
+          base::IgnoreResult(&BinderUpdateEngineAndroidService::UnbindCallback),
+          base::Unretained(this),
+          base::Unretained(callback_binder.get())));
 
   // Send an status update on connection (except when no update sent so far),
   // since the status update is oneway and we don't need to wait for the
@@ -77,6 +77,17 @@ Status BinderUpdateEngineAndroidService::bind(
     callback->onStatusUpdate(last_status_, last_progress_);
 
   *return_value = true;
+  return Status::ok();
+}
+
+Status BinderUpdateEngineAndroidService::unbind(
+    const android::sp<IUpdateEngineCallback>& callback, bool* return_value) {
+  const android::sp<IBinder>& callback_binder =
+      IUpdateEngineCallback::asBinder(callback);
+  auto binder_wrapper = android::BinderWrapper::Get();
+  binder_wrapper->UnregisterForDeathNotifications(callback_binder);
+
+  *return_value = UnbindCallback(callback_binder.get());
   return Status::ok();
 }
 
@@ -128,19 +139,19 @@ Status BinderUpdateEngineAndroidService::resetStatus() {
   return Status::ok();
 }
 
-void BinderUpdateEngineAndroidService::UnbindCallback(
-    IUpdateEngineCallback* callback) {
-  auto it =
-      std::find_if(callbacks_.begin(),
-                   callbacks_.end(),
-                   [&callback](const android::sp<IUpdateEngineCallback>& elem) {
-                     return elem.get() == callback;
-                   });
+bool BinderUpdateEngineAndroidService::UnbindCallback(const IBinder* callback) {
+  auto it = std::find_if(
+      callbacks_.begin(),
+      callbacks_.end(),
+      [&callback](const android::sp<IUpdateEngineCallback>& elem) {
+        return IUpdateEngineCallback::asBinder(elem).get() == callback;
+      });
   if (it == callbacks_.end()) {
-    LOG(ERROR) << "Got death notification for unknown callback.";
-    return;
+    LOG(ERROR) << "Unable to unbind unknown callback.";
+    return false;
   }
   callbacks_.erase(it);
+  return true;
 }
 
 }  // namespace chromeos_update_engine

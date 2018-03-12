@@ -17,8 +17,6 @@
 #ifndef UPDATE_ENGINE_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_SYSTEM_STATE_H_
 
-class MetricsLibraryInterface;
-
 namespace chromeos_update_manager {
 
 class UpdateManager;
@@ -40,6 +38,7 @@ class BootControlInterface;
 class ClockInterface;
 class ConnectionManagerInterface;
 class HardwareInterface;
+class MetricsReporterInterface;
 class OmahaRequestParams;
 class P2PManager;
 class PayloadStateInterface;
@@ -76,7 +75,7 @@ class SystemState {
   virtual HardwareInterface* hardware() = 0;
 
   // Gets the Metrics Library interface for reporting UMA stats.
-  virtual MetricsLibraryInterface* metrics_lib() = 0;
+  virtual MetricsReporterInterface* metrics_reporter() = 0;
 
   // Gets the interface object for persisted store.
   virtual PrefsInterface* prefs() = 0;

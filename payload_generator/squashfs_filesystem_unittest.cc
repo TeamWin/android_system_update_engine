@@ -108,6 +108,8 @@ class SquashfsFilesystemTest : public ::testing::Test {
   }
 };
 
+// CreateFromFile() depends on unsquashfs -m, which only exists in Chrome OS.
+#ifdef __CHROMEOS__
 TEST_F(SquashfsFilesystemTest, EmptyFilesystemTest) {
   unique_ptr<SquashfsFilesystem> fs = SquashfsFilesystem::CreateFromFile(
       GetBuildArtifactsPath("gen/disk_sqfs_empty.img"), true);
@@ -146,6 +148,7 @@ TEST_F(SquashfsFilesystemTest, DefaultFilesystemTest) {
   EXPECT_EQ(files[0].name, file.name);
   EXPECT_EQ(files[0].extents, file.extents);
 }
+#endif  // __CHROMEOS__
 
 TEST_F(SquashfsFilesystemTest, SimpleFileMapTest) {
   string filemap = R"(dir1/file1 96 4000

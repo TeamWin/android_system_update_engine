@@ -33,6 +33,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/metrics_reporter_omaha.h"
 #if USE_DBUS
 #include "update_engine/dbus_connection.h"
 #endif  // USE_DBUS
@@ -50,7 +51,7 @@ RealSystemState::~RealSystemState() {
 }
 
 bool RealSystemState::Initialize() {
-  metrics_lib_.Init();
+  metrics_reporter_.Initialize();
 
   boot_control_ = boot_control::CreateBootControl();
   if (!boot_control_) {

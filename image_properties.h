@@ -33,19 +33,34 @@ struct ImageProperties {
   std::string product_id;
   // The canary-channel product id.
   std::string canary_product_id;
+  // The system id for the Android Things SoM, empty for Chrome OS.
+  std::string system_id;
 
   // The product version of this image.
   std::string version;
+  // The system version of this image.
+  std::string system_version;
+
+  // The version of all product components in key values pairs.
+  std::string product_components;
 
   // A unique string that identifies this build. Normally a combination of the
   // the version, signing keys and build target.
   std::string build_fingerprint;
+
+  // The Android build type, should be either 'user', 'userdebug' or 'eng'.
+  // It's empty string on other platform.
+  std::string build_type;
 
   // The board name this image was built for.
   std::string board;
 
   // The release channel this image was obtained from.
   std::string current_channel;
+
+  // Whether we allow arbitrary channels instead of just the ones listed in
+  // kChannelsByStability.
+  bool allow_arbitrary_channels = false;
 
   // The Omaha URL this image should get updates from.
   std::string omaha_url;

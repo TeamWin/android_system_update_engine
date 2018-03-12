@@ -17,6 +17,9 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
 
+#include <string>
+#include <vector>
+
 #include "update_engine/update_manager/policy.h"
 
 // Checks that the passed pointer value is not null, returning kFailed on the
@@ -34,5 +37,85 @@
         return EvalStatus::kFailed; \
       } \
     } while (false)
+
+namespace chromeos_update_manager {
+
+// Call the passed-in Policy method on a series of Policy implementations, until
+// one of them renders a decision by returning a value other than
+// |EvalStatus::kContinue|.
+template <typename T, typename R, typename... Args>
+EvalStatus ConsultPolicies(const std::vector<Policy const*> policies,
+                           T policy_method,
+                           EvaluationContext* ec,
+                           State* state,
+                           std::string* error,
+                           R* result,
+                           Args... args) {
+  for (auto policy : policies) {
+    EvalStatus status =
+        (policy->*policy_method)(ec, state, error, result, args...);
+    if (status != EvalStatus::kContinue) {
+      LOG(INFO) << "decision by " << policy->PolicyRequestName(policy_method);
+      return status;
+    }
+  }
+  return EvalStatus::kContinue;
+}
+
+// Base class implementation that returns |EvalStatus::kContinue| for all
+// decisions, to be used as a base-class for various Policy facets that only
+// pertain to certain situations. This might be better folded into Policy
+// instead of using pure-virtual methods on that class.
+class PolicyImplBase : public Policy {
+ public:
+  // Policy overrides.
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+                                State* state,
+                                std::string* error,
+                                UpdateCheckParams* result) const override {
+    return EvalStatus::kContinue;
+  };
+
+  EvalStatus UpdateCanBeApplied(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      chromeos_update_engine::ErrorCode* result,
+      chromeos_update_engine::InstallPlan* install_plan) const override {
+    return EvalStatus::kContinue;
+  };
+
+  EvalStatus UpdateCanStart(EvaluationContext* ec,
+                            State* state,
+                            std::string* error,
+                            UpdateDownloadParams* result,
+                            UpdateState update_state) const override {
+    return EvalStatus::kContinue;
+  };
+
+  EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
+                                   State* state,
+                                   std::string* error,
+                                   bool* result) const override {
+    return EvalStatus::kContinue;
+  };
+
+  EvalStatus P2PEnabled(EvaluationContext* ec,
+                        State* state,
+                        std::string* error,
+                        bool* result) const override {
+    return EvalStatus::kContinue;
+  };
+
+  EvalStatus P2PEnabledChanged(EvaluationContext* ec,
+                               State* state,
+                               std::string* error,
+                               bool* result,
+                               bool prev_result) const override {
+    return EvalStatus::kContinue;
+  };
+};
+
+}  // namespace chromeos_update_manager
 
 #endif  // UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_

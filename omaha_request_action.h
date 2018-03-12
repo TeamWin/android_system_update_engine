@@ -274,13 +274,6 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                  OmahaResponse* output_object,
                  ScopedActionCompleter* completer);
 
-  // Parses the package node in the given XML document and populates
-  // |output_object| if valid. Returns true if we should continue the parsing.
-  // False otherwise, in which case it sets any error code using |completer|.
-  bool ParsePackage(OmahaParserData* parser_data,
-                    OmahaResponse* output_object,
-                    ScopedActionCompleter* completer);
-
   // Parses the other parameters in the given XML document and populates
   // |output_object| if valid. Returns true if we should continue the parsing.
   // False otherwise, in which case it sets any error code using |completer|.
@@ -299,17 +292,11 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   void OnLookupPayloadViaP2PCompleted(const std::string& url);
 
   // Returns true if the current update should be ignored.
-  bool ShouldIgnoreUpdate(ErrorCode* error,
-                          const OmahaResponse& response) const;
-
-  // Return true if updates are allowed by user preferences.
-  bool IsUpdateAllowedOverCellularByPrefs(const OmahaResponse& response) const;
+  bool ShouldIgnoreUpdate(const OmahaResponse& response) const;
 
   // Returns true if updates are allowed over the current type of connection.
   // False otherwise.
-  bool IsUpdateAllowedOverCurrentConnection(
-      ErrorCode* error,
-      const OmahaResponse& response) const;
+  bool IsUpdateAllowedOverCurrentConnection() const;
 
   // Global system context.
   SystemState* system_state_;

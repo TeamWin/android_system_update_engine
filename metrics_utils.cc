@@ -21,7 +21,8 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/clock_interface.h"
-#include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
 
 using base::Time;
@@ -37,6 +38,9 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
   switch (base_code) {
     case ErrorCode::kSuccess:
       return metrics::AttemptResult::kUpdateSucceeded;
+
+    case ErrorCode::kUpdatedButNotActive:
+      return metrics::AttemptResult::kUpdateSucceededNotActive;
 
     case ErrorCode::kDownloadTransferError:
       return metrics::AttemptResult::kPayloadDownloadError;
@@ -109,7 +113,6 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
-    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
       return metrics::AttemptResult::kInternalError;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -210,7 +213,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
-    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
+    case ErrorCode::kUpdatedButNotActive:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -305,6 +308,77 @@ bool MonotonicDurationHelper(SystemState* system_state,
   *storage = now.ToInternalValue();
 
   return ret;
+}
+
+int64_t GetPersistedValue(const std::string& key, PrefsInterface* prefs) {
+  CHECK(prefs);
+  if (!prefs->Exists(key))
+    return 0;
+
+  int64_t stored_value;
+  if (!prefs->GetInt64(key, &stored_value))
+    return 0;
+
+  if (stored_value < 0) {
+    LOG(ERROR) << key << ": Invalid value (" << stored_value
+               << ") in persisted state. Defaulting to 0";
+    return 0;
+  }
+
+  return stored_value;
+}
+
+void SetNumReboots(int64_t num_reboots, PrefsInterface* prefs) {
+  CHECK(prefs);
+  prefs->SetInt64(kPrefsNumReboots, num_reboots);
+  LOG(INFO) << "Number of Reboots during current update attempt = "
+            << num_reboots;
+}
+
+void SetPayloadAttemptNumber(int64_t payload_attempt_number,
+                             PrefsInterface* prefs) {
+  CHECK(prefs);
+  prefs->SetInt64(kPrefsPayloadAttemptNumber, payload_attempt_number);
+  LOG(INFO) << "Payload Attempt Number = " << payload_attempt_number;
+}
+
+void SetSystemUpdatedMarker(ClockInterface* clock, PrefsInterface* prefs) {
+  CHECK(prefs);
+  CHECK(clock);
+  Time update_finish_time = clock->GetMonotonicTime();
+  prefs->SetInt64(kPrefsSystemUpdatedMarker,
+                  update_finish_time.ToInternalValue());
+  LOG(INFO) << "Updated Marker = " << utils::ToString(update_finish_time);
+}
+
+void SetUpdateTimestampStart(const Time& update_start_time,
+                             PrefsInterface* prefs) {
+  CHECK(prefs);
+  prefs->SetInt64(kPrefsUpdateTimestampStart,
+                  update_start_time.ToInternalValue());
+  LOG(INFO) << "Update Timestamp Start = "
+            << utils::ToString(update_start_time);
+}
+
+bool LoadAndReportTimeToReboot(MetricsReporterInterface* metrics_reporter,
+                               PrefsInterface* prefs,
+                               ClockInterface* clock) {
+  CHECK(prefs);
+  CHECK(clock);
+  int64_t stored_value = GetPersistedValue(kPrefsSystemUpdatedMarker, prefs);
+  if (stored_value == 0)
+    return false;
+
+  Time system_updated_at = Time::FromInternalValue(stored_value);
+  base::TimeDelta time_to_reboot =
+      clock->GetMonotonicTime() - system_updated_at;
+  if (time_to_reboot.ToInternalValue() < 0) {
+    LOG(ERROR) << "time_to_reboot is negative - system_updated_at: "
+               << utils::ToString(system_updated_at);
+    return false;
+  }
+  metrics_reporter->ReportTimeToReboot(time_to_reboot.InMinutes());
+  return true;
 }
 
 }  // namespace metrics_utils

@@ -34,16 +34,13 @@
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 
+using brillo::data_encoding::Base64Encode;
 using std::string;
 
 namespace chromeos_update_engine {
 
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
-
-string StringForHashBytes(const brillo::Blob& hash) {
-  return brillo::data_encoding::Base64Encode(hash.data(), hash.size());
-}
 }  // namespace
 
 void FilesystemVerifierAction::PerformAction() {
@@ -199,15 +196,18 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
   }
   InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
-  LOG(INFO) << "Hash of " << partition.name << ": " << hasher_->hash();
+  LOG(INFO) << "Hash of " << partition.name << ": "
+            << Base64Encode(hasher_->raw_hash());
 
   switch (verifier_step_) {
     case VerifierStep::kVerifyTargetHash:
       if (partition.target_hash != hasher_->raw_hash()) {
         LOG(ERROR) << "New '" << partition.name
                    << "' partition verification failed.";
-        if (install_plan_.payload_type == InstallPayloadType::kFull)
+        if (partition.source_hash.empty()) {
+          // No need to verify source if it is a full payload.
           return Cleanup(ErrorCode::kNewRootfsVerificationError);
+        }
         // If we have not verified source partition yet, now that the target
         // partition does not match, and it's not a full payload, we need to
         // switch to kVerifySourceHash step to check if it's because the source
@@ -231,9 +231,9 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
                       " means that the delta I've been given doesn't match my"
                       " existing system. The "
                    << partition.name << " partition I have has hash: "
-                   << StringForHashBytes(hasher_->raw_hash())
+                   << Base64Encode(hasher_->raw_hash())
                    << " but the update expected me to have "
-                   << StringForHashBytes(partition.source_hash) << " .";
+                   << Base64Encode(partition.source_hash) << " .";
         LOG(INFO) << "To get the checksum of the " << partition.name
                   << " partition run this command: dd if="
                   << partition.source_path

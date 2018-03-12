@@ -117,7 +117,7 @@ TEST_F(CachedFileDescriptorTest, RandomWriteTest) {
     size_t start = rand_r(&rand_seed) % blob_in.size();
     size_t size = rand_r(&rand_seed) % (blob_in.size() - start);
     std::fill_n(&blob_in[start], size, idx % 256);
-    EXPECT_EQ(cfd_->Seek(start, SEEK_SET), start);
+    EXPECT_EQ(cfd_->Seek(start, SEEK_SET), static_cast<off64_t>(start));
     Write(&blob_in[start], size);
   }
   EXPECT_TRUE(cfd_->Flush());
@@ -130,16 +130,19 @@ TEST_F(CachedFileDescriptorTest, RandomWriteTest) {
 TEST_F(CachedFileDescriptorTest, SeekTest) {
   EXPECT_EQ(cfd_->Seek(0, SEEK_SET), 0);
   EXPECT_EQ(cfd_->Seek(1, SEEK_SET), 1);
-  EXPECT_EQ(cfd_->Seek(kFileSize - 1, SEEK_SET), kFileSize - 1);
-  EXPECT_EQ(cfd_->Seek(kFileSize, SEEK_SET), kFileSize);
-  EXPECT_EQ(cfd_->Seek(kFileSize + 1, SEEK_SET), kFileSize + 1);
+  EXPECT_EQ(cfd_->Seek(kFileSize - 1, SEEK_SET),
+            static_cast<off64_t>(kFileSize - 1));
+  EXPECT_EQ(cfd_->Seek(kFileSize, SEEK_SET), static_cast<off64_t>(kFileSize));
+  EXPECT_EQ(cfd_->Seek(kFileSize + 1, SEEK_SET),
+            static_cast<off64_t>(kFileSize + 1));
 
   EXPECT_EQ(cfd_->Seek(0, SEEK_SET), 0);
   EXPECT_EQ(cfd_->Seek(1, SEEK_CUR), 1);
   EXPECT_EQ(cfd_->Seek(1, SEEK_CUR), 2);
-  EXPECT_EQ(cfd_->Seek(kFileSize - 1, SEEK_SET), kFileSize - 1);
-  EXPECT_EQ(cfd_->Seek(1, SEEK_CUR), kFileSize);
-  EXPECT_EQ(cfd_->Seek(1, SEEK_CUR), kFileSize + 1);
+  EXPECT_EQ(cfd_->Seek(kFileSize - 1, SEEK_SET),
+            static_cast<off64_t>(kFileSize - 1));
+  EXPECT_EQ(cfd_->Seek(1, SEEK_CUR), static_cast<off64_t>(kFileSize));
+  EXPECT_EQ(cfd_->Seek(1, SEEK_CUR), static_cast<off64_t>(kFileSize + 1));
 }
 
 TEST_F(CachedFileDescriptorTest, NoFlushTest) {
@@ -153,7 +156,7 @@ TEST_F(CachedFileDescriptorTest, NoFlushTest) {
 }
 
 TEST_F(CachedFileDescriptorTest, CacheSizeWriteTest) {
-  size_t seek = 10;
+  off64_t seek = 10;
   brillo::Blob blob_in(kFileSize, 0);
   std::fill_n(&blob_in[seek], kCacheSize, value_);
   // We are writing exactly one cache size; Then it should be commited.
@@ -166,7 +169,7 @@ TEST_F(CachedFileDescriptorTest, CacheSizeWriteTest) {
 }
 
 TEST_F(CachedFileDescriptorTest, UnderCacheSizeWriteTest) {
-  size_t seek = 100;
+  off64_t seek = 100;
   size_t less_than_cache_size = kCacheSize - 1;
   EXPECT_EQ(cfd_->Seek(seek, SEEK_SET), seek);
   brillo::Blob blob_in(kFileSize, 0);
@@ -182,7 +185,7 @@ TEST_F(CachedFileDescriptorTest, UnderCacheSizeWriteTest) {
 }
 
 TEST_F(CachedFileDescriptorTest, SeekAfterWriteTest) {
-  size_t seek = 100;
+  off64_t seek = 100;
   size_t less_than_cache_size = kCacheSize - 3;
   EXPECT_EQ(cfd_->Seek(seek, SEEK_SET), seek);
   brillo::Blob blob_in(kFileSize, 0);

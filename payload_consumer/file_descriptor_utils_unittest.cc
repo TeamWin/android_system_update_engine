@@ -167,4 +167,32 @@ TEST_F(FileDescriptorUtilsTest, CopyAndHashExtentsManyToManyTest) {
   EXPECT_EQ(expected_hash, hash_out);
 }
 
+// Failing to read from the source should fail the hash calculation.
+TEST_F(FileDescriptorUtilsTest, ReadAndHashExtentsReadFailureTest) {
+  auto extents = CreateExtentList({{0, 5}});
+  fake_source_->AddFailureRange(10, 5);
+  brillo::Blob hash_out;
+  EXPECT_FALSE(fd_utils::ReadAndHashExtents(source_, extents, 4, &hash_out));
+}
+
+// Test that if hash_out is null, then it should fail.
+TEST_F(FileDescriptorUtilsTest, ReadAndHashExtentsWithoutHashingTest) {
+  auto extents = CreateExtentList({{0, 5}});
+  EXPECT_FALSE(fd_utils::ReadAndHashExtents(source_, extents, 4, nullptr));
+}
+
+// Tests that it can calculate the hash properly.
+TEST_F(FileDescriptorUtilsTest, ReadAndHashExtentsTest) {
+  // Reorder the input as 1 4 2 3 0.
+  auto extents = CreateExtentList({{1, 1}, {4, 1}, {2, 2}, {0, 1}});
+  brillo::Blob hash_out;
+  EXPECT_TRUE(fd_utils::ReadAndHashExtents(source_, extents, 4, &hash_out));
+
+  const char kExpectedResult[] = "00010004000200030000";
+  brillo::Blob expected_hash;
+  EXPECT_TRUE(HashCalculator::RawHashOfBytes(
+      kExpectedResult, strlen(kExpectedResult), &expected_hash));
+  EXPECT_EQ(expected_hash, hash_out);
+}
+
 }  // namespace chromeos_update_engine

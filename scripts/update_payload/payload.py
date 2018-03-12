@@ -112,13 +112,15 @@ class Payload(object):
             hasher=hasher)
 
 
-  def __init__(self, payload_file):
+  def __init__(self, payload_file, payload_file_offset=0):
     """Initialize the payload object.
 
     Args:
       payload_file: update payload file object open for reading
+      payload_file_offset: the offset of the actual payload
     """
     self.payload_file = payload_file
+    self.payload_file_offset = payload_file_offset
     self.manifest_hasher = None
     self.is_init = False
     self.header = None
@@ -170,7 +172,8 @@ class Payload(object):
 
     return common.Read(
         self.payload_file, self.header.metadata_signature_len,
-        offset=self.header.size + self.header.manifest_len)
+        offset=self.payload_file_offset + self.header.size +
+        self.header.manifest_len)
 
   def ReadDataBlob(self, offset, length):
     """Reads and returns a single data blob from the update payload.
@@ -186,7 +189,8 @@ class Payload(object):
       PayloadError if a read error occurred.
     """
     return common.Read(self.payload_file, length,
-                       offset=self.data_offset + offset)
+                       offset=self.payload_file_offset + self.data_offset +
+                       offset)
 
   def Init(self):
     """Initializes the payload object.
@@ -203,6 +207,7 @@ class Payload(object):
     self.manifest_hasher = hashlib.sha256()
 
     # Read the file header.
+    self.payload_file.seek(self.payload_file_offset)
     self.header = self._ReadHeader()
 
     # Read the manifest.
@@ -253,7 +258,7 @@ class Payload(object):
 
   def ResetFile(self):
     """Resets the offset of the payload file to right past the manifest."""
-    self.payload_file.seek(self.data_offset)
+    self.payload_file.seek(self.payload_file_offset + self.data_offset)
 
   def IsDelta(self):
     """Returns True iff the payload appears to be a delta."""

@@ -17,8 +17,16 @@
 #ifndef UPDATE_ENGINE_METRICS_UTILS_H_
 #define UPDATE_ENGINE_METRICS_UTILS_H_
 
+#include <string>
+
+#include <base/time/time.h>
+
+#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/error_code.h"
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/connection_utils.h"
-#include "update_engine/metrics.h"
+#include "update_engine/metrics_constants.h"
+#include "update_engine/metrics_reporter_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -64,6 +72,33 @@ bool WallclockDurationHelper(SystemState* system_state,
 bool MonotonicDurationHelper(SystemState* system_state,
                              int64_t* storage,
                              base::TimeDelta* out_duration);
+
+// Returns the persisted value from prefs for the given key. It also
+// validates that the value returned is non-negative.
+int64_t GetPersistedValue(const std::string& key, PrefsInterface* prefs);
+
+// Persists the reboot count of the update attempt to |kPrefsNumReboots|.
+void SetNumReboots(int64_t num_reboots, PrefsInterface* prefs);
+
+// Persists the payload attempt number to |kPrefsPayloadAttemptNumber|.
+void SetPayloadAttemptNumber(int64_t payload_attempt_number,
+                             PrefsInterface* prefs);
+
+// Persists the finished time of an update to the |kPrefsSystemUpdatedMarker|.
+void SetSystemUpdatedMarker(ClockInterface* clock, PrefsInterface* prefs);
+
+// Persists the start time of an update to |kPrefsUpdateTimestampStart|.
+void SetUpdateTimestampStart(const base::Time& update_start_time,
+                             PrefsInterface* prefs);
+
+// Called at program startup if the device booted into a new update.
+// The |time_to_reboot| parameter contains the (monotonic-clock) duration
+// from when the update successfully completed (the value in
+// |kPrefsSystemUpdatedMarker|) until the device was booted into the update
+// (current monotonic-clock time).
+bool LoadAndReportTimeToReboot(MetricsReporterInterface* metrics_reporter,
+                               PrefsInterface* prefs,
+                               ClockInterface* clock);
 
 }  // namespace metrics_utils
 }  // namespace chromeos_update_engine
