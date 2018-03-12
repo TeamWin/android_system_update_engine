@@ -748,9 +748,9 @@ TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
 
   // Check that the headers were set in the fetcher during the action. Note that
   // we set this request as "interactive".
-  EXPECT_EQ("fg", fetcher->GetHeader("X-GoogleUpdate-Interactivity"));
-  EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-GoogleUpdate-AppId"));
-  EXPECT_NE("", fetcher->GetHeader("X-GoogleUpdate-Updater"));
+  EXPECT_EQ("fg", fetcher->GetHeader("X-Goog-Update-Interactivity"));
+  EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-Goog-Update-AppId"));
+  EXPECT_NE("", fetcher->GetHeader("X-Goog-Update-Updater"));
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
