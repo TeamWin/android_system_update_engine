@@ -1584,16 +1584,6 @@ ErrorCode DeltaPerformer::VerifyPayload(
   }
 
   LOG(INFO) << "Payload hash matches value in payload.";
-
-  // At this point, we are guaranteed to have downloaded a full payload, i.e
-  // the one whose size matches the size mentioned in Omaha response. If any
-  // errors happen after this, it's likely a problem with the payload itself or
-  // the state of the system and not a problem with the URL or network.  So,
-  // indicate that to the download delegate so that AU can backoff
-  // appropriately.
-  if (download_delegate_)
-    download_delegate_->DownloadComplete();
-
   return ErrorCode::kSuccess;
 }
 
