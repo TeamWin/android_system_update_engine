@@ -852,9 +852,6 @@ void VerifyPayloadResult(DeltaPerformer* performer,
     return;
   }
 
-  int expected_times = (expected_result == ErrorCode::kSuccess) ? 1 : 0;
-  EXPECT_CALL(state->mock_delegate_, DownloadComplete()).Times(expected_times);
-
   LOG(INFO) << "Verifying payload for expected result " << expected_result;
   brillo::Blob expected_hash;
   HashCalculator::RawHashOfData(state->delta, &expected_hash);
@@ -972,12 +969,14 @@ TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageTest) {
                    false, kInPlaceMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignaturePlaceholderTest) {
+TEST(DeltaPerformerIntegrationTest,
+     RunAsRootSmallImageSignaturePlaceholderTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedPlaceholder,
                    false, kInPlaceMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignaturePlaceholderMismatchTest) {
+TEST(DeltaPerformerIntegrationTest,
+     RunAsRootSmallImageSignaturePlaceholderMismatchTest) {
   DeltaState state;
   GenerateDeltaFile(false, false, false, -1,
                     kSignatureGeneratedPlaceholderMismatch, &state,
@@ -1019,17 +1018,20 @@ TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignGeneratedShellTest) {
                    false, kInPlaceMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignGeneratedShellBadKeyTest) {
+TEST(DeltaPerformerIntegrationTest,
+     RunAsRootSmallImageSignGeneratedShellBadKeyTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellBadKey,
                    false, kInPlaceMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignGeneratedShellRotateCl1Test) {
+TEST(DeltaPerformerIntegrationTest,
+     RunAsRootSmallImageSignGeneratedShellRotateCl1Test) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl1,
                    false, kInPlaceMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
+TEST(DeltaPerformerIntegrationTest,
+     RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl2,
                    false, kInPlaceMinorPayloadVersion);
 }
@@ -1039,7 +1041,8 @@ TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSourceOpsTest) {
                    false, kSourceMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerIntegrationTest, RunAsRootMandatoryOperationHashMismatchTest) {
+TEST(DeltaPerformerIntegrationTest,
+     RunAsRootMandatoryOperationHashMismatchTest) {
   DoOperationHashMismatchTest(kInvalidOperationData, true);
 }
 

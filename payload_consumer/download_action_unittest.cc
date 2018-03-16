@@ -177,6 +177,8 @@ void TestWithData(const brillo::Blob& data,
       EXPECT_CALL(download_delegate,
                   BytesReceived(_, kMockHttpFetcherChunkSize, _));
     EXPECT_CALL(download_delegate, BytesReceived(_, _, _)).Times(AtLeast(1));
+    EXPECT_CALL(download_delegate, DownloadComplete())
+        .Times(fail_write == 0 ? 1 : 0);
   }
   ErrorCode expected_code = ErrorCode::kSuccess;
   if (fail_write > 0)

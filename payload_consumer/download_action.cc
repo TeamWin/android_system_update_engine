@@ -387,8 +387,13 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
         StartDownloading();
         return;
       }
+
+      // All payloads have been applied and verified.
+      if (delegate_)
+        delegate_->DownloadComplete();
+
       // Log UpdateEngine.DownloadAction.* histograms to help diagnose
-      // long-blocking oeprations.
+      // long-blocking operations.
       std::string histogram_output;
       base::StatisticsRecorder::WriteGraph(
           "UpdateEngine.DownloadAction.", &histogram_output);
