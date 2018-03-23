@@ -1076,9 +1076,23 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     // If the current state is at or past the download phase, count the failure
     // in case a switch to full update becomes necessary. Ignore network
     // transfer timeouts and failures.
-    if (status_ >= UpdateStatus::DOWNLOADING &&
-        code != ErrorCode::kDownloadTransferError) {
-      MarkDeltaUpdateFailure();
+    if (code != ErrorCode::kDownloadTransferError) {
+      switch (status_) {
+        case UpdateStatus::IDLE:
+        case UpdateStatus::CHECKING_FOR_UPDATE:
+        case UpdateStatus::UPDATE_AVAILABLE:
+        case UpdateStatus::NEED_PERMISSION_TO_UPDATE:
+          break;
+        case UpdateStatus::DOWNLOADING:
+        case UpdateStatus::VERIFYING:
+        case UpdateStatus::FINALIZING:
+        case UpdateStatus::UPDATED_NEED_REBOOT:
+        case UpdateStatus::REPORTING_ERROR_EVENT:
+        case UpdateStatus::ATTEMPTING_ROLLBACK:
+        case UpdateStatus::DISABLED:
+          MarkDeltaUpdateFailure();
+          break;
+      }
     }
     // On failure, schedule an error event to be sent to Omaha.
     CreatePendingErrorEvent(action, code);
