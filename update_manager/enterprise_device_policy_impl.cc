@@ -66,11 +66,8 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
       }
 
       result->target_version_prefix = *kiosk_required_platform_version_p;
-      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set,"
-                << ", target version is "
-                << (kiosk_required_platform_version_p
-                        ? *kiosk_required_platform_version_p
-                        : std::string("latest"));
+      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set, "
+                << "target version is " << result->target_version_prefix;
     } else {
       // Determine whether a target version prefix is dictated by policy.
       const string* target_version_prefix_p =
