@@ -75,7 +75,6 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_CONST_METHOD0(GetUsingP2PForSharing, bool());
   MOCK_METHOD0(GetScatteringWaitPeriod, base::TimeDelta());
   MOCK_CONST_METHOD0(GetP2PUrl, std::string());
-  MOCK_CONST_METHOD0(GetAttemptErrorCode, ErrorCode());
 };
 
 }  // namespace chromeos_update_engine

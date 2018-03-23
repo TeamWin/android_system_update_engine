@@ -192,7 +192,6 @@ class PayloadStateInterface {
   // Sets/gets the P2P download URL, if one is to be used.
   virtual void SetP2PUrl(const std::string& url) = 0;
   virtual std::string GetP2PUrl() const = 0;
-  virtual ErrorCode GetAttemptErrorCode() const = 0;
 
   // Switch to next payload.
   virtual bool NextPayload() = 0;

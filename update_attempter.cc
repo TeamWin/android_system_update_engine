@@ -926,6 +926,8 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
         "so requesting reboot from user.";
   }
 
+  attempt_error_code_ = utils::GetBaseErrorCode(code);
+
   if (code == ErrorCode::kSuccess) {
     WriteUpdateCompletedMarker();
     prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
@@ -1062,8 +1064,10 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
         code != ErrorCode::kDownloadTransferError) {
       MarkDeltaUpdateFailure();
     }
-    // On failure, schedule an error event to be sent to Omaha.
-    CreatePendingErrorEvent(action, code);
+    if (code != ErrorCode::kNoUpdate) {
+      // On failure, schedule an error event to be sent to Omaha.
+      CreatePendingErrorEvent(action, code);
+    }
     return;
   }
   // Find out which action completed (successfully).
@@ -1263,19 +1267,9 @@ void UpdateAttempter::SetStatusAndNotify(UpdateStatus status) {
 
 void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
                                               ErrorCode code) {
-  if (error_event_.get()) {
+  if (error_event_.get() || status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     // This shouldn't really happen.
     LOG(WARNING) << "There's already an existing pending error event.";
-    return;
-  }
-
-  // For now assume that a generic Omaha response action failure means that
-  // there's no update so don't send an event. Also, double check that the
-  // failure has not occurred while sending an error event -- in which case
-  // don't schedule another. This shouldn't really happen but just in case...
-  if ((action->Type() == OmahaResponseHandlerAction::StaticType() &&
-       code == ErrorCode::kError) ||
-      status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     return;
   }
 
