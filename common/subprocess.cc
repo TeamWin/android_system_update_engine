@@ -282,14 +282,6 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
   return proc_return_code != brillo::Process::kErrorExitStatus;
 }
 
-bool Subprocess::SubprocessInFlight() {
-  for (const auto& pid_record : subprocess_records_) {
-    if (!pid_record.second->callback.is_null())
-      return true;
-  }
-  return false;
-}
-
 void Subprocess::FlushBufferedLogsAtExit() {
   if (!subprocess_records_.empty()) {
     LOG(INFO) << "We are exiting, but there are still in flight subprocesses!";
