@@ -390,7 +390,8 @@ bool UpdateEngineService::GetRollbackPartition(
 
 bool UpdateEngineService::GetLastAttemptError(ErrorPtr* /* error */,
                                               int32_t* out_last_attempt_error) {
-  ErrorCode error_code = system_state_->payload_state()->GetAttemptErrorCode();
+  ErrorCode error_code =
+      system_state_->update_attempter()->GetAttemptErrorCode();
   *out_last_attempt_error = static_cast<int>(error_code);
   return true;
 }

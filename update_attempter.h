@@ -178,6 +178,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Broadcasts the current status to all observers.
   void BroadcastStatus();
 
+  ErrorCode GetAttemptErrorCode() const { return attempt_error_code_; }
+
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
   uint32_t GetErrorCodeFlags();
@@ -445,6 +447,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // HTTP server response code from the last HTTP request action.
   int http_response_code_ = 0;
+
+  // The attempt error code when the update attempt finished.
+  ErrorCode attempt_error_code_ = ErrorCode::kSuccess;
 
   // CPU limiter during the update.
   CPULimiter cpu_limiter_;
