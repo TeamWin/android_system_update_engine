@@ -76,6 +76,7 @@ static const char* kTagPrompt = "Prompt";
 static const char* kTagDisableP2PForDownloading = "DisableP2PForDownloading";
 static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
 static const char* kTagPublicKeyRsa = "PublicKeyRsa";
+static const char* kTagPowerwash = "Powerwash";
 
 static const char* kOmahaUpdaterVersion = "0.1.0.0";
 
@@ -1085,6 +1086,7 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
 
   output_object->disable_payload_backoff =
       ParseBool(attrs[kTagDisablePayloadBackoff]);
+  output_object->powerwash_required = ParseBool(attrs[kTagPowerwash]);
 
   return true;
 }
