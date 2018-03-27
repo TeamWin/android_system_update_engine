@@ -150,10 +150,6 @@ class PayloadState : public PayloadStateInterface {
     return p2p_url_;
   }
 
-  inline ErrorCode GetAttemptErrorCode() const override {
-    return attempt_error_code_;
-  }
-
   bool NextPayload() override;
 
  private:
@@ -567,9 +563,6 @@ class PayloadState : public PayloadStateInterface {
 
   // The connection type when the attempt started.
   metrics::ConnectionType attempt_connection_type_;
-
-  // The attempt error code when the attempt finished.
-  ErrorCode attempt_error_code_;
 
   // Whether we're currently rolling back.
   AttemptType attempt_type_;
