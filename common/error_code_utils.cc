@@ -146,6 +146,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kNonCriticalUpdateInOOBE";
     case ErrorCode::kUpdatedButNotActive:
       return "ErrorCode::kUpdatedButNotActive";
+    case ErrorCode::kNoUpdate:
+      return "ErrorCode::kNoUpdate";
       // Don't add a default case to let the compiler warn about newly added
       // error codes which should be added here.
   }
