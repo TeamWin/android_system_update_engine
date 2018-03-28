@@ -59,6 +59,7 @@ void OmahaResponseHandlerAction::PerformAction() {
   if (!response.update_exists) {
     got_no_update_response_ = true;
     LOG(INFO) << "There are no updates. Aborting.";
+    completer.set_code(ErrorCode::kNoUpdate);
     return;
   }
 
