@@ -197,6 +197,10 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
                  &RealDevicePolicyProvider::ConvertRollbackToTargetVersion);
   UpdateVariable(&var_rollback_allowed_milestones_,
                  &DevicePolicy::GetRollbackAllowedMilestones);
+  if (policy_provider_->IsConsumerDevice()) {
+    // For consumer devices (which won't ever have policy), set value to 0.
+    var_rollback_allowed_milestones_.SetValue(0);
+  }
   UpdateVariable(&var_scatter_factor_,
                  &RealDevicePolicyProvider::ConvertScatterFactor);
   UpdateVariable(

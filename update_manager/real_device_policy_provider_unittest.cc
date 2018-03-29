@@ -239,6 +239,44 @@ TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {
       provider_->var_rollback_to_target_version());
 }
 
+TEST_F(UmRealDevicePolicyProviderTest, RollbackAllowedMilestonesOobe) {
+  SetUpNonExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetRollbackAllowedMilestones(_)).Times(0);
+  ON_CALL(mock_policy_provider_, IsConsumerDevice())
+      .WillByDefault(Return(false));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_allowed_milestones());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, RollbackAllowedMilestonesConsumer) {
+  SetUpNonExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetRollbackAllowedMilestones(_)).Times(0);
+  ON_CALL(mock_policy_provider_, IsConsumerDevice())
+      .WillByDefault(Return(true));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      0, provider_->var_rollback_allowed_milestones());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       RollbackAllowedMilestonesEnterprisePolicySet) {
+  SetUpExistentDevicePolicy();
+  ON_CALL(mock_device_policy_, GetRollbackAllowedMilestones(_))
+      .WillByDefault(DoAll(SetArgPointee<0>(2), Return(true)));
+  ON_CALL(mock_policy_provider_, IsConsumerDevice())
+      .WillByDefault(Return(false));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      2, provider_->var_rollback_allowed_milestones());
+}
+
 TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetScatterFactorInSeconds(_))
