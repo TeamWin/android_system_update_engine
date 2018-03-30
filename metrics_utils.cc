@@ -114,6 +114,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
+    case ErrorCode::kNoUpdate:
       return metrics::AttemptResult::kInternalError;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -216,6 +217,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kUserCanceled:
     case ErrorCode::kPayloadTimestampError:
     case ErrorCode::kUpdatedButNotActive:
+    case ErrorCode::kNoUpdate:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
