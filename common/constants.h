@@ -49,6 +49,7 @@ extern const char kPrefsManifestMetadataSize[];
 extern const char kPrefsManifestSignatureSize[];
 extern const char kPrefsMetricsAttemptLastReportingTime[];
 extern const char kPrefsMetricsCheckLastReportingTime[];
+extern const char kPrefsNoIgnoreBackoff[];
 extern const char kPrefsNumReboots[];
 extern const char kPrefsNumResponsesSeen[];
 extern const char kPrefsOmahaCohort[];

@@ -408,9 +408,11 @@ bool PayloadState::ShouldBackoffDownload() {
     }
   }
 
-  if (!system_state_->hardware()->IsOfficialBuild()) {
+  if (!system_state_->hardware()->IsOfficialBuild() &&
+      !prefs_->Exists(kPrefsNoIgnoreBackoff)) {
     // Backoffs are needed only for official builds. We do not want any delays
-    // or update failures due to backoffs during testing or development.
+    // or update failures due to backoffs during testing or development. Unless
+    // the |kPrefsNoIgnoreBackoff| is manually set.
     LOG(INFO) << "No backoffs for test/dev images. "
               << "Can proceed with the download";
     return false;

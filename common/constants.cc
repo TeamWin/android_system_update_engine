@@ -47,6 +47,7 @@ const char kPrefsMetricsAttemptLastReportingTime[] =
     "metrics-attempt-last-reporting-time";
 const char kPrefsMetricsCheckLastReportingTime[] =
     "metrics-check-last-reporting-time";
+const char kPrefsNoIgnoreBackoff[] = "no-ignore-backoff";
 const char kPrefsNumReboots[] = "num-reboots";
 const char kPrefsNumResponsesSeen[] = "num-responses-seen";
 const char kPrefsOmahaCohort[] = "omaha-cohort";
