@@ -67,8 +67,8 @@ bool RealSystemState::Initialize() {
   }
 
 #if USE_CHROME_KIOSK_APP
-  libcros_proxy_.reset(new org::chromium::LibCrosServiceInterfaceProxy(
-      DBusConnection::Get()->GetDBus(), chromeos::kLibCrosServiceName));
+  kiosk_app_proxy_.reset(new org::chromium::KioskAppServiceInterfaceProxy(
+      DBusConnection::Get()->GetDBus(), chromeos::kKioskAppServiceName));
 #endif  // USE_CHROME_KIOSK_APP
 
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
@@ -150,7 +150,7 @@ bool RealSystemState::Initialize() {
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(&policy_provider_,
 #if USE_CHROME_KIOSK_APP
-                                                   libcros_proxy_.get(),
+                                                   kiosk_app_proxy_.get(),
 #else
                                                    nullptr,
 #endif  // USE_CHROME_KIOSK_APP

@@ -103,16 +103,16 @@
       'includes': ['../../../platform2/common-mk/generate-dbus-adaptors.gypi'],
     },
     {
-      'target_name': 'update_engine-dbus-libcros-client',
+      'target_name': 'update_engine-dbus-kiosk-app-client',
       'type': 'none',
       'actions': [{
-        'action_name': 'update_engine-dbus-libcros-client-action',
+        'action_name': 'update_engine-dbus-kiosk-app-client-action',
         'variables': {
-          'mock_output_file': 'include/libcros/dbus-proxy-mocks.h',
-          'proxy_output_file': 'include/libcros/dbus-proxies.h',
+          'mock_output_file': 'include/kiosk-app/dbus-proxy-mocks.h',
+          'proxy_output_file': 'include/kiosk-app/dbus-proxies.h',
         },
         'sources': [
-          'dbus_bindings/org.chromium.LibCrosService.dbus-xml',
+          'dbus_bindings/org.chromium.KioskAppService.dbus-xml',
         ],
         'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
       }],
@@ -302,7 +302,7 @@
         }],
         ['USE_chrome_kiosk_app == 1', {
           'dependencies': [
-            'update_engine-dbus-libcros-client',
+            'update_engine-dbus-kiosk-app-client',
           ],
         }],
       ],
