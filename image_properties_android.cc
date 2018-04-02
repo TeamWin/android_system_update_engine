@@ -23,7 +23,7 @@
 #include <android-base/properties.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
-#include <bootloader.h>
+#include <bootloader_message/bootloader_message.h>
 #include <brillo/osrelease_reader.h>
 #include <brillo/strings/string_utils.h>
 
