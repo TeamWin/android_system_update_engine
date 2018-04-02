@@ -215,8 +215,7 @@ LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    bootable/recovery
+    $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     $(ue_common_static_libraries) \
     $(ue_libupdate_engine_boot_control_exported_static_libraries)
@@ -238,6 +237,7 @@ ue_libupdate_engine_exported_c_includes := \
 ue_libupdate_engine_exported_static_libraries := \
     libpayload_consumer \
     update_metadata-protos \
+    libbootloader_message \
     libbz \
     libfs_mgr \
     libbase \
@@ -274,8 +274,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
-    $(ue_libupdate_engine_exported_c_includes) \
-    bootable/recovery
+    $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
@@ -355,6 +354,7 @@ endif  # local_use_binder == 1
 # loop to apply payloads provided by the upper layer via a Binder interface.
 ue_libupdate_engine_android_exported_static_libraries := \
     libpayload_consumer \
+    libbootloader_message \
     libfs_mgr \
     libbase \
     liblog \
@@ -382,8 +382,7 @@ LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    bootable/recovery
+    $(ue_common_c_includes)
 #TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
 # out of the DBus interface.
 LOCAL_C_INCLUDES += \
@@ -471,8 +470,7 @@ LOCAL_CFLAGS := \
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    bootable/recovery
+    $(ue_common_c_includes)
 #TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
 # out of the DBus interface.
 LOCAL_C_INCLUDES += \
@@ -489,6 +487,7 @@ LOCAL_SRC_FILES := \
     update_status_utils.cc \
     utils_android.cc
 LOCAL_STATIC_LIBRARIES := \
+    libbootloader_message \
     libfs_mgr \
     libbase \
     liblog \
