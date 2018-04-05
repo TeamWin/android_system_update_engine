@@ -180,7 +180,7 @@ string GetCohortArgXml(PrefsInterface* prefs,
                        const string arg_name,
                        const string prefs_key) {
   // There's nothing wrong with not having a given cohort setting, so we check
-  // existance first to avoid the warning log message.
+  // existence first to avoid the warning log message.
   if (!prefs->Exists(prefs_key))
     return "";
   string cohort_value;

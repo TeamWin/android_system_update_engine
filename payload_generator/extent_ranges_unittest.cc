@@ -304,7 +304,7 @@ TEST(ExtentRangesTest, FilterExtentRangesEmptyRanges) {
 }
 
 TEST(ExtentRangesTest, FilterExtentRangesMultipleRanges) {
-  // Two overlaping extents, with three ranges to remove.
+  // Two overlapping extents, with three ranges to remove.
   vector<Extent> extents {
       ExtentForRange(10, 100),
       ExtentForRange(30, 100) };

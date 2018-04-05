@@ -1421,7 +1421,7 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
 
     // Write out the new value of update_check_count_value.
     if (prefs_->SetInt64(kPrefsUpdateCheckCount, update_check_count_value)) {
-      // We successfully wrote out te new value, so enable the
+      // We successfully wrote out the new value, so enable the
       // update check based wait.
       LOG(INFO) << "New update check count = " << update_check_count_value;
       return true;

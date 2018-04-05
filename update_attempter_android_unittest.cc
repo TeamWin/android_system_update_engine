@@ -184,7 +184,7 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsForBytesDownloaded) {
                   _))
       .Times(1);
 
-  // The first update fails after receving 50 bytes in total.
+  // The first update fails after receiving 50 bytes in total.
   update_attempter_android_.BytesReceived(30, 50, 200);
   update_attempter_android_.ProcessingDone(nullptr, ErrorCode::kError);
   EXPECT_EQ(

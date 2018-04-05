@@ -118,7 +118,7 @@ struct UpdateState {
 
   // Information pertaining to update scattering.
   //
-  // The currently knwon (persisted) scattering wallclock-based wait period and
+  // The currently known (persisted) scattering wallclock-based wait period and
   // update check threshold; zero if none.
   base::TimeDelta scatter_wait_period;
   int scatter_check_threshold;
