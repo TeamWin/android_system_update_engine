@@ -61,6 +61,7 @@
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/power_manager_interface.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_boot_flags_action.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/policy_utils.h"
 #include "update_engine/update_manager/update_manager.h"
@@ -295,10 +296,7 @@ void UpdateAttempter::Update(const string& app_version,
   // checks in the case where a response is not received.
   UpdateLastCheckedTime();
 
-  // Just in case we didn't update boot flags yet, make sure they're updated
-  // before any update processing starts.
-  start_action_processor_ = true;
-  UpdateBootFlags();
+  ScheduleProcessingStart();
 }
 
 void UpdateAttempter::RefreshDevicePolicy() {
@@ -597,6 +595,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       system_state_, nullptr, std::move(update_check_fetcher), false);
   auto response_handler_action =
       std::make_unique<OmahaResponseHandlerAction>(system_state_);
+  auto update_boot_flags_action =
+      std::make_unique<UpdateBootFlagsAction>(system_state_->boot_control());
   auto download_started_action = std::make_unique<OmahaRequestAction>(
       system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
@@ -647,6 +647,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
 
   processor_->EnqueueAction(std::move(update_check_action));
   processor_->EnqueueAction(std::move(response_handler_action));
+  processor_->EnqueueAction(std::move(update_boot_flags_action));
   processor_->EnqueueAction(std::move(download_started_action));
   processor_->EnqueueAction(std::move(download_action));
   processor_->EnqueueAction(std::move(download_finished_action));
@@ -708,11 +709,7 @@ bool UpdateAttempter::Rollback(bool powerwash) {
 
   SetStatusAndNotify(UpdateStatus::ATTEMPTING_ROLLBACK);
 
-  // Just in case we didn't update boot flags yet, make sure they're updated
-  // before any update processing starts. This also schedules the start of the
-  // actions we just posted.
-  start_action_processor_ = true;
-  UpdateBootFlags();
+  ScheduleProcessingStart();
   return true;
 }
 
@@ -1223,38 +1220,6 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   return true;
 }
 
-void UpdateAttempter::UpdateBootFlags() {
-  if (update_boot_flags_running_) {
-    LOG(INFO) << "Update boot flags running, nothing to do.";
-    return;
-  }
-  if (updated_boot_flags_) {
-    LOG(INFO) << "Already updated boot flags. Skipping.";
-    if (start_action_processor_) {
-      ScheduleProcessingStart();
-    }
-    return;
-  }
-  // This is purely best effort. Failures should be logged by Subprocess. Run
-  // the script asynchronously to avoid blocking the event loop regardless of
-  // the script runtime.
-  update_boot_flags_running_ = true;
-  LOG(INFO) << "Marking booted slot as good.";
-  if (!system_state_->boot_control()->MarkBootSuccessfulAsync(Bind(
-          &UpdateAttempter::CompleteUpdateBootFlags, base::Unretained(this)))) {
-    LOG(ERROR) << "Failed to mark current boot as successful.";
-    CompleteUpdateBootFlags(false);
-  }
-}
-
-void UpdateAttempter::CompleteUpdateBootFlags(bool successful) {
-  update_boot_flags_running_ = false;
-  updated_boot_flags_ = true;
-  if (start_action_processor_) {
-    ScheduleProcessingStart();
-  }
-}
-
 void UpdateAttempter::BroadcastStatus() {
   UpdateEngineStatus broadcast_status;
   // Use common method for generating the current status.
@@ -1372,7 +1337,6 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
 
 void UpdateAttempter::ScheduleProcessingStart() {
   LOG(INFO) << "Scheduling an action processor start.";
-  start_action_processor_ = false;
   MessageLoop::current()->PostTask(
       FROM_HERE,
       Bind([](ActionProcessor* processor) { processor->StartProcessing(); },

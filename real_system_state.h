@@ -185,6 +185,8 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   // rebooted. Important for tracking whether you are running instance of the
   // update engine on first boot or due to a crash/restart.
   bool system_rebooted_{false};
+
+  ActionProcessor processor_;
 };
 
 }  // namespace chromeos_update_engine

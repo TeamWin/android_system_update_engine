@@ -480,20 +480,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
 #endif  // USE_CHROME_NETWORK_PROXY
 
-  // Originally, both of these flags are false. Once UpdateBootFlags is called,
-  // |update_boot_flags_running_| is set to true. As soon as UpdateBootFlags
-  // completes its asynchronous run, |update_boot_flags_running_| is reset to
-  // false and |updated_boot_flags_| is set to true. From that point on there
-  // will be no more changes to these flags.
-  //
-  // True if UpdateBootFlags has completed.
-  bool updated_boot_flags_ = false;
-  // True if UpdateBootFlags is running.
-  bool update_boot_flags_running_ = false;
-
-  // True if the action processor needs to be started by the boot flag updater.
-  bool start_action_processor_ = false;
-
   // Used for fetching information about the device policy.
   std::unique_ptr<policy::PolicyProvider> policy_provider_;
 

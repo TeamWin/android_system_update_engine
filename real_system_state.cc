@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
@@ -34,6 +35,7 @@
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/metrics_reporter_omaha.h"
+#include "update_engine/update_boot_flags_action.h"
 #if USE_DBUS
 #include "update_engine/dbus_connection.h"
 #endif  // USE_DBUS
@@ -183,11 +185,14 @@ bool RealSystemState::StartUpdater() {
   // Initiate update checks.
   update_attempter_->ScheduleUpdates();
 
+  auto update_boot_flags_action =
+      std::make_unique<UpdateBootFlagsAction>(boot_control_.get());
+  processor_.EnqueueAction(std::move(update_boot_flags_action));
   // Update boot flags after 45 seconds.
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempter::UpdateBootFlags,
-                 base::Unretained(update_attempter_.get())),
+      base::Bind(&ActionProcessor::StartProcessing,
+                 base::Unretained(&processor_)),
       base::TimeDelta::FromSeconds(45));
 
   // Broadcast the update engine status on startup to ensure consistent system

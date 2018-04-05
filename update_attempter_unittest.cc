@@ -49,6 +49,7 @@
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
+#include "update_engine/update_boot_flags_action.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -442,15 +443,15 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
 namespace {
 // Actions that will be built as part of an update check.
 const string kUpdateActionTypes[] = {  // NOLINT(runtime/string)
-  OmahaRequestAction::StaticType(),
-  OmahaResponseHandlerAction::StaticType(),
-  OmahaRequestAction::StaticType(),
-  DownloadAction::StaticType(),
-  OmahaRequestAction::StaticType(),
-  FilesystemVerifierAction::StaticType(),
-  PostinstallRunnerAction::StaticType(),
-  OmahaRequestAction::StaticType()
-};
+    OmahaRequestAction::StaticType(),
+    OmahaResponseHandlerAction::StaticType(),
+    UpdateBootFlagsAction::StaticType(),
+    OmahaRequestAction::StaticType(),
+    DownloadAction::StaticType(),
+    OmahaRequestAction::StaticType(),
+    FilesystemVerifierAction::StaticType(),
+    PostinstallRunnerAction::StaticType(),
+    OmahaRequestAction::StaticType()};
 
 // Actions that will be built as part of a user-initiated rollback.
 const string kRollbackActionTypes[] = {  // NOLINT(runtime/string)

@@ -318,6 +318,7 @@ LOCAL_SRC_FILES := \
     proxy_resolver.cc \
     real_system_state.cc \
     update_attempter.cc \
+    update_boot_flags_action.cc \
     update_manager/android_things_policy.cc \
     update_manager/api_restricted_downloads_policy_impl.cc \
     update_manager/boxed_value.cc \
@@ -1001,6 +1002,7 @@ LOCAL_SRC_FILES += \
     payload_state_unittest.cc \
     parcelable_update_engine_status_unittest.cc \
     update_attempter_unittest.cc \
+    update_boot_flags_action_unittest.cc \
     update_manager/android_things_policy_unittest.cc \
     update_manager/boxed_value_unittest.cc \
     update_manager/chromeos_policy.cc \
