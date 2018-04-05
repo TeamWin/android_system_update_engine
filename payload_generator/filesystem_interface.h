@@ -19,9 +19,9 @@
 
 // This class is used to abstract a filesystem and iterate the blocks
 // associated with the files and filesystem structures.
-// For the purposes of the update payload generation, a filesystem is a formated
-// partition composed by fixed-size blocks, since that's the interface used in
-// the update payload.
+// For the purposes of the update payload generation, a filesystem is a
+// formatted partition composed by fixed-size blocks, since that's the interface
+// used in the update payload.
 
 #include <sys/stat.h>
 #include <sys/types.h>

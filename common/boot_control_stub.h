@@ -27,7 +27,7 @@ namespace chromeos_update_engine {
 // typically used when e.g. an underlying HAL implementation cannot be
 // loaded or doesn't exist.
 //
-// You are gauranteed that the implementation of GetNumSlots() method
+// You are guaranteed that the implementation of GetNumSlots() method
 // always returns 0. This can be used to identify that this
 // implementation is in use.
 class BootControlStub : public BootControlInterface {

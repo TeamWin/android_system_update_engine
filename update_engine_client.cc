@@ -396,7 +396,7 @@ int UpdateEngineClient::ProcessFlags() {
     string rollback_partition;
 
     if (!client_->GetRollbackPartition(&rollback_partition)) {
-      LOG(ERROR) << "Error while querying rollback partition availabilty.";
+      LOG(ERROR) << "Error while querying rollback partition availability.";
       return 1;
     }
 

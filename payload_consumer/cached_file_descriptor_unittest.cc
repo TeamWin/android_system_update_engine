@@ -159,7 +159,7 @@ TEST_F(CachedFileDescriptorTest, CacheSizeWriteTest) {
   off64_t seek = 10;
   brillo::Blob blob_in(kFileSize, 0);
   std::fill_n(&blob_in[seek], kCacheSize, value_);
-  // We are writing exactly one cache size; Then it should be commited.
+  // We are writing exactly one cache size; Then it should be committed.
   EXPECT_EQ(cfd_->Seek(seek, SEEK_SET), seek);
   Write(&blob_in[seek], kCacheSize);
 
@@ -174,7 +174,7 @@ TEST_F(CachedFileDescriptorTest, UnderCacheSizeWriteTest) {
   EXPECT_EQ(cfd_->Seek(seek, SEEK_SET), seek);
   brillo::Blob blob_in(kFileSize, 0);
   std::fill_n(&blob_in[seek], less_than_cache_size, value_);
-  // We are writing less than one cache size; then it should not be commited.
+  // We are writing less than one cache size; then it should not be committed.
   Write(&blob_in[seek], less_than_cache_size);
 
   // Revert the changes in |blob_in|.
@@ -190,7 +190,7 @@ TEST_F(CachedFileDescriptorTest, SeekAfterWriteTest) {
   EXPECT_EQ(cfd_->Seek(seek, SEEK_SET), seek);
   brillo::Blob blob_in(kFileSize, 0);
   std::fill_n(&blob_in[seek], less_than_cache_size, value_);
-  // We are writing less than  one cache size; then it should not be commited.
+  // We are writing less than  one cache size; then it should not be committed.
   Write(&blob_in[seek], less_than_cache_size);
 
   // Then we seek, it should've written the cache after seek.
