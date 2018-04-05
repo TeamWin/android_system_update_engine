@@ -114,7 +114,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // there's no cached variable, this method returns false.
   //
   // Right before the passed closure is called the EvaluationContext is
-  // reseted, removing all the non-const cached values.
+  // reset, removing all the non-const cached values.
   bool RunOnValueChangeOrTimeout(base::Closure callback);
 
   // Returns a textual representation of the evaluation context,
