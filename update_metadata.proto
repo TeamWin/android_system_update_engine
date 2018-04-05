@@ -82,7 +82,7 @@
 //   the new partition.
 //
 // The operations allowed in the payload (supported by the client) depend on the
-// major and minor version. See InstallOperation.Type bellow for details.
+// major and minor version. See InstallOperation.Type below for details.
 
 syntax = "proto2";
 

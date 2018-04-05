@@ -36,7 +36,7 @@ bool DaemonStateAndroid::Initialize() {
 
   hardware_ = hardware::CreateHardware();
   if (!hardware_) {
-    LOG(ERROR) << "Error intializing the HardwareInterface.";
+    LOG(ERROR) << "Error initializing the HardwareInterface.";
     return false;
   }
 
