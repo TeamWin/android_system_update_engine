@@ -748,7 +748,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                                   &state->mock_delegate_,
                                   install_plan,
                                   &install_plan->payloads[0],
-                                  false /* is_interactive */);
+                                  false /* interactive */);
   string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
   EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
   (*performer)->set_public_key_path(public_key_path);

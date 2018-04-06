@@ -51,7 +51,7 @@ struct UpdateCheckParams {
   std::string target_channel;
 
   // Whether the allowed update is interactive (user-initiated) or periodic.
-  bool is_interactive;
+  bool interactive;
 };
 
 // Input arguments to UpdateCanStart.
@@ -64,7 +64,7 @@ struct UpdateState {
   //
   // Whether the current update check is an interactive one. The caller should
   // feed the value returned by the preceding call to UpdateCheckAllowed().
-  bool is_interactive;
+  bool interactive;
   // Whether it is a delta payload.
   bool is_delta_payload;
   // Wallclock time when payload was first (consecutively) offered by Omaha.

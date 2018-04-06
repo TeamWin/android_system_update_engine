@@ -344,7 +344,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // which type of scattering is enabled, etc.) and also updates/deletes
   // the corresponding prefs file used in scattering. Should be called
   // only after the device policy has been loaded and set in the system_state_.
-  void CalculateScatteringParams(bool is_interactive);
+  void CalculateScatteringParams(bool interactive);
 
   // Sets a random value for the waiting period to wait for before downloading
   // an update, if one available. This value will be upperbounded by the

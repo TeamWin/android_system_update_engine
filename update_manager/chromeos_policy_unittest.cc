@@ -140,7 +140,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
@@ -178,7 +178,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
@@ -200,7 +200,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_EQ("1.2", result.target_version_prefix);
   EXPECT_EQ("foo-channel", result.target_channel);
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -256,7 +256,7 @@ TEST_F(UmChromeOSPolicyTest,
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_TRUE(result.is_interactive);
+  EXPECT_TRUE(result.interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedForcedUpdateRequestedPeriodic) {
@@ -271,7 +271,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedForcedUpdateRequestedPeriodic) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskPin) {
@@ -293,7 +293,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskPin) {
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_EQ("1234.0.0", result.target_version_prefix);
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedDisabledWhenNoKioskPin) {
@@ -333,7 +333,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskPinWithNoRequiredVersion) {
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_TRUE(result.target_version_prefix.empty());
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -561,7 +561,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedNoBackoffInteractive) {
   update_state.download_errors.emplace_back(
       0, ErrorCode::kDownloadTransferError,
       curr_time - TimeDelta::FromSeconds(2));
-  update_state.is_interactive = true;
+  update_state.interactive = true;
 
   // Check that UpdateCanStart returns false and a new backoff expiry is
   // generated.
@@ -798,7 +798,7 @@ TEST_F(UmChromeOSPolicyTest,
       new TimeDelta(TimeDelta::FromSeconds(1)));
 
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromSeconds(1));
-  update_state.is_interactive = true;
+  update_state.interactive = true;
   update_state.scatter_check_threshold = 0;
   update_state.scatter_check_threshold_min = 2;
   update_state.scatter_check_threshold_max = 5;
@@ -828,7 +828,7 @@ TEST_F(UmChromeOSPolicyTest,
   fake_state_.system_provider()->var_is_oobe_complete()->reset(new bool(false));
 
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromSeconds(1));
-  update_state.is_interactive = true;
+  update_state.interactive = true;
   update_state.scatter_check_threshold = 0;
   update_state.scatter_check_threshold_min = 2;
   update_state.scatter_check_threshold_max = 5;
