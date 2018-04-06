@@ -110,7 +110,7 @@ bool ReadPipe(const std::string& cmd, std::string* out_p);
 // occurs, -1 is returned.
 off_t BlockDevSize(int fd);
 
-// Returns the size of the file at path, or the file desciptor fd. If the file
+// Returns the size of the file at path, or the file descriptor fd. If the file
 // is actually a block device, this function will automatically call
 // BlockDevSize. If the file doesn't exist or some error occurrs, -1 is
 // returned.

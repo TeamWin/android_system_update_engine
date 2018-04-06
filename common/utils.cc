@@ -291,7 +291,10 @@ bool PReadAll(int fd, void* buf, size_t count, off_t offset,
   return true;
 }
 
-bool PReadAll(const FileDescriptorPtr& fd, void* buf, size_t count, off_t offset,
+bool PReadAll(const FileDescriptorPtr& fd,
+              void* buf,
+              size_t count,
+              off_t offset,
               ssize_t* out_bytes_read) {
   TEST_AND_RETURN_FALSE_ERRNO(fd->Seek(offset, SEEK_SET) !=
                               static_cast<off_t>(-1));
@@ -774,7 +777,7 @@ static bool GetFileFormatELF(const uint8_t* buffer, size_t size,
   if (size < offsetof(Elf32_Ehdr, e_machine) + sizeof(hdr->e_machine))
     return true;
   uint16_t e_machine;
-  // Fix endianess regardless of the host endianess.
+  // Fix endianness regardless of the host endianness.
   if (ei_data == ELFDATA2LSB)
     e_machine = le16toh(hdr->e_machine);
   else
