@@ -297,7 +297,7 @@ int UpdateEngineClient::ProcessFlags() {
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
-  brillo::FlagHelper::Init(argc_, argv_, "Chromium OS Update Engine Client");
+  brillo::FlagHelper::Init(argc_, argv_, "A/B Update Engine Client");
 
   // Ensure there are no positional arguments.
   const vector<string> positional_args =
