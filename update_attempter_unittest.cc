@@ -29,6 +29,7 @@
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
+#include <policy/mock_libpolicy.h>
 
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
@@ -64,6 +65,7 @@ using testing::NiceMock;
 using testing::Property;
 using testing::Return;
 using testing::ReturnPointee;
+using testing::ReturnRef;
 using testing::SaveArg;
 using testing::SetArgPointee;
 using update_engine::UpdateAttemptFlags;
@@ -166,6 +168,9 @@ class UpdateAttempterTest : public ::testing::Test {
   void P2PEnabledInteractiveStart();
   void P2PEnabledStartingFailsStart();
   void P2PEnabledHousekeepingFailsStart();
+  void ResetRollbackHappenedStart(bool is_consumer,
+                                  bool is_policy_available,
+                                  bool expected_reset);
 
   bool actual_using_p2p_for_downloading() {
     return actual_using_p2p_for_downloading_;
@@ -1138,6 +1143,58 @@ TEST_F(UpdateAttempterTest, NonInteractiveUpdateUsesSetRestrictions) {
                                 UpdateAttemptFlags::kFlagRestrictDownload);
   EXPECT_EQ(UpdateAttemptFlags::kNone,
             attempter_.GetCurrentUpdateAttemptFlags());
+}
+
+void UpdateAttempterTest::ResetRollbackHappenedStart(bool is_consumer,
+                                                     bool is_policy_loaded,
+                                                     bool expected_reset) {
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(), GetRollbackHappened())
+      .WillRepeatedly(Return(true));
+  auto mock_policy_provider =
+      std::make_unique<NiceMock<policy::MockPolicyProvider>>();
+  EXPECT_CALL(*mock_policy_provider, IsConsumerDevice())
+      .WillRepeatedly(Return(is_consumer));
+  EXPECT_CALL(*mock_policy_provider, device_policy_is_loaded())
+      .WillRepeatedly(Return(is_policy_loaded));
+  const policy::MockDevicePolicy device_policy;
+  EXPECT_CALL(*mock_policy_provider, GetDevicePolicy())
+      .WillRepeatedly(ReturnRef(device_policy));
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+              SetRollbackHappened(false))
+      .Times(expected_reset ? 1 : 0);
+  attempter_.policy_provider_ = std::move(mock_policy_provider);
+  attempter_.Update("", "", "", "", false, /*interactive=*/true);
+  ScheduleQuitMainLoop();
+}
+
+TEST_F(UpdateAttempterTest, ResetRollbackHappenedOobe) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::ResetRollbackHappenedStart,
+                            base::Unretained(this),
+                            /*is_consumer=*/false,
+                            /*is_policy_loaded=*/false,
+                            /*expected_reset=*/false));
+  loop_.Run();
+}
+
+TEST_F(UpdateAttempterTest, ResetRollbackHappenedConsumer) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::ResetRollbackHappenedStart,
+                            base::Unretained(this),
+                            /*is_consumer=*/true,
+                            /*is_policy_loaded=*/false,
+                            /*expected_reset=*/true));
+  loop_.Run();
+}
+
+TEST_F(UpdateAttempterTest, ResetRollbackHappenedEnterprise) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::ResetRollbackHappenedStart,
+                            base::Unretained(this),
+                            /*is_consumer=*/false,
+                            /*is_policy_loaded=*/true,
+                            /*expected_reset=*/true));
+  loop_.Run();
 }
 
 }  // namespace chromeos_update_engine

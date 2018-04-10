@@ -62,6 +62,7 @@
 #include "update_engine/power_manager_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
+#include "update_engine/update_manager/policy_utils.h"
 #include "update_engine/update_manager/update_manager.h"
 #include "update_engine/update_status_utils.h"
 
@@ -360,6 +361,10 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
 
   // Refresh the policy before computing all the update parameters.
   RefreshDevicePolicy();
+
+  // Check whether we need to clear the rollback-happened preference after
+  // policy is available again.
+  UpdateRollbackHappened();
 
   // Update the target version prefix.
   omaha_request_params_->set_target_version_prefix(target_version_prefix);
@@ -902,6 +907,19 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
 
 void UpdateAttempter::UpdateLastCheckedTime() {
   last_checked_time_ = system_state_->clock()->GetWallclockTime().ToTimeT();
+}
+
+void UpdateAttempter::UpdateRollbackHappened() {
+  DCHECK(system_state_);
+  DCHECK(system_state_->payload_state());
+  DCHECK(policy_provider_);
+  if (system_state_->payload_state()->GetRollbackHappened() &&
+      (policy_provider_->device_policy_is_loaded() ||
+       policy_provider_->IsConsumerDevice())) {
+    // Rollback happened, but we already went through OOBE and policy is
+    // present or it's a consumer device.
+    system_state_->payload_state()->SetRollbackHappened(false);
+  }
 }
 
 // Delegate methods:

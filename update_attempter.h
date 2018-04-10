@@ -396,6 +396,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Updates the time an update was last attempted to the current time.
   void UpdateLastCheckedTime();
 
+  // Checks whether we need to clear the rollback-happened preference after
+  // policy is available again.
+  void UpdateRollbackHappened();
+
   // Returns whether an update is currently running or scheduled.
   bool IsUpdateRunningOrScheduled();
 

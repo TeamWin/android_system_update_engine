@@ -223,6 +223,34 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.deadline = "some-deadline";
     InstallPlan install_plan;
     fake_system_state_.fake_boot_control()->SetCurrentSlot(0);
+    // Because rollback happened, the deadline shouldn't be written into the
+    // file.
+    EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
+                GetRollbackHappened())
+        .WillOnce(Return(true));
+    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
+    EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
+    EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+    EXPECT_EQ(1U, install_plan.target_slot);
+    string deadline;
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
+    EXPECT_TRUE(deadline.empty());
+    EXPECT_EQ(in.version, install_plan.version);
+  }
+  {
+    OmahaResponse in;
+    in.update_exists = true;
+    in.version = "a.b.c.d";
+    in.packages.push_back(
+        {.payload_urls = {kLongName}, .size = 12, .hash = kPayloadHashHex});
+    in.more_info_url = "http://more/info";
+    in.prompt = true;
+    in.deadline = "some-deadline";
+    InstallPlan install_plan;
+    fake_system_state_.fake_boot_control()->SetCurrentSlot(0);
+    EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
+                GetRollbackHappened())
+        .WillOnce(Return(false));
     EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);

@@ -61,6 +61,7 @@ const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
 const char kPrefsPostInstallSucceeded[] = "post-install-succeeded";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
+const char kPrefsRollbackHappened[] = "rollback-happened";
 const char kPrefsRollbackVersion[] = "rollback-version";
 const char kPrefsChannelOnSlotPrefix[] = "channel-on-slot-";
 const char kPrefsSystemUpdatedMarker[] = "system-updated-marker";

@@ -156,9 +156,16 @@ void OmahaResponseHandlerAction::PerformAction() {
   // method and UpdateStatus signal. A potential issue is that update_engine may
   // be unresponsive during an update download.
   if (!deadline_file_.empty()) {
-    utils::WriteFile(deadline_file_.c_str(),
-                     response.deadline.data(),
-                     response.deadline.size());
+    if (payload_state->GetRollbackHappened()) {
+      // Don't do forced update if rollback has happened since the last update
+      // check where policy was present.
+      LOG(INFO) << "Not forcing update because a rollback happened.";
+      utils::WriteFile(deadline_file_.c_str(), nullptr, 0);
+    } else {
+      utils::WriteFile(deadline_file_.c_str(),
+                       response.deadline.data(),
+                       response.deadline.size());
+    }
     chmod(deadline_file_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   }
 

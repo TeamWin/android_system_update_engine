@@ -68,6 +68,8 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(GetCurrentBytesDownloaded, uint64_t(DownloadSource source));
   MOCK_METHOD1(GetTotalBytesDownloaded, uint64_t(DownloadSource source));
   MOCK_METHOD0(GetNumReboots, uint32_t());
+  MOCK_METHOD0(GetRollbackHappened, bool());
+  MOCK_METHOD1(SetRollbackHappened, void(bool));
   MOCK_METHOD0(GetRollbackVersion, std::string());
   MOCK_METHOD0(GetP2PNumAttempts, int());
   MOCK_METHOD0(GetP2PFirstAttemptTimestamp, base::Time());

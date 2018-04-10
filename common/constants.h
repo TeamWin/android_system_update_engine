@@ -63,6 +63,7 @@ extern const char kPrefsPayloadAttemptNumber[];
 extern const char kPrefsPostInstallSucceeded[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];
+extern const char kPrefsRollbackHappened[];
 extern const char kPrefsRollbackVersion[];
 extern const char kPrefsChannelOnSlotPrefix[];
 extern const char kPrefsSystemUpdatedMarker[];

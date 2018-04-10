@@ -120,6 +120,10 @@ class PayloadState : public PayloadStateInterface {
 
   void UpdateEngineStarted() override;
 
+  inline bool GetRollbackHappened() override { return rollback_happened_; }
+
+  void SetRollbackHappened(bool rollback_happened) override;
+
   inline std::string GetRollbackVersion() override {
     return rollback_version_;
   }
@@ -167,6 +171,7 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateFailedMetric);
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateSucceed);
   FRIEND_TEST(PayloadStateTest, RebootAfterCanceledUpdate);
+  FRIEND_TEST(PayloadStateTest, RollbackHappened);
   FRIEND_TEST(PayloadStateTest, RollbackVersion);
   FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
 
@@ -364,6 +369,10 @@ class PayloadState : public PayloadStateInterface {
                                uint64_t total_bytes_downloaded,
                                bool log);
 
+  // Loads whether rollback has happened on this device since the last update
+  // check where policy was available. This info is preserved over powerwash.
+  void LoadRollbackHappened();
+
   // Loads the blacklisted version from our prefs file.
   void LoadRollbackVersion();
 
@@ -551,6 +560,11 @@ class PayloadState : public PayloadStateInterface {
   // The ordered list of the subset of payload URL candidates which are
   // allowed as per device policy.
   std::vector<std::vector<std::string>> candidate_urls_;
+
+  // This stores whether rollback has happened since the last time device policy
+  // was available during update check. When this is set, we're preventing
+  // forced updates to avoid update-rollback loops.
+  bool rollback_happened_;
 
   // This stores a blacklisted version set as part of rollback. When we rollback
   // we store the version of the os from which we are rolling back from in order

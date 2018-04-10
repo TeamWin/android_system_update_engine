@@ -64,6 +64,7 @@ PayloadState::PayloadState()
       url_index_(0),
       url_failure_count_(0),
       url_switch_count_(0),
+      rollback_happened_(false),
       attempt_num_bytes_downloaded_(0),
       attempt_connection_type_(metrics::ConnectionType::kUnknown),
       attempt_error_code_(ErrorCode::kSuccess),
@@ -94,6 +95,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
   }
   LoadNumReboots();
   LoadNumResponsesSeen();
+  LoadRollbackHappened();
   LoadRollbackVersion();
   LoadP2PFirstAttemptTimestamp();
   LoadP2PNumAttempts();
@@ -1070,6 +1072,25 @@ void PayloadState::LoadUpdateDurationUptime() {
 
 void PayloadState::LoadNumReboots() {
   SetNumReboots(GetPersistedValue(kPrefsNumReboots, prefs_));
+}
+
+void PayloadState::LoadRollbackHappened() {
+  CHECK(powerwash_safe_prefs_);
+  bool rollback_happened = false;
+  powerwash_safe_prefs_->GetBoolean(kPrefsRollbackHappened, &rollback_happened);
+  SetRollbackHappened(rollback_happened);
+}
+
+void PayloadState::SetRollbackHappened(bool rollback_happened) {
+  CHECK(powerwash_safe_prefs_);
+  LOG(INFO) << "Setting rollback-happened to " << rollback_happened << ".";
+  rollback_happened_ = rollback_happened;
+  if (rollback_happened) {
+    powerwash_safe_prefs_->SetBoolean(kPrefsRollbackHappened,
+                                      rollback_happened);
+  } else {
+    powerwash_safe_prefs_->Delete(kPrefsRollbackHappened);
+  }
 }
 
 void PayloadState::LoadRollbackVersion() {
