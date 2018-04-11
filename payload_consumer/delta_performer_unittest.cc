@@ -391,7 +391,7 @@ class DeltaPerformerTest : public ::testing::Test {
                             &mock_delegate_,
                             &install_plan_,
                             &payload_,
-                            false /* is_interactive*/};
+                            false /* interactive*/};
 };
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {

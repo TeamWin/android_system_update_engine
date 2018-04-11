@@ -40,7 +40,7 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(
   result->updates_enabled = true;
   result->target_channel.clear();
   result->target_version_prefix.clear();
-  result->is_interactive = false;
+  result->interactive = false;
 
   // Ensure that the minimum interval is set. If there's no clock, this defaults
   // to always allowing the update.

@@ -401,11 +401,11 @@ class ForcedUpdateRequestedVariable
     return new UpdateRequestStatus(update_request_status_);
   }
 
-  void Reset(bool forced_update_requested, bool is_interactive) {
+  void Reset(bool forced_update_requested, bool interactive) {
     UpdateRequestStatus new_value = UpdateRequestStatus::kNone;
     if (forced_update_requested)
-      new_value = (is_interactive ? UpdateRequestStatus::kInteractive :
-                   UpdateRequestStatus::kPeriodic);
+      new_value = (interactive ? UpdateRequestStatus::kInteractive
+                               : UpdateRequestStatus::kPeriodic);
     if (update_request_status_ != new_value) {
       update_request_status_ = new_value;
       NotifyValueChanged();

@@ -204,7 +204,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
                         nullptr,
                         nullptr,
                         fetcher.release(),
-                        false /* is_interactive */);
+                        false /* interactive */);
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(UpdateStatus::FINALIZING, attempter_.status());
