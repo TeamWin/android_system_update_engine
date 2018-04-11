@@ -637,7 +637,7 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
                          hardware_,
                          nullptr,           // system_state, not used.
                          download_fetcher,  // passes ownership
-                         true /* is_interactive */));
+                         true /* interactive */));
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
       new FilesystemVerifierAction());
 

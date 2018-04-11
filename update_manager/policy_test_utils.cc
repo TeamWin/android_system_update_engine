@@ -73,7 +73,7 @@ UpdateState UmPolicyTestBase::GetDefaultUpdateState(
   // This is a non-interactive check returning a delta payload, seen for the
   // first time (|first_seen_period| ago). Clearly, there were no failed
   // attempts so far.
-  update_state.is_interactive = false;
+  update_state.interactive = false;
   update_state.is_delta_payload = false;
   update_state.first_seen = first_seen_time;
   update_state.num_checks = 1;

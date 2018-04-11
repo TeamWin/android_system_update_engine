@@ -368,11 +368,11 @@ bool DeltaPerformer::OpenCurrentPartition() {
   int err;
 
   int flags = O_RDWR;
-  if (!is_interactive_)
+  if (!interactive_)
     flags |= O_DSYNC;
 
   LOG(INFO) << "Opening " << target_path_ << " partition with"
-            << (is_interactive_ ? "out" : "") << " O_DSYNC";
+            << (interactive_ ? "out" : "") << " O_DSYNC";
 
   target_fd_ = OpenFile(target_path_.c_str(), flags, true, &err);
   if (!target_fd_) {
