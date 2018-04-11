@@ -639,7 +639,7 @@ TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", true);  // is_interactive = True.
+  params.Init("", "", true);  // interactive = True.
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -662,7 +662,7 @@ TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", false);  // is_interactive = False.
+  params.Init("", "", false);  // interactive = False.
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));

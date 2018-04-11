@@ -53,7 +53,7 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
   result->updates_enabled = true;
   result->target_channel.clear();
   result->target_version_prefix.clear();
-  result->is_interactive = false;
+  result->interactive = false;
 
   // Build a list of policies to consult.  Note that each policy may modify the
   // result structure, even if it signals kContinue.

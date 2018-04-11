@@ -863,11 +863,10 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
       return;
     }
 
-    LOG(INFO) << "Running "
-              << (params.is_interactive ? "interactive" : "periodic")
+    LOG(INFO) << "Running " << (params.interactive ? "interactive" : "periodic")
               << " update.";
 
-    if (!params.is_interactive) {
+    if (!params.interactive) {
       // Cache the update attempt flags that will be used by this update attempt
       // so that they can't be changed mid-way through.
       current_update_attempt_flags_ = update_attempt_flags_;
@@ -876,8 +875,12 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
     LOG(INFO) << "Update attempt flags in use = 0x" << std::hex
               << current_update_attempt_flags_;
 
-    Update(forced_app_version_, forced_omaha_url_, params.target_channel,
-           params.target_version_prefix, false, params.is_interactive);
+    Update(forced_app_version_,
+           forced_omaha_url_,
+           params.target_channel,
+           params.target_version_prefix,
+           false,
+           params.interactive);
     // Always clear the forced app_version and omaha_url after an update attempt
     // so the next update uses the defaults.
     forced_app_version_.clear();

@@ -44,13 +44,13 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
                                HardwareInterface* hardware,
                                SystemState* system_state,
                                HttpFetcher* http_fetcher,
-                               bool is_interactive)
+                               bool interactive)
     : prefs_(prefs),
       boot_control_(boot_control),
       hardware_(hardware),
       system_state_(system_state),
       http_fetcher_(new MultiRangeHttpFetcher(http_fetcher)),
-      is_interactive_(is_interactive),
+      interactive_(interactive),
       writer_(nullptr),
       code_(ErrorCode::kSuccess),
       delegate_(nullptr),
@@ -251,7 +251,7 @@ void DownloadAction::StartDownloading() {
                                               delegate_,
                                               &install_plan_,
                                               payload_,
-                                              is_interactive_));
+                                              interactive_));
     writer_ = delta_performer_.get();
   }
   if (system_state_ != nullptr) {

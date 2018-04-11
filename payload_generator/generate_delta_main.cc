@@ -226,7 +226,7 @@ bool ApplyPayload(const string& payload_file,
                            nullptr,
                            &install_plan,
                            &payload,
-                           true);  // is_interactive
+                           true);  // interactive
 
   brillo::Blob buf(1024 * 1024);
   int fd = open(payload_file.c_str(), O_RDONLY, 0);
