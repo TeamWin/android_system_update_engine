@@ -450,7 +450,18 @@ Disabling deltas for this source version."
   for part in "${partitions[@]}"; do
     part_file=$(create_tempfile "${part}.img.XXXXXX")
     CLEANUP_FILES+=("${part_file}")
-    unzip -p "${image}" "IMAGES/${part}.img" >"${part_file}"
+
+    # For each partition, we in turn look for its image file under IMAGES/ and
+    # RADIO/ in the given target_files zip file.
+    local path path_in_zip
+    for path in IMAGES RADIO; do
+      if unzip -l "${image}" "${path}/${part}.img" >/dev/null; then
+        path_in_zip="${path}"
+        break
+      fi
+    done
+    [[ -n "${path_in_zip}" ]] || die "Failed to find ${part}.img"
+    unzip -p "${image}" "${path_in_zip}/${part}.img" >"${part_file}"
 
     # If the partition is stored as an Android sparse image file, we need to
     # convert them to a raw image for the update.
@@ -469,7 +480,7 @@ Disabling deltas for this source version."
     # Extract the .map file (if one is available).
     part_map_file=$(create_tempfile "${part}.map.XXXXXX")
     CLEANUP_FILES+=("${part_map_file}")
-    unzip -p "${image}" "IMAGES/${part}.map" >"${part_map_file}" || \
+    unzip -p "${image}" "${path_in_zip}/${part}.map" >"${part_map_file}" || \
       part_map_file=""
 
     # delta_generator only supports images multiple of 4 KiB. For target images
