@@ -80,7 +80,8 @@ class PayloadState : public PayloadStateInterface {
   }
 
   inline std::string GetCurrentUrl() override {
-    return candidate_urls_.size() && candidate_urls_[payload_index_].size()
+    return (payload_index_ < candidate_urls_.size() &&
+            url_index_ < candidate_urls_[payload_index_].size())
                ? candidate_urls_[payload_index_][url_index_]
                : "";
   }
@@ -374,9 +375,10 @@ class PayloadState : public PayloadStateInterface {
   void ResetRollbackVersion();
 
   inline uint32_t GetUrlIndex() {
-    return url_index_ ? std::min(candidate_urls_[payload_index_].size() - 1,
-                                 url_index_)
-                      : 0;
+    return (url_index_ != 0 && payload_index_ < candidate_urls_.size())
+               ? std::min(candidate_urls_[payload_index_].size() - 1,
+                          url_index_)
+               : 0;
   }
 
   // Computes the list of candidate URLs from the total list of payload URLs in
