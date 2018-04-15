@@ -29,6 +29,8 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <functional>
+#include <list>
 #include <map>
 #include <memory>
 #include <utility>
@@ -38,6 +40,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/threading/simple_thread.h>
+#include <base/time/time.h>
 #include <brillo/data_encoding.h>
 #include <bsdiff/bsdiff.h>
 #include <bsdiff/patch_writer_factory.h>
@@ -55,6 +58,7 @@
 #include "update_engine/payload_generator/squashfs_filesystem.h"
 #include "update_engine/payload_generator/xz.h"
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -195,13 +199,16 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
         version_(version),
         old_extents_(old_extents),
         new_extents_(new_extents),
+        new_extents_blocks_(utils::BlocksInExtents(new_extents)),
         old_deflates_(old_deflates),
         new_deflates_(new_deflates),
         name_(name),
         chunk_blocks_(chunk_blocks),
         blob_file_(blob_file) {}
 
-  FileDeltaProcessor(FileDeltaProcessor&& processor) = default;
+  bool operator>(const FileDeltaProcessor& other) const {
+    return new_extents_blocks_ > other.new_extents_blocks_;
+  }
 
   ~FileDeltaProcessor() override = default;
 
@@ -221,11 +228,12 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
   // The block ranges of the old/new file within the src/tgt image
   const vector<Extent> old_extents_;
   const vector<Extent> new_extents_;
+  const size_t new_extents_blocks_;
   const vector<puffin::BitExtent> old_deflates_;
   const vector<puffin::BitExtent> new_deflates_;
   const string name_;
   // Block limit of one aop.
-  ssize_t chunk_blocks_;
+  const ssize_t chunk_blocks_;
   BlobFileWriter* blob_file_;
 
   // The list of ops to reach the new file from the old file.
@@ -236,9 +244,7 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
 
 void FileDeltaProcessor::Run() {
   TEST_AND_RETURN(blob_file_ != nullptr);
-
-  LOG(INFO) << "Encoding file " << name_ << " ("
-            << utils::BlocksInExtents(new_extents_) << " blocks)";
+  base::Time start = base::Time::Now();
 
   if (!DeltaReadFile(&file_aops_,
                      old_part_,
@@ -252,8 +258,12 @@ void FileDeltaProcessor::Run() {
                      version_,
                      blob_file_)) {
     LOG(ERROR) << "Failed to generate delta for " << name_ << " ("
-               << utils::BlocksInExtents(new_extents_) << " blocks)";
+               << new_extents_blocks_ << " blocks)";
   }
+
+  LOG(INFO) << "Encoded file " << name_ << " (" << new_extents_blocks_
+            << " blocks) in " << (base::Time::Now() - start).InSecondsF()
+            << " seconds.";
 }
 
 void FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {
@@ -298,7 +308,7 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
   TEST_AND_RETURN_FALSE(deflate_utils::PreprocessParitionFiles(
       new_part, &new_files, puffdiff_allowed));
 
-  vector<FileDeltaProcessor> file_delta_processors;
+  list<FileDeltaProcessor> file_delta_processors;
 
   // The processing is very straightforward here, we generate operations for
   // every file (and pseudo-file such as the metadata) in the new filesystem
@@ -375,6 +385,13 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
   }
 
   size_t max_threads = GetMaxThreads();
+
+  // Sort the files in descending order based on number of new blocks to make
+  // sure we start the largest ones first.
+  if (file_delta_processors.size() > max_threads) {
+    file_delta_processors.sort(std::greater<FileDeltaProcessor>());
+  }
+
   base::DelegateSimpleThreadPool thread_pool("incremental-update-generator",
                                              max_threads);
   thread_pool.Start();

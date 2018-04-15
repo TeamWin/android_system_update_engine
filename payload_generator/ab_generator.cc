@@ -57,6 +57,7 @@ bool ABGenerator::GenerateOperations(
                                                        blob_file));
   LOG(INFO) << "done reading " << new_part.name;
 
+  LOG(INFO) << "Fragmenting " << aops->size() << " operations.";
   TEST_AND_RETURN_FALSE(
       FragmentOperations(config.version, aops, new_part.path, blob_file));
   SortOperationsByDestination(aops);
@@ -69,8 +70,10 @@ bool ABGenerator::GenerateOperations(
     merge_chunk_blocks = hard_chunk_blocks;
   }
 
+  LOG(INFO) << "Merging " << aops->size() << " operations.";
   TEST_AND_RETURN_FALSE(MergeOperations(
       aops, config.version, merge_chunk_blocks, new_part.path, blob_file));
+  LOG(INFO) << aops->size() << " operations after merge.";
 
   if (config.version.minor >= kOpSrcHashMinorPayloadVersion)
     TEST_AND_RETURN_FALSE(AddSourceHash(aops, old_part.path));
