@@ -40,6 +40,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/threading/simple_thread.h>
+#include <base/time/time.h>
 #include <brillo/data_encoding.h>
 #include <bsdiff/bsdiff.h>
 #include <bsdiff/patch_writer_factory.h>
@@ -243,9 +244,7 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
 
 void FileDeltaProcessor::Run() {
   TEST_AND_RETURN(blob_file_ != nullptr);
-
-  LOG(INFO) << "Encoding file " << name_ << " (" << new_extents_blocks_
-            << " blocks)";
+  base::Time start = base::Time::Now();
 
   if (!DeltaReadFile(&file_aops_,
                      old_part_,
@@ -261,6 +260,10 @@ void FileDeltaProcessor::Run() {
     LOG(ERROR) << "Failed to generate delta for " << name_ << " ("
                << new_extents_blocks_ << " blocks)";
   }
+
+  LOG(INFO) << "Encoded file " << name_ << " (" << new_extents_blocks_
+            << " blocks) in " << (base::Time::Now() - start).InSecondsF()
+            << " seconds.";
 }
 
 void FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {
