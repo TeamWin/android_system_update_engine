@@ -57,9 +57,6 @@ bool ABGenerator::GenerateOperations(
                                                        blob_file));
   LOG(INFO) << "done reading " << new_part.name;
 
-  LOG(INFO) << "Fragmenting " << aops->size() << " operations.";
-  TEST_AND_RETURN_FALSE(
-      FragmentOperations(config.version, aops, new_part.path, blob_file));
   SortOperationsByDestination(aops);
 
   // Use the soft_chunk_size when merging operations to prevent merging all
