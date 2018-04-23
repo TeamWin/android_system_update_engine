@@ -49,6 +49,7 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_generator/ab_generator.h"
 #include "update_engine/payload_generator/block_mapping.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/deflate_utils.h"
@@ -259,6 +260,13 @@ void FileDeltaProcessor::Run() {
                      blob_file_)) {
     LOG(ERROR) << "Failed to generate delta for " << name_ << " ("
                << new_extents_blocks_ << " blocks)";
+  }
+
+  if (!version_.InplaceUpdate()) {
+    if (!ABGenerator::FragmentOperations(
+            version_, &file_aops_, new_part_, blob_file_)) {
+      LOG(ERROR) << "Failed to fragment operations for " << name_;
+    }
   }
 
   LOG(INFO) << "Encoded file " << name_ << " (" << new_extents_blocks_
