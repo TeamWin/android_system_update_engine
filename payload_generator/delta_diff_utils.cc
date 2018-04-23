@@ -219,7 +219,7 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
   void Run() override;
 
   // Merge each file processor's ops list to aops.
-  void MergeOperation(vector<AnnotatedOperation>* aops);
+  bool MergeOperation(vector<AnnotatedOperation>* aops);
 
  private:
   const string& old_part_;  // NOLINT(runtime/member_string_references)
@@ -239,6 +239,8 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
 
   // The list of ops to reach the new file from the old file.
   vector<AnnotatedOperation> file_aops_;
+
+  bool failed_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(FileDeltaProcessor);
 };
@@ -260,12 +262,16 @@ void FileDeltaProcessor::Run() {
                      blob_file_)) {
     LOG(ERROR) << "Failed to generate delta for " << name_ << " ("
                << new_extents_blocks_ << " blocks)";
+    failed_ = true;
+    return;
   }
 
   if (!version_.InplaceUpdate()) {
     if (!ABGenerator::FragmentOperations(
             version_, &file_aops_, new_part_, blob_file_)) {
       LOG(ERROR) << "Failed to fragment operations for " << name_;
+      failed_ = true;
+      return;
     }
   }
 
@@ -274,9 +280,12 @@ void FileDeltaProcessor::Run() {
             << " seconds.";
 }
 
-void FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {
+bool FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {
+  if (failed_)
+    return false;
   aops->reserve(aops->size() + file_aops_.size());
   std::move(file_aops_.begin(), file_aops_.end(), std::back_inserter(*aops));
+  return true;
 }
 
 bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
@@ -409,7 +418,7 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
   thread_pool.JoinAll();
 
   for (auto& processor : file_delta_processors) {
-    processor.MergeOperation(aops);
+    TEST_AND_RETURN_FALSE(processor.MergeOperation(aops));
   }
 
   return true;
