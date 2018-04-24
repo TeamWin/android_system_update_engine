@@ -54,47 +54,6 @@ class OmahaRequestParams {
         min_update_checks_needed_(kDefaultMinUpdateChecks),
         max_update_checks_allowed_(kDefaultMaxUpdateChecks) {}
 
-  OmahaRequestParams(SystemState* system_state,
-                     const std::string& in_os_platform,
-                     const std::string& in_os_version,
-                     const std::string& in_os_sp,
-                     const std::string& in_os_board,
-                     const std::string& in_app_id,
-                     const std::string& in_app_version,
-                     const std::string& in_app_lang,
-                     const std::string& in_target_channel,
-                     const std::string& in_hwid,
-                     const std::string& in_fw_version,
-                     const std::string& in_ec_version,
-                     bool in_delta_okay,
-                     bool in_interactive,
-                     const std::string& in_update_url,
-                     const std::string& in_target_version_prefix)
-      : system_state_(system_state),
-        os_platform_(in_os_platform),
-        os_version_(in_os_version),
-        os_sp_(in_os_sp),
-        app_lang_(in_app_lang),
-        hwid_(in_hwid),
-        fw_version_(in_fw_version),
-        ec_version_(in_ec_version),
-        delta_okay_(in_delta_okay),
-        interactive_(in_interactive),
-        update_url_(in_update_url),
-        target_version_prefix_(in_target_version_prefix),
-        wall_clock_based_wait_enabled_(false),
-        update_check_count_wait_enabled_(false),
-        min_update_checks_needed_(kDefaultMinUpdateChecks),
-        max_update_checks_allowed_(kDefaultMaxUpdateChecks) {
-    image_props_.board = in_os_board;
-    image_props_.product_id = in_app_id;
-    image_props_.canary_product_id = in_app_id;
-    image_props_.version = in_app_version;
-    image_props_.current_channel = in_target_channel;
-    mutable_image_props_.target_channel = in_target_channel;
-    mutable_image_props_.is_powerwash_allowed = false;
-  }
-
   virtual ~OmahaRequestParams();
 
   // Setters and getters for the various properties.
@@ -204,7 +163,6 @@ class OmahaRequestParams {
 
   // Suggested defaults
   static const char kOsVersion[];
-  static const char kIsPowerwashAllowedKey[];
   static const int64_t kDefaultMinUpdateChecks = 0;
   static const int64_t kDefaultMaxUpdateChecks = 8;
 
@@ -249,6 +207,21 @@ class OmahaRequestParams {
   void set_target_channel(const std::string& channel) {
     mutable_image_props_.target_channel = channel;
   }
+  void set_os_sp(const std::string& os_sp) { os_sp_ = os_sp; }
+  void set_os_board(const std::string& os_board) {
+    image_props_.board = os_board;
+  }
+  void set_app_lang(const std::string& app_lang) { app_lang_ = app_lang; }
+  void set_hwid(const std::string& hwid) { hwid_ = hwid; }
+  void set_fw_version(const std::string& fw_version) {
+    fw_version_ = fw_version;
+  }
+  void set_ec_version(const std::string& ec_version) {
+    ec_version_ = ec_version;
+  }
+  void set_is_powerwash_allowed(bool powerwash_allowed) {
+    mutable_image_props_.is_powerwash_allowed = powerwash_allowed;
+  }
 
  private:
   FRIEND_TEST(OmahaRequestParamsTest, ChannelIndexTest);
@@ -278,15 +251,6 @@ class OmahaRequestParams {
   // Returns True if we should store the fw/ec versions based on our hwid_.
   // Compares hwid to a set of whitelisted prefixes.
   bool CollectECFWVersions() const;
-
-  // These are individual helper methods to initialize the said properties from
-  // the LSB value.
-  void SetTargetChannelFromLsbValue();
-  void SetCurrentChannelFromLsbValue();
-  void SetIsPowerwashAllowedFromLsbValue();
-
-  // Initializes the required properties from the LSB value.
-  void InitFromLsbValue();
 
   // Gets the machine type (e.g. "i686").
   std::string GetMachineType() const;
@@ -354,9 +318,7 @@ class OmahaRequestParams {
   // When reading files, prepend root_ to the paths. Useful for testing.
   std::string root_;
 
-  // TODO(jaysri): Uncomment this after fixing unit tests, as part of
-  // chromium-os:39752
-  // DISALLOW_COPY_AND_ASSIGN(OmahaRequestParams);
+  DISALLOW_COPY_AND_ASSIGN(OmahaRequestParams);
 };
 
 }  // namespace chromeos_update_engine
