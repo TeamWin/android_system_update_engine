@@ -49,6 +49,7 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_generator/ab_generator.h"
 #include "update_engine/payload_generator/block_mapping.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/deflate_utils.h"
@@ -218,7 +219,7 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
   void Run() override;
 
   // Merge each file processor's ops list to aops.
-  void MergeOperation(vector<AnnotatedOperation>* aops);
+  bool MergeOperation(vector<AnnotatedOperation>* aops);
 
  private:
   const string& old_part_;  // NOLINT(runtime/member_string_references)
@@ -238,6 +239,8 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
 
   // The list of ops to reach the new file from the old file.
   vector<AnnotatedOperation> file_aops_;
+
+  bool failed_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(FileDeltaProcessor);
 };
@@ -259,6 +262,17 @@ void FileDeltaProcessor::Run() {
                      blob_file_)) {
     LOG(ERROR) << "Failed to generate delta for " << name_ << " ("
                << new_extents_blocks_ << " blocks)";
+    failed_ = true;
+    return;
+  }
+
+  if (!version_.InplaceUpdate()) {
+    if (!ABGenerator::FragmentOperations(
+            version_, &file_aops_, new_part_, blob_file_)) {
+      LOG(ERROR) << "Failed to fragment operations for " << name_;
+      failed_ = true;
+      return;
+    }
   }
 
   LOG(INFO) << "Encoded file " << name_ << " (" << new_extents_blocks_
@@ -266,9 +280,12 @@ void FileDeltaProcessor::Run() {
             << " seconds.";
 }
 
-void FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {
+bool FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {
+  if (failed_)
+    return false;
   aops->reserve(aops->size() + file_aops_.size());
   std::move(file_aops_.begin(), file_aops_.end(), std::back_inserter(*aops));
+  return true;
 }
 
 bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
@@ -401,7 +418,7 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
   thread_pool.JoinAll();
 
   for (auto& processor : file_delta_processors) {
-    processor.MergeOperation(aops);
+    TEST_AND_RETURN_FALSE(processor.MergeOperation(aops));
   }
 
   return true;
@@ -493,30 +510,44 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
       old_blocks_map_it->second.pop_back();
   }
 
+  if (chunk_blocks == -1)
+    chunk_blocks = new_num_blocks;
+
   // Produce operations for the zero blocks split per output extent.
-  // TODO(deymo): Produce ZERO operations instead of calling DeltaReadFile().
   size_t num_ops = aops->size();
   new_visited_blocks->AddExtents(new_zeros);
   for (const Extent& extent : new_zeros) {
-    TEST_AND_RETURN_FALSE(DeltaReadFile(aops,
-                                        "",
-                                        new_part,
-                                        vector<Extent>(),        // old_extents
-                                        vector<Extent>{extent},  // new_extents
-                                        {},                      // old_deflates
-                                        {},                      // new_deflates
-                                        "<zeros>",
-                                        chunk_blocks,
-                                        version,
-                                        blob_file));
+    if (version.OperationAllowed(InstallOperation::ZERO)) {
+      for (uint64_t offset = 0; offset < extent.num_blocks();
+           offset += chunk_blocks) {
+        uint64_t num_blocks =
+            std::min(static_cast<uint64_t>(extent.num_blocks()) - offset,
+                     static_cast<uint64_t>(chunk_blocks));
+        InstallOperation operation;
+        operation.set_type(InstallOperation::ZERO);
+        *(operation.add_dst_extents()) =
+            ExtentForRange(extent.start_block() + offset, num_blocks);
+        aops->push_back({.name = "<zeros>", .op = operation});
+      }
+    } else {
+      TEST_AND_RETURN_FALSE(DeltaReadFile(aops,
+                                          "",
+                                          new_part,
+                                          {},        // old_extents
+                                          {extent},  // new_extents
+                                          {},        // old_deflates
+                                          {},        // new_deflates
+                                          "<zeros>",
+                                          chunk_blocks,
+                                          version,
+                                          blob_file));
+    }
   }
   LOG(INFO) << "Produced " << (aops->size() - num_ops) << " operations for "
             << utils::BlocksInExtents(new_zeros) << " zeroed blocks";
 
   // Produce MOVE/SOURCE_COPY operations for the moved blocks.
   num_ops = aops->size();
-  if (chunk_blocks == -1)
-    chunk_blocks = new_num_blocks;
   uint64_t used_blocks = 0;
   old_visited_blocks->AddExtents(old_identical_blocks);
   new_visited_blocks->AddExtents(new_identical_blocks);
