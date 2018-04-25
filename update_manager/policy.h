@@ -48,9 +48,8 @@ struct UpdateCheckParams {
   //
   // A target version prefix, if imposed by policy; otherwise, an empty string.
   std::string target_version_prefix;
-  // Specifies what should happen if target_version_prefix specifies an earlier
-  // version than the current version of the OS.
-  RollbackToTargetVersion rollback_to_target_version;
+  // Specifies whether rollback images are allowed by device policy.
+  bool rollback_allowed;
   // Specifies the number of Chrome milestones rollback should be allowed,
   // starting from the stable version at any time. Value is -1 if unspecified
   // (e.g. no device policy is available yet), in this case no version

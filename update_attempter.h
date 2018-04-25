@@ -83,6 +83,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                       const std::string& omaha_url,
                       const std::string& target_channel,
                       const std::string& target_version_prefix,
+                      bool rollback_allowed,
                       bool obey_proxies,
                       bool interactive);
 
@@ -264,6 +265,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, MarkDeltaUpdateFailureTest);
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
+  FRIEND_TEST(UpdateAttempterTest, RollbackNotAllowed);
+  FRIEND_TEST(UpdateAttempterTest, RollbackAllowed);
+  FRIEND_TEST(UpdateAttempterTest, RollbackAllowedSetAndReset);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
@@ -335,6 +339,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                              const std::string& omaha_url,
                              const std::string& target_channel,
                              const std::string& target_version_prefix,
+                             bool rollback_allowed,
                              bool obey_proxies,
                              bool interactive);
 

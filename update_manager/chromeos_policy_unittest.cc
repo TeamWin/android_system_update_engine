@@ -189,9 +189,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   // Override specific device policy attributes.
   fake_state_.device_policy_provider()->var_target_version_prefix()->
       reset(new string("1.2"));
-  fake_state_.device_policy_provider()->var_rollback_to_target_version()->reset(
-      new RollbackToTargetVersion(
-          RollbackToTargetVersion::kRollbackWithFullPowerwash));
   fake_state_.device_policy_provider()
       ->var_rollback_allowed_milestones()
       ->reset(new int(5));
@@ -205,11 +202,68 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_EQ("1.2", result.target_version_prefix);
-  EXPECT_EQ(RollbackToTargetVersion::kRollbackWithFullPowerwash,
-            result.rollback_to_target_version);
   EXPECT_EQ(5, result.rollback_allowed_milestones);
   EXPECT_EQ("foo-channel", result.target_channel);
   EXPECT_FALSE(result.is_interactive);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAllowed) {
+  // Update check is allowed, response includes attributes for use in the
+  // request.
+  SetUpdateCheckAllowed(true);
+
+  // Override RollbackToTargetVersion device policy attribute.
+  fake_state_.device_policy_provider()->var_rollback_to_target_version()->reset(
+      new RollbackToTargetVersion(
+          RollbackToTargetVersion::kRollbackWithFullPowerwash));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_TRUE(result.rollback_allowed);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackDisabled) {
+  // Update check is allowed, response includes attributes for use in the
+  // request.
+  SetUpdateCheckAllowed(true);
+
+  // Override RollbackToTargetVersion device policy attribute.
+  fake_state_.device_policy_provider()->var_rollback_to_target_version()->reset(
+      new RollbackToTargetVersion(RollbackToTargetVersion::kDisabled));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_FALSE(result.rollback_allowed);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackUnspecified) {
+  // Update check is allowed, response includes attributes for use in the
+  // request.
+  SetUpdateCheckAllowed(true);
+
+  // Override RollbackToTargetVersion device policy attribute.
+  fake_state_.device_policy_provider()->var_rollback_to_target_version()->reset(
+      new RollbackToTargetVersion(RollbackToTargetVersion::kUnspecified));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_FALSE(result.rollback_allowed);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackNotSet) {
+  // Update check is allowed, response includes attributes for use in the
+  // request.
+  SetUpdateCheckAllowed(true);
+
+  // Don't set RollbackToTargetVersion device policy attribute.
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_FALSE(result.rollback_allowed);
 }
 
 TEST_F(UmChromeOSPolicyTest,

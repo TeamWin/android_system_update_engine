@@ -49,6 +49,7 @@ class OmahaRequestParams {
         os_version_(kOsVersion),
         delta_okay_(true),
         interactive_(false),
+        rollback_allowed_(false),
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
@@ -122,6 +123,12 @@ class OmahaRequestParams {
   inline std::string target_version_prefix() const {
     return target_version_prefix_;
   }
+
+  inline void set_rollback_allowed(bool rollback_allowed) {
+    rollback_allowed_ = rollback_allowed;
+  }
+
+  inline bool rollback_allowed() const { return rollback_allowed_; }
 
   inline void set_wall_clock_based_wait_enabled(bool enabled) {
     wall_clock_based_wait_enabled_ = enabled;
@@ -300,6 +307,9 @@ class OmahaRequestParams {
   // Prefix of the target OS version that the enterprise wants this device
   // to be pinned to. It's empty otherwise.
   std::string target_version_prefix_;
+
+  // Whether the client is accepting rollback images too.
+  bool rollback_allowed_;
 
   // True if scattering is enabled, in which case waiting_period_ specifies the
   // amount of absolute time that we've to wait for before sending a request to

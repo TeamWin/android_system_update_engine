@@ -127,10 +127,17 @@ string GetAppBody(const OmahaEvent* event,
     if (include_ping)
         app_body = GetPingXml(ping_active_days, ping_roll_call_days);
     if (!ping_only) {
-      app_body += base::StringPrintf(
-          "        <updatecheck targetversionprefix=\"%s\""
-          "></updatecheck>\n",
-          XmlEncodeWithDefault(params->target_version_prefix(), "").c_str());
+      app_body += "        <updatecheck";
+      if (!params->target_version_prefix().empty()) {
+        app_body += base::StringPrintf(
+            " targetversionprefix=\"%s\"",
+            XmlEncodeWithDefault(params->target_version_prefix(), "").c_str());
+        // Rollback requires target_version_prefix set.
+        if (params->rollback_allowed()) {
+          app_body += " rollback_allowed=\"true\"";
+        }
+      }
+      app_body += "></updatecheck>\n";
 
       // If this is the first update check after a reboot following a previous
       // update, generate an event containing the previous version number. If

@@ -241,6 +241,7 @@ void UpdateAttempter::Update(const string& app_version,
                              const string& omaha_url,
                              const string& target_channel,
                              const string& target_version_prefix,
+                             bool rollback_allowed,
                              bool obey_proxies,
                              bool interactive) {
   // This is normally called frequently enough so it's appropriate to use as a
@@ -279,6 +280,7 @@ void UpdateAttempter::Update(const string& app_version,
                              omaha_url,
                              target_channel,
                              target_version_prefix,
+                             rollback_allowed,
                              obey_proxies,
                              interactive)) {
     return;
@@ -354,6 +356,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& omaha_url,
                                             const string& target_channel,
                                             const string& target_version_prefix,
+                                            bool rollback_allowed,
                                             bool obey_proxies,
                                             bool interactive) {
   http_response_code_ = 0;
@@ -368,6 +371,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
 
   // Update the target version prefix.
   omaha_request_params_->set_target_version_prefix(target_version_prefix);
+
+  // Set whether rollback is allowed.
+  omaha_request_params_->set_rollback_allowed(rollback_allowed);
 
   CalculateScatteringParams(interactive);
 
@@ -414,6 +420,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
 
   LOG(INFO) << "target_version_prefix = "
             << omaha_request_params_->target_version_prefix()
+            << ", rollback_allowed = "
+            << omaha_request_params_->rollback_allowed()
             << ", scatter_factor_in_seconds = "
             << utils::FormatSecs(scatter_factor_.InSeconds());
 
@@ -885,8 +893,13 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
     LOG(INFO) << "Update attempt flags in use = 0x" << std::hex
               << current_update_attempt_flags_;
 
-    Update(forced_app_version_, forced_omaha_url_, params.target_channel,
-           params.target_version_prefix, false, params.is_interactive);
+    Update(forced_app_version_,
+           forced_omaha_url_,
+           params.target_channel,
+           params.target_version_prefix,
+           params.rollback_allowed,
+           /*obey_proxies=*/false,
+           params.is_interactive);
     // Always clear the forced app_version and omaha_url after an update attempt
     // so the next update uses the defaults.
     forced_app_version_.clear();

@@ -240,6 +240,7 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_interactive(false);
     request_params_.set_update_url("http://url");
     request_params_.set_target_version_prefix("");
+    request_params_.set_rollback_allowed(false);
     request_params_.set_is_powerwash_allowed(false);
 
     fake_system_state_.set_request_params(&request_params_);
@@ -1719,9 +1720,9 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                &post_data));
   // convert post_data to string
   string post_str(post_data.begin(), post_data.end());
-  EXPECT_NE(post_str.find(
-      "        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
-      "        <updatecheck targetversionprefix=\"\"></updatecheck>\n"),
+  EXPECT_NE(
+      post_str.find("        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
+                    "        <updatecheck></updatecheck>\n"),
       string::npos);
   EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
             string::npos);
@@ -1836,10 +1837,72 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  &post_data));
     // convert post_data to string
     string post_str(post_data.begin(), post_data.end());
-    EXPECT_NE(post_str.find(base::StringPrintf("installsource=\"%s\"",
-                                               interactive_str)),
+    EXPECT_NE(post_str.find(
+                  base::StringPrintf("installsource=\"%s\"", interactive_str)),
               string::npos)
         << "i = " << i;
+  }
+}
+
+TEST_F(OmahaRequestActionTest, FormatTargetVersionPrefixOutputTest) {
+  for (int i = 0; i < 2; i++) {
+    bool target_version_set = i == 1;
+    const char* target_version_prefix = target_version_set ? "10032." : "";
+    brillo::Blob post_data;
+    FakeSystemState fake_system_state;
+
+    request_params_.set_target_version_prefix(target_version_prefix);
+
+    ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                                 -1,
+                                 false,  // ping_only
+                                 ErrorCode::kOmahaRequestXMLParseError,
+                                 metrics::CheckResult::kParsingError,
+                                 metrics::CheckReaction::kUnset,
+                                 metrics::DownloadErrorCode::kUnset,
+                                 nullptr,
+                                 &post_data));
+    // convert post_data to string
+    string post_str(post_data.begin(), post_data.end());
+    if (target_version_set) {
+      EXPECT_NE(post_str.find("<updatecheck targetversionprefix=\"10032.\">"),
+                string::npos)
+          << "i = " << i;
+    } else {
+      EXPECT_EQ(post_str.find("targetversionprefix"), string::npos)
+          << "i = " << i;
+    }
+  }
+}
+
+TEST_F(OmahaRequestActionTest, FormatRollbackAllowedOutputTest) {
+  for (int i = 0; i < 4; i++) {
+    bool rollback_allowed = i / 2 == 0;
+    bool target_version_set = i % 2 == 0;
+    brillo::Blob post_data;
+    FakeSystemState fake_system_state;
+
+    request_params_.set_target_version_prefix(target_version_set ? "10032."
+                                                                 : "");
+    request_params_.set_rollback_allowed(rollback_allowed);
+
+    ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                                 -1,
+                                 false,  // ping_only
+                                 ErrorCode::kOmahaRequestXMLParseError,
+                                 metrics::CheckResult::kParsingError,
+                                 metrics::CheckReaction::kUnset,
+                                 metrics::DownloadErrorCode::kUnset,
+                                 nullptr,
+                                 &post_data));
+    // convert post_data to string
+    string post_str(post_data.begin(), post_data.end());
+    if (rollback_allowed && target_version_set) {
+      EXPECT_NE(post_str.find("rollback_allowed=\"true\""), string::npos)
+          << "i = " << i;
+    } else {
+      EXPECT_EQ(post_str.find("rollback_allowed"), string::npos) << "i = " << i;
+    }
   }
 }
 

@@ -29,12 +29,14 @@ class MockUpdateAttempter : public UpdateAttempter {
  public:
   using UpdateAttempter::UpdateAttempter;
 
-  MOCK_METHOD6(Update, void(const std::string& app_version,
-                            const std::string& omaha_url,
-                            const std::string& target_channel,
-                            const std::string& target_version_prefix,
-                            bool obey_proxies,
-                            bool interactive));
+  MOCK_METHOD7(Update,
+               void(const std::string& app_version,
+                    const std::string& omaha_url,
+                    const std::string& target_channel,
+                    const std::string& target_version_prefix,
+                    bool rollback_allowed,
+                    bool obey_proxies,
+                    bool interactive));
 
   MOCK_METHOD1(GetStatus, bool(update_engine::UpdateEngineStatus* out_status));
 

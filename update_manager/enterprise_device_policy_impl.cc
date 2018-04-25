@@ -81,8 +81,21 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
 
       const RollbackToTargetVersion* rollback_to_target_version_p =
           ec->GetValue(dp_provider->var_rollback_to_target_version());
-      if (rollback_to_target_version_p)
-        result->rollback_to_target_version = *rollback_to_target_version_p;
+      if (rollback_to_target_version_p) {
+        switch (*rollback_to_target_version_p) {
+          case RollbackToTargetVersion::kUnspecified:
+          case RollbackToTargetVersion::kDisabled:
+            result->rollback_allowed = false;
+            break;
+          case RollbackToTargetVersion::kRollbackWithFullPowerwash:
+            result->rollback_allowed = true;
+            break;
+          case RollbackToTargetVersion::kMaxValue:
+            NOTREACHED();
+            // Don't add a default case to let the compiler warn about newly
+            // added enum values which should be added here.
+        }
+      }
     }
 
     // Determine allowed milestones for rollback
