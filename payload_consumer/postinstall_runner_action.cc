@@ -264,7 +264,7 @@ bool PostinstallRunnerAction::ProcessProgressLine(const string& line) {
 void PostinstallRunnerAction::ReportProgress(double frac) {
   if (!delegate_)
     return;
-  if (current_partition_ >= partition_weight_.size()) {
+  if (current_partition_ >= partition_weight_.size() || total_weight_ == 0) {
     delegate_->ProgressUpdate(1.);
     return;
   }
