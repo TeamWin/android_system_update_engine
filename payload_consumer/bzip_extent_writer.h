@@ -38,7 +38,7 @@ class BzipExtentWriter : public ExtentWriter {
       : next_(std::move(next)) {
     memset(&stream_, 0, sizeof(stream_));
   }
-  ~BzipExtentWriter() override = default;
+  ~BzipExtentWriter() override;
 
   bool Init(FileDescriptorPtr fd,
             const google::protobuf::RepeatedPtrField<Extent>& extents,
