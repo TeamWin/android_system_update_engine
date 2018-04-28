@@ -24,6 +24,10 @@ namespace {
 const brillo::Blob::size_type kOutputBufferLength = 16 * 1024;
 }
 
+BzipExtentWriter::~BzipExtentWriter() {
+  TEST_AND_RETURN(BZ2_bzDecompressEnd(&stream_) == BZ_OK);
+}
+
 bool BzipExtentWriter::Init(FileDescriptorPtr fd,
                             const RepeatedPtrField<Extent>& extents,
                             uint32_t block_size) {
@@ -84,7 +88,6 @@ bool BzipExtentWriter::Write(const void* bytes, size_t count) {
 
 bool BzipExtentWriter::EndImpl() {
   TEST_AND_RETURN_FALSE(input_buffer_.empty());
-  TEST_AND_RETURN_FALSE(BZ2_bzDecompressEnd(&stream_) == BZ_OK);
   return next_->End();
 }
 
