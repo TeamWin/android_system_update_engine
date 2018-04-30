@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
@@ -46,6 +47,35 @@ using testing::SetArgPointee;
 
 namespace chromeos_update_engine {
 
+class OmahaResponseHandlerActionProcessorDelegate
+    : public ActionProcessorDelegate {
+ public:
+  OmahaResponseHandlerActionProcessorDelegate()
+      : code_(ErrorCode::kError), code_set_(false) {}
+  void ActionCompleted(ActionProcessor* processor,
+                       AbstractAction* action,
+                       ErrorCode code) {
+    if (action->Type() == OmahaResponseHandlerAction::StaticType()) {
+      auto response_handler_action =
+          static_cast<OmahaResponseHandlerAction*>(action);
+      code_ = code;
+      code_set_ = true;
+      response_handler_action_install_plan_.reset(
+          new InstallPlan(response_handler_action->install_plan_));
+    } else if (action->Type() ==
+               ObjectCollectorAction<InstallPlan>::StaticType()) {
+      auto collector_action =
+          static_cast<ObjectCollectorAction<InstallPlan>*>(action);
+      collector_action_install_plan_.reset(
+          new InstallPlan(collector_action->object()));
+    }
+  }
+  ErrorCode code_;
+  bool code_set_;
+  std::unique_ptr<InstallPlan> collector_action_install_plan_;
+  std::unique_ptr<InstallPlan> response_handler_action_install_plan_;
+};
+
 class OmahaResponseHandlerActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -66,9 +96,9 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
               const string& deadline_file,
               InstallPlan* out);
 
-  // Pointer to the Action, valid after |DoTest|, released when the test is
-  // finished.
-  std::unique_ptr<OmahaResponseHandlerAction> action_;
+  // Delegate passed to the ActionProcessor.
+  OmahaResponseHandlerActionProcessorDelegate delegate_;
+
   // Captures the action's result code, for tests that need to directly verify
   // it in non-success cases.
   ErrorCode action_result_code_;
@@ -76,23 +106,6 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
   FakeSystemState fake_system_state_;
   // "Hash+"
   const brillo::Blob expected_hash_ = {0x48, 0x61, 0x73, 0x68, 0x2b};
-};
-
-class OmahaResponseHandlerActionProcessorDelegate
-    : public ActionProcessorDelegate {
- public:
-  OmahaResponseHandlerActionProcessorDelegate()
-      : code_(ErrorCode::kError), code_set_(false) {}
-  void ActionCompleted(ActionProcessor* processor,
-                       AbstractAction* action,
-                       ErrorCode code) {
-    if (action->Type() == OmahaResponseHandlerAction::StaticType()) {
-      code_ = code;
-      code_set_ = true;
-    }
-  }
-  ErrorCode code_;
-  bool code_set_;
 };
 
 namespace {
@@ -115,11 +128,10 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
   ActionProcessor processor;
-  OmahaResponseHandlerActionProcessorDelegate delegate;
-  processor.set_delegate(&delegate);
+  processor.set_delegate(&delegate_);
 
-  ObjectFeederAction<OmahaResponse> feeder_action;
-  feeder_action.set_obj(in);
+  auto feeder_action = std::make_unique<ObjectFeederAction<OmahaResponse>>();
+  feeder_action->set_obj(in);
   if (in.update_exists && in.version != kBadVersion) {
     string expected_hash;
     for (const auto& package : in.packages)
@@ -138,24 +150,29 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
   EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(current_url));
 
-  action_.reset(new OmahaResponseHandlerAction(
-      &fake_system_state_,
-      (test_deadline_file.empty() ? constants::kOmahaResponseDeadlineFile
-                                  : test_deadline_file)));
-  BondActions(&feeder_action, action_.get());
-  ObjectCollectorAction<InstallPlan> collector_action;
-  BondActions(action_.get(), &collector_action);
-  processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(action_.get());
-  processor.EnqueueAction(&collector_action);
+  auto response_handler_action =
+      std::make_unique<OmahaResponseHandlerAction>(&fake_system_state_);
+  if (!test_deadline_file.empty())
+    response_handler_action->deadline_file_ = test_deadline_file;
+
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<InstallPlan>>();
+
+  BondActions(feeder_action.get(), response_handler_action.get());
+  BondActions(response_handler_action.get(), collector_action.get());
+  processor.EnqueueAction(std::move(feeder_action));
+  processor.EnqueueAction(std::move(response_handler_action));
+  processor.EnqueueAction(std::move(collector_action));
   processor.StartProcessing();
   EXPECT_TRUE(!processor.IsRunning())
       << "Update test to handle non-async actions";
-  if (out)
-    *out = collector_action.object();
-  EXPECT_TRUE(delegate.code_set_);
-  action_result_code_ = delegate.code_;
-  return delegate.code_ == ErrorCode::kSuccess;
+
+  if (out && delegate_.collector_action_install_plan_)
+    *out = *delegate_.collector_action_install_plan_;
+
+  EXPECT_TRUE(delegate_.code_set_);
+  action_result_code_ = delegate_.code_;
+  return delegate_.code_ == ErrorCode::kSuccess;
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
@@ -645,9 +662,8 @@ TEST_F(OmahaResponseHandlerActionTest, TestDeferredByPolicy) {
   EXPECT_EQ(ErrorCode::kOmahaUpdateDeferredPerPolicy, action_result_code_);
   // Verify that DoTest() didn't set the output install plan.
   EXPECT_EQ("", install_plan.version);
-  // Copy the underlying InstallPlan from the Action (like a real Delegate).
-  install_plan = action_->install_plan();
   // Now verify the InstallPlan that was generated.
+  install_plan = *delegate_.response_handler_action_install_plan_;
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
   EXPECT_EQ(1U, install_plan.target_slot);

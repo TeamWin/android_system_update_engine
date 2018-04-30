@@ -177,6 +177,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
  private:
   friend class OmahaRequestActionTest;
+  friend class OmahaRequestActionTestProcessorDelegate;
   FRIEND_TEST(OmahaRequestActionTest, GetInstallDateWhenNoPrefsNorOOBE);
   FRIEND_TEST(OmahaRequestActionTest,
               GetInstallDateWhenOOBECompletedWithInvalidDate);

@@ -62,6 +62,7 @@ using testing::Field;
 using testing::InSequence;
 using testing::Ne;
 using testing::NiceMock;
+using testing::Pointee;
 using testing::Property;
 using testing::Return;
 using testing::ReturnPointee;
@@ -426,8 +427,8 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest) {
 
 TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
   EXPECT_CALL(*processor_,
-              EnqueueAction(Property(&AbstractAction::Type,
-                                     OmahaRequestAction::StaticType())));
+              EnqueueAction(Pointee(Property(
+                  &AbstractAction::Type, OmahaRequestAction::StaticType()))));
   EXPECT_CALL(*processor_, StartProcessing());
   ErrorCode err = ErrorCode::kError;
   EXPECT_CALL(*fake_system_state_.mock_payload_state(), UpdateFailed(err));
@@ -474,8 +475,8 @@ void UpdateAttempterTest::UpdateTestStart() {
     InSequence s;
     for (size_t i = 0; i < arraysize(kUpdateActionTypes); ++i) {
       EXPECT_CALL(*processor_,
-                  EnqueueAction(Property(&AbstractAction::Type,
-                                         kUpdateActionTypes[i])));
+                  EnqueueAction(Pointee(
+                      Property(&AbstractAction::Type, kUpdateActionTypes[i]))));
     }
     EXPECT_CALL(*processor_, StartProcessing());
   }
@@ -489,17 +490,6 @@ void UpdateAttempterTest::UpdateTestStart() {
 void UpdateAttempterTest::UpdateTestVerify() {
   EXPECT_EQ(0, attempter_.http_response_code());
   EXPECT_EQ(&attempter_, processor_->delegate());
-  EXPECT_EQ(arraysize(kUpdateActionTypes), attempter_.actions_.size());
-  for (size_t i = 0; i < arraysize(kUpdateActionTypes); ++i) {
-    EXPECT_EQ(kUpdateActionTypes[i], attempter_.actions_[i]->Type());
-  }
-  EXPECT_EQ(attempter_.response_handler_action_.get(),
-            attempter_.actions_[1].get());
-  AbstractAction* action_3 = attempter_.actions_[3].get();
-  ASSERT_NE(nullptr, action_3);
-  ASSERT_EQ(DownloadAction::StaticType(), action_3->Type());
-  DownloadAction* download_action = static_cast<DownloadAction*>(action_3);
-  EXPECT_EQ(&attempter_, download_action->delegate());
   EXPECT_EQ(UpdateStatus::CHECKING_FOR_UPDATE, attempter_.status());
   loop_.BreakLoop();
 }
@@ -545,8 +535,8 @@ void UpdateAttempterTest::RollbackTestStart(
     InSequence s;
     for (size_t i = 0; i < arraysize(kRollbackActionTypes); ++i) {
       EXPECT_CALL(*processor_,
-                  EnqueueAction(Property(&AbstractAction::Type,
-                                         kRollbackActionTypes[i])));
+                  EnqueueAction(Pointee(Property(&AbstractAction::Type,
+                                                 kRollbackActionTypes[i]))));
     }
     EXPECT_CALL(*processor_, StartProcessing());
 
@@ -563,19 +553,9 @@ void UpdateAttempterTest::RollbackTestStart(
 void UpdateAttempterTest::RollbackTestVerify() {
   // Verifies the actions that were enqueued.
   EXPECT_EQ(&attempter_, processor_->delegate());
-  EXPECT_EQ(arraysize(kRollbackActionTypes), attempter_.actions_.size());
-  for (size_t i = 0; i < arraysize(kRollbackActionTypes); ++i) {
-    EXPECT_EQ(kRollbackActionTypes[i], attempter_.actions_[i]->Type());
-  }
   EXPECT_EQ(UpdateStatus::ATTEMPTING_ROLLBACK, attempter_.status());
-  AbstractAction* action_0 = attempter_.actions_[0].get();
-  ASSERT_NE(nullptr, action_0);
-  ASSERT_EQ(InstallPlanAction::StaticType(), action_0->Type());
-  InstallPlanAction* install_plan_action =
-      static_cast<InstallPlanAction*>(action_0);
-  InstallPlan* install_plan = install_plan_action->install_plan();
-  EXPECT_EQ(0U, install_plan->partitions.size());
-  EXPECT_EQ(install_plan->powerwash_required, true);
+  EXPECT_EQ(0U, attempter_.install_plan_->partitions.size());
+  EXPECT_EQ(attempter_.install_plan_->powerwash_required, true);
   loop_.BreakLoop();
 }
 
@@ -610,8 +590,8 @@ TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
 
 void UpdateAttempterTest::PingOmahaTestStart() {
   EXPECT_CALL(*processor_,
-              EnqueueAction(Property(&AbstractAction::Type,
-                                     OmahaRequestAction::StaticType())));
+              EnqueueAction(Pointee(Property(
+                  &AbstractAction::Type, OmahaRequestAction::StaticType()))));
   EXPECT_CALL(*processor_, StartProcessing());
   attempter_.PingOmaha();
   ScheduleQuitMainLoop();
@@ -645,10 +625,8 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventTest) {
 }
 
 TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
-  OmahaResponseHandlerAction *response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.is_resume = true;
-  attempter_.response_handler_action_.reset(response_action);
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_resume = true;
   MockAction action;
   const ErrorCode kCode = ErrorCode::kInstallDeviceOpenError;
   attempter_.CreatePendingErrorEvent(&action, kCode);
@@ -1097,13 +1075,11 @@ TEST_F(UpdateAttempterTest, RollbackAllowedSetAndReset) {
 TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
   // Construct an OmahaResponseHandlerAction that has processed an InstallPlan,
   // but the update is being deferred by the Policy.
-  OmahaResponseHandlerAction* response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
+  auto response_action = new OmahaResponseHandlerAction(&fake_system_state_);
   response_action->install_plan_.version = "a.b.c.d";
   response_action->install_plan_.system_version = "b.c.d.e";
   response_action->install_plan_.payloads.push_back(
       {.size = 1234ULL, .type = InstallPayloadType::kFull});
-  attempter_.response_handler_action_.reset(response_action);
   // Inform the UpdateAttempter that the OmahaResponseHandlerAction has
   // completed, with the deferred-update error code.
   attempter_.ActionCompleted(
@@ -1112,10 +1088,11 @@ TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
     UpdateEngineStatus status;
     attempter_.GetStatus(&status);
     EXPECT_EQ(UpdateStatus::UPDATE_AVAILABLE, status.status);
-    EXPECT_EQ(response_action->install_plan_.version, status.new_version);
-    EXPECT_EQ(response_action->install_plan_.system_version,
+    EXPECT_TRUE(attempter_.install_plan_);
+    EXPECT_EQ(attempter_.install_plan_->version, status.new_version);
+    EXPECT_EQ(attempter_.install_plan_->system_version,
               status.new_system_version);
-    EXPECT_EQ(response_action->install_plan_.payloads[0].size,
+    EXPECT_EQ(attempter_.install_plan_->payloads[0].size,
               status.new_size_bytes);
   }
   // An "error" event should have been created to tell Omaha that the update is
@@ -1247,10 +1224,8 @@ TEST_F(UpdateAttempterTest, ResetRollbackHappenedEnterprise) {
 }
 
 TEST_F(UpdateAttempterTest, SetRollbackHappenedRollback) {
-  OmahaResponseHandlerAction* response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.is_rollback = true;
-  attempter_.response_handler_action_.reset(response_action);
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = true;
 
   EXPECT_CALL(*fake_system_state_.mock_payload_state(),
               SetRollbackHappened(true))
@@ -1259,10 +1234,8 @@ TEST_F(UpdateAttempterTest, SetRollbackHappenedRollback) {
 }
 
 TEST_F(UpdateAttempterTest, SetRollbackHappenedNotRollback) {
-  OmahaResponseHandlerAction* response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.is_rollback = false;
-  attempter_.response_handler_action_.reset(response_action);
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = false;
 
   EXPECT_CALL(*fake_system_state_.mock_payload_state(),
               SetRollbackHappened(true))
@@ -1271,11 +1244,9 @@ TEST_F(UpdateAttempterTest, SetRollbackHappenedNotRollback) {
 }
 
 TEST_F(UpdateAttempterTest, RollbackMetricsRollbackSuccess) {
-  OmahaResponseHandlerAction* response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.is_rollback = true;
-  response_action->install_plan_.version = kRollbackVersion;
-  attempter_.response_handler_action_.reset(response_action);
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = true;
+  attempter_.install_plan_->version = kRollbackVersion;
 
   EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(true, kRollbackVersion))
@@ -1284,11 +1255,9 @@ TEST_F(UpdateAttempterTest, RollbackMetricsRollbackSuccess) {
 }
 
 TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess) {
-  OmahaResponseHandlerAction* response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.is_rollback = false;
-  response_action->install_plan_.version = kRollbackVersion;
-  attempter_.response_handler_action_.reset(response_action);
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = false;
+  attempter_.install_plan_->version = kRollbackVersion;
 
   EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(_, _))
@@ -1297,11 +1266,9 @@ TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess) {
 }
 
 TEST_F(UpdateAttempterTest, RollbackMetricsRollbackFailure) {
-  OmahaResponseHandlerAction* response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.is_rollback = true;
-  response_action->install_plan_.version = kRollbackVersion;
-  attempter_.response_handler_action_.reset(response_action);
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = true;
+  attempter_.install_plan_->version = kRollbackVersion;
 
   EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(false, kRollbackVersion))
@@ -1312,11 +1279,9 @@ TEST_F(UpdateAttempterTest, RollbackMetricsRollbackFailure) {
 }
 
 TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackFailure) {
-  OmahaResponseHandlerAction* response_action =
-      new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.is_rollback = false;
-  response_action->install_plan_.version = kRollbackVersion;
-  attempter_.response_handler_action_.reset(response_action);
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = false;
+  attempter_.install_plan_->version = kRollbackVersion;
 
   EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(_, _))

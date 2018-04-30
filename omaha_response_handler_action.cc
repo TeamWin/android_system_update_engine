@@ -44,14 +44,8 @@ namespace chromeos_update_engine {
 
 OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state)
-    : OmahaResponseHandlerAction(system_state,
-                                 constants::kOmahaResponseDeadlineFile) {}
-
-OmahaResponseHandlerAction::OmahaResponseHandlerAction(
-    SystemState* system_state, const string& deadline_file)
     : system_state_(system_state),
-      key_path_(constants::kUpdatePayloadPublicKeyPath),
-      deadline_file_(deadline_file) {}
+      deadline_file_(constants::kOmahaResponseDeadlineFile) {}
 
 void OmahaResponseHandlerAction::PerformAction() {
   CHECK(HasInputObject());

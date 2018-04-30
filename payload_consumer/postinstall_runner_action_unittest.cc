@@ -22,6 +22,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
@@ -172,7 +173,7 @@ void PostinstallRunnerActionTest::RunPostinstallAction(
     bool is_rollback) {
   ActionProcessor processor;
   processor_ = &processor;
-  ObjectFeederAction<InstallPlan> feeder_action;
+  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
   InstallPlan::Partition part;
   part.name = "part";
   part.target_path = device_path;
@@ -183,16 +184,18 @@ void PostinstallRunnerActionTest::RunPostinstallAction(
   install_plan.download_url = "http://127.0.0.1:8080/update";
   install_plan.powerwash_required = powerwash_required;
   install_plan.is_rollback = is_rollback;
-  feeder_action.set_obj(install_plan);
-  PostinstallRunnerAction runner_action(&fake_boot_control_, &fake_hardware_);
-  postinstall_action_ = &runner_action;
-  runner_action.set_delegate(setup_action_delegate_);
-  BondActions(&feeder_action, &runner_action);
-  ObjectCollectorAction<InstallPlan> collector_action;
-  BondActions(&runner_action, &collector_action);
-  processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(&runner_action);
-  processor.EnqueueAction(&collector_action);
+  feeder_action->set_obj(install_plan);
+  auto runner_action = std::make_unique<PostinstallRunnerAction>(
+      &fake_boot_control_, &fake_hardware_);
+  postinstall_action_ = runner_action.get();
+  runner_action->set_delegate(setup_action_delegate_);
+  BondActions(feeder_action.get(), runner_action.get());
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<InstallPlan>>();
+  BondActions(runner_action.get(), collector_action.get());
+  processor.EnqueueAction(std::move(feeder_action));
+  processor.EnqueueAction(std::move(runner_action));
+  processor.EnqueueAction(std::move(collector_action));
   processor.set_delegate(&processor_delegate_);
 
   loop_.PostTask(

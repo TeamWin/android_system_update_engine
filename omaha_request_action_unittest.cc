@@ -243,6 +243,55 @@ struct FakeUpdateResponse {
 
 namespace chromeos_update_engine {
 
+class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
+ public:
+  OmahaRequestActionTestProcessorDelegate()
+      : expected_code_(ErrorCode::kSuccess),
+        interactive_(false),
+        test_http_fetcher_headers_(false) {}
+  ~OmahaRequestActionTestProcessorDelegate() override = default;
+
+  void ProcessingDone(const ActionProcessor* processor,
+                      ErrorCode code) override {
+    brillo::MessageLoop::current()->BreakLoop();
+  }
+
+  void ActionCompleted(ActionProcessor* processor,
+                       AbstractAction* action,
+                       ErrorCode code) override {
+    // Make sure actions always succeed.
+    if (action->Type() == OmahaRequestAction::StaticType()) {
+      EXPECT_EQ(expected_code_, code);
+      // Check that the headers were set in the fetcher during the action. Note
+      // that we set this request as "interactive".
+      auto fetcher = static_cast<const MockHttpFetcher*>(
+          static_cast<OmahaRequestAction*>(action)->http_fetcher_.get());
+
+      if (test_http_fetcher_headers_) {
+        EXPECT_EQ(interactive_ ? "fg" : "bg",
+                  fetcher->GetHeader("X-Goog-Update-Interactivity"));
+        EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-Goog-Update-AppId"));
+        EXPECT_NE("", fetcher->GetHeader("X-Goog-Update-Updater"));
+      }
+      post_data_ = fetcher->post_data();
+    } else if (action->Type() ==
+               ObjectCollectorAction<OmahaResponse>::StaticType()) {
+      EXPECT_EQ(ErrorCode::kSuccess, code);
+      auto collector_action =
+          static_cast<ObjectCollectorAction<OmahaResponse>*>(action);
+      omaha_response_.reset(new OmahaResponse(collector_action->object()));
+      EXPECT_TRUE(omaha_response_);
+    } else {
+      EXPECT_EQ(ErrorCode::kSuccess, code);
+    }
+  }
+  ErrorCode expected_code_;
+  brillo::Blob post_data_;
+  bool interactive_;
+  bool test_http_fetcher_headers_;
+  std::unique_ptr<OmahaResponse> omaha_response_;
+};
+
 class OmahaRequestActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -312,6 +361,10 @@ class OmahaRequestActionTest : public ::testing::Test {
                          bool is_policy_loaded,
                          OmahaResponse* out_response);
 
+  void TestEvent(OmahaEvent* event,
+                 const string& http_response,
+                 brillo::Blob* out_post_data);
+
   // Runs and checks a ping test. |ping_only| indicates whether it should send
   // only a ping or also an updatecheck.
   void PingTest(bool ping_only);
@@ -339,69 +392,10 @@ class OmahaRequestActionTest : public ::testing::Test {
   OmahaRequestParams request_params_{&fake_system_state_};
 
   FakePrefs fake_prefs_;
-};
 
-namespace {
-class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
- public:
-  OmahaRequestActionTestProcessorDelegate()
-      : expected_code_(ErrorCode::kSuccess) {}
-  ~OmahaRequestActionTestProcessorDelegate() override {
-  }
-  void ProcessingDone(const ActionProcessor* processor,
-                      ErrorCode code) override {
-    brillo::MessageLoop::current()->BreakLoop();
-  }
+  OmahaRequestActionTestProcessorDelegate delegate_;
 
-  void ActionCompleted(ActionProcessor* processor,
-                       AbstractAction* action,
-                       ErrorCode code) override {
-    // make sure actions always succeed
-    if (action->Type() == OmahaRequestAction::StaticType())
-      EXPECT_EQ(expected_code_, code);
-    else
-      EXPECT_EQ(ErrorCode::kSuccess, code);
-  }
-  ErrorCode expected_code_;
-};
-}  // namespace
-
-class OutputObjectCollectorAction;
-
-template<>
-class ActionTraits<OutputObjectCollectorAction> {
- public:
-  // Does not take an object for input
-  typedef OmahaResponse InputObjectType;
-  // On success, puts the output path on output
-  typedef NoneType OutputObjectType;
-};
-
-class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
- public:
-  OutputObjectCollectorAction() : has_input_object_(false) {}
-  void PerformAction() {
-    // copy input object
-    has_input_object_ = HasInputObject();
-    if (has_input_object_)
-      omaha_response_ = GetInputObject();
-    processor_->ActionComplete(this, ErrorCode::kSuccess);
-  }
-  // Should never be called
-  void TerminateProcessing() {
-    CHECK(false);
-  }
-  // Debugging/logging
-  static string StaticType() {
-    return "OutputObjectCollectorAction";
-  }
-  string Type() const { return StaticType(); }
-  using InputObjectType =
-      ActionTraits<OutputObjectCollectorAction>::InputObjectType;
-  using OutputObjectType =
-      ActionTraits<OutputObjectCollectorAction>::OutputObjectType;
-  bool has_input_object_;
-  OmahaResponse omaha_response_;
+  bool test_http_fetcher_headers_{false};
 };
 
 bool OmahaRequestActionTest::TestUpdateCheck(
@@ -419,9 +413,8 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     brillo::Blob* out_post_data) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
-  MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
-                                                 http_response.size(),
-                                                 nullptr);
+  auto fetcher = std::make_unique<MockHttpFetcher>(
+      http_response.data(), http_response.size(), nullptr);
   if (fail_http_response_code >= 0) {
     fetcher->FailTransfer(fail_http_response_code);
   }
@@ -429,10 +422,9 @@ bool OmahaRequestActionTest::TestUpdateCheck(
   // are not using the default request_params_.
   EXPECT_EQ(&request_params_, fake_system_state_.request_params());
 
-  OmahaRequestAction action(&fake_system_state_,
-                            nullptr,
-                            base::WrapUnique(fetcher),
-                            ping_only);
+  auto omaha_request_action = std::make_unique<OmahaRequestAction>(
+      &fake_system_state_, nullptr, std::move(fetcher), ping_only);
+
   auto mock_policy_provider =
       std::make_unique<NiceMock<policy::MockPolicyProvider>>();
   EXPECT_CALL(*mock_policy_provider, IsConsumerDevice())
@@ -449,18 +441,19 @@ bool OmahaRequestActionTest::TestUpdateCheck(
 
   EXPECT_CALL(*mock_policy_provider, GetDevicePolicy())
       .WillRepeatedly(ReturnRef(device_policy));
+  omaha_request_action->policy_provider_ = std::move(mock_policy_provider);
 
-  action.policy_provider_ = std::move(mock_policy_provider);
-  OmahaRequestActionTestProcessorDelegate delegate;
-  delegate.expected_code_ = expected_code;
-
+  delegate_.expected_code_ = expected_code;
+  delegate_.interactive_ = request_params_.interactive();
+  delegate_.test_http_fetcher_headers_ = test_http_fetcher_headers_;
   ActionProcessor processor;
-  processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.set_delegate(&delegate_);
 
-  OutputObjectCollectorAction collector_action;
-  BondActions(&action, &collector_action);
-  processor.EnqueueAction(&collector_action);
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<OmahaResponse>>();
+  BondActions(omaha_request_action.get(), collector_action.get());
+  processor.EnqueueAction(std::move(omaha_request_action));
+  processor.EnqueueAction(std::move(collector_action));
 
   EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
               ReportUpdateCheckMetrics(_, _, _, _))
@@ -478,11 +471,11 @@ bool OmahaRequestActionTest::TestUpdateCheck(
       base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
-  if (collector_action.has_input_object_ && out_response)
-    *out_response = collector_action.omaha_response_;
+  if (delegate_.omaha_response_ && out_response)
+    *out_response = *delegate_.omaha_response_;
   if (out_post_data)
-    *out_post_data = fetcher->post_data();
-  return collector_action.has_input_object_;
+    *out_post_data = delegate_.post_data_;
+  return delegate_.omaha_response_ != nullptr;
 }
 
 bool OmahaRequestActionTest::TestUpdateCheck(
@@ -529,26 +522,24 @@ void OmahaRequestActionTest::TestRollbackCheck(bool is_consumer_device,
   ASSERT_TRUE(out_response->update_exists);
 }
 
-// Tests Event requests -- they should always succeed. |out_post_data|
-// may be null; if non-null, the post-data received by the mock
-// HttpFetcher is returned.
-void TestEvent(OmahaEvent* event,
-               const string& http_response,
-               brillo::Blob* out_post_data) {
+// Tests Event requests -- they should always succeed. |out_post_data| may be
+// null; if non-null, the post-data received by the mock HttpFetcher is
+// returned.
+void OmahaRequestActionTest::TestEvent(OmahaEvent* event,
+                                       const string& http_response,
+                                       brillo::Blob* out_post_data) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
-  MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
-                                                 http_response.size(),
-                                                 nullptr);
-  FakeSystemState fake_system_state;
-  OmahaRequestAction action(&fake_system_state,
-                            event,
-                            base::WrapUnique(fetcher),
-                            false);
-  OmahaRequestActionTestProcessorDelegate delegate;
+
+  auto action = std::make_unique<OmahaRequestAction>(
+      &fake_system_state_,
+      event,
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
+      false);
   ActionProcessor processor;
-  processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.set_delegate(&delegate_);
+  processor.EnqueueAction(std::move(action));
 
   loop.PostTask(base::Bind(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
@@ -557,7 +548,7 @@ void TestEvent(OmahaEvent* event,
   EXPECT_FALSE(loop.PendingTasks());
 
   if (out_post_data)
-    *out_post_data = fetcher->post_data();
+    *out_post_data = delegate_.post_data_;
 }
 
 TEST_F(OmahaRequestActionTest, RejectEntities) {
@@ -841,31 +832,36 @@ TEST_F(OmahaRequestActionTest, PowerwashTest) {
   EXPECT_TRUE(response.powerwash_required);
 }
 
-TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
-  const string http_response = "<?xml invalid response";
+TEST_F(OmahaRequestActionTest, ExtraHeadersSentInteractiveTest) {
+  OmahaResponse response;
   request_params_.set_interactive(true);
+  test_http_fetcher_headers_ = true;
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
 
-  brillo::FakeMessageLoop loop(nullptr);
-  loop.SetAsCurrent();
-
-  MockHttpFetcher* fetcher =
-      new MockHttpFetcher(http_response.data(), http_response.size(), nullptr);
-  OmahaRequestAction action(&fake_system_state_, nullptr,
-                            base::WrapUnique(fetcher), false);
-  ActionProcessor processor;
-  processor.EnqueueAction(&action);
-
-  loop.PostTask(base::Bind(
-      [](ActionProcessor* processor) { processor->StartProcessing(); },
-      base::Unretained(&processor)));
-  loop.Run();
-  EXPECT_FALSE(loop.PendingTasks());
-
-  // Check that the headers were set in the fetcher during the action. Note that
-  // we set this request as "interactive".
-  EXPECT_EQ("fg", fetcher->GetHeader("X-Goog-Update-Interactivity"));
-  EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-Goog-Update-AppId"));
-  EXPECT_NE("", fetcher->GetHeader("X-Goog-Update-Updater"));
+TEST_F(OmahaRequestActionTest, ExtraHeadersSentNoInteractiveTest) {
+  OmahaResponse response;
+  request_params_.set_interactive(false);
+  test_http_fetcher_headers_ = true;
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
@@ -1483,17 +1479,15 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
-  OmahaRequestAction action(
+  auto action = std::make_unique<OmahaRequestAction>(
       &fake_system_state_,
       nullptr,
-      std::make_unique<MockHttpFetcher>(http_response.data(),
-                                        http_response.size(),
-                                        nullptr),
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
       false);
-  OmahaRequestActionTestProcessorDelegate delegate;
   ActionProcessor processor;
-  processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.set_delegate(&delegate_);
+  processor.EnqueueAction(std::move(action));
 
   loop.PostTask(base::Bind(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
@@ -1652,17 +1646,16 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
   loop.SetAsCurrent();
 
   string http_response("doesn't matter");
-  OmahaRequestAction action(
+  auto action = std::make_unique<OmahaRequestAction>(
       &fake_system_state_,
       nullptr,
-      std::make_unique<MockHttpFetcher>(http_response.data(),
-                                        http_response.size(),
-                                        nullptr),
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
       false);
   TerminateEarlyTestProcessorDelegate delegate;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.EnqueueAction(std::move(action));
 
   loop.PostTask(base::Bind(&TerminateTransferTestStarter, &processor));
   loop.Run();

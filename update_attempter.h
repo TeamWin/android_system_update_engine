@@ -362,12 +362,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // scatter factor value specified from policy.
   void GenerateNewWaitingPeriod();
 
-  // Helper method of Update() and Rollback() to construct the sequence of
-  // actions to be performed for the postinstall.
-  // |previous_action| is the previous action to get
-  // bonded with the install_plan that gets passed to postinstall.
-  void BuildPostInstallActions(InstallPlanAction* previous_action);
-
   // Helper method of Update() to construct the sequence of actions to
   // be performed for an update check. Please refer to
   // Update() method for the meaning of the parameters.
@@ -421,7 +415,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // set back in the middle of an update.
   base::TimeTicks last_notify_time_;
 
-  std::vector<std::shared_ptr<AbstractAction>> actions_;
   std::unique_ptr<ActionProcessor> processor_;
 
   // External state of the system outside the update_engine process
@@ -434,11 +427,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // The list of services observing changes in the updater.
   std::set<ServiceObserverInterface*> service_observers_;
 
-  // Pointer to the OmahaResponseHandlerAction in the actions_ vector.
-  std::shared_ptr<OmahaResponseHandlerAction> response_handler_action_;
-
-  // Pointer to the DownloadAction in the actions_ vector.
-  std::shared_ptr<DownloadAction> download_action_;
+  // The install plan.
+  std::unique_ptr<InstallPlan> install_plan_;
 
   // Pointer to the preferences store interface. This is just a cached
   // copy of system_state->prefs() because it's used in many methods and

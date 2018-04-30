@@ -582,98 +582,77 @@ void UpdateAttempter::GenerateNewWaitingPeriod() {
       omaha_request_params_->waiting_period());
 }
 
-void UpdateAttempter::BuildPostInstallActions(
-    InstallPlanAction* previous_action) {
-  shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
-      new PostinstallRunnerAction(system_state_->boot_control(),
-                                  system_state_->hardware()));
-  postinstall_runner_action->set_delegate(this);
-  actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
-  BondActions(previous_action,
-              postinstall_runner_action.get());
-}
-
 void UpdateAttempter::BuildUpdateActions(bool interactive) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
 
   // Actions:
-  std::unique_ptr<LibcurlHttpFetcher> update_check_fetcher(
-      new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware()));
+  auto update_check_fetcher = std::make_unique<LibcurlHttpFetcher>(
+      GetProxyResolver(), system_state_->hardware());
   update_check_fetcher->set_server_to_check(ServerToCheck::kUpdate);
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
-  shared_ptr<OmahaRequestAction> update_check_action(
-      new OmahaRequestAction(system_state_,
-                             nullptr,
-                             std::move(update_check_fetcher),
-                             false));
-  shared_ptr<OmahaResponseHandlerAction> response_handler_action(
-      new OmahaResponseHandlerAction(system_state_));
-
-  shared_ptr<OmahaRequestAction> download_started_action(new OmahaRequestAction(
+  auto update_check_action = std::make_unique<OmahaRequestAction>(
+      system_state_, nullptr, std::move(update_check_fetcher), false);
+  auto response_handler_action =
+      std::make_unique<OmahaResponseHandlerAction>(system_state_);
+  auto download_started_action = std::make_unique<OmahaRequestAction>(
       system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false));
+      false);
 
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
   download_fetcher->set_server_to_check(ServerToCheck::kDownload);
   if (interactive)
     download_fetcher->set_max_retry_count(kDownloadMaxRetryCountInteractive);
-  shared_ptr<DownloadAction> download_action(
-      new DownloadAction(prefs_,
-                         system_state_->boot_control(),
-                         system_state_->hardware(),
-                         system_state_,
-                         download_fetcher,  // passes ownership
-                         interactive));
-  shared_ptr<OmahaRequestAction> download_finished_action(
-      new OmahaRequestAction(
-          system_state_,
-          new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
-          std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
-                                               system_state_->hardware()),
-          false));
-  shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
-      new FilesystemVerifierAction());
-  shared_ptr<OmahaRequestAction> update_complete_action(
-      new OmahaRequestAction(system_state_,
-                             new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-                             std::make_unique<LibcurlHttpFetcher>(
-                                 GetProxyResolver(), system_state_->hardware()),
-                             false));
-
+  auto download_action =
+      std::make_unique<DownloadAction>(prefs_,
+                                       system_state_->boot_control(),
+                                       system_state_->hardware(),
+                                       system_state_,
+                                       download_fetcher,  // passes ownership
+                                       interactive);
   download_action->set_delegate(this);
-  response_handler_action_ = response_handler_action;
-  download_action_ = download_action;
 
-  actions_.push_back(shared_ptr<AbstractAction>(update_check_action));
-  actions_.push_back(shared_ptr<AbstractAction>(response_handler_action));
-  actions_.push_back(shared_ptr<AbstractAction>(download_started_action));
-  actions_.push_back(shared_ptr<AbstractAction>(download_action));
-  actions_.push_back(shared_ptr<AbstractAction>(download_finished_action));
-  actions_.push_back(shared_ptr<AbstractAction>(filesystem_verifier_action));
+  auto download_finished_action = std::make_unique<OmahaRequestAction>(
+      system_state_,
+      new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
+      std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                           system_state_->hardware()),
+      false);
+  auto filesystem_verifier_action =
+      std::make_unique<FilesystemVerifierAction>();
+  auto update_complete_action = std::make_unique<OmahaRequestAction>(
+      system_state_,
+      new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
+      std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                           system_state_->hardware()),
+      false);
+
+  auto postinstall_runner_action = std::make_unique<PostinstallRunnerAction>(
+      system_state_->boot_control(), system_state_->hardware());
+  postinstall_runner_action->set_delegate(this);
 
   // Bond them together. We have to use the leaf-types when calling
   // BondActions().
-  BondActions(update_check_action.get(),
-              response_handler_action.get());
-  BondActions(response_handler_action.get(),
-              download_action.get());
-  BondActions(download_action.get(),
-              filesystem_verifier_action.get());
-  BuildPostInstallActions(filesystem_verifier_action.get());
+  BondActions(update_check_action.get(), response_handler_action.get());
+  BondActions(response_handler_action.get(), download_action.get());
+  BondActions(download_action.get(), filesystem_verifier_action.get());
+  BondActions(filesystem_verifier_action.get(),
+              postinstall_runner_action.get());
 
-  actions_.push_back(shared_ptr<AbstractAction>(update_complete_action));
-
-  // Enqueue the actions
-  for (const shared_ptr<AbstractAction>& action : actions_) {
-    processor_->EnqueueAction(action.get());
-  }
+  processor_->EnqueueAction(std::move(update_check_action));
+  processor_->EnqueueAction(std::move(response_handler_action));
+  processor_->EnqueueAction(std::move(download_started_action));
+  processor_->EnqueueAction(std::move(download_action));
+  processor_->EnqueueAction(std::move(download_finished_action));
+  processor_->EnqueueAction(std::move(filesystem_verifier_action));
+  processor_->EnqueueAction(std::move(postinstall_runner_action));
+  processor_->EnqueueAction(std::move(update_complete_action));
 }
 
 bool UpdateAttempter::Rollback(bool powerwash) {
@@ -704,28 +683,25 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   }
 
   LOG(INFO) << "Setting rollback options.";
-  InstallPlan install_plan;
-
-  install_plan.target_slot = GetRollbackSlot();
-  install_plan.source_slot = system_state_->boot_control()->GetCurrentSlot();
+  install_plan_.reset(new InstallPlan());
+  install_plan_->target_slot = GetRollbackSlot();
+  install_plan_->source_slot = system_state_->boot_control()->GetCurrentSlot();
 
   TEST_AND_RETURN_FALSE(
-      install_plan.LoadPartitionsFromSlots(system_state_->boot_control()));
-  install_plan.powerwash_required = powerwash;
+      install_plan_->LoadPartitionsFromSlots(system_state_->boot_control()));
+  install_plan_->powerwash_required = powerwash;
 
   LOG(INFO) << "Using this install plan:";
-  install_plan.Dump();
+  install_plan_->Dump();
 
-  shared_ptr<InstallPlanAction> install_plan_action(
-      new InstallPlanAction(install_plan));
-  actions_.push_back(shared_ptr<AbstractAction>(install_plan_action));
-
-  BuildPostInstallActions(install_plan_action.get());
-
-  // Enqueue the actions
-  for (const shared_ptr<AbstractAction>& action : actions_) {
-    processor_->EnqueueAction(action.get());
-  }
+  auto install_plan_action =
+      std::make_unique<InstallPlanAction>(*install_plan_);
+  auto postinstall_runner_action = std::make_unique<PostinstallRunnerAction>(
+      system_state_->boot_control(), system_state_->hardware());
+  postinstall_runner_action->set_delegate(this);
+  BondActions(install_plan_action.get(), postinstall_runner_action.get());
+  processor_->EnqueueAction(std::move(install_plan_action));
+  processor_->EnqueueAction(std::move(postinstall_runner_action));
 
   // Update the payload state for Rollback.
   system_state_->payload_state()->Rollback();
@@ -939,7 +915,6 @@ void UpdateAttempter::UpdateRollbackHappened() {
 void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
                                      ErrorCode code) {
   LOG(INFO) << "Processing Done.";
-  actions_.clear();
 
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
@@ -989,15 +964,12 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     ScheduleUpdates();
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
-    // This pointer is null during rollback operations, and the stats
-    // don't make much sense then anyway.
-    if (response_handler_action_) {
-      const InstallPlan& install_plan =
-          response_handler_action_->install_plan();
-
+    // |install_plan_| is null during rollback operations, and the stats don't
+    // make much sense then anyway.
+    if (install_plan_) {
       // Generate an unique payload identifier.
       string target_version_uid;
-      for (const auto& payload : install_plan.payloads) {
+      for (const auto& payload : install_plan_->payloads) {
         target_version_uid +=
             brillo::data_encoding::Base64Encode(payload.hash) + ":" +
             payload.metadata_signature + ":";
@@ -1005,10 +977,10 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
       // If we just downloaded a rollback image, we should preserve this fact
       // over the following powerwash.
-      if (install_plan.is_rollback) {
+      if (install_plan_->is_rollback) {
         system_state_->payload_state()->SetRollbackHappened(true);
         system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
-            /*success=*/true, install_plan.version);
+            /*success=*/true, install_plan_->version);
       }
 
       // Expect to reboot into the new version to send the proper metric during
@@ -1019,8 +991,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
       // If we just finished a rollback, then we expect to have no Omaha
       // response. Otherwise, it's an error.
       if (system_state_->payload_state()->GetRollbackVersion().empty()) {
-        LOG(ERROR) << "Can't send metrics because expected "
-            "response_handler_action_ missing.";
+        LOG(ERROR) << "Can't send metrics because there was no Omaha response";
       }
     }
     return;
@@ -1040,7 +1011,6 @@ void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   download_progress_ = 0.0;
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
-  actions_.clear();
   error_event_.reset(nullptr);
 }
 
@@ -1100,13 +1070,15 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
       // callback is invoked. This avoids notifying the user that a download
       // has started in cases when the server and the client are unable to
       // initiate the download.
-      CHECK(action == response_handler_action_.get());
-      auto plan = response_handler_action_->install_plan();
+      auto omaha_response_handler_action =
+          static_cast<OmahaResponseHandlerAction*>(action);
+      install_plan_.reset(
+          new InstallPlan(omaha_response_handler_action->install_plan()));
       UpdateLastCheckedTime();
-      new_version_ = plan.version;
-      new_system_version_ = plan.system_version;
+      new_version_ = install_plan_->version;
+      new_system_version_ = install_plan_->system_version;
       new_payload_size_ = 0;
-      for (const auto& payload : plan.payloads)
+      for (const auto& payload : install_plan_->payloads)
         new_payload_size_ += payload.size;
       cpu_limiter_.StartLimiter();
       SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
@@ -1300,8 +1272,7 @@ uint32_t UpdateAttempter::GetErrorCodeFlags()  {
   if (!system_state_->hardware()->IsNormalBootMode())
     flags |= static_cast<uint32_t>(ErrorCode::kDevModeFlag);
 
-  if (response_handler_action_.get() &&
-      response_handler_action_->install_plan().is_resume)
+  if (install_plan_ && install_plan_->is_resume)
     flags |= static_cast<uint32_t>(ErrorCode::kResumedFlag);
 
   if (!system_state_->hardware()->IsOfficialBuild())
@@ -1380,24 +1351,20 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
   system_state_->payload_state()->UpdateFailed(error_event_->error_code);
 
   // Send metrics if it was a rollback.
-  if (response_handler_action_) {
-    const InstallPlan& install_plan = response_handler_action_->install_plan();
-    if (install_plan.is_rollback) {
-      system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
-          /*success=*/false, install_plan.version);
-    }
+  if (install_plan_ && install_plan_->is_rollback) {
+    system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+        /*success=*/false, install_plan_->version);
   }
 
   // Send it to Omaha.
   LOG(INFO) << "Reporting the error event";
-  shared_ptr<OmahaRequestAction> error_event_action(
-      new OmahaRequestAction(system_state_,
-                             error_event_.release(),  // Pass ownership.
-                             std::make_unique<LibcurlHttpFetcher>(
-                                 GetProxyResolver(), system_state_->hardware()),
-                             false));
-  actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
-  processor_->EnqueueAction(error_event_action.get());
+  auto error_event_action = std::make_unique<OmahaRequestAction>(
+      system_state_,
+      error_event_.release(),  // Pass ownership.
+      std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                           system_state_->hardware()),
+      false);
+  processor_->EnqueueAction(std::move(error_event_action));
   SetStatusAndNotify(UpdateStatus::REPORTING_ERROR_EVENT);
   processor_->StartProcessing();
   return true;
@@ -1435,15 +1402,14 @@ void UpdateAttempter::MarkDeltaUpdateFailure() {
 
 void UpdateAttempter::PingOmaha() {
   if (!processor_->IsRunning()) {
-    shared_ptr<OmahaRequestAction> ping_action(new OmahaRequestAction(
+    auto ping_action = std::make_unique<OmahaRequestAction>(
         system_state_,
         nullptr,
         std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                              system_state_->hardware()),
-        true));
-    actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
+        true);
     processor_->set_delegate(nullptr);
-    processor_->EnqueueAction(ping_action.get());
+    processor_->EnqueueAction(std::move(ping_action));
     // Call StartProcessing() synchronously here to avoid any race conditions
     // caused by multiple outstanding ping Omaha requests.  If we call
     // StartProcessing() asynchronously, the device can be suspended before we

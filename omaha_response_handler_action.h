@@ -59,7 +59,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   // Debugging/logging
   static std::string StaticType() { return "OmahaResponseHandlerAction"; }
   std::string Type() const override { return StaticType(); }
-  void set_key_path(const std::string& path) { key_path_ = path; }
 
  private:
   // Returns true if payload hash checks are mandatory based on the state
@@ -72,18 +71,11 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   // The install plan, if we have an update.
   InstallPlan install_plan_;
 
-  // Public key path to use for payload verification.
-  std::string key_path_;
-
   // File used for communication deadline to Chrome.
-  const std::string deadline_file_;
-
-  // Special ctor + friend declarations for testing purposes.
-  OmahaResponseHandlerAction(SystemState* system_state,
-                             const std::string& deadline_file);
+  std::string deadline_file_;
 
   friend class OmahaResponseHandlerActionTest;
-
+  friend class OmahaResponseHandlerActionProcessorDelegate;
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackFailure);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess);

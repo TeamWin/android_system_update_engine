@@ -18,8 +18,10 @@
 
 #include <fcntl.h>
 
+#include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/bind.h>
@@ -90,26 +92,23 @@ class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
     if (action->Type() == FilesystemVerifierAction::StaticType()) {
       ran_ = true;
       code_ = code;
+    } else if (action->Type() ==
+               ObjectCollectorAction<InstallPlan>::StaticType()) {
+      auto collector_action =
+          static_cast<ObjectCollectorAction<InstallPlan>*>(action);
+      install_plan_.reset(new InstallPlan(collector_action->object()));
     }
   }
   bool ran() const { return ran_; }
   ErrorCode code() const { return code_; }
+
+  std::unique_ptr<InstallPlan> install_plan_;
 
  private:
   FilesystemVerifierAction* action_;
   bool ran_;
   ErrorCode code_;
 };
-
-void StartProcessorInRunLoop(ActionProcessor* processor,
-                             FilesystemVerifierAction* filesystem_copier_action,
-                             bool terminate_early) {
-  processor->StartProcessing();
-  if (terminate_early) {
-    EXPECT_NE(nullptr, filesystem_copier_action);
-    processor->StopProcessing();
-  }
-}
 
 bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
                                           bool hash_fail) {
@@ -165,27 +164,32 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   }
   install_plan.partitions = {part};
 
+  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
+  feeder_action->set_obj(install_plan);
+  auto copier_action = std::make_unique<FilesystemVerifierAction>();
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<InstallPlan>>();
+
+  BondActions(feeder_action.get(), copier_action.get());
+  BondActions(copier_action.get(), collector_action.get());
+
   ActionProcessor processor;
-
-  ObjectFeederAction<InstallPlan> feeder_action;
-  FilesystemVerifierAction copier_action;
-  ObjectCollectorAction<InstallPlan> collector_action;
-
-  BondActions(&feeder_action, &copier_action);
-  BondActions(&copier_action, &collector_action);
-
-  FilesystemVerifierActionTestDelegate delegate(&copier_action);
+  FilesystemVerifierActionTestDelegate delegate(copier_action.get());
   processor.set_delegate(&delegate);
-  processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(&copier_action);
-  processor.EnqueueAction(&collector_action);
+  processor.EnqueueAction(std::move(feeder_action));
+  processor.EnqueueAction(std::move(copier_action));
+  processor.EnqueueAction(std::move(collector_action));
 
-  feeder_action.set_obj(install_plan);
-
-  loop_.PostTask(FROM_HERE, base::Bind(&StartProcessorInRunLoop,
-                                       &processor,
-                                       &copier_action,
-                                       terminate_early));
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(
+                     [](ActionProcessor* processor, bool terminate_early) {
+                       processor->StartProcessing();
+                       if (terminate_early) {
+                         processor->StopProcessing();
+                       }
+                     },
+                     base::Unretained(&processor),
+                     terminate_early));
   loop_.Run();
 
   if (!terminate_early) {
@@ -214,7 +218,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   EXPECT_TRUE(is_a_file_reading_eq);
   success = success && is_a_file_reading_eq;
 
-  bool is_install_plan_eq = (collector_action.object() == install_plan);
+  bool is_install_plan_eq = (*delegate.install_plan_ == install_plan);
   EXPECT_TRUE(is_install_plan_eq);
   success = success && is_install_plan_eq;
   return success;
@@ -240,13 +244,14 @@ TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
 
   processor.set_delegate(&delegate);
 
-  FilesystemVerifierAction copier_action;
-  ObjectCollectorAction<InstallPlan> collector_action;
+  auto copier_action = std::make_unique<FilesystemVerifierAction>();
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<InstallPlan>>();
 
-  BondActions(&copier_action, &collector_action);
+  BondActions(copier_action.get(), collector_action.get());
 
-  processor.EnqueueAction(&copier_action);
-  processor.EnqueueAction(&collector_action);
+  processor.EnqueueAction(std::move(copier_action));
+  processor.EnqueueAction(std::move(collector_action));
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
@@ -259,7 +264,6 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
 
   processor.set_delegate(&delegate);
 
-  ObjectFeederAction<InstallPlan> feeder_action;
   InstallPlan install_plan;
   InstallPlan::Partition part;
   part.name = "nope";
@@ -267,15 +271,18 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
   part.target_path = "/no/such/file";
   install_plan.partitions = {part};
 
-  feeder_action.set_obj(install_plan);
-  FilesystemVerifierAction verifier_action;
-  ObjectCollectorAction<InstallPlan> collector_action;
+  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
+  auto verifier_action = std::make_unique<FilesystemVerifierAction>();
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<InstallPlan>>();
 
-  BondActions(&verifier_action, &collector_action);
+  feeder_action->set_obj(install_plan);
 
-  processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(&verifier_action);
-  processor.EnqueueAction(&collector_action);
+  BondActions(verifier_action.get(), collector_action.get());
+
+  processor.EnqueueAction(std::move(feeder_action));
+  processor.EnqueueAction(std::move(verifier_action));
+  processor.EnqueueAction(std::move(collector_action));
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
