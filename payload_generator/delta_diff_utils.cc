@@ -44,6 +44,7 @@
 #include <brillo/data_encoding.h>
 #include <bsdiff/bsdiff.h>
 #include <bsdiff/patch_writer_factory.h>
+#include <puffin/utils.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/subprocess.h"
@@ -831,25 +832,8 @@ bool ReadExtentsToDiff(const string& old_part,
         TEST_AND_RETURN_FALSE(deflate_utils::FindAndCompactDeflates(
             dst_extents, new_deflates, &dst_deflates));
 
-        // Remove equal deflates. TODO(*): We can do a N*N check using
-        // hashing. It will not reduce the payload size, but it will speeds up
-        // the puffing on the client device.
-        auto src = src_deflates.begin();
-        auto dst = dst_deflates.begin();
-        for (; src != src_deflates.end() && dst != dst_deflates.end();) {
-          auto src_in_bytes = deflate_utils::ExpandToByteExtent(*src);
-          auto dst_in_bytes = deflate_utils::ExpandToByteExtent(*dst);
-          if (src_in_bytes.length == dst_in_bytes.length &&
-              !memcmp(old_data.data() + src_in_bytes.offset,
-                      new_data.data() + dst_in_bytes.offset,
-                      src_in_bytes.length)) {
-            src = src_deflates.erase(src);
-            dst = dst_deflates.erase(dst);
-          } else {
-            src++;
-            dst++;
-          }
-        }
+        puffin::RemoveEqualBitExtents(
+            old_data, new_data, &src_deflates, &dst_deflates);
 
         // Only Puffdiff if both files have at least one deflate left.
         if (!src_deflates.empty() && !dst_deflates.empty()) {
