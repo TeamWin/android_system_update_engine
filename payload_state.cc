@@ -359,6 +359,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     case ErrorCode::kUpdatedButNotActive:
     case ErrorCode::kNoUpdate:
+    case ErrorCode::kRollbackNotPossible:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 

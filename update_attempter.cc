@@ -1003,6 +1003,12 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
             payload.metadata_signature + ":";
       }
 
+      // If we just downloaded a rollback image, we should preserve this fact
+      // over the following powerwash.
+      if (install_plan.is_rollback) {
+        system_state_->payload_state()->SetRollbackHappened(true);
+      }
+
       // Expect to reboot into the new version to send the proper metric during
       // next boot.
       system_state_->payload_state()->ExpectRebootInNewVersion(

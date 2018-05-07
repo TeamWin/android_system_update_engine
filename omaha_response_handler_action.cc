@@ -140,6 +140,26 @@ void OmahaResponseHandlerAction::PerformAction() {
   system_state_->prefs()->SetString(current_channel_key,
                                     params->download_channel());
 
+  // Checking whether device is able to boot up the returned rollback image.
+  if (response.is_rollback) {
+    if (!params->rollback_allowed()) {
+      LOG(ERROR) << "Received rollback image but rollback is not allowed.";
+      completer.set_code(ErrorCode::kOmahaResponseInvalid);
+      return;
+    }
+    auto min_kernel_key_version = static_cast<uint32_t>(
+        system_state_->hardware()->GetMinKernelKeyVersion());
+    auto min_firmware_key_version = static_cast<uint32_t>(
+        system_state_->hardware()->GetMinFirmwareKeyVersion());
+    if (response.kernel_version < min_kernel_key_version ||
+        response.firmware_version < min_firmware_key_version) {
+      LOG(ERROR) << "Device won't be able to boot up the rollback image.";
+      completer.set_code(ErrorCode::kRollbackNotPossible);
+      return;
+    }
+    install_plan_.is_rollback = true;
+  }
+
   if (params->ShouldPowerwash())
     install_plan_.powerwash_required = true;
 

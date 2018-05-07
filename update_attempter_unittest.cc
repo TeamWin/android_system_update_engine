@@ -1243,4 +1243,28 @@ TEST_F(UpdateAttempterTest, ResetRollbackHappenedEnterprise) {
   loop_.Run();
 }
 
+TEST_F(UpdateAttempterTest, SetRollbackHappenedRollback) {
+  OmahaResponseHandlerAction* response_action =
+      new OmahaResponseHandlerAction(&fake_system_state_);
+  response_action->install_plan_.is_rollback = true;
+  attempter_.response_handler_action_.reset(response_action);
+
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+              SetRollbackHappened(true))
+      .Times(1);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest, SetRollbackHappenedNotRollback) {
+  OmahaResponseHandlerAction* response_action =
+      new OmahaResponseHandlerAction(&fake_system_state_);
+  response_action->install_plan_.is_rollback = false;
+  attempter_.response_handler_action_.reset(response_action);
+
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+              SetRollbackHappened(true))
+      .Times(0);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
 }  // namespace chromeos_update_engine

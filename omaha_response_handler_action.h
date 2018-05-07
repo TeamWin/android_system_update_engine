@@ -89,6 +89,8 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   friend class OmahaResponseHandlerActionTest;
 
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
+  FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
+  FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
 
   DISALLOW_COPY_AND_ASSIGN(OmahaResponseHandlerAction);

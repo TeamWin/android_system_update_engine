@@ -77,10 +77,11 @@ enum class ErrorCode : int {
   // kPayloadTimestampError = 51,
   kUpdatedButNotActive = 52,
   kNoUpdate = 53,
+  kRollbackNotPossible = 54,
 
   // VERY IMPORTANT! When adding new error codes:
   //
-  // 1) Update tools/metrics/histograms/histograms.xml in Chrome.
+  // 1) Update tools/metrics/histograms/enums.xml in Chrome.
   //
   // 2) Update the assorted switch statements in update_engine which won't
   //    build until this case is added.

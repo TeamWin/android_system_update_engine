@@ -495,6 +495,103 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
 }
 
+TEST_F(OmahaResponseHandlerActionTest, RollbackTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.packages.push_back({.payload_urls = {"https://RollbackTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.is_rollback = true;
+  in.kernel_version = 0x00010002;
+  in.firmware_version = 0x00030004;
+
+  fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
+  fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
+
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_rollback_allowed(true);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_TRUE(install_plan.is_rollback);
+}
+
+TEST_F(OmahaResponseHandlerActionTest, RollbackKernelVersionErrorTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.packages.push_back({.payload_urls = {"https://RollbackTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.is_rollback = true;
+  in.kernel_version = 0x00010001;  // This is lower than the minimum.
+  in.firmware_version = 0x00030004;
+
+  fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
+  fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
+
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_rollback_allowed(true);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_FALSE(DoTest(in, "", &install_plan));
+}
+
+TEST_F(OmahaResponseHandlerActionTest, RollbackFirmwareVersionErrorTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.packages.push_back({.payload_urls = {"https://RollbackTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.is_rollback = true;
+  in.kernel_version = 0x00010002;
+  in.firmware_version = 0x00030003;  // This is lower than the minimum.
+
+  fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
+  fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
+
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_rollback_allowed(true);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_FALSE(DoTest(in, "", &install_plan));
+}
+
+TEST_F(OmahaResponseHandlerActionTest, RollbackNotRollbackTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.packages.push_back({.payload_urls = {"https://RollbackTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.is_rollback = false;
+
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_rollback_allowed(true);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.is_rollback);
+}
+
+TEST_F(OmahaResponseHandlerActionTest, RollbackNotAllowedTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.packages.push_back({.payload_urls = {"https://RollbackTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.is_rollback = true;
+
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_rollback_allowed(false);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_FALSE(DoTest(in, "", &install_plan));
+}
+
 TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {
   OmahaResponse in;
   in.update_exists = true;

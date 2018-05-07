@@ -82,6 +82,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
 
     case ErrorCode::kNewRootfsVerificationError:
     case ErrorCode::kNewKernelVerificationError:
+    case ErrorCode::kRollbackNotPossible:
       return metrics::AttemptResult::kVerificationFailed;
 
     case ErrorCode::kPostinstallRunnerError:
@@ -218,6 +219,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     case ErrorCode::kUpdatedButNotActive:
     case ErrorCode::kNoUpdate:
+    case ErrorCode::kRollbackNotPossible:
       break;
 
     // Special flags. These can't happen (we mask them out above) but

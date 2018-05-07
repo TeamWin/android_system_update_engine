@@ -150,6 +150,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kUpdatedButNotActive";
     case ErrorCode::kNoUpdate:
       return "ErrorCode::kNoUpdate";
+    case ErrorCode::kRollbackNotPossible:
+      return "ErrorCode::kRollbackNotPossible";
       // Don't add a default case to let the compiler warn about newly added
       // error codes which should be added here.
   }

@@ -88,6 +88,9 @@ static const char* kXGoogleUpdateUpdater = "X-Goog-Update-Updater";
 
 // updatecheck attributes (without the underscore prefix).
 static const char* kEolAttr = "eol";
+static const char* kRollback = "rollback";
+static const char* kFirmwareVersion = "firmware_version";
+static const char* kKernelVersion = "kernel_version";
 
 namespace {
 
@@ -996,6 +999,18 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   // Parse the updatecheck attributes.
   PersistEolStatus(parser_data->updatecheck_attrs);
+  // Rollback-related updatecheck attributes.
+  // Defaults to false if attribute is not present.
+  output_object->is_rollback =
+      ParseBool(parser_data->updatecheck_attrs[kRollback]);
+  // Defaults to 0 if attribute is not present. This is fine for these values,
+  // because it's the lowest possible value, and the rollback image won't be
+  // installed, if the values in the TPM are larger than these, and in case the
+  // values in the TPM are 0, all images will be able to boot up.
+  output_object->firmware_version = static_cast<uint32_t>(
+      ParseInt(parser_data->updatecheck_attrs[kFirmwareVersion]));
+  output_object->kernel_version = static_cast<uint32_t>(
+      ParseInt(parser_data->updatecheck_attrs[kKernelVersion]));
 
   if (!ParseStatus(parser_data, output_object, completer))
     return false;

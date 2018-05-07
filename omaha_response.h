@@ -80,6 +80,15 @@ struct OmahaResponse {
   // PST, according to the Omaha Server's clock and timezone (PST8PDT,
   // aka "Pacific Time".)
   int install_date_days = -1;
+
+  // True if the returned image is a rollback for the device.
+  bool is_rollback = false;
+  // Kernel version of the returned rollback image. 0 if the image is not a
+  // rollback.
+  uint32_t kernel_version = 0;
+  // Firmware version of the returned rollback image. 0 if the image is not a
+  // rollback.
+  uint32_t firmware_version = 0;
 };
 static_assert(sizeof(off_t) == 8, "off_t not 64 bit");
 
