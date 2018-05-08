@@ -70,6 +70,7 @@ extern const char kMetricSuccessfulUpdatePayloadType[];
 extern const char kMetricSuccessfulUpdatePayloadSizeMiB[];
 extern const char kMetricSuccessfulUpdateRebootCount[];
 extern const char kMetricSuccessfulUpdateTotalDurationMinutes[];
+extern const char kMetricSuccessfulUpdateTotalDurationUptimeMinutes[];
 extern const char kMetricSuccessfulUpdateUpdatesAbandonedCount[];
 extern const char kMetricSuccessfulUpdateUrlSwitchCount[];
 
@@ -131,6 +132,7 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
       int64_t num_bytes_downloaded[kNumDownloadSources],
       int download_overhead_percentage,
       base::TimeDelta total_duration,
+      base::TimeDelta total_duration_uptime,
       int reboot_count,
       int url_switch_count) override;
 
