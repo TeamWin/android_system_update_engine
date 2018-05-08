@@ -186,6 +186,10 @@ int HardwareChromeOS::GetMinKernelKeyVersion() const {
   return VbGetSystemPropertyInt("tpm_kernver");
 }
 
+int HardwareChromeOS::GetMinFirmwareKeyVersion() const {
+  return VbGetSystemPropertyInt("tpm_fwver");
+}
+
 bool HardwareChromeOS::SetMaxKernelKeyRollforward(int max_kernel_rollforward) {
   return VbSetSystemPropertyInt("max_kernel_rollforward",
                                 max_kernel_rollforward) == 0;

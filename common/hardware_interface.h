@@ -73,6 +73,11 @@ class HardwareInterface {
   // -1 on error, or if not running on Chrome OS.
   virtual int GetMinKernelKeyVersion() const = 0;
 
+  // Returns the minimum firmware key version that verified boot on Chrome OS
+  // will allow to boot. This is the value of crossystem tpm_fwver. Returns
+  // -1 on error, or if not running on Chrome OS.
+  virtual int GetMinFirmwareKeyVersion() const = 0;
+
   // Sets the maximum kernel key version that verified boot should roll
   // forward to. This is the value of crossystem max_kernel_rollforward.
   // Returns false if the value cannot be set, or if not running on Chrome OS.

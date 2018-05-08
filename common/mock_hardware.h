@@ -57,6 +57,9 @@ class MockHardware : public HardwareInterface {
     ON_CALL(*this, GetMinKernelKeyVersion())
         .WillByDefault(
             testing::Invoke(&fake_, &FakeHardware::GetMinKernelKeyVersion));
+    ON_CALL(*this, GetMinFirmwareKeyVersion())
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::GetMinFirmwareKeyVersion));
     ON_CALL(*this, SetMaxKernelKeyRollforward())
         .WillByDefault(
             testing::Invoke(&fake_, &FakeHardware::SetMaxKernelKeyRollforward));
@@ -88,6 +91,7 @@ class MockHardware : public HardwareInterface {
   MOCK_CONST_METHOD0(GetFirmwareVersion, std::string());
   MOCK_CONST_METHOD0(GetECVersion, std::string());
   MOCK_CONST_METHOD0(GetMinKernelKeyVersion, int());
+  MOCK_CONST_METHOD0(GetMinFirmwareKeyVersion, int());
   MOCK_CONST_METHOD1(SetMaxKernelKeyRollforward,
                      bool(int max_kernel_rollforward));
   MOCK_CONST_METHOD0(GetPowerwashCount, int());

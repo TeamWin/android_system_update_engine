@@ -170,6 +170,11 @@ int HardwareAndroid::GetMinKernelKeyVersion() const {
   return -1;
 }
 
+int HardwareAndroid::GetMinFirmwareKeyVersion() const {
+  LOG(WARNING) << "STUB: No Firmware key version is available.";
+  return -1;
+}
+
 bool HardwareAndroid::SetMaxKernelKeyRollforward(int max_kernel_rollforward) {
   LOG(WARNING) << "STUB: Setting max_kernel_rollforward is not supported.";
   return false;
