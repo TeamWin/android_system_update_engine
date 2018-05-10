@@ -46,4 +46,4 @@ class InteractiveUpdatePolicyImpl : public PolicyImplBase {
 
 }  // namespace chromeos_update_manager
 
-#endif  // UPDATE_ENGINE_UPDATE_MANAGER_OFFICIAL_BUILD_CHECK_POLICY_IMPL_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_INTERACTIVE_UPDATE_POLICY_IMPL_H_

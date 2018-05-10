@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
-#define UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
+#ifndef UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_
+#define UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_
 
 #include <gmock/gmock.h>
 
@@ -80,4 +80,4 @@ class MockMetricsReporter : public MetricsReporterInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
+#endif  // UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_
