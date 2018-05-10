@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_POWER_MANAGER_H_
-#define UPDATE_ENGINE_POWER_MANAGER_H_
+#ifndef UPDATE_ENGINE_POWER_MANAGER_CHROMEOS_H_
+#define UPDATE_ENGINE_POWER_MANAGER_CHROMEOS_H_
 
 #include <base/macros.h>
 #include <power_manager/dbus-proxies.h>
@@ -41,4 +41,4 @@ class PowerManagerChromeOS : public PowerManagerInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_POWER_MANAGER_H_
+#endif  // UPDATE_ENGINE_POWER_MANAGER_CHROMEOS_H_
