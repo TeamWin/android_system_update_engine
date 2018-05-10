@@ -49,11 +49,14 @@
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
+#if USE_FEC
+#include "update_engine/payload_consumer/fec_file_descriptor.h"
+#endif  // USE_FEC
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
 #include "update_engine/payload_consumer/mount_history.h"
 #if USE_MTD
 #include "update_engine/payload_consumer/mtd_file_descriptor.h"
-#endif
+#endif  // USE_MTD
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_consumer/xz_extent_writer.h"
@@ -335,6 +338,14 @@ int DeltaPerformer::CloseCurrentPartition() {
       err = 1;
   }
   source_fd_.reset();
+  if (source_ecc_fd_ && !source_ecc_fd_->Close()) {
+    err = errno;
+    PLOG(ERROR) << "Error closing ECC source partition";
+    if (!err)
+      err = 1;
+  }
+  source_ecc_fd_.reset();
+  source_ecc_open_failure_ = false;
   source_path_.clear();
 
   if (target_fd_ && !target_fd_->Close()) {
@@ -399,6 +410,46 @@ bool DeltaPerformer::OpenCurrentPartition() {
   DiscardPartitionTail(target_fd_, install_part.target_size);
 
   return true;
+}
+
+bool DeltaPerformer::OpenCurrentECCPartition() {
+  if (source_ecc_fd_)
+    return true;
+
+  if (source_ecc_open_failure_)
+    return false;
+
+  if (current_partition_ >= partitions_.size())
+    return false;
+
+  // No support for ECC in minor version 1 or full payloads.
+  if (payload_->type == InstallPayloadType::kFull ||
+      GetMinorVersion() == kInPlaceMinorPayloadVersion)
+    return false;
+
+#if USE_FEC
+  const PartitionUpdate& partition = partitions_[current_partition_];
+  size_t num_previous_partitions =
+      install_plan_->partitions.size() - partitions_.size();
+  const InstallPlan::Partition& install_part =
+      install_plan_->partitions[num_previous_partitions + current_partition_];
+  string path = install_part.source_path;
+  FileDescriptorPtr fd(new FecFileDescriptor());
+  if (!fd->Open(path.c_str(), O_RDONLY, 0)) {
+    PLOG(ERROR) << "Unable to open ECC source partition "
+                << partition.partition_name() << " on slot "
+                << BootControlInterface::SlotName(install_plan_->source_slot)
+                << ", file " << path;
+    source_ecc_open_failure_ = true;
+    return false;
+  }
+  source_ecc_fd_ = fd;
+#else
+  // No support for ECC compiled.
+  source_ecc_open_failure_ = true;
+#endif  // USE_FEC
+
+  return !source_ecc_open_failure_;
 }
 
 namespace {
@@ -1128,19 +1179,70 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   if (operation.has_dst_length())
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
-  brillo::Blob source_hash;
-  TEST_AND_RETURN_FALSE(fd_utils::CopyAndHashExtents(source_fd_,
-                                                     operation.src_extents(),
-                                                     target_fd_,
-                                                     operation.dst_extents(),
-                                                     block_size_,
-                                                     &source_hash));
-
   if (operation.has_src_sha256_hash()) {
-    TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hash, operation, source_fd_, error));
-  }
+    brillo::Blob source_hash;
+    brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
+                                      operation.src_sha256_hash().end());
 
+    // We fall back to use the error corrected device if the hash of the raw
+    // device doesn't match or there was an error reading the source partition.
+    // Note that this code will also fall back if writing the target partition
+    // fails.
+    bool read_ok = fd_utils::CopyAndHashExtents(source_fd_,
+                                                operation.src_extents(),
+                                                target_fd_,
+                                                operation.dst_extents(),
+                                                block_size_,
+                                                &source_hash);
+    if (read_ok && expected_source_hash == source_hash)
+      return true;
+
+    if (!OpenCurrentECCPartition()) {
+      // The following function call will return false since the source hash
+      // mismatches, but we still want to call it so it prints the appropriate
+      // log message.
+      return ValidateSourceHash(source_hash, operation, source_fd_, error);
+    }
+
+    LOG(WARNING) << "Source hash from RAW device mismatched: found "
+                 << base::HexEncode(source_hash.data(), source_hash.size())
+                 << ", expected "
+                 << base::HexEncode(expected_source_hash.data(),
+                                    expected_source_hash.size());
+
+    TEST_AND_RETURN_FALSE(fd_utils::CopyAndHashExtents(source_ecc_fd_,
+                                                       operation.src_extents(),
+                                                       target_fd_,
+                                                       operation.dst_extents(),
+                                                       block_size_,
+                                                       &source_hash));
+    TEST_AND_RETURN_FALSE(
+        ValidateSourceHash(source_hash, operation, source_ecc_fd_, error));
+    // At this point reading from the the error corrected device worked, but
+    // reading from the raw device failed, so this is considered a recovered
+    // failure.
+    source_ecc_recovered_failures_++;
+  } else {
+    // When the operation doesn't include a source hash, we attempt the error
+    // corrected device first since we can't verify the block in the raw device
+    // at this point, but we fall back to the raw device since the error
+    // corrected device can be shorter or not available.
+    if (OpenCurrentECCPartition() &&
+        fd_utils::CopyAndHashExtents(source_ecc_fd_,
+                                     operation.src_extents(),
+                                     target_fd_,
+                                     operation.dst_extents(),
+                                     block_size_,
+                                     nullptr)) {
+      return true;
+    }
+    TEST_AND_RETURN_FALSE(fd_utils::CopyAndHashExtents(source_fd_,
+                                                       operation.src_extents(),
+                                                       target_fd_,
+                                                       operation.dst_extents(),
+                                                       block_size_,
+                                                       nullptr));
+  }
   return true;
 }
 
