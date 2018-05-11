@@ -162,7 +162,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_consumer
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CFLAGS := $(filter-out -DUSE_FEC=%,$(ue_common_cflags)) -DUSE_FEC=0
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
@@ -759,12 +759,8 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_libpayload_generator_exported_shared_libraries)
+LOCAL_SHARED_LIBRARIES := $(filter-out libfec,$(LOCAL_SHARED_LIBRARIES))
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
-# libfec, when built for the host on linux uses integer sanitize, which requires
-# any module that links against it to also include this option when linking,
-# otherwise you will have a missing symbol error at runtime:
-#   undefined symbol: __ubsan_handle_add_overflow_abort
-LOCAL_SANITIZE := integer
 include $(BUILD_HOST_EXECUTABLE)
 endif  # HOST_OS == linux
 
