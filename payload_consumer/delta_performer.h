@@ -48,9 +48,6 @@ class PrefsInterface;
 
 class DeltaPerformer : public FileWriter {
  public:
-  static const uint64_t kSupportedMajorPayloadVersion;
-  static const uint32_t kSupportedMinorPayloadVersion;
-
   // Defines the granularity of progress logging in terms of how many "completed
   // chunks" we want to report at the most.
   static const unsigned kProgressLogMaxChunks;
@@ -390,12 +387,6 @@ class DeltaPerformer : public FileWriter {
   const base::TimeDelta forced_progress_log_wait_{
       base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)};
   base::Time forced_progress_log_time_;
-
-  // The payload major payload version supported by DeltaPerformer.
-  uint64_t supported_major_version_{kSupportedMajorPayloadVersion};
-
-  // The delta minor payload version supported by DeltaPerformer.
-  uint32_t supported_minor_version_{kSupportedMinorPayloadVersion};
 
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };
