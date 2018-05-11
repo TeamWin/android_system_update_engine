@@ -22,6 +22,7 @@ LOCAL_PATH := $(my-dir)
 # by setting BRILLO_USE_* values. Note that we define local variables like
 # local_use_* to prevent leaking our default setting for other packages.
 local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
+local_use_fec := 1
 local_use_hwid_override := \
     $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
@@ -35,6 +36,7 @@ ue_common_cflags := \
     -DUSE_BINDER=$(local_use_binder) \
     -DUSE_CHROME_NETWORK_PROXY=$(local_use_chrome_network_proxy) \
     -DUSE_CHROME_KIOSK_APP=$(local_use_chrome_kiosk_app) \
+    -DUSE_FEC=$(local_use_fec) \
     -DUSE_HWID_OVERRIDE=$(local_use_hwid_override) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_OMAHA=$(local_use_omaha) \
@@ -147,6 +149,13 @@ ue_libpayload_consumer_src_files := \
     payload_consumer/payload_verifier.cc \
     payload_consumer/postinstall_runner_action.cc \
     payload_consumer/xz_extent_writer.cc
+
+ifeq ($(local_use_fec),1)
+ue_libpayload_consumer_src_files += \
+    payload_consumer/fec_file_descriptor.cc
+ue_libpayload_consumer_exported_shared_libraries += \
+    libfec
+endif  # local_use_fec == 1
 
 ifeq ($(HOST_OS),linux)
 # Build for the host.
@@ -510,6 +519,21 @@ LOCAL_STATIC_LIBRARIES += \
     libmodpb64 \
     libgtest_prod
 
+ifeq ($(local_use_fec),1)
+# The static library "libfec" depends on a bunch of other static libraries, but
+# such dependency is not handled by the build system, so we need to add them
+# here.
+LOCAL_STATIC_LIBRARIES += \
+    libext4_utils \
+    libsquashfs_utils \
+    libcutils \
+    libcrypto_utils \
+    libcrypto \
+    libcutils \
+    libbase \
+    libfec_rs
+endif  # local_use_fec == 1
+
 ifeq ($(strip $(PRODUCT_STATIC_BOOT_CONTROL_HAL)),)
 # No static boot_control HAL defined, so no sideload support. We use a fake
 # boot_control HAL to allow compiling update_engine_sideload for test purposes.
@@ -737,6 +761,11 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_libpayload_generator_exported_shared_libraries)
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
+# libfec, when built for the host on linux uses integer sanitize, which requires
+# any module that links against it to also include this option when linking,
+# otherwise you will have a missing symbol error at runtime:
+#   undefined symbol: __ubsan_handle_add_overflow_abort
+LOCAL_SANITIZE := integer
 include $(BUILD_HOST_EXECUTABLE)
 endif  # HOST_OS == linux
 

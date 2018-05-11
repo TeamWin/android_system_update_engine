@@ -99,6 +99,10 @@ class DeltaPerformer : public FileWriter {
   // work. Returns whether the required file descriptors were successfully open.
   bool OpenCurrentPartition();
 
+  // Attempt to open the error-corrected device for the current partition.
+  // Returns whether the operation succeeded.
+  bool OpenCurrentECCPartition();
+
   // Closes the current partition file descriptors if open. Returns 0 on success
   // or -errno on error.
   int CloseCurrentPartition();
@@ -282,6 +286,22 @@ class DeltaPerformer : public FileWriter {
   // File descriptor of the source partition. Only set while updating a
   // partition when using a delta payload.
   FileDescriptorPtr source_fd_{nullptr};
+
+  // File descriptor of the error corrected source partition. Only set while
+  // updating partition using a delta payload for a partition where error
+  // correction is available. The size of the error corrected device is smaller
+  // than the underlying raw device, since it doesn't include the error
+  // correction blocks.
+  FileDescriptorPtr source_ecc_fd_{nullptr};
+
+  // The total number of operations that failed source hash verification but
+  // passed after falling back to the error-corrected |source_ecc_fd_| device.
+  uint64_t source_ecc_recovered_failures_{0};
+
+  // Whether opening the current partition as an error-corrected device failed.
+  // Used to avoid re-opening the same source partition if it is not actually
+  // error corrected.
+  bool source_ecc_open_failure_{false};
 
   // File descriptor of the target partition. Only set while performing the
   // operations of a given partition.

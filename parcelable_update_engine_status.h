@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_UPDATE_ENGINE_STATUS_H_
-#define UPDATE_ENGINE_UPDATE_ENGINE_STATUS_H_
+#ifndef UPDATE_ENGINE_PARCELABLE_UPDATE_ENGINE_STATUS_H_
+#define UPDATE_ENGINE_PARCELABLE_UPDATE_ENGINE_STATUS_H_
 
 #include <binder/Parcelable.h>
 #include <utils/String16.h>
@@ -60,4 +60,4 @@ class ParcelableUpdateEngineStatus : public Parcelable {
 }  // namespace brillo
 }  // namespace android
 
-#endif  // UPDATE_ENGINE_UPDATE_ENGINE_STATUS_H_
+#endif  // UPDATE_ENGINE_PARCELABLE_UPDATE_ENGINE_STATUS_H_
