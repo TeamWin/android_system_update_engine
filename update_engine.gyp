@@ -50,6 +50,7 @@
       '_POSIX_C_SOURCE=199309L',
       'USE_BINDER=<(USE_binder)',
       'USE_DBUS=<(USE_dbus)',
+      'USE_FEC=0',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
       'USE_CHROME_KIOSK_APP=<(USE_chrome_kiosk_app)',
       'USE_CHROME_NETWORK_PROXY=<(USE_chrome_network_proxy)',
