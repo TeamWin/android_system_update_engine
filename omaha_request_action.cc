@@ -1266,7 +1266,8 @@ void OmahaRequestAction::CompleteProcessing() {
 
   if (system_state_->hardware()->IsOOBEEnabled() &&
       !system_state_->hardware()->IsOOBEComplete(nullptr) &&
-      output_object.deadline.empty() &&
+      (output_object.deadline.empty() ||
+       payload_state->GetRollbackHappened()) &&
       params_->app_version() != "ForcedUpdate") {
     output_object.update_exists = false;
     LOG(INFO) << "Ignoring non-critical Omaha updates until OOBE is done.";

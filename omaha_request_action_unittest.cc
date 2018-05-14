@@ -1044,14 +1044,14 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
   EXPECT_FALSE(response.update_exists);
 }
 
-// Verify that update checks called during OOBE will only try to download
-// an update if the response includes a non-empty deadline field.
+// Verify that update checks called during OOBE will not try to download an
+// update if the response doesn't include the deadline field.
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
   OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
 
   // TODO(senj): set better default value for metrics::checkresult in
   // OmahaRequestAction::ActionCompleted.
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
   ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                                -1,
                                false,  // ping_only
@@ -1062,23 +1062,15 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
                                &response,
                                nullptr));
   EXPECT_FALSE(response.update_exists);
+}
 
-  // The IsOOBEComplete() value is ignored when the OOBE flow is not enabled.
+// Verify that the IsOOBEComplete() value is ignored when the OOBE flow is not
+// enabled.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDisabled) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
   fake_system_state_.fake_hardware()->SetIsOOBEEnabled(false);
-  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
-                              -1,
-                              false,  // ping_only
-                              ErrorCode::kSuccess,
-                              metrics::CheckResult::kUpdateAvailable,
-                              metrics::CheckReaction::kUpdating,
-                              metrics::DownloadErrorCode::kUnset,
-                              &response,
-                              nullptr));
-  EXPECT_TRUE(response.update_exists);
-  fake_system_state_.fake_hardware()->SetIsOOBEEnabled(true);
 
-  // The payload is applied when a deadline was set in the response.
-  fake_update_response_.deadline = "20101020";
   ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
@@ -1089,6 +1081,47 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
                               &response,
                               nullptr));
   EXPECT_TRUE(response.update_exists);
+}
+
+// Verify that update checks called during OOBE will still try to download an
+// update if the response includes the deadline field.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDeadlineSet) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  fake_update_response_.deadline = "20101020";
+
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+}
+
+// Verify that update checks called during OOBE will not try to download an
+// update if a rollback happened, even when the response includes the deadline
+// field.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBERollback) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  fake_update_response_.deadline = "20101020";
+  EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetRollbackHappened())
+      .WillOnce(Return(true));
+
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kNonCriticalUpdateInOOBE,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
