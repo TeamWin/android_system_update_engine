@@ -165,6 +165,14 @@ class DeltaPerformer : public FileWriter {
   // it returns that value, otherwise it returns the default value.
   uint32_t GetMinorVersion() const;
 
+  // Compare |calculated_hash| with source hash in |operation|, return false and
+  // dump hash and set |error| if don't match.
+  // |source_fd| is the file descriptor of the source partition.
+  static bool ValidateSourceHash(const brillo::Blob& calculated_hash,
+                                 const InstallOperation& operation,
+                                 const FileDescriptorPtr source_fd,
+                                 ErrorCode* error);
+
  private:
   friend class DeltaPerformerTest;
   friend class DeltaPerformerIntegrationTest;
