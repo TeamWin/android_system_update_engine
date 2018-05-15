@@ -16,7 +16,6 @@
 
 #include "update_engine/payload_consumer/delta_performer.h"
 
-#include <endian.h>
 #include <errno.h>
 #include <linux/fs.h>
 
@@ -68,13 +67,6 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-const uint64_t DeltaPerformer::kDeltaVersionOffset = sizeof(kDeltaMagic);
-const uint64_t DeltaPerformer::kDeltaVersionSize = 8;
-const uint64_t DeltaPerformer::kDeltaManifestSizeOffset =
-    kDeltaVersionOffset + kDeltaVersionSize;
-const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
-const uint64_t DeltaPerformer::kDeltaMetadataSignatureSizeSize = 4;
-const uint64_t DeltaPerformer::kMaxPayloadHeaderSize = 24;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 2;
 const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 5;
 
@@ -473,39 +465,6 @@ void LogPartitionInfo(const vector<PartitionUpdate>& partitions) {
 
 }  // namespace
 
-bool DeltaPerformer::GetMetadataSignatureSizeOffset(
-    uint64_t* out_offset) const {
-  if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
-    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize;
-    return true;
-  }
-  return false;
-}
-
-bool DeltaPerformer::GetManifestOffset(uint64_t* out_offset) const {
-  // Actual manifest begins right after the manifest size field or
-  // metadata signature size field if major version >= 2.
-  if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
-    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize;
-    return true;
-  }
-  if (major_payload_version_ == kBrilloMajorPayloadVersion) {
-    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize +
-                  kDeltaMetadataSignatureSizeSize;
-    return true;
-  }
-  LOG(ERROR) << "Unknown major payload version: " << major_payload_version_;
-  return false;
-}
-
-uint64_t DeltaPerformer::GetMetadataSize() const {
-  return metadata_size_;
-}
-
-uint64_t DeltaPerformer::GetMajorVersion() const {
-  return major_payload_version_;
-}
-
 uint32_t DeltaPerformer::GetMinorVersion() const {
   if (manifest_.has_minor_version()) {
     return manifest_.minor_version();
@@ -516,96 +475,35 @@ uint32_t DeltaPerformer::GetMinorVersion() const {
   }
 }
 
-bool DeltaPerformer::GetManifest(DeltaArchiveManifest* out_manifest_p) const {
-  if (!manifest_parsed_)
-    return false;
-  *out_manifest_p = manifest_;
-  return true;
-}
-
 bool DeltaPerformer::IsHeaderParsed() const {
   return metadata_size_ != 0;
 }
 
-DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
+MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     const brillo::Blob& payload, ErrorCode* error) {
   *error = ErrorCode::kSuccess;
-  uint64_t manifest_offset;
 
   if (!IsHeaderParsed()) {
-    // Ensure we have data to cover the major payload version.
-    if (payload.size() < kDeltaManifestSizeOffset)
-      return kMetadataParseInsufficientData;
+    MetadataParseResult result = payload_metadata_.ParsePayloadHeader(
+        payload, supported_major_version_, error);
+    if (result != MetadataParseResult::kSuccess)
+      return result;
 
-    // Validate the magic string.
-    if (memcmp(payload.data(), kDeltaMagic, sizeof(kDeltaMagic)) != 0) {
-      LOG(ERROR) << "Bad payload format -- invalid delta magic.";
-      *error = ErrorCode::kDownloadInvalidMetadataMagicString;
-      return kMetadataParseError;
-    }
-
-    // Extract the payload version from the metadata.
-    static_assert(sizeof(major_payload_version_) == kDeltaVersionSize,
-                  "Major payload version size mismatch");
-    memcpy(&major_payload_version_,
-           &payload[kDeltaVersionOffset],
-           kDeltaVersionSize);
-    // switch big endian to host
-    major_payload_version_ = be64toh(major_payload_version_);
-
-    if (major_payload_version_ != supported_major_version_ &&
-        major_payload_version_ != kChromeOSMajorPayloadVersion) {
-      LOG(ERROR) << "Bad payload format -- unsupported payload version: "
-          << major_payload_version_;
-      *error = ErrorCode::kUnsupportedMajorPayloadVersion;
-      return kMetadataParseError;
-    }
-
-    // Get the manifest offset now that we have payload version.
-    if (!GetManifestOffset(&manifest_offset)) {
-      *error = ErrorCode::kUnsupportedMajorPayloadVersion;
-      return kMetadataParseError;
-    }
-    // Check again with the manifest offset.
-    if (payload.size() < manifest_offset)
-      return kMetadataParseInsufficientData;
-
-    // Next, parse the manifest size.
-    static_assert(sizeof(manifest_size_) == kDeltaManifestSizeSize,
-                  "manifest_size size mismatch");
-    memcpy(&manifest_size_,
-           &payload[kDeltaManifestSizeOffset],
-           kDeltaManifestSizeSize);
-    manifest_size_ = be64toh(manifest_size_);  // switch big endian to host
-
-    if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
-      // Parse the metadata signature size.
-      static_assert(sizeof(metadata_signature_size_) ==
-                    kDeltaMetadataSignatureSizeSize,
-                    "metadata_signature_size size mismatch");
-      uint64_t metadata_signature_size_offset;
-      if (!GetMetadataSignatureSizeOffset(&metadata_signature_size_offset)) {
-        *error = ErrorCode::kError;
-        return kMetadataParseError;
-      }
-      memcpy(&metadata_signature_size_,
-             &payload[metadata_signature_size_offset],
-             kDeltaMetadataSignatureSizeSize);
-      metadata_signature_size_ = be32toh(metadata_signature_size_);
-    }
+    metadata_size_ = payload_metadata_.GetMetadataSize();
+    metadata_signature_size_ = payload_metadata_.GetMetadataSignatureSize();
+    major_payload_version_ = payload_metadata_.GetMajorVersion();
 
     // If the metadata size is present in install plan, check for it immediately
     // even before waiting for that many number of bytes to be downloaded in the
     // payload. This will prevent any attack which relies on us downloading data
     // beyond the expected metadata size.
-    metadata_size_ = manifest_offset + manifest_size_;
     if (install_plan_->hash_checks_mandatory) {
       if (payload_->metadata_size != metadata_size_) {
         LOG(ERROR) << "Mandatory metadata size in Omaha response ("
                    << payload_->metadata_size
                    << ") is missing/incorrect, actual = " << metadata_size_;
         *error = ErrorCode::kDownloadInvalidMetadataSize;
-        return kMetadataParseError;
+        return MetadataParseResult::kError;
       }
     }
   }
@@ -613,7 +511,7 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   // Now that we have validated the metadata size, we should wait for the full
   // metadata and its signature (if exist) to be read in before we can parse it.
   if (payload.size() < metadata_size_ + metadata_signature_size_)
-    return kMetadataParseInsufficientData;
+    return MetadataParseResult::kInsufficientData;
 
   // Log whether we validated the size or simply trusting what's in the payload
   // here. This is logged here (after we received the full metadata data) so
@@ -630,15 +528,25 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
                  << "Trusting metadata size in payload = " << metadata_size_;
   }
 
+  // See if we should use the public RSA key in the Omaha response.
+  base::FilePath path_to_public_key(public_key_path_);
+  base::FilePath tmp_key;
+  if (GetPublicKeyFromResponse(&tmp_key))
+    path_to_public_key = tmp_key;
+  ScopedPathUnlinker tmp_key_remover(tmp_key.value());
+  if (tmp_key.empty())
+    tmp_key_remover.set_should_remove(false);
+
   // We have the full metadata in |payload|. Verify its integrity
   // and authenticity based on the information we have in Omaha response.
-  *error = ValidateMetadataSignature(payload);
+  *error = payload_metadata_.ValidateMetadataSignature(
+      payload, payload_->metadata_signature, path_to_public_key);
   if (*error != ErrorCode::kSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       // The autoupdate_CatchBadSignatures test checks for this string
       // in log-files. Keep in sync.
       LOG(ERROR) << "Mandatory metadata signature validation failed";
-      return kMetadataParseError;
+      return MetadataParseResult::kError;
     }
 
     // For non-mandatory cases, just send a UMA stat.
@@ -646,19 +554,15 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     *error = ErrorCode::kSuccess;
   }
 
-  if (!GetManifestOffset(&manifest_offset)) {
-    *error = ErrorCode::kUnsupportedMajorPayloadVersion;
-    return kMetadataParseError;
-  }
   // The payload metadata is deemed valid, it's safe to parse the protobuf.
-  if (!manifest_.ParseFromArray(&payload[manifest_offset], manifest_size_)) {
+  if (!payload_metadata_.GetManifest(payload, &manifest_)) {
     LOG(ERROR) << "Unable to parse manifest in update file.";
     *error = ErrorCode::kDownloadManifestParseError;
-    return kMetadataParseError;
+    return MetadataParseResult::kError;
   }
 
   manifest_parsed_ = true;
-  return kMetadataParseSuccess;
+  return MetadataParseResult::kSuccess;
 }
 
 #define OP_DURATION_HISTOGRAM(_op_name, _start_time)      \
@@ -690,9 +594,9 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
                       metadata_size_ + metadata_signature_size_));
 
     MetadataParseResult result = ParsePayloadMetadata(buffer_, error);
-    if (result == kMetadataParseError)
+    if (result == MetadataParseResult::kError)
       return false;
-    if (result == kMetadataParseInsufficientData) {
+    if (result == MetadataParseResult::kInsufficientData) {
       // If we just processed the header, make an attempt on the manifest.
       if (do_read_header && IsHeaderParsed())
         continue;
@@ -1589,93 +1493,6 @@ bool DeltaPerformer::GetPublicKeyFromResponse(base::FilePath *out_tmp_key) {
     return false;
 
   return true;
-}
-
-ErrorCode DeltaPerformer::ValidateMetadataSignature(
-    const brillo::Blob& payload) {
-  if (payload.size() < metadata_size_ + metadata_signature_size_)
-    return ErrorCode::kDownloadMetadataSignatureError;
-
-  brillo::Blob metadata_signature_blob, metadata_signature_protobuf_blob;
-  if (!payload_->metadata_signature.empty()) {
-    // Convert base64-encoded signature to raw bytes.
-    if (!brillo::data_encoding::Base64Decode(payload_->metadata_signature,
-                                             &metadata_signature_blob)) {
-      LOG(ERROR) << "Unable to decode base64 metadata signature: "
-                 << payload_->metadata_signature;
-      return ErrorCode::kDownloadMetadataSignatureError;
-    }
-  } else if (major_payload_version_ == kBrilloMajorPayloadVersion) {
-    metadata_signature_protobuf_blob.assign(
-        payload.begin() + metadata_size_,
-        payload.begin() + metadata_size_ + metadata_signature_size_);
-  }
-
-  if (metadata_signature_blob.empty() &&
-      metadata_signature_protobuf_blob.empty()) {
-    if (install_plan_->hash_checks_mandatory) {
-      LOG(ERROR) << "Missing mandatory metadata signature in both Omaha "
-                 << "response and payload.";
-      return ErrorCode::kDownloadMetadataSignatureMissingError;
-    }
-
-    LOG(WARNING) << "Cannot validate metadata as the signature is empty";
-    return ErrorCode::kSuccess;
-  }
-
-  // See if we should use the public RSA key in the Omaha response.
-  base::FilePath path_to_public_key(public_key_path_);
-  base::FilePath tmp_key;
-  if (GetPublicKeyFromResponse(&tmp_key))
-    path_to_public_key = tmp_key;
-  ScopedPathUnlinker tmp_key_remover(tmp_key.value());
-  if (tmp_key.empty())
-    tmp_key_remover.set_should_remove(false);
-
-  LOG(INFO) << "Verifying metadata hash signature using public key: "
-            << path_to_public_key.value();
-
-  brillo::Blob calculated_metadata_hash;
-  if (!HashCalculator::RawHashOfBytes(
-          payload.data(), metadata_size_, &calculated_metadata_hash)) {
-    LOG(ERROR) << "Unable to compute actual hash of manifest";
-    return ErrorCode::kDownloadMetadataSignatureVerificationError;
-  }
-
-  PayloadVerifier::PadRSA2048SHA256Hash(&calculated_metadata_hash);
-  if (calculated_metadata_hash.empty()) {
-    LOG(ERROR) << "Computed actual hash of metadata is empty.";
-    return ErrorCode::kDownloadMetadataSignatureVerificationError;
-  }
-
-  if (!metadata_signature_blob.empty()) {
-    brillo::Blob expected_metadata_hash;
-    if (!PayloadVerifier::GetRawHashFromSignature(metadata_signature_blob,
-                                                  path_to_public_key.value(),
-                                                  &expected_metadata_hash)) {
-      LOG(ERROR) << "Unable to compute expected hash from metadata signature";
-      return ErrorCode::kDownloadMetadataSignatureError;
-    }
-    if (calculated_metadata_hash != expected_metadata_hash) {
-      LOG(ERROR) << "Manifest hash verification failed. Expected hash = ";
-      utils::HexDumpVector(expected_metadata_hash);
-      LOG(ERROR) << "Calculated hash = ";
-      utils::HexDumpVector(calculated_metadata_hash);
-      return ErrorCode::kDownloadMetadataSignatureMismatch;
-    }
-  } else {
-    if (!PayloadVerifier::VerifySignature(metadata_signature_protobuf_blob,
-                                          path_to_public_key.value(),
-                                          calculated_metadata_hash)) {
-      LOG(ERROR) << "Manifest hash verification failed.";
-      return ErrorCode::kDownloadMetadataSignatureMismatch;
-    }
-  }
-
-  // The autoupdate_CatchBadSignatures test checks for this string in
-  // log-files. Keep in sync.
-  LOG(INFO) << "Metadata hash signature matches value in Omaha response.";
-  return ErrorCode::kSuccess;
 }
 
 ErrorCode DeltaPerformer::ValidateManifest() {
