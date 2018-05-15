@@ -1126,6 +1126,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
 
   PayloadStateInterface* const payload_state = system_state_->payload_state();
 
+  // Set the max kernel key version based on whether rollback is allowed.
+  SetMaxKernelKeyVersionForRollback();
+
   // Events are best effort transactions -- assume they always succeed.
   if (IsEvent()) {
     CHECK(!HasOutputPipe()) << "No output pipe allowed for event requests.";
@@ -1220,9 +1223,6 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
               << "requested by Omaha.";
     payload_state->SetUsingP2PForSharing(false);
   }
-
-  // Set the max kernel key version based on whether rollback is allowed.
-  SetMaxKernelKeyVersionForRollback();
 
   // Update the payload state with the current response. The payload state
   // will automatically reset all stale state if this response is different
