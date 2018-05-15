@@ -2801,7 +2801,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
                     3 /* rollback_allowed_milestones */,
                     false /* is_policy_loaded */);
 
-  // Verify max_kernel_rollforward was set to the current minimum
+  // Verify kernel_max_rollforward was set to the current minimum
   // kernel key version. This has the effect of freezing roll
   // forwards indefinitely. This will hold the rollback window
   // open until a future change will be able to move this forward
@@ -2828,7 +2828,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
                     3 /* rollback_allowed_milestones */,
                     false /* is_policy_loaded */);
 
-  // Verify that with rollback disabled that max_kernel_rollforward
+  // Verify that with rollback disabled that kernel_max_rollforward
   // was set to logical infinity. This is the expected behavior for
   // consumer devices and matches the existing behavior prior to the
   // rollback features.
@@ -2836,7 +2836,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 }
 
-// Verifies that a device with rollback enabled sets max_kernel_rollforward
+// Verifies that a device with rollback enabled sets kernel_max_rollforward
 // in the TPM to prevent roll forward.
 TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
   FakeHardware* fake_hw = fake_system_state_.fake_hardware();
@@ -2854,7 +2854,7 @@ TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
                     allowed_milestones,
                     true /* is_policy_loaded */);
 
-  // Verify that with rollback enabled that max_kernel_rollforward
+  // Verify that with rollback enabled that kernel_max_rollforward
   // was set to the current minimum kernel key version. This has
   // the effect of freezing roll forwards indefinitely. This will
   // hold the rollback window open until a future change will
@@ -2863,7 +2863,7 @@ TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
   EXPECT_EQ(min_kernel_version, fake_hw->GetMaxKernelKeyRollforward());
 }
 
-// Verifies that a device with rollback disabled sets max_kernel_rollforward
+// Verifies that a device with rollback disabled sets kernel_max_rollforward
 // in the TPM to logical infinity, to allow roll forward.
 TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
   FakeHardware* fake_hw = fake_system_state_.fake_hardware();
@@ -2881,7 +2881,7 @@ TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
                     allowed_milestones,
                     true /* is_policy_loaded */);
 
-  // Verify that with rollback disabled that max_kernel_rollforward
+  // Verify that with rollback disabled that kernel_max_rollforward
   // was set to logical infinity.
   EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());

@@ -79,9 +79,9 @@ class HardwareInterface {
   virtual int GetMinFirmwareKeyVersion() const = 0;
 
   // Sets the maximum kernel key version that verified boot should roll
-  // forward to. This is the value of crossystem max_kernel_rollforward.
+  // forward to. This is the value of crossystem kernel_max_rollforward.
   // Returns false if the value cannot be set, or if not running on Chrome OS.
-  virtual bool SetMaxKernelKeyRollforward(int max_kernel_rollforward) = 0;
+  virtual bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) = 0;
 
   // Returns the powerwash_count from the stateful. If the file is not found
   // or is invalid, returns -1. Brand new machines out of the factory or after

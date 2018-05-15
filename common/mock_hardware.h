@@ -93,7 +93,7 @@ class MockHardware : public HardwareInterface {
   MOCK_CONST_METHOD0(GetMinKernelKeyVersion, int());
   MOCK_CONST_METHOD0(GetMinFirmwareKeyVersion, int());
   MOCK_CONST_METHOD1(SetMaxKernelKeyRollforward,
-                     bool(int max_kernel_rollforward));
+                     bool(int kernel_max_rollforward));
   MOCK_CONST_METHOD0(GetPowerwashCount, int());
   MOCK_CONST_METHOD1(GetNonVolatileDirectory, bool(base::FilePath*));
   MOCK_CONST_METHOD1(GetPowerwashSafeDirectory, bool(base::FilePath*));

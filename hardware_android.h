@@ -44,7 +44,7 @@ class HardwareAndroid final : public HardwareInterface {
   std::string GetECVersion() const override;
   int GetMinKernelKeyVersion() const override;
   int GetMinFirmwareKeyVersion() const override;
-  bool SetMaxKernelKeyRollforward(int max_kernel_rollforward) override;
+  bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override;
   int GetPowerwashCount() const override;
   bool SchedulePowerwash() override;
   bool CancelPowerwash() override;

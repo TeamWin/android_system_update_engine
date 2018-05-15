@@ -40,7 +40,7 @@ class FakeHardware : public HardwareInterface {
   // Default value for crossystem tpm_fwver.
   static const int kMinFirmwareKeyVersion = 13;
 
-  // Default value for crossystem max_kernel_rollforward. This value is the
+  // Default value for crossystem kernel_max_rollforward. This value is the
   // default for consumer devices and effectively means "unlimited rollforward
   // is allowed", which is the same as the behavior prior to implementing
   // roll forward prevention.
@@ -79,8 +79,8 @@ class FakeHardware : public HardwareInterface {
     return min_firmware_key_version_;
   }
 
-  bool SetMaxKernelKeyRollforward(int max_kernel_rollforward) override {
-    max_kernel_rollforward_ = max_kernel_rollforward;
+  bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override {
+    kernel_max_rollforward_ = kernel_max_rollforward;
     return true;
   }
 
@@ -167,7 +167,7 @@ class FakeHardware : public HardwareInterface {
   }
 
   // Getters to verify state.
-  int GetMaxKernelKeyRollforward() const { return max_kernel_rollforward_; }
+  int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
 
  private:
   bool is_official_build_{true};
@@ -182,7 +182,7 @@ class FakeHardware : public HardwareInterface {
   std::string ec_version_{"Fake EC v1.0a"};
   int min_kernel_key_version_{kMinKernelKeyVersion};
   int min_firmware_key_version_{kMinFirmwareKeyVersion};
-  int max_kernel_rollforward_{kMaxKernelRollforward};
+  int kernel_max_rollforward_{kMaxKernelRollforward};
   int powerwash_count_{kPowerwashCountNotSet};
   bool powerwash_scheduled_{false};
   bool first_active_omaha_ping_sent_{false};

@@ -1867,7 +1867,7 @@ void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
     // sliding window of versions that can be rolled back to.
     int min_kernel_version =
         system_state_->hardware()->GetMinKernelKeyVersion();
-    LOG(INFO) << "Rollback is enabled. Setting max_kernel_rollforward to "
+    LOG(INFO) << "Rollback is enabled. Setting kernel_max_rollforward to "
               << min_kernel_version;
     max_rollforward_set = system_state_->hardware()->SetMaxKernelKeyRollforward(
         min_kernel_version);
@@ -1876,14 +1876,14 @@ void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
     // max kernel key version is set to 0xfffffffe, which is logically
     // infinity. This maintains the previous behavior that that kernel key
     // versions roll forward each time they are incremented.
-    LOG(INFO) << "Rollback is disabled. Setting max_kernel_rollforward to "
+    LOG(INFO) << "Rollback is disabled. Setting kernel_max_rollforward to "
               << kRollforwardInfinity;
     max_rollforward_set = system_state_->hardware()->SetMaxKernelKeyRollforward(
         kRollforwardInfinity);
   }
 
   if (!max_rollforward_set) {
-    LOG(ERROR) << "Failed to set max_kernel_rollforward";
+    LOG(ERROR) << "Failed to set kernel_max_rollforward";
   }
 }
 
