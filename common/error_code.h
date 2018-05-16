@@ -78,6 +78,7 @@ enum class ErrorCode : int {
   kUpdatedButNotActive = 52,
   kNoUpdate = 53,
   kRollbackNotPossible = 54,
+  kFirstActiveOmahaPingSentPersistenceError = 55,
 
   // VERY IMPORTANT! When adding new error codes:
   //

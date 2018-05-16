@@ -287,7 +287,7 @@ bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
   return static_cast<bool>(active_ping);
 }
 
-void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
+bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
   int exit_code = 0;
   string output;
   vector<string> vpd_set_cmd = {
@@ -297,7 +297,7 @@ void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
     LOG(ERROR) << "Failed to set vpd key for " << kActivePingKey
                << " with exit code: " << exit_code
                << " with error: " << output;
-    return;
+    return false;
   }
 
   vector<string> vpd_dump_cmd = { "dump_vpd_log", "--force" };
@@ -306,7 +306,9 @@ void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
     LOG(ERROR) << "Failed to cache " << kActivePingKey<< " using dump_vpd_log"
                << " with exit code: " << exit_code
                << " with error: " << output;
+    return false;
   }
+  return true;
 }
 
 }  // namespace chromeos_update_engine

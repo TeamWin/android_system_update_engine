@@ -1188,7 +1188,10 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   // their a=-1 in the past and we have to set first_active_omaha_ping_sent for
   // future checks.
   if (!system_state_->hardware()->GetFirstActiveOmahaPingSent()) {
-    system_state_->hardware()->SetFirstActiveOmahaPingSent();
+    if (!system_state_->hardware()->SetFirstActiveOmahaPingSent()) {
+      system_state_->metrics_reporter()->ReportInternalErrorCode(
+          ErrorCode::kFirstActiveOmahaPingSentPersistenceError);
+    }
   }
 
   if (!HasOutputPipe()) {

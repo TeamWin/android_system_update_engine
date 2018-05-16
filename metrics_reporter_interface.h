@@ -193,6 +193,12 @@ class MetricsReporterInterface {
   //
   // |kMetricInstallDateProvisioningSource|
   virtual void ReportInstallDateProvisioningSource(int source, int max) = 0;
+
+  // Helper function to report an internal error code. The following metrics are
+  // reported:
+  //
+  // |kMetricAttemptInternalErrorCode|
+  virtual void ReportInternalErrorCode(ErrorCode error_code) = 0;
 };
 
 }  // namespace chromeos_update_engine

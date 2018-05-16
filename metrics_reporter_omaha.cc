@@ -269,12 +269,7 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
       static_cast<int>(metrics::AttemptResult::kNumConstants));
 
   if (internal_error_code != ErrorCode::kSuccess) {
-    metric = metrics::kMetricAttemptInternalErrorCode;
-    LOG(INFO) << "Uploading " << internal_error_code << " for metric "
-              << metric;
-    metrics_lib_->SendEnumToUMA(metric,
-                                static_cast<int>(internal_error_code),
-                                static_cast<int>(ErrorCode::kUmaReportedMax));
+    ReportInternalErrorCode(internal_error_code);
   }
 
   base::TimeDelta time_since_last;
@@ -533,6 +528,14 @@ void MetricsReporterOmaha::ReportInstallDateProvisioningSource(int source,
   metrics_lib_->SendEnumToUMA(metrics::kMetricInstallDateProvisioningSource,
                               source,  // Sample.
                               max);
+}
+
+void MetricsReporterOmaha::ReportInternalErrorCode(ErrorCode error_code) {
+  auto metric = metrics::kMetricAttemptInternalErrorCode;
+  LOG(INFO) << "Uploading " << error_code << " for metric " << metric;
+  metrics_lib_->SendEnumToUMA(metric,
+                              static_cast<int>(error_code),
+                              static_cast<int>(ErrorCode::kUmaReportedMax));
 }
 
 }  // namespace chromeos_update_engine

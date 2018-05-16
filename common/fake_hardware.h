@@ -110,8 +110,9 @@ class FakeHardware : public HardwareInterface {
     return first_active_omaha_ping_sent_;
   }
 
-  void SetFirstActiveOmahaPingSent() override {
+  bool SetFirstActiveOmahaPingSent() override {
     first_active_omaha_ping_sent_ = true;
+    return true;
   }
 
   // Setters

@@ -110,9 +110,9 @@ class HardwareInterface {
   // |SetFirstActiveOmahaPingSent()|.
   virtual bool GetFirstActiveOmahaPingSent() const = 0;
 
-  // Persist the fact that first active ping was sent to omaha. It bails out if
-  // it fails.
-  virtual void SetFirstActiveOmahaPingSent() = 0;
+  // Persist the fact that first active ping was sent to omaha and returns false
+  // if failed to persist it.
+  virtual bool SetFirstActiveOmahaPingSent() = 0;
 };
 
 }  // namespace chromeos_update_engine

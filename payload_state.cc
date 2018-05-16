@@ -360,6 +360,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kUpdatedButNotActive:
     case ErrorCode::kNoUpdate:
     case ErrorCode::kRollbackNotPossible:
+    case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 

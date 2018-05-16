@@ -143,6 +143,8 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
 
   void ReportInstallDateProvisioningSource(int source, int max) override;
 
+  void ReportInternalErrorCode(ErrorCode error_code) override;
+
  private:
   friend class MetricsReporterOmahaTest;
 

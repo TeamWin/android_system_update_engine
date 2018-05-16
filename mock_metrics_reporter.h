@@ -76,6 +76,8 @@ class MockMetricsReporter : public MetricsReporterInterface {
   MOCK_METHOD1(ReportTimeToReboot, void(int time_to_reboot_minutes));
 
   MOCK_METHOD2(ReportInstallDateProvisioningSource, void(int source, int max));
+
+  MOCK_METHOD1(ReportInternalErrorCode, void(ErrorCode error_code));
 };
 
 }  // namespace chromeos_update_engine

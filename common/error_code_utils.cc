@@ -152,6 +152,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kNoUpdate";
     case ErrorCode::kRollbackNotPossible:
       return "ErrorCode::kRollbackNotPossible";
+    case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
+      return "ErrorCode::kFirstActiveOmahaPingSentPersistenceError";
       // Don't add a default case to let the compiler warn about newly added
       // error codes which should be added here.
   }

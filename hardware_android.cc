@@ -214,9 +214,10 @@ bool HardwareAndroid::GetFirstActiveOmahaPingSent() const {
   return false;
 }
 
-void HardwareAndroid::SetFirstActiveOmahaPingSent() {
-  LOG(WARNING) << "STUB: Assuming first active omaha is never set.";
-  return;
+bool HardwareAndroid::SetFirstActiveOmahaPingSent() {
+  LOG(WARNING) << "STUB: Assuming first active omaha is set.";
+  // We will set it true, so its failure doesn't cause escalation.
+  return true;
 }
 
 }  // namespace chromeos_update_engine

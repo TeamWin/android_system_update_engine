@@ -79,6 +79,8 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
 
   void ReportInstallDateProvisioningSource(int source, int max) override {}
 
+  void ReportInternalErrorCode(ErrorCode error_code) override {}
+
  private:
   DISALLOW_COPY_AND_ASSIGN(MetricsReporterAndroid);
 };
