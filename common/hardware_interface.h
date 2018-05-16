@@ -78,6 +78,17 @@ class HardwareInterface {
   // -1 on error, or if not running on Chrome OS.
   virtual int GetMinFirmwareKeyVersion() const = 0;
 
+  // Returns the maximum firmware key version that verified boot should roll
+  // forward to. This is the value of crossystem firmware_max_rollforward.
+  // Returns -1 on error, if this board does not yet support this value, or
+  // if not running on Chrome OS.
+  virtual int GetMaxFirmwareKeyRollforward() const = 0;
+
+  // Sets the maximum firmware key version that verified boot should roll
+  // forward to. This is the value of crossystem firmware_max_rollforward.
+  // This value is not available on all Chrome OS devices.
+  virtual bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) = 0;
+
   // Sets the maximum kernel key version that verified boot should roll
   // forward to. This is the value of crossystem kernel_max_rollforward.
   // Returns false if the value cannot be set, or if not running on Chrome OS.

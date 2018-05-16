@@ -49,6 +49,8 @@ class HardwareChromeOS final : public HardwareInterface {
   std::string GetECVersion() const override;
   int GetMinKernelKeyVersion() const override;
   int GetMinFirmwareKeyVersion() const override;
+  int GetMaxFirmwareKeyRollforward() const override;
+  bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) override;
   bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override;
   int GetPowerwashCount() const override;
   bool SchedulePowerwash() override;

@@ -44,7 +44,13 @@ class FakeHardware : public HardwareInterface {
   // default for consumer devices and effectively means "unlimited rollforward
   // is allowed", which is the same as the behavior prior to implementing
   // roll forward prevention.
-  static const int kMaxKernelRollforward = 0xfffffffe;
+  static const int kKernelMaxRollforward = 0xfffffffe;
+
+  // Default value for crossystem firmware_max_rollforward. This value is the
+  // default for consumer devices and effectively means "unlimited rollforward
+  // is allowed", which is the same as the behavior prior to implementing
+  // roll forward prevention.
+  static const int kFirmwareMaxRollforward = 0xfffffffe;
 
   FakeHardware() = default;
 
@@ -77,6 +83,18 @@ class FakeHardware : public HardwareInterface {
 
   int GetMinFirmwareKeyVersion() const override {
     return min_firmware_key_version_;
+  }
+
+  int GetMaxFirmwareKeyRollforward() const override {
+    return firmware_max_rollforward_;
+  }
+
+  bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) override {
+    if (GetMaxFirmwareKeyRollforward() == -1)
+      return false;
+
+    firmware_max_rollforward_ = firmware_max_rollforward;
+    return true;
   }
 
   bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override {
@@ -183,7 +201,8 @@ class FakeHardware : public HardwareInterface {
   std::string ec_version_{"Fake EC v1.0a"};
   int min_kernel_key_version_{kMinKernelKeyVersion};
   int min_firmware_key_version_{kMinFirmwareKeyVersion};
-  int kernel_max_rollforward_{kMaxKernelRollforward};
+  int kernel_max_rollforward_{kKernelMaxRollforward};
+  int firmware_max_rollforward_{kFirmwareMaxRollforward};
   int powerwash_count_{kPowerwashCountNotSet};
   bool powerwash_scheduled_{false};
   bool first_active_omaha_ping_sent_{false};

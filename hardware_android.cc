@@ -174,6 +174,17 @@ int HardwareAndroid::GetMinFirmwareKeyVersion() const {
   return -1;
 }
 
+int HardwareAndroid::GetMaxFirmwareKeyRollforward() const {
+  LOG(WARNING) << "STUB: Getting firmware_max_rollforward is not supported.";
+  return -1;
+}
+
+bool HardwareAndroid::SetMaxFirmwareKeyRollforward(
+    int firmware_max_rollforward) {
+  LOG(WARNING) << "STUB: Setting firmware_max_rollforward is not supported.";
+  return false;
+}
+
 bool HardwareAndroid::SetMaxKernelKeyRollforward(int kernel_max_rollforward) {
   LOG(WARNING) << "STUB: Setting kernel_max_rollforward is not supported.";
   return false;

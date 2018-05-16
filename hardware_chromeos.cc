@@ -186,6 +186,21 @@ int HardwareChromeOS::GetMinKernelKeyVersion() const {
   return VbGetSystemPropertyInt("tpm_kernver");
 }
 
+int HardwareChromeOS::GetMaxFirmwareKeyRollforward() const {
+  return VbGetSystemPropertyInt("firmware_max_rollforward");
+}
+
+bool HardwareChromeOS::SetMaxFirmwareKeyRollforward(
+    int firmware_max_rollforward) {
+  // Not all devices have this field yet. So first try to read
+  // it and if there is an error just fail.
+  if (GetMaxFirmwareKeyRollforward() == -1)
+    return false;
+
+  return VbSetSystemPropertyInt("firmware_max_rollforward",
+                                firmware_max_rollforward) == 0;
+}
+
 int HardwareChromeOS::GetMinFirmwareKeyVersion() const {
   return VbGetSystemPropertyInt("tpm_fwver");
 }
