@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
 #define UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
 
+#include <string>
+
 #include <gmock/gmock.h>
 
 #include "update_engine/metrics_reporter_interface.h"
@@ -28,6 +30,9 @@ class MockMetricsReporter : public MetricsReporterInterface {
   MOCK_METHOD0(Initialize, void());
 
   MOCK_METHOD1(ReportRollbackMetrics, void(metrics::RollbackResult result));
+
+  MOCK_METHOD2(ReportEnterpriseRollbackMetrics,
+               void(bool success, const std::string& rollback_version));
 
   MOCK_METHOD1(ReportDailyMetrics, void(base::TimeDelta os_age));
 

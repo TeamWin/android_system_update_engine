@@ -1007,6 +1007,8 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
       // over the following powerwash.
       if (install_plan.is_rollback) {
         system_state_->payload_state()->SetRollbackHappened(true);
+        system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+            /*success=*/true, install_plan.version);
       }
 
       // Expect to reboot into the new version to send the proper metric during
@@ -1376,6 +1378,15 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
 
   LOG(ERROR) << "Update failed.";
   system_state_->payload_state()->UpdateFailed(error_event_->error_code);
+
+  // Send metrics if it was a rollback.
+  if (response_handler_action_) {
+    const InstallPlan& install_plan = response_handler_action_->install_plan();
+    if (install_plan.is_rollback) {
+      system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+          /*success=*/false, install_plan.version);
+    }
+  }
 
   // Send it to Omaha.
   LOG(INFO) << "Reporting the error event";

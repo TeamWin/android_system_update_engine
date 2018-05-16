@@ -270,6 +270,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, RollbackNotAllowed);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowed);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowedSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackFailure);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackFailure);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackSuccess);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);

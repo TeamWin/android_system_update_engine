@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_METRICS_REPORTER_OMAHA_H_
 
 #include <memory>
+#include <string>
 
 #include <base/time/time.h>
 #include <metrics/metrics_library.h>
@@ -42,6 +43,8 @@ extern const char kMetricDailyOSAgeDays[];
 extern const char kMetricCheckDownloadErrorCode[];
 extern const char kMetricCheckReaction[];
 extern const char kMetricCheckResult[];
+extern const char kMetricCheckTargetVersion[];
+extern const char kMetricCheckRollbackTargetVersion[];
 extern const char kMetricCheckTimeSinceLastCheckMinutes[];
 extern const char kMetricCheckTimeSinceLastCheckUptimeMinutes[];
 
@@ -76,6 +79,10 @@ extern const char kMetricSuccessfulUpdateUrlSwitchCount[];
 // UpdateEngine.Rollback.* metric.
 extern const char kMetricRollbackResult[];
 
+// UpdateEngine.EnterpriseRollback.* metrics.
+extern const char kMetricEnterpriseRollbackFailure[];
+extern const char kMetricEnterpriseRollbackSuccess[];
+
 // UpdateEngine.CertificateCheck.* metrics.
 extern const char kMetricCertificateCheckUpdateCheck[];
 extern const char kMetricCertificateCheckDownload[];
@@ -96,6 +103,9 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void Initialize() override;
 
   void ReportRollbackMetrics(metrics::RollbackResult result) override;
+
+  void ReportEnterpriseRollbackMetrics(
+      bool success, const std::string& rollback_version) override;
 
   void ReportDailyMetrics(base::TimeDelta os_age) override;
 

@@ -317,6 +317,11 @@ bool ReadExtents(const std::string& path, const std::vector<Extent>& extents,
 // reboot. Returns whether it succeeded getting the boot_id.
 bool GetBootId(std::string* boot_id);
 
+// Returns the integer value of the first section of |version|. E.g. for
+//  "10575.39." returns 10575. Returns 0 if |version| is empty, returns -1 if
+// first section of |version| is invalid (e.g. not a number).
+int VersionPrefix(const std::string& version);
+
 }  // namespace utils
 
 

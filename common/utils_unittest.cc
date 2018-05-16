@@ -511,4 +511,16 @@ TEST(UtilsTest, IsMountpointTest) {
   EXPECT_FALSE(utils::IsMountpoint(file.value()));
 }
 
+TEST(UtilsTest, VersionPrefix) {
+  EXPECT_EQ(10575, utils::VersionPrefix("10575.39."));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575.39"));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575.x"));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575."));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575"));
+  EXPECT_EQ(0, utils::VersionPrefix(""));
+  EXPECT_EQ(-1, utils::VersionPrefix("x"));
+  EXPECT_EQ(-1, utils::VersionPrefix("1x"));
+  EXPECT_EQ(-1, utils::VersionPrefix("x.1"));
+}
+
 }  // namespace chromeos_update_engine

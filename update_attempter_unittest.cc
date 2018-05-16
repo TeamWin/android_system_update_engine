@@ -74,6 +74,8 @@ using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
 
+const char kRollbackVersion[] = "10575.39.2";
+
 // Test a subclass rather than the main class directly so that we can mock out
 // methods within the class. There're explicit unit tests for the mocked out
 // methods.
@@ -1265,6 +1267,62 @@ TEST_F(UpdateAttempterTest, SetRollbackHappenedNotRollback) {
               SetRollbackHappened(true))
       .Times(0);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest, RollbackMetricsRollbackSuccess) {
+  OmahaResponseHandlerAction* response_action =
+      new OmahaResponseHandlerAction(&fake_system_state_);
+  response_action->install_plan_.is_rollback = true;
+  response_action->install_plan_.version = kRollbackVersion;
+  attempter_.response_handler_action_.reset(response_action);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseRollbackMetrics(true, kRollbackVersion))
+      .Times(1);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess) {
+  OmahaResponseHandlerAction* response_action =
+      new OmahaResponseHandlerAction(&fake_system_state_);
+  response_action->install_plan_.is_rollback = false;
+  response_action->install_plan_.version = kRollbackVersion;
+  attempter_.response_handler_action_.reset(response_action);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseRollbackMetrics(_, _))
+      .Times(0);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest, RollbackMetricsRollbackFailure) {
+  OmahaResponseHandlerAction* response_action =
+      new OmahaResponseHandlerAction(&fake_system_state_);
+  response_action->install_plan_.is_rollback = true;
+  response_action->install_plan_.version = kRollbackVersion;
+  attempter_.response_handler_action_.reset(response_action);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseRollbackMetrics(false, kRollbackVersion))
+      .Times(1);
+  MockAction action;
+  attempter_.CreatePendingErrorEvent(&action, ErrorCode::kRollbackNotPossible);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kRollbackNotPossible);
+}
+
+TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackFailure) {
+  OmahaResponseHandlerAction* response_action =
+      new OmahaResponseHandlerAction(&fake_system_state_);
+  response_action->install_plan_.is_rollback = false;
+  response_action->install_plan_.version = kRollbackVersion;
+  attempter_.response_handler_action_.reset(response_action);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseRollbackMetrics(_, _))
+      .Times(0);
+  MockAction action;
+  attempter_.CreatePendingErrorEvent(&action, ErrorCode::kRollbackNotPossible);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kRollbackNotPossible);
 }
 
 }  // namespace chromeos_update_engine

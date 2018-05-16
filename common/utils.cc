@@ -291,7 +291,10 @@ bool PReadAll(int fd, void* buf, size_t count, off_t offset,
   return true;
 }
 
-bool PReadAll(const FileDescriptorPtr& fd, void* buf, size_t count, off_t offset,
+bool PReadAll(const FileDescriptorPtr& fd,
+              void* buf,
+              size_t count,
+              off_t offset,
               ssize_t* out_bytes_read) {
   TEST_AND_RETURN_FALSE_ERRNO(fd->Seek(offset, SEEK_SET) !=
                               static_cast<off_t>(-1));
@@ -1065,6 +1068,18 @@ bool GetBootId(string* boot_id) {
       base::ReadFileToString(base::FilePath(kBootIdPath), boot_id));
   base::TrimWhitespaceASCII(*boot_id, base::TRIM_TRAILING, boot_id);
   return true;
+}
+
+int VersionPrefix(const std::string& version) {
+  if (version.empty()) {
+    return 0;
+  }
+  vector<string> tokens = base::SplitString(
+      version, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  int value;
+  if (tokens.empty() || !base::StringToInt(tokens[0], &value))
+    return -1;  // Target version is invalid.
+  return value;
 }
 
 }  // namespace utils

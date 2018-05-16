@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_METRICS_REPORTER_INTERFACE_H_
 
 #include <memory>
+#include <string>
 
 #include <base/time/time.h>
 
@@ -43,11 +44,19 @@ class MetricsReporterInterface {
 
   virtual void Initialize() = 0;
 
-  // Helper function to report metrics related to rollback. The
+  // Helper function to report metrics related to user-initiated rollback. The
   // following metrics are reported:
   //
   //  |kMetricRollbackResult|
   virtual void ReportRollbackMetrics(metrics::RollbackResult result) = 0;
+
+  // Helper function to report metrics related to enterprise (admin-initiated)
+  // rollback:
+  //
+  //  |kMetricEnterpriseRollbackSuccess|
+  //  |kMetricEnterpriseRollbackFailure|
+  virtual void ReportEnterpriseRollbackMetrics(
+      bool success, const std::string& rollback_version) = 0;
 
   // Helper function to report metrics reported once a day. The
   // following metrics are reported:
@@ -64,6 +73,8 @@ class MetricsReporterInterface {
   //  |kMetricCheckDownloadErrorCode|
   //  |kMetricCheckTimeSinceLastCheckMinutes|
   //  |kMetricCheckTimeSinceLastCheckUptimeMinutes|
+  //  |kMetricCheckTargetVersion|
+  //  |kMetricCheckRollbackTargetVersion|
   //
   // The |kMetricCheckResult| metric will only be reported if |result|
   // is not |kUnset|.
@@ -78,6 +89,10 @@ class MetricsReporterInterface {
   // |kMetricCheckTimeSinceLastCheckUptimeMinutes| metrics are
   // automatically reported and calculated by maintaining persistent
   // and process-local state variables.
+  //
+  // |kMetricCheckTargetVersion| reports the first section of the target version
+  // if it's set, |kMetricCheckRollbackTargetVersion| reports the same, but only
+  // if rollback is also allowed using enterprise policy.
   virtual void ReportUpdateCheckMetrics(
       SystemState* system_state,
       metrics::CheckResult result,

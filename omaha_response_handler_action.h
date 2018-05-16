@@ -89,6 +89,10 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   friend class OmahaResponseHandlerActionTest;
 
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackFailure);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackFailure);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackSuccess);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
