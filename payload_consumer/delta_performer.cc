@@ -66,10 +66,6 @@ using std::string;
 using std::vector;
 
 namespace chromeos_update_engine {
-
-const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 2;
-const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 5;
-
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
 const unsigned DeltaPerformer::kProgressDownloadWeight = 50;
@@ -468,11 +464,10 @@ void LogPartitionInfo(const vector<PartitionUpdate>& partitions) {
 uint32_t DeltaPerformer::GetMinorVersion() const {
   if (manifest_.has_minor_version()) {
     return manifest_.minor_version();
-  } else {
-    return payload_->type == InstallPayloadType::kDelta
-               ? kSupportedMinorPayloadVersion
-               : kFullPayloadMinorVersion;
   }
+  return payload_->type == InstallPayloadType::kDelta
+             ? kMaxSupportedMinorPayloadVersion
+             : kFullPayloadMinorVersion;
 }
 
 bool DeltaPerformer::IsHeaderParsed() const {
@@ -484,8 +479,8 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   *error = ErrorCode::kSuccess;
 
   if (!IsHeaderParsed()) {
-    MetadataParseResult result = payload_metadata_.ParsePayloadHeader(
-        payload, supported_major_version_, error);
+    MetadataParseResult result =
+        payload_metadata_.ParsePayloadHeader(payload, error);
     if (result != MetadataParseResult::kSuccess)
       return result;
 
@@ -1527,11 +1522,13 @@ ErrorCode DeltaPerformer::ValidateManifest() {
       return ErrorCode::kUnsupportedMinorPayloadVersion;
     }
   } else {
-    if (manifest_.minor_version() != supported_minor_version_) {
+    if (manifest_.minor_version() < kMinSupportedMinorPayloadVersion ||
+        manifest_.minor_version() > kMaxSupportedMinorPayloadVersion) {
       LOG(ERROR) << "Manifest contains minor version "
                  << manifest_.minor_version()
-                 << " not the supported "
-                 << supported_minor_version_;
+                 << " not in the range of supported minor versions ["
+                 << kMinSupportedMinorPayloadVersion << ", "
+                 << kMaxSupportedMinorPayloadVersion << "].";
       return ErrorCode::kUnsupportedMinorPayloadVersion;
     }
   }

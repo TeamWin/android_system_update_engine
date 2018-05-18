@@ -172,9 +172,11 @@ class DeltaPerformerTest : public ::testing::Test {
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
                                const vector<AnnotatedOperation>& aops,
                                bool sign_payload) {
-    return GeneratePayload(blob_data, aops, sign_payload,
-                           DeltaPerformer::kSupportedMajorPayloadVersion,
-                           DeltaPerformer::kSupportedMinorPayloadVersion);
+    return GeneratePayload(blob_data,
+                           aops,
+                           sign_payload,
+                           kMaxSupportedMajorPayloadVersion,
+                           kMaxSupportedMinorPayloadVersion);
   }
 
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
@@ -412,9 +414,6 @@ class DeltaPerformerTest : public ::testing::Test {
     return performer_.source_ecc_recovered_failures_;
   }
 
-  void SetSupportedMajorVersion(uint64_t major_version) {
-    performer_.supported_major_version_ = major_version;
-  }
   FakePrefs prefs_;
   InstallPlan install_plan_;
   InstallPlan::Payload payload_;
@@ -724,7 +723,22 @@ TEST_F(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
   manifest.mutable_old_rootfs_info();
   manifest.mutable_new_kernel_info();
   manifest.mutable_new_rootfs_info();
-  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+  manifest.set_minor_version(kMaxSupportedMinorPayloadVersion);
+
+  RunManifestValidation(manifest,
+                        kChromeOSMajorPayloadVersion,
+                        InstallPayloadType::kDelta,
+                        ErrorCode::kSuccess);
+}
+
+TEST_F(DeltaPerformerTest, ValidateManifestDeltaMinGoodTest) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+  manifest.mutable_old_kernel_info();
+  manifest.mutable_old_rootfs_info();
+  manifest.mutable_new_kernel_info();
+  manifest.mutable_new_rootfs_info();
+  manifest.set_minor_version(kMinSupportedMinorPayloadVersion);
 
   RunManifestValidation(manifest,
                         kChromeOSMajorPayloadVersion,
@@ -737,7 +751,7 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullUnsetMinorVersion) {
   DeltaArchiveManifest manifest;
 
   RunManifestValidation(manifest,
-                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        kMaxSupportedMajorPayloadVersion,
                         InstallPayloadType::kFull,
                         ErrorCode::kSuccess);
 }
@@ -750,7 +764,7 @@ TEST_F(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
   manifest.mutable_old_rootfs_info();
 
   RunManifestValidation(manifest,
-                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        kMaxSupportedMajorPayloadVersion,
                         InstallPayloadType::kDelta,
                         ErrorCode::kUnsupportedMinorPayloadVersion);
 }
@@ -761,7 +775,7 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
   manifest.mutable_old_kernel_info();
   manifest.mutable_new_kernel_info();
   manifest.mutable_new_rootfs_info();
-  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+  manifest.set_minor_version(kMaxSupportedMinorPayloadVersion);
 
   RunManifestValidation(manifest,
                         kChromeOSMajorPayloadVersion,
@@ -775,7 +789,7 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
   manifest.mutable_old_rootfs_info();
   manifest.mutable_new_kernel_info();
   manifest.mutable_new_rootfs_info();
-  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+  manifest.set_minor_version(kMaxSupportedMinorPayloadVersion);
 
   RunManifestValidation(manifest,
                         kChromeOSMajorPayloadVersion,
@@ -789,7 +803,7 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullPartitionUpdateTest) {
   PartitionUpdate* partition = manifest.add_partitions();
   partition->mutable_old_partition_info();
   partition->mutable_new_partition_info();
-  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+  manifest.set_minor_version(kMaxSupportedMinorPayloadVersion);
 
   RunManifestValidation(manifest,
                         kBrilloMajorPayloadVersion,
@@ -802,13 +816,12 @@ TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
   DeltaArchiveManifest manifest;
 
   // Generate a bad version number.
-  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion +
-                             10000);
+  manifest.set_minor_version(kMaxSupportedMinorPayloadVersion + 10000);
   // Mark the manifest as a delta payload by setting old_rootfs_info.
   manifest.mutable_old_rootfs_info();
 
   RunManifestValidation(manifest,
-                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        kMaxSupportedMajorPayloadVersion,
                         InstallPayloadType::kDelta,
                         ErrorCode::kUnsupportedMinorPayloadVersion);
 }
@@ -822,7 +835,7 @@ TEST_F(DeltaPerformerTest, ValidateManifestDowngrade) {
   fake_hardware_.SetBuildTimestamp(2);
 
   RunManifestValidation(manifest,
-                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        kMaxSupportedMajorPayloadVersion,
                         InstallPayloadType::kFull,
                         ErrorCode::kPayloadTimestampError);
 }
@@ -988,18 +1001,18 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
 
 TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
   // Test that the versions in update_engine.conf that is installed to the
-  // image match the supported delta versions in the update engine.
+  // image match the maximum supported delta versions in the update engine.
   uint32_t minor_version;
   brillo::KeyValueStore store;
   EXPECT_TRUE(store.Load(GetBuildArtifactsPath().Append("update_engine.conf")));
   EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
-  EXPECT_EQ(DeltaPerformer::kSupportedMinorPayloadVersion, minor_version);
+  EXPECT_EQ(kMaxSupportedMinorPayloadVersion, minor_version);
 
   string major_version_str;
   uint64_t major_version;
   EXPECT_TRUE(store.GetString("PAYLOAD_MAJOR_VERSION", &major_version_str));
   EXPECT_TRUE(base::StringToUint64(major_version_str, &major_version));
-  EXPECT_EQ(DeltaPerformer::kSupportedMajorPayloadVersion, major_version);
+  EXPECT_EQ(kMaxSupportedMajorPayloadVersion, major_version);
 }
 
 }  // namespace chromeos_update_engine
