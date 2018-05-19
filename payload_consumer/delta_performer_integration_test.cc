@@ -116,13 +116,7 @@ enum OperationHashTest {
 
 }  // namespace
 
-class DeltaPerformerIntegrationTest : public ::testing::Test {
- public:
-  static void SetSupportedVersion(DeltaPerformer* performer,
-                                  uint64_t minor_version) {
-    performer->supported_minor_version_ = minor_version;
-  }
-};
+class DeltaPerformerIntegrationTest : public ::testing::Test {};
 
 static void CompareFilesByBlock(const string& a_file, const string& b_file,
                                 size_t image_size) {
@@ -752,7 +746,6 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
   EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
   (*performer)->set_public_key_path(public_key_path);
-  DeltaPerformerIntegrationTest::SetSupportedVersion(*performer, minor_version);
 
   EXPECT_EQ(static_cast<off_t>(state->image_size),
             HashCalculator::RawHashOfFile(

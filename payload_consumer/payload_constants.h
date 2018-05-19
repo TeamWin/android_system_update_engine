@@ -31,6 +31,10 @@ extern const uint64_t kChromeOSMajorPayloadVersion;
 // The major version used by Brillo.
 extern const uint64_t kBrilloMajorPayloadVersion;
 
+// The minimum and maximum supported major version.
+extern const uint64_t kMinSupportedMajorPayloadVersion;
+extern const uint64_t kMaxSupportedMajorPayloadVersion;
+
 // The minor version used for all full payloads.
 extern const uint32_t kFullPayloadMinorVersion;
 
@@ -48,6 +52,10 @@ extern const uint32_t kBrotliBsdiffMinorPayloadVersion;
 
 // The minor version that allows PUFFDIFF operation.
 extern const uint32_t kPuffdiffMinorPayloadVersion;
+
+// The minimum and maximum supported minor version.
+extern const uint32_t kMinSupportedMinorPayloadVersion;
+extern const uint32_t kMaxSupportedMinorPayloadVersion;
 
 // The maximum size of the payload header (anything before the protobuf).
 extern const uint64_t kMaxPayloadHeaderSize;

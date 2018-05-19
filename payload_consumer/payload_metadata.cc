@@ -60,9 +60,7 @@ bool PayloadMetadata::GetManifestOffset(uint64_t* out_offset) const {
 }
 
 MetadataParseResult PayloadMetadata::ParsePayloadHeader(
-    const brillo::Blob& payload,
-    uint64_t supported_major_version,
-    ErrorCode* error) {
+    const brillo::Blob& payload, ErrorCode* error) {
   uint64_t manifest_offset;
   // Ensure we have data to cover the major payload version.
   if (payload.size() < kDeltaManifestSizeOffset)
@@ -84,8 +82,8 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
   // Switch big endian to host.
   major_payload_version_ = be64toh(major_payload_version_);
 
-  if (major_payload_version_ != supported_major_version &&
-      major_payload_version_ != kChromeOSMajorPayloadVersion) {
+  if (major_payload_version_ < kMinSupportedMajorPayloadVersion ||
+      major_payload_version_ > kMaxSupportedMajorPayloadVersion) {
     LOG(ERROR) << "Bad payload format -- unsupported payload version: "
                << major_payload_version_;
     *error = ErrorCode::kUnsupportedMajorPayloadVersion;

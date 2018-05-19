@@ -54,7 +54,6 @@ class PayloadMetadata {
   // metadata. Returns kMetadataParseError if the metadata can't be parsed given
   // the payload.
   MetadataParseResult ParsePayloadHeader(const brillo::Blob& payload,
-                                         uint64_t supported_major_version,
                                          ErrorCode* error);
 
   // Given the |payload|, verifies that the signed hash of its metadata matches
