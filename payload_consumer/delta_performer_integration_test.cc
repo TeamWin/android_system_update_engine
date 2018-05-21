@@ -283,7 +283,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
 
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                "%s -in_file=%s -signature_file=%s -out_file=%s",
+                "%s -in_file=%s -payload_signature_file=%s -out_file=%s",
                 delta_generator_path.c_str(),
                 payload_path.c_str(),
                 sig_file.c_str(),

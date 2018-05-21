@@ -628,7 +628,7 @@ cmd_sign() {
   GENERATOR_ARGS=(
     -in_file="${FLAGS_unsigned_payload}"
     -signature_size="${FLAGS_signature_size}"
-    -signature_file="${FLAGS_payload_signature_file}"
+    -payload_signature_file="${FLAGS_payload_signature_file}"
     -metadata_signature_file="${FLAGS_metadata_signature_file}"
     -out_file="${FLAGS_payload}"
   )
