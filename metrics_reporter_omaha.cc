@@ -116,6 +116,13 @@ const char kMetricCertificateCheckUpdateCheck[] =
 const char kMetricCertificateCheckDownload[] =
     "UpdateEngine.CertificateCheck.Download";
 
+// UpdateEngine.KernelKey.* metrics.
+const char kMetricKernelMinVersion[] = "UpdateEngine.KernelKey.MinVersion";
+const char kMetricKernelMaxRollforwardVersion[] =
+    "UpdateEngine.KernelKey.MaxRollforwardVersion";
+const char kMetricKernelMaxRollforwardSetSuccess[] =
+    "UpdateEngine.KernelKey.MaxRollforwardSetSuccess";
+
 // UpdateEngine.* metrics.
 const char kMetricFailedUpdateCount[] = "UpdateEngine.FailedUpdateCount";
 const char kMetricInstallDateProvisioningSource[] =
@@ -575,6 +582,27 @@ void MetricsReporterOmaha::ReportInternalErrorCode(ErrorCode error_code) {
   metrics_lib_->SendEnumToUMA(metric,
                               static_cast<int>(error_code),
                               static_cast<int>(ErrorCode::kUmaReportedMax));
+}
+
+void MetricsReporterOmaha::ReportKeyVersionMetrics(
+    int kernel_min_version,
+    int kernel_max_rollforward_version,
+    bool kernel_max_rollforward_success) {
+  int value = kernel_min_version;
+  string metric = metrics::kMetricKernelMinVersion;
+  LOG(INFO) << "Sending " << value << " for metric " << metric;
+  metrics_lib_->SendSparseToUMA(metric, value);
+
+  value = kernel_max_rollforward_version;
+  metric = metrics::kMetricKernelMaxRollforwardVersion;
+  LOG(INFO) << "Sending " << value << " for metric " << metric;
+  metrics_lib_->SendSparseToUMA(metric, value);
+
+  bool bool_value = kernel_max_rollforward_success;
+  metric = metrics::kMetricKernelMaxRollforwardSetSuccess;
+  LOG(INFO) << "Sending " << bool_value << " for metric " << metric
+            << " (bool)";
+  metrics_lib_->SendBoolToUMA(metric, bool_value);
 }
 
 }  // namespace chromeos_update_engine

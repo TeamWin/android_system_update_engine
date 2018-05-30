@@ -468,4 +468,26 @@ TEST_F(MetricsReporterOmahaTest, ReportInstallDateProvisioningSource) {
   reporter_.ReportInstallDateProvisioningSource(source, max);
 }
 
+TEST_F(MetricsReporterOmahaTest, ReportKeyVersionMetrics) {
+  int kernel_min_version = 0x00040002;
+  int kernel_max_rollforward_version = 0xfffffffe;
+  bool kernel_max_rollforward_success = true;
+  EXPECT_CALL(
+      *mock_metrics_lib_,
+      SendSparseToUMA(metrics::kMetricKernelMinVersion, kernel_min_version))
+      .Times(1);
+  EXPECT_CALL(*mock_metrics_lib_,
+              SendSparseToUMA(metrics::kMetricKernelMaxRollforwardVersion,
+                              kernel_max_rollforward_version))
+      .Times(1);
+  EXPECT_CALL(*mock_metrics_lib_,
+              SendBoolToUMA(metrics::kMetricKernelMaxRollforwardSetSuccess,
+                            kernel_max_rollforward_success))
+      .Times(1);
+
+  reporter_.ReportKeyVersionMetrics(kernel_min_version,
+                                    kernel_max_rollforward_version,
+                                    kernel_max_rollforward_success);
+}
+
 }  // namespace chromeos_update_engine

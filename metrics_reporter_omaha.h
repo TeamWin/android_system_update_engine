@@ -87,6 +87,11 @@ extern const char kMetricEnterpriseRollbackSuccess[];
 extern const char kMetricCertificateCheckUpdateCheck[];
 extern const char kMetricCertificateCheckDownload[];
 
+// UpdateEngine.KernelKey.* metrics.
+extern const char kMetricKernelMinVersion[];
+extern const char kMetricKernelMaxRollforwardVersion[];
+extern const char kMetricKernelMaxRollforwardSetSuccess[];
+
 // UpdateEngine.* metrics.
 extern const char kMetricFailedUpdateCount[];
 extern const char kMetricInstallDateProvisioningSource[];
@@ -154,6 +159,10 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportInstallDateProvisioningSource(int source, int max) override;
 
   void ReportInternalErrorCode(ErrorCode error_code) override;
+
+  void ReportKeyVersionMetrics(int kernel_min_version,
+                               int kernel_max_rollforward_version,
+                               bool kernel_max_rollforward_success) override;
 
  private:
   friend class MetricsReporterOmahaTest;

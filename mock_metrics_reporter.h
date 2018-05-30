@@ -83,6 +83,11 @@ class MockMetricsReporter : public MetricsReporterInterface {
   MOCK_METHOD2(ReportInstallDateProvisioningSource, void(int source, int max));
 
   MOCK_METHOD1(ReportInternalErrorCode, void(ErrorCode error_code));
+
+  MOCK_METHOD3(ReportKeyVersionMetrics,
+               void(int kernel_min_version,
+                    int kernel_max_rollforward_version,
+                    bool kernel_max_rollforward_success));
 };
 
 }  // namespace chromeos_update_engine

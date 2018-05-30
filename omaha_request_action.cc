@@ -1856,7 +1856,8 @@ bool OmahaRequestAction::IsRollbackEnabled() const {
 }
 
 void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
-  bool max_rollforward_set = false;
+  int max_kernel_rollforward;
+  int min_kernel_version = system_state_->hardware()->GetMinKernelKeyVersion();
   if (IsRollbackEnabled()) {
     // If rollback is enabled, set the max kernel key version to the current
     // kernel key version. This has the effect of freezing kernel key roll
@@ -1868,12 +1869,9 @@ void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
     // the kernel key version from max_rollback_versions in the past. At that
     // point the max kernel key version will be set to that value, creating a
     // sliding window of versions that can be rolled back to.
-    int min_kernel_version =
-        system_state_->hardware()->GetMinKernelKeyVersion();
     LOG(INFO) << "Rollback is enabled. Setting kernel_max_rollforward to "
               << min_kernel_version;
-    max_rollforward_set = system_state_->hardware()->SetMaxKernelKeyRollforward(
-        min_kernel_version);
+    max_kernel_rollforward = min_kernel_version;
   } else {
     // For devices that are not rollback enabled (ie. consumer devices), the
     // max kernel key version is set to 0xfffffffe, which is logically
@@ -1881,13 +1879,18 @@ void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
     // versions roll forward each time they are incremented.
     LOG(INFO) << "Rollback is disabled. Setting kernel_max_rollforward to "
               << kRollforwardInfinity;
-    max_rollforward_set = system_state_->hardware()->SetMaxKernelKeyRollforward(
-        kRollforwardInfinity);
+    max_kernel_rollforward = kRollforwardInfinity;
   }
 
+  bool max_rollforward_set =
+      system_state_->hardware()->SetMaxKernelKeyRollforward(
+          max_kernel_rollforward);
   if (!max_rollforward_set) {
     LOG(ERROR) << "Failed to set kernel_max_rollforward";
   }
+  // Report metrics
+  system_state_->metrics_reporter()->ReportKeyVersionMetrics(
+      min_kernel_version, max_kernel_rollforward, max_rollforward_set);
 }
 
 }  // namespace chromeos_update_engine

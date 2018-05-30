@@ -214,6 +214,16 @@ class MetricsReporterInterface {
   //
   // |kMetricAttemptInternalErrorCode|
   virtual void ReportInternalErrorCode(ErrorCode error_code) = 0;
+
+  // Helper function to report metrics related to the verified boot key
+  // versions:
+  //
+  //  |kMetricKernelMinVersion|
+  //  |kMetricKernelMaxRollforwardVersion|
+  //  |kMetricKernelMaxRollforwardSetSuccess|
+  virtual void ReportKeyVersionMetrics(int kernel_min_version,
+                                       int kernel_max_rollforward_version,
+                                       bool kernel_max_rollforward_success) = 0;
 };
 
 }  // namespace chromeos_update_engine

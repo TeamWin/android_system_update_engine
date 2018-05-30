@@ -2797,6 +2797,11 @@ TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
   EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
+      .Times(1);
+
   TestRollbackCheck(false /* is_consumer_device */,
                     3 /* rollback_allowed_milestones */,
                     false /* is_policy_loaded */);
@@ -2824,6 +2829,11 @@ TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
   EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
+      .Times(1);
+
   TestRollbackCheck(true /* is_consumer_device */,
                     3 /* rollback_allowed_milestones */,
                     false /* is_policy_loaded */);
@@ -2849,6 +2859,11 @@ TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
   fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
   EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
+      .Times(1);
 
   TestRollbackCheck(false /* is_consumer_device */,
                     allowed_milestones,
@@ -2876,6 +2891,11 @@ TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
   fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
   EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
+      .Times(1);
 
   TestRollbackCheck(false /* is_consumer_device */,
                     allowed_milestones,
