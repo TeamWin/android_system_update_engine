@@ -1138,6 +1138,56 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   return true;
 }
 
+FileDescriptorPtr DeltaPerformer::ChooseSourceFD(
+    const InstallOperation& operation, ErrorCode* error) {
+  if (!operation.has_src_sha256_hash()) {
+    // When the operation doesn't include a source hash, we attempt the error
+    // corrected device first since we can't verify the block in the raw device
+    // at this point, but we first need to make sure all extents are readable
+    // since the error corrected device can be shorter or not available.
+    if (OpenCurrentECCPartition() &&
+        fd_utils::ReadAndHashExtents(
+            source_ecc_fd_, operation.src_extents(), block_size_, nullptr)) {
+      return source_ecc_fd_;
+    }
+    return source_fd_;
+  }
+
+  brillo::Blob source_hash;
+  brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
+                                    operation.src_sha256_hash().end());
+  if (fd_utils::ReadAndHashExtents(
+          source_fd_, operation.src_extents(), block_size_, &source_hash) &&
+      source_hash == expected_source_hash) {
+    return source_fd_;
+  }
+  // We fall back to use the error corrected device if the hash of the raw
+  // device doesn't match or there was an error reading the source partition.
+  if (!OpenCurrentECCPartition()) {
+    // The following function call will return false since the source hash
+    // mismatches, but we still want to call it so it prints the appropriate
+    // log message.
+    ValidateSourceHash(source_hash, operation, source_fd_, error);
+    return nullptr;
+  }
+  LOG(WARNING) << "Source hash from RAW device mismatched: found "
+               << base::HexEncode(source_hash.data(), source_hash.size())
+               << ", expected "
+               << base::HexEncode(expected_source_hash.data(),
+                                  expected_source_hash.size());
+
+  if (fd_utils::ReadAndHashExtents(
+          source_ecc_fd_, operation.src_extents(), block_size_, &source_hash) &&
+      ValidateSourceHash(source_hash, operation, source_ecc_fd_, error)) {
+    // At this point reading from the the error corrected device worked, but
+    // reading from the raw device failed, so this is considered a recovered
+    // failure.
+    source_ecc_recovered_failures_++;
+    return source_ecc_fd_;
+  }
+  return nullptr;
+}
+
 bool DeltaPerformer::ExtentsToBsdiffPositionsString(
     const RepeatedPtrField<Extent>& extents,
     uint64_t block_size,
@@ -1280,17 +1330,12 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
   if (operation.has_dst_length())
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
-  if (operation.has_src_sha256_hash()) {
-    brillo::Blob source_hash;
-    TEST_AND_RETURN_FALSE(fd_utils::ReadAndHashExtents(
-        source_fd_, operation.src_extents(), block_size_, &source_hash));
-    TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hash, operation, source_fd_, error));
-  }
+  FileDescriptorPtr source_fd = ChooseSourceFD(operation, error);
+  TEST_AND_RETURN_FALSE(source_fd != nullptr);
 
   auto reader = std::make_unique<DirectExtentReader>();
   TEST_AND_RETURN_FALSE(
-      reader->Init(source_fd_, operation.src_extents(), block_size_));
+      reader->Init(source_fd, operation.src_extents(), block_size_));
   auto src_file = std::make_unique<BsdiffExtentFile>(
       std::move(reader),
       utils::BlocksInExtents(operation.src_extents()) * block_size_);
@@ -1397,17 +1442,12 @@ bool DeltaPerformer::PerformPuffDiffOperation(const InstallOperation& operation,
   TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
   TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
 
-  if (operation.has_src_sha256_hash()) {
-    brillo::Blob source_hash;
-    TEST_AND_RETURN_FALSE(fd_utils::ReadAndHashExtents(
-        source_fd_, operation.src_extents(), block_size_, &source_hash));
-    TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hash, operation, source_fd_, error));
-  }
+  FileDescriptorPtr source_fd = ChooseSourceFD(operation, error);
+  TEST_AND_RETURN_FALSE(source_fd != nullptr);
 
   auto reader = std::make_unique<DirectExtentReader>();
   TEST_AND_RETURN_FALSE(
-      reader->Init(source_fd_, operation.src_extents(), block_size_));
+      reader->Init(source_fd, operation.src_extents(), block_size_));
   puffin::UniqueStreamPtr src_stream(new PuffinExtentStream(
       std::move(reader),
       utils::BlocksInExtents(operation.src_extents()) * block_size_));

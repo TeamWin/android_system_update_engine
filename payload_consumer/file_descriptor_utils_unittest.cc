@@ -175,10 +175,10 @@ TEST_F(FileDescriptorUtilsTest, ReadAndHashExtentsReadFailureTest) {
   EXPECT_FALSE(fd_utils::ReadAndHashExtents(source_, extents, 4, &hash_out));
 }
 
-// Test that if hash_out is null, then it should fail.
+// Test that if hash_out is null, it still works.
 TEST_F(FileDescriptorUtilsTest, ReadAndHashExtentsWithoutHashingTest) {
   auto extents = CreateExtentList({{0, 5}});
-  EXPECT_FALSE(fd_utils::ReadAndHashExtents(source_, extents, 4, nullptr));
+  EXPECT_TRUE(fd_utils::ReadAndHashExtents(source_, extents, 4, nullptr));
 }
 
 // Tests that it can calculate the hash properly.
