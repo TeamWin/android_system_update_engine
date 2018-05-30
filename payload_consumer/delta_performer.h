@@ -175,6 +175,7 @@ class DeltaPerformer : public FileWriter {
   friend class DeltaPerformerIntegrationTest;
   FRIEND_TEST(DeltaPerformerTest, BrilloMetadataSignatureSizeTest);
   FRIEND_TEST(DeltaPerformerTest, BrilloParsePayloadMetadataTest);
+  FRIEND_TEST(DeltaPerformerTest, ChooseSourceFDTest);
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
   // Parse and move the update instructions of all partitions into our local
@@ -228,6 +229,13 @@ class DeltaPerformer : public FileWriter {
                                     ErrorCode* error);
   bool PerformPuffDiffOperation(const InstallOperation& operation,
                                 ErrorCode* error);
+
+  // For a given operation, choose the source fd to be used (raw device or error
+  // correction device) based on the source operation hash.
+  // Returns nullptr if the source hash mismatch cannot be corrected, and set
+  // the |error| accordingly.
+  FileDescriptorPtr ChooseSourceFD(const InstallOperation& operation,
+                                   ErrorCode* error);
 
   // Extracts the payload signature message from the blob on the |operation| if
   // the offset matches the one specified by the manifest. Returns whether the

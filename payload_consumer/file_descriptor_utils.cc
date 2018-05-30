@@ -96,10 +96,7 @@ bool ReadAndHashExtents(FileDescriptorPtr source,
                         const RepeatedPtrField<Extent>& extents,
                         uint64_t block_size,
                         brillo::Blob* hash_out) {
-  TEST_AND_RETURN_FALSE(hash_out != nullptr);
-  TEST_AND_RETURN_FALSE(
-      CommonHashExtents(source, extents, nullptr, block_size, hash_out));
-  return true;
+  return CommonHashExtents(source, extents, nullptr, block_size, hash_out);
 }
 
 }  // namespace fd_utils
