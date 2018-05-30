@@ -140,7 +140,8 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsOnUpdateTerminated) {
                                  ErrorCode::kSuccess))
       .Times(1);
   EXPECT_CALL(*metrics_reporter_,
-              ReportSuccessfulUpdateMetrics(2, 0, _, _, _, _, duration, 3, _))
+              ReportSuccessfulUpdateMetrics(
+                  2, 0, _, _, _, _, duration, duration_uptime, 3, _))
       .Times(1);
 
   SetUpdateStatus(UpdateStatus::UPDATE_AVAILABLE);
@@ -179,6 +180,7 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsForBytesDownloaded) {
                   _,
                   test_utils::DownloadSourceMatcher(total_bytes),
                   125,
+                  _,
                   _,
                   _,
                   _))

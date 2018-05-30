@@ -150,6 +150,7 @@ class MetricsReporterInterface {
   //  |kMetricSuccessfulUpdateDownloadSourcesUsed|
   //  |kMetricSuccessfulUpdateDownloadOverheadPercentage|
   //  |kMetricSuccessfulUpdateTotalDurationMinutes|
+  //  |kMetricSuccessfulUpdateTotalDurationUptimeMinutes|
   //  |kMetricSuccessfulUpdateRebootCount|
   //  |kMetricSuccessfulUpdateUrlSwitchCount|
   //
@@ -164,6 +165,7 @@ class MetricsReporterInterface {
       int64_t num_bytes_downloaded[kNumDownloadSources],
       int download_overhead_percentage,
       base::TimeDelta total_duration,
+      base::TimeDelta total_duration_uptime,
       int reboot_count,
       int url_switch_count) = 0;
 

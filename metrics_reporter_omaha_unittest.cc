@@ -258,6 +258,7 @@ TEST_F(MetricsReporterOmahaTest, ReportSuccessfulUpdateMetrics) {
   num_bytes_downloaded[0] = 200 * kNumBytesInOneMiB;
   int download_overhead_percentage = 20;
   TimeDelta total_duration = TimeDelta::FromMinutes(30);
+  TimeDelta total_duration_uptime = TimeDelta::FromMinutes(20);
   int reboot_count = 2;
   int url_switch_count = 2;
 
@@ -306,6 +307,14 @@ TEST_F(MetricsReporterOmahaTest, ReportSuccessfulUpdateMetrics) {
       .Times(1);
   EXPECT_CALL(
       *mock_metrics_lib_,
+      SendToUMA(metrics::kMetricSuccessfulUpdateTotalDurationUptimeMinutes,
+                20,
+                _,
+                _,
+                _))
+      .Times(1);
+  EXPECT_CALL(
+      *mock_metrics_lib_,
       SendToUMA(
           metrics::kMetricSuccessfulUpdateRebootCount, reboot_count, _, _, _))
       .Times(1);
@@ -333,6 +342,7 @@ TEST_F(MetricsReporterOmahaTest, ReportSuccessfulUpdateMetrics) {
                                           num_bytes_downloaded,
                                           download_overhead_percentage,
                                           total_duration,
+                                          total_duration_uptime,
                                           reboot_count,
                                           url_switch_count);
 }
