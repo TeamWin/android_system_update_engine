@@ -82,7 +82,7 @@ die() {
 }
 
 # Loads shflags. We first look at the default install location; then look for
-# crosutils (chroot); finally check our own directory (au-generator zipfile).
+# crosutils (chroot); finally check our own directory.
 load_shflags() {
   local my_dir="$(dirname "$(readlink -f "$0")")"
   local path
