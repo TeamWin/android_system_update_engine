@@ -871,7 +871,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
 
   EXPECT_CALL(*fake_system_state.mock_metrics_reporter(),
               ReportSuccessfulUpdateMetrics(
-                  1, _, kPayloadTypeFull, _, _, 314, _, _, 3));
+                  1, _, kPayloadTypeFull, _, _, 314, _, _, _, 3));
 
   payload_state.UpdateSucceeded();
 
@@ -917,6 +917,7 @@ TEST(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
                   _,
                   _,
                   test_utils::DownloadSourceMatcher(total_bytes),
+                  _,
                   _,
                   _,
                   _,
@@ -1305,9 +1306,9 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
 
   // Simulate a successful download and update.
   payload_state.DownloadComplete();
-  EXPECT_CALL(
-      *fake_system_state.mock_metrics_reporter(),
-      ReportSuccessfulUpdateMetrics(_, _, kPayloadTypeDelta, _, _, _, _, _, _));
+  EXPECT_CALL(*fake_system_state.mock_metrics_reporter(),
+              ReportSuccessfulUpdateMetrics(
+                  _, _, kPayloadTypeDelta, _, _, _, _, _, _, _));
   payload_state.UpdateSucceeded();
 
   // Mock the request to a request where the delta was disabled but Omaha sends
@@ -1321,9 +1322,9 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
 
   payload_state.DownloadComplete();
 
-  EXPECT_CALL(
-      *fake_system_state.mock_metrics_reporter(),
-      ReportSuccessfulUpdateMetrics(_, _, kPayloadTypeDelta, _, _, _, _, _, _));
+  EXPECT_CALL(*fake_system_state.mock_metrics_reporter(),
+              ReportSuccessfulUpdateMetrics(
+                  _, _, kPayloadTypeDelta, _, _, _, _, _, _, _));
   payload_state.UpdateSucceeded();
 }
 
@@ -1346,7 +1347,7 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsForcedFull) {
 
   EXPECT_CALL(*fake_system_state.mock_metrics_reporter(),
               ReportSuccessfulUpdateMetrics(
-                  _, _, kPayloadTypeForcedFull, _, _, _, _, _, _));
+                  _, _, kPayloadTypeForcedFull, _, _, _, _, _, _, _));
   payload_state.UpdateSucceeded();
 }
 
@@ -1368,9 +1369,9 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
   // Simulate a successful download and update.
   payload_state.DownloadComplete();
 
-  EXPECT_CALL(
-      *fake_system_state.mock_metrics_reporter(),
-      ReportSuccessfulUpdateMetrics(_, _, kPayloadTypeFull, _, _, _, _, _, _));
+  EXPECT_CALL(*fake_system_state.mock_metrics_reporter(),
+              ReportSuccessfulUpdateMetrics(
+                  _, _, kPayloadTypeFull, _, _, _, _, _, _, _));
   payload_state.UpdateSucceeded();
 }
 

@@ -92,6 +92,8 @@ const char kMetricSuccessfulUpdateRebootCount[] =
     "UpdateEngine.SuccessfulUpdate.RebootCount";
 const char kMetricSuccessfulUpdateTotalDurationMinutes[] =
     "UpdateEngine.SuccessfulUpdate.TotalDurationMinutes";
+const char kMetricSuccessfulUpdateTotalDurationUptimeMinutes[] =
+    "UpdateEngine.SuccessfulUpdate.TotalDurationUptimeMinutes";
 const char kMetricSuccessfulUpdateUpdatesAbandonedCount[] =
     "UpdateEngine.SuccessfulUpdate.UpdatesAbandonedCount";
 const char kMetricSuccessfulUpdateUrlSwitchCount[] =
@@ -363,6 +365,7 @@ void MetricsReporterOmaha::ReportSuccessfulUpdateMetrics(
     int64_t num_bytes_downloaded[kNumDownloadSources],
     int download_overhead_percentage,
     base::TimeDelta total_duration,
+    base::TimeDelta total_duration_uptime,
     int reboot_count,
     int url_switch_count) {
   string metric = metrics::kMetricSuccessfulUpdatePayloadSizeMiB;
@@ -441,6 +444,15 @@ void MetricsReporterOmaha::ReportSuccessfulUpdateMetrics(
                           0,              // min: 0 min
                           365 * 24 * 60,  // max: 365 days ~= 1 year
                           50);            // num_buckets
+
+  metric = metrics::kMetricSuccessfulUpdateTotalDurationUptimeMinutes;
+  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(total_duration_uptime)
+            << " for metric " << metric;
+  metrics_lib_->SendToUMA(metric,
+                          static_cast<int>(total_duration_uptime.InMinutes()),
+                          0,             // min: 0 min
+                          30 * 24 * 60,  // max: 30 days
+                          50);           // num_buckets
 
   metric = metrics::kMetricSuccessfulUpdateRebootCount;
   LOG(INFO) << "Uploading reboot count of " << reboot_count << " for metric "

@@ -754,6 +754,7 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
         num_bytes_downloaded,
         download_overhead_percentage,
         duration,
+        duration_uptime,
         static_cast<int>(reboot_count),
         0);  // url_switch_count
   }
