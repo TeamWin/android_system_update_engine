@@ -187,7 +187,7 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCheckAllowed) {
 
 TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCanStart) {
   UpdateState update_state = UpdateState();
-  update_state.is_interactive = true;
+  update_state.interactive = true;
   update_state.is_delta_payload = false;
   update_state.first_seen = FixedTime();
   update_state.num_checks = 1;

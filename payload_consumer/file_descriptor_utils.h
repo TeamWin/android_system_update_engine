@@ -42,7 +42,7 @@ bool CopyAndHashExtents(
     uint64_t block_size,
     brillo::Blob* hash_out);
 
-// Reads blocks from |source| and caculates the hash. The blocks to read are
+// Reads blocks from |source| and calculates the hash. The blocks to read are
 // specified by |extents|. Stores the hash in |hash_out| if it is not null. The
 // block sizes are passed as |block_size|. In case of error reading, it returns
 // false and the value pointed by |hash_out| is undefined.

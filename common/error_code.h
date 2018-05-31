@@ -118,7 +118,7 @@ enum class ErrorCode : int {
   // modify the implementation of ErrorCode into a properly encapsulated class.
   kDevModeFlag = 1 << 31,
 
-  // Set if resuming an interruped update.
+  // Set if resuming an interrupted update.
   kResumedFlag = 1 << 30,
 
   // Set if using a dev/test image as opposed to an MP-signed image.

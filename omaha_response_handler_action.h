@@ -54,7 +54,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   // never be called
   void TerminateProcessing() override { CHECK(false); }
 
-  bool GotNoUpdateResponse() const { return got_no_update_response_; }
   const InstallPlan& install_plan() const { return install_plan_; }
 
   // Debugging/logging
@@ -72,9 +71,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
 
   // The install plan, if we have an update.
   InstallPlan install_plan_;
-
-  // True only if we got a response and the response said no updates
-  bool got_no_update_response_;
 
   // Public key path to use for payload verification.
   std::string key_path_;

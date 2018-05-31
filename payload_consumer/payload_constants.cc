@@ -21,12 +21,20 @@ namespace chromeos_update_engine {
 const uint64_t kChromeOSMajorPayloadVersion = 1;
 const uint64_t kBrilloMajorPayloadVersion = 2;
 
+const uint32_t kMinSupportedMinorPayloadVersion = 1;
+const uint32_t kMaxSupportedMinorPayloadVersion = 5;
+
 const uint32_t kFullPayloadMinorVersion = 0;
 const uint32_t kInPlaceMinorPayloadVersion = 1;
 const uint32_t kSourceMinorPayloadVersion = 2;
 const uint32_t kOpSrcHashMinorPayloadVersion = 3;
 const uint32_t kBrotliBsdiffMinorPayloadVersion = 4;
 const uint32_t kPuffdiffMinorPayloadVersion = 5;
+
+const uint64_t kMinSupportedMajorPayloadVersion = 1;
+const uint64_t kMaxSupportedMajorPayloadVersion = 2;
+
+const uint64_t kMaxPayloadHeaderSize = 24;
 
 const char kLegacyPartitionNameKernel[] = "boot";
 const char kLegacyPartitionNameRoot[] = "system";

@@ -33,6 +33,7 @@
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/file_writer.h"
 #include "update_engine/payload_consumer/install_plan.h"
+#include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -47,21 +48,6 @@ class PrefsInterface;
 
 class DeltaPerformer : public FileWriter {
  public:
-  enum MetadataParseResult {
-    kMetadataParseSuccess,
-    kMetadataParseError,
-    kMetadataParseInsufficientData,
-  };
-
-  static const uint64_t kDeltaVersionOffset;
-  static const uint64_t kDeltaVersionSize;
-  static const uint64_t kDeltaManifestSizeOffset;
-  static const uint64_t kDeltaManifestSizeSize;
-  static const uint64_t kDeltaMetadataSignatureSizeSize;
-  static const uint64_t kMaxPayloadHeaderSize;
-  static const uint64_t kSupportedMajorPayloadVersion;
-  static const uint32_t kSupportedMinorPayloadVersion;
-
   // Defines the granularity of progress logging in terms of how many "completed
   // chunks" we want to report at the most.
   static const unsigned kProgressLogMaxChunks;
@@ -81,14 +67,14 @@ class DeltaPerformer : public FileWriter {
                  DownloadActionDelegate* download_delegate,
                  InstallPlan* install_plan,
                  InstallPlan::Payload* payload,
-                 bool is_interactive)
+                 bool interactive)
       : prefs_(prefs),
         boot_control_(boot_control),
         hardware_(hardware),
         download_delegate_(download_delegate),
         install_plan_(install_plan),
         payload_(payload),
-        is_interactive_(is_interactive) {}
+        interactive_(interactive) {}
 
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
@@ -109,6 +95,10 @@ class DeltaPerformer : public FileWriter {
   // |current_partition_|. The manifest needs to be already parsed for this to
   // work. Returns whether the required file descriptors were successfully open.
   bool OpenCurrentPartition();
+
+  // Attempt to open the error-corrected device for the current partition.
+  // Returns whether the operation succeeded.
+  bool OpenCurrentECCPartition();
 
   // Closes the current partition file descriptors if open. Returns 0 on success
   // or -errno on error.
@@ -165,39 +155,27 @@ class DeltaPerformer : public FileWriter {
     public_key_path_ = public_key_path;
   }
 
-  // Set |*out_offset| to the byte offset where the size of the metadata
-  // signature is stored in a payload. Return true on success, if this field is
-  // not present in the payload, return false.
-  bool GetMetadataSignatureSizeOffset(uint64_t* out_offset) const;
-
-  // Set |*out_offset| to the byte offset at which the manifest protobuf begins
-  // in a payload. Return true on success, false if the offset is unknown.
-  bool GetManifestOffset(uint64_t* out_offset) const;
-
-  // Returns the size of the payload metadata, which includes the payload header
-  // and the manifest. If the header was not yet parsed, returns zero.
-  uint64_t GetMetadataSize() const;
-
-  // If the manifest was successfully parsed, copies it to |*out_manifest_p|.
-  // Returns true on success.
-  bool GetManifest(DeltaArchiveManifest* out_manifest_p) const;
-
   // Return true if header parsing is finished and no errors occurred.
   bool IsHeaderParsed() const;
-
-  // Returns the major payload version. If the version was not yet parsed,
-  // returns zero.
-  uint64_t GetMajorVersion() const;
 
   // Returns the delta minor version. If this value is defined in the manifest,
   // it returns that value, otherwise it returns the default value.
   uint32_t GetMinorVersion() const;
 
+  // Compare |calculated_hash| with source hash in |operation|, return false and
+  // dump hash and set |error| if don't match.
+  // |source_fd| is the file descriptor of the source partition.
+  static bool ValidateSourceHash(const brillo::Blob& calculated_hash,
+                                 const InstallOperation& operation,
+                                 const FileDescriptorPtr source_fd,
+                                 ErrorCode* error);
+
  private:
   friend class DeltaPerformerTest;
   friend class DeltaPerformerIntegrationTest;
   FRIEND_TEST(DeltaPerformerTest, BrilloMetadataSignatureSizeTest);
-  FRIEND_TEST(DeltaPerformerTest, BrilloVerifyMetadataSignatureTest);
+  FRIEND_TEST(DeltaPerformerTest, BrilloParsePayloadMetadataTest);
+  FRIEND_TEST(DeltaPerformerTest, ChooseSourceFDTest);
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
   // Parse and move the update instructions of all partitions into our local
@@ -235,16 +213,6 @@ class DeltaPerformer : public FileWriter {
   // Returns ErrorCode::kSuccess on match or a suitable error code otherwise.
   ErrorCode ValidateOperationHash(const InstallOperation& operation);
 
-  // Given the |payload|, verifies that the signed hash of its metadata matches
-  // what's specified in the install plan from Omaha (if present) or the
-  // metadata signature in payload itself (if present). Returns
-  // ErrorCode::kSuccess on match or a suitable error code otherwise. This
-  // method must be called before any part of the metadata is parsed so that a
-  // man-in-the-middle attack on the SSL connection to the payload server
-  // doesn't exploit any vulnerability in the code that parses the protocol
-  // buffer.
-  ErrorCode ValidateMetadataSignature(const brillo::Blob& payload);
-
   // Returns true on success.
   bool PerformInstallOperation(const InstallOperation& operation);
 
@@ -261,6 +229,13 @@ class DeltaPerformer : public FileWriter {
                                     ErrorCode* error);
   bool PerformPuffDiffOperation(const InstallOperation& operation,
                                 ErrorCode* error);
+
+  // For a given operation, choose the source fd to be used (raw device or error
+  // correction device) based on the source operation hash.
+  // Returns nullptr if the source hash mismatch cannot be corrected, and set
+  // the |error| accordingly.
+  FileDescriptorPtr ChooseSourceFD(const InstallOperation& operation,
+                                   ErrorCode* error);
 
   // Extracts the payload signature message from the blob on the |operation| if
   // the offset matches the one specified by the manifest. Returns whether the
@@ -317,6 +292,22 @@ class DeltaPerformer : public FileWriter {
   // partition when using a delta payload.
   FileDescriptorPtr source_fd_{nullptr};
 
+  // File descriptor of the error corrected source partition. Only set while
+  // updating partition using a delta payload for a partition where error
+  // correction is available. The size of the error corrected device is smaller
+  // than the underlying raw device, since it doesn't include the error
+  // correction blocks.
+  FileDescriptorPtr source_ecc_fd_{nullptr};
+
+  // The total number of operations that failed source hash verification but
+  // passed after falling back to the error-corrected |source_ecc_fd_| device.
+  uint64_t source_ecc_recovered_failures_{0};
+
+  // Whether opening the current partition as an error-corrected device failed.
+  // Used to avoid re-opening the same source partition if it is not actually
+  // error corrected.
+  bool source_ecc_open_failure_{false};
+
   // File descriptor of the target partition. Only set while performing the
   // operations of a given partition.
   FileDescriptorPtr target_fd_{nullptr};
@@ -325,13 +316,14 @@ class DeltaPerformer : public FileWriter {
   std::string source_path_;
   std::string target_path_;
 
+  PayloadMetadata payload_metadata_;
+
   // Parsed manifest. Set after enough bytes to parse the manifest were
   // downloaded.
   DeltaArchiveManifest manifest_;
   bool manifest_parsed_{false};
   bool manifest_valid_{false};
   uint64_t metadata_size_{0};
-  uint64_t manifest_size_{0};
   uint32_t metadata_signature_size_{0};
   uint64_t major_payload_version_{0};
 
@@ -396,19 +388,13 @@ class DeltaPerformer : public FileWriter {
   unsigned last_progress_chunk_{0};
 
   // If |true|, the update is user initiated (vs. periodic update checks).
-  bool is_interactive_{false};
+  bool interactive_{false};
 
   // The timeout after which we should force emitting a progress log (constant),
   // and the actual point in time for the next forced log to be emitted.
   const base::TimeDelta forced_progress_log_wait_{
       base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)};
   base::Time forced_progress_log_time_;
-
-  // The payload major payload version supported by DeltaPerformer.
-  uint64_t supported_major_version_{kSupportedMajorPayloadVersion};
-
-  // The delta minor payload version supported by DeltaPerformer.
-  uint32_t supported_minor_version_{kSupportedMinorPayloadVersion};
 
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };

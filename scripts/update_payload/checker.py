@@ -336,7 +336,7 @@ class PayloadChecker(object):
     self.new_kernel_fs_size = 0
     self.minor_version = None
     # TODO(*): When fixing crbug.com/794404, the major version should be
-    # correclty handled in update_payload scripts. So stop forcing
+    # correctly handled in update_payload scripts. So stop forcing
     # major_verions=1 here and set it to the correct value.
     self.major_version = 1
 
@@ -742,7 +742,7 @@ class PayloadChecker(object):
                                            self.block_size,
                                            op_name + '.data_length', 'dst')
     else:
-      # Check: data_length must be smaller than the alotted dst blocks.
+      # Check: data_length must be smaller than the allotted dst blocks.
       if data_length >= total_dst_blocks * self.block_size:
         raise error.PayloadError(
             '%s: data_length (%d) must be less than allotted dst block '
@@ -867,7 +867,7 @@ class PayloadChecker(object):
     if data_length is None:
       raise error.PayloadError('%s: missing data_{offset,length}.' % op_name)
 
-    # Check: data_length is strictly smaller than the alotted dst blocks.
+    # Check: data_length is strictly smaller than the allotted dst blocks.
     if data_length >= total_dst_blocks * self.block_size:
       raise error.PayloadError(
           '%s: data_length (%d) must be smaller than allotted dst space '

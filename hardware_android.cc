@@ -23,11 +23,10 @@
 #include <algorithm>
 #include <memory>
 
-#include <bootloader.h>
-
 #include <android-base/properties.h>
 #include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
+#include <bootloader_message/bootloader_message.h>
 
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"

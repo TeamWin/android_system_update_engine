@@ -73,4 +73,12 @@ off64_t FakeFileDescriptor::Seek(off64_t offset, int whence) {
   return offset_;
 }
 
+brillo::Blob FakeFileDescriptorData(size_t size) {
+  brillo::Blob ret(size);
+  FakeFileDescriptor fd;
+  fd.SetFileSize(size);
+  fd.Read(ret.data(), size);
+  return ret;
+}
+
 }  // namespace chromeos_update_engine

@@ -736,6 +736,7 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
   SetNumReboots(0);
 
   TimeDelta duration = GetUpdateDuration();
+  TimeDelta duration_uptime = GetUpdateDurationUptime();
 
   prefs_->Delete(kPrefsUpdateTimestampStart);
   prefs_->Delete(kPrefsUpdateDurationUptime);
@@ -756,6 +757,7 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
       total_bytes_by_source,
       download_overhead_percentage,
       duration,
+      duration_uptime,
       reboot_count,
       url_switch_count);
 }

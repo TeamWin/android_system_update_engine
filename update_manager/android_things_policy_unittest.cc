@@ -97,7 +97,7 @@ TEST_F(UmAndroidThingsPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
   ExpectPolicyStatus(
       EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmAndroidThingsPolicyTest,
@@ -140,7 +140,7 @@ TEST_F(UmAndroidThingsPolicyTest,
   ExpectPolicyStatus(
       EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_TRUE(result.is_interactive);
+  EXPECT_TRUE(result.interactive);
 }
 
 TEST_F(UmAndroidThingsPolicyTest,
@@ -156,7 +156,7 @@ TEST_F(UmAndroidThingsPolicyTest,
   ExpectPolicyStatus(
       EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_FALSE(result.is_interactive);
+  EXPECT_FALSE(result.interactive);
 }
 
 TEST_F(UmAndroidThingsPolicyTest, UpdateCanBeAppliedOk) {

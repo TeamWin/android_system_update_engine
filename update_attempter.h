@@ -161,7 +161,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   BootControlInterface::Slot GetRollbackSlot() const;
 
   // Initiates a reboot if the current state is
-  // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.
+  // UPDATED_NEED_REBOOT. Returns true on success, false otherwise.
   bool RebootIfNeeded();
 
   // DownloadActionDelegate methods:
@@ -199,7 +199,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   virtual bool GetBootTimeAtUpdate(base::Time *out_boot_time);
 
   // Returns a version OS version that was being used before the last reboot,
-  // and if that reboot happended to be into an update (current version).
+  // and if that reboot happened to be into an update (current version).
   // This will return an empty string otherwise.
   std::string const& GetPrevVersion() const { return prev_version_; }
 
@@ -342,7 +342,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Helper method of Update() to calculate the update-related parameters
   // from various sources and set the appropriate state. Please refer to
-  // Update() method for the meaning of the parametes.
+  // Update() method for the meaning of the parameters.
   bool CalculateUpdateParams(const std::string& app_version,
                              const std::string& omaha_url,
                              const std::string& target_channel,
@@ -355,7 +355,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // which type of scattering is enabled, etc.) and also updates/deletes
   // the corresponding prefs file used in scattering. Should be called
   // only after the device policy has been loaded and set in the system_state_.
-  void CalculateScatteringParams(bool is_interactive);
+  void CalculateScatteringParams(bool interactive);
 
   // Sets a random value for the waiting period to wait for before downloading
   // an update, if one available. This value will be upperbounded by the

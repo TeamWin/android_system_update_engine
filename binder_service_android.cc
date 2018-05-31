@@ -139,6 +139,20 @@ Status BinderUpdateEngineAndroidService::resetStatus() {
   return Status::ok();
 }
 
+Status BinderUpdateEngineAndroidService::verifyPayloadApplicable(
+    const android::String16& metadata_filename, bool* return_value) {
+  const std::string payload_metadata{
+      android::String8{metadata_filename}.string()};
+  LOG(INFO) << "Received a request of verifying payload metadata in "
+            << payload_metadata << ".";
+  brillo::ErrorPtr error;
+  *return_value =
+      service_delegate_->VerifyPayloadApplicable(payload_metadata, &error);
+  if (error != nullptr)
+    return ErrorPtrToStatus(error);
+  return Status::ok();
+}
+
 bool BinderUpdateEngineAndroidService::UnbindCallback(const IBinder* callback) {
   auto it = std::find_if(
       callbacks_.begin(),

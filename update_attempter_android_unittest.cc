@@ -140,7 +140,8 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsOnUpdateTerminated) {
                                  ErrorCode::kSuccess))
       .Times(1);
   EXPECT_CALL(*metrics_reporter_,
-              ReportSuccessfulUpdateMetrics(2, 0, _, _, _, _, duration, 3, _))
+              ReportSuccessfulUpdateMetrics(
+                  2, 0, _, _, _, _, duration, duration_uptime, 3, _))
       .Times(1);
 
   SetUpdateStatus(UpdateStatus::UPDATE_AVAILABLE);
@@ -181,10 +182,11 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsForBytesDownloaded) {
                   125,
                   _,
                   _,
+                  _,
                   _))
       .Times(1);
 
-  // The first update fails after receving 50 bytes in total.
+  // The first update fails after receiving 50 bytes in total.
   update_attempter_android_.BytesReceived(30, 50, 200);
   update_attempter_android_.ProcessingDone(nullptr, ErrorCode::kError);
   EXPECT_EQ(
