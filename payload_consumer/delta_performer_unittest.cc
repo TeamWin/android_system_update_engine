@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include <time.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -631,7 +632,7 @@ TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
 
 // Test that the error-corrected file descriptor is used to read the partition
 // since the source partition doesn't match the operation hash.
-TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyWhenNoHashFallbackTest) {
+TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyFallbackTest) {
   const size_t kCopyOperationSize = 4 * 4096;
   string source_path;
   EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX", &source_path, nullptr));
@@ -657,7 +658,7 @@ TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyWhenNoHashFallbackTest) {
 // Test that the error-corrected file descriptor is used to read a partition
 // when no hash is available for SOURCE_COPY but it falls back to the normal
 // file descriptor when the size of the error corrected one is too small.
-TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyFallbackTest) {
+TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyWhenNoHashFallbackTest) {
   const size_t kCopyOperationSize = 4 * 4096;
   string source_path;
   EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX", &source_path, nullptr));
@@ -681,6 +682,40 @@ TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyFallbackTest) {
   // This fallback doesn't count as an error-corrected operation since the
   // operation hash was not available.
   EXPECT_EQ(0U, GetSourceEccRecoveredFailures());
+}
+
+TEST_F(DeltaPerformerTest, ChooseSourceFDTest) {
+  const size_t kSourceSize = 4 * 4096;
+  string source_path;
+  EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX", &source_path, nullptr));
+  ScopedPathUnlinker path_unlinker(source_path);
+  // Write invalid data to the source image, which doesn't match the expected
+  // hash.
+  brillo::Blob invalid_data(kSourceSize, 0x55);
+  EXPECT_TRUE(utils::WriteFile(
+      source_path.c_str(), invalid_data.data(), invalid_data.size()));
+
+  performer_.source_fd_ = std::make_shared<EintrSafeFileDescriptor>();
+  performer_.source_fd_->Open(source_path.c_str(), O_RDONLY);
+  performer_.block_size_ = 4096;
+
+  // Setup the fec file descriptor as the fake stream, which matches
+  // |expected_data|.
+  FakeFileDescriptor* fake_fec = SetFakeECCFile(kSourceSize);
+  brillo::Blob expected_data = FakeFileDescriptorData(kSourceSize);
+
+  InstallOperation op;
+  *(op.add_src_extents()) = ExtentForRange(0, kSourceSize / 4096);
+  brillo::Blob src_hash;
+  EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
+  op.set_src_sha256_hash(src_hash.data(), src_hash.size());
+
+  ErrorCode error = ErrorCode::kSuccess;
+  EXPECT_EQ(performer_.source_ecc_fd_, performer_.ChooseSourceFD(op, &error));
+  EXPECT_EQ(ErrorCode::kSuccess, error);
+  // Verify that the fake_fec was actually used.
+  EXPECT_EQ(1U, fake_fec->GetReadOps().size());
+  EXPECT_EQ(1U, GetSourceEccRecoveredFailures());
 }
 
 TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
