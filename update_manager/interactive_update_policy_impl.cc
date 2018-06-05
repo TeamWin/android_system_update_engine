@@ -31,10 +31,10 @@ EvalStatus InteractiveUpdatePolicyImpl::UpdateCheckAllowed(
       ec->GetValue(updater_provider->var_forced_update_requested());
   if (forced_update_requested_p != nullptr &&
       *forced_update_requested_p != UpdateRequestStatus::kNone) {
-    result->is_interactive =
+    result->interactive =
         (*forced_update_requested_p == UpdateRequestStatus::kInteractive);
     LOG(INFO) << "Forced update signaled ("
-              << (result->is_interactive ? "interactive" : "periodic")
+              << (result->interactive ? "interactive" : "periodic")
               << "), allowing update check.";
     return EvalStatus::kSucceeded;
   }

@@ -42,7 +42,7 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
   result->rollback_allowed_milestones = -1;  // No version rolls should happen.
-  result->is_interactive = false;
+  result->interactive = false;
 
   // Ensure that the minimum interval is set. If there's no clock, this defaults
   // to always allowing the update.

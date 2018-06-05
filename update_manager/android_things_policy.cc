@@ -55,7 +55,7 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
   result->rollback_allowed_milestones = -1;
-  result->is_interactive = false;
+  result->interactive = false;
 
   // Build a list of policies to consult.  Note that each policy may modify the
   // result structure, even if it signals kContinue.
@@ -70,11 +70,11 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
       // A/B updates
       &enough_slots_ab_updates_policy,
 
-      // Unofficial builds should not perform periodic update checks.
-      &only_update_official_builds_policy,
-
       // Check to see if an interactive update was requested.
       &interactive_update_policy,
+
+      // Unofficial builds should not perform periodic update checks.
+      &only_update_official_builds_policy,
 
       // Ensure that periodic update checks are timed properly.
       &next_update_check_time_policy,

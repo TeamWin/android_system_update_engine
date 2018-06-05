@@ -31,14 +31,20 @@
 #include <brillo/strings/string_utils.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_interface.h"
 #include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector.h"
+#include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/file_descriptor.h"
+#include "update_engine/payload_consumer/file_descriptor_utils.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
+#include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_status_utils.h"
 
@@ -326,6 +332,95 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
   }
 }
 
+bool UpdateAttempterAndroid::VerifyPayloadApplicable(
+    const std::string& metadata_filename, brillo::ErrorPtr* error) {
+  FileDescriptorPtr fd(new EintrSafeFileDescriptor);
+  if (!fd->Open(metadata_filename.c_str(), O_RDONLY)) {
+    return LogAndSetError(
+        error, FROM_HERE, "Failed to open " + metadata_filename);
+  }
+  brillo::Blob metadata(kMaxPayloadHeaderSize);
+  if (!fd->Read(metadata.data(), metadata.size())) {
+    return LogAndSetError(
+        error,
+        FROM_HERE,
+        "Failed to read payload header from " + metadata_filename);
+  }
+  ErrorCode errorcode;
+  PayloadMetadata payload_metadata;
+  if (payload_metadata.ParsePayloadHeader(metadata, &errorcode) !=
+      MetadataParseResult::kSuccess) {
+    return LogAndSetError(error,
+                          FROM_HERE,
+                          "Failed to parse payload header: " +
+                              utils::ErrorCodeToString(errorcode));
+  }
+  metadata.resize(payload_metadata.GetMetadataSize() +
+                  payload_metadata.GetMetadataSignatureSize());
+  if (metadata.size() < kMaxPayloadHeaderSize) {
+    return LogAndSetError(
+        error,
+        FROM_HERE,
+        "Metadata size too small: " + std::to_string(metadata.size()));
+  }
+  if (!fd->Read(metadata.data() + kMaxPayloadHeaderSize,
+                metadata.size() - kMaxPayloadHeaderSize)) {
+    return LogAndSetError(
+        error,
+        FROM_HERE,
+        "Failed to read metadata and signature from " + metadata_filename);
+  }
+  fd->Close();
+  errorcode = payload_metadata.ValidateMetadataSignature(
+      metadata, "", base::FilePath(constants::kUpdatePayloadPublicKeyPath));
+  if (errorcode != ErrorCode::kSuccess) {
+    return LogAndSetError(error,
+                          FROM_HERE,
+                          "Failed to validate metadata signature: " +
+                              utils::ErrorCodeToString(errorcode));
+  }
+  DeltaArchiveManifest manifest;
+  if (!payload_metadata.GetManifest(metadata, &manifest)) {
+    return LogAndSetError(error, FROM_HERE, "Failed to parse manifest.");
+  }
+
+  BootControlInterface::Slot current_slot = boot_control_->GetCurrentSlot();
+  for (const PartitionUpdate& partition : manifest.partitions()) {
+    if (!partition.has_old_partition_info())
+      continue;
+    string partition_path;
+    if (!boot_control_->GetPartitionDevice(
+            partition.partition_name(), current_slot, &partition_path)) {
+      return LogAndSetError(
+          error,
+          FROM_HERE,
+          "Failed to get partition device for " + partition.partition_name());
+    }
+    if (!fd->Open(partition_path.c_str(), O_RDONLY)) {
+      return LogAndSetError(
+          error, FROM_HERE, "Failed to open " + partition_path);
+    }
+    for (const InstallOperation& operation : partition.operations()) {
+      if (!operation.has_src_sha256_hash())
+        continue;
+      brillo::Blob source_hash;
+      if (!fd_utils::ReadAndHashExtents(fd,
+                                        operation.src_extents(),
+                                        manifest.block_size(),
+                                        &source_hash)) {
+        return LogAndSetError(
+            error, FROM_HERE, "Failed to hash " + partition_path);
+      }
+      if (!DeltaPerformer::ValidateSourceHash(
+              source_hash, operation, fd, &errorcode)) {
+        return false;
+      }
+    }
+    fd->Close();
+  }
+  return true;
+}
+
 void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
                                             ErrorCode code) {
   LOG(INFO) << "Processing Done.";
@@ -535,7 +630,7 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
                          hardware_,
                          nullptr,           // system_state, not used.
                          download_fetcher,  // passes ownership
-                         true /* is_interactive */));
+                         true /* interactive */));
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
       new FilesystemVerifierAction());
 
@@ -653,6 +748,7 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
         num_bytes_downloaded,
         download_overhead_percentage,
         duration,
+        duration_uptime,
         static_cast<int>(reboot_count),
         0);  // url_switch_count
   }

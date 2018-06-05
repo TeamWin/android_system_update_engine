@@ -183,7 +183,7 @@ TEST_F(P2PManagerTest, HousekeepingCountLimit) {
 }
 
 // Check that we keep files with the .$EXT.p2p extension not older
-// than some specificed age (5 days, in this test).
+// than some specific age (5 days, in this test).
 TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
   // We set the cutoff time to be 1 billion seconds (01:46:40 UTC on 9
   // September 2001 - arbitrary number, but constant to avoid test

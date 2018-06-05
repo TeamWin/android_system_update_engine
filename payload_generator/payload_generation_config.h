@@ -154,7 +154,7 @@ struct PayloadGenerationConfig {
   // if is_full is false, so we are requested a delta payload.
   ImageConfig source;
 
-  // Wheter the requested payload is a delta payload.
+  // Whether the requested payload is a delta payload.
   bool is_delta = false;
 
   // The major/minor version of the payload.

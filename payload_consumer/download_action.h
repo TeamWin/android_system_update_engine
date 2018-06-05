@@ -79,7 +79,7 @@ class DownloadAction : public InstallPlanAction,
                  HardwareInterface* hardware,
                  SystemState* system_state,
                  HttpFetcher* http_fetcher,
-                 bool is_interactive);
+                 bool interactive);
   ~DownloadAction() override;
 
   // InstallPlanAction overrides.
@@ -158,7 +158,7 @@ class DownloadAction : public InstallPlanAction,
   // If |true|, the update is user initiated (vs. periodic update checks). Hence
   // the |delta_performer_| can decide not to use O_DSYNC flag for faster
   // update.
-  bool is_interactive_;
+  bool interactive_;
 
   // The FileWriter that downloaded data should be written to. It will
   // either point to *decompressing_file_writer_ or *delta_performer_.

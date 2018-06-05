@@ -777,7 +777,7 @@ static bool GetFileFormatELF(const uint8_t* buffer, size_t size,
   if (size < offsetof(Elf32_Ehdr, e_machine) + sizeof(hdr->e_machine))
     return true;
   uint16_t e_machine;
-  // Fix endianess regardless of the host endianess.
+  // Fix endianness regardless of the host endianness.
   if (ei_data == ELFDATA2LSB)
     e_machine = le16toh(hdr->e_machine);
   else

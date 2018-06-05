@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
-#define UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
+#ifndef UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_
+#define UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_
 
 #include <string>
 
@@ -61,16 +61,17 @@ class MockMetricsReporter : public MetricsReporterInterface {
 
   MOCK_METHOD0(ReportAbnormallyTerminatedUpdateAttemptMetrics, void());
 
-  MOCK_METHOD9(ReportSuccessfulUpdateMetrics,
-               void(int attempt_count,
-                    int updates_abandoned_count,
-                    PayloadType payload_type,
-                    int64_t payload_size,
-                    int64_t num_bytes_downloaded[kNumDownloadSources],
-                    int download_overhead_percentage,
-                    base::TimeDelta total_duration,
-                    int reboot_count,
-                    int url_switch_count));
+  MOCK_METHOD10(ReportSuccessfulUpdateMetrics,
+                void(int attempt_count,
+                     int updates_abandoned_count,
+                     PayloadType payload_type,
+                     int64_t payload_size,
+                     int64_t num_bytes_downloaded[kNumDownloadSources],
+                     int download_overhead_percentage,
+                     base::TimeDelta total_duration,
+                     base::TimeDelta total_duration_uptime,
+                     int reboot_count,
+                     int url_switch_count));
 
   MOCK_METHOD2(ReportCertificateCheckMetrics,
                void(ServerToCheck server_to_check,
@@ -92,4 +93,4 @@ class MockMetricsReporter : public MetricsReporterInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_MOCK_METRICS_REPORTER_H
+#endif  // UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_

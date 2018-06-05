@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
               "Don't daemon()ize; run in foreground.");
 
   chromeos_update_engine::Terminator::Init();
-  brillo::FlagHelper::Init(argc, argv, "Chromium OS Update Engine");
+  brillo::FlagHelper::Init(argc, argv, "A/B Update Engine");
 
   // We have two logging flags "--logtostderr" and "--logtofile"; and the logic
   // to choose the logging destination is:
@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
   if (!FLAGS_foreground)
     PLOG_IF(FATAL, daemon(0, 0) == 1) << "daemon() failed";
 
-  LOG(INFO) << "Chrome OS Update Engine starting";
+  LOG(INFO) << "A/B Update Engine starting";
 
   // xz-embedded requires to initialize its CRC-32 table once on startup.
   xz_crc32_init();
@@ -196,7 +196,6 @@ int main(int argc, char** argv) {
 
   chromeos_update_engine::Subprocess::Get().FlushBufferedLogsAtExit();
 
-  LOG(INFO) << "Chrome OS Update Engine terminating with exit code "
-            << exit_code;
+  LOG(INFO) << "A/B Update Engine terminating with exit code " << exit_code;
   return exit_code;
 }

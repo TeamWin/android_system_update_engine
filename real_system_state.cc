@@ -62,7 +62,7 @@ bool RealSystemState::Initialize() {
 
   hardware_ = hardware::CreateHardware();
   if (!hardware_) {
-    LOG(ERROR) << "Error intializing the HardwareInterface.";
+    LOG(ERROR) << "Error initializing the HardwareInterface.";
     return false;
   }
 
@@ -76,13 +76,13 @@ bool RealSystemState::Initialize() {
 
   connection_manager_ = connection_manager::CreateConnectionManager(this);
   if (!connection_manager_) {
-    LOG(ERROR) << "Error intializing the ConnectionManagerInterface.";
+    LOG(ERROR) << "Error initializing the ConnectionManagerInterface.";
     return false;
   }
 
   power_manager_ = power_manager::CreatePowerManager();
   if (!power_manager_) {
-    LOG(ERROR) << "Error intializing the PowerManagerInterface.";
+    LOG(ERROR) << "Error initializing the PowerManagerInterface.";
     return false;
   }
 

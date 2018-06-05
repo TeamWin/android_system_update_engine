@@ -48,7 +48,6 @@ OmahaResponseHandlerAction::OmahaResponseHandlerAction(
 OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state, const string& deadline_file)
     : system_state_(system_state),
-      got_no_update_response_(false),
       key_path_(constants::kUpdatePayloadPublicKeyPath),
       deadline_file_(deadline_file) {}
 
@@ -57,7 +56,6 @@ void OmahaResponseHandlerAction::PerformAction() {
   ScopedActionCompleter completer(processor_, this);
   const OmahaResponse& response = GetInputObject();
   if (!response.update_exists) {
-    got_no_update_response_ = true;
     LOG(INFO) << "There are no updates. Aborting.";
     completer.set_code(ErrorCode::kNoUpdate);
     return;
@@ -160,7 +158,7 @@ void OmahaResponseHandlerAction::PerformAction() {
     install_plan_.is_rollback = true;
   }
 
-  if (params->ShouldPowerwash())
+  if (response.powerwash_required || params->ShouldPowerwash())
     install_plan_.powerwash_required = true;
 
   TEST_AND_RETURN(HasOutputPipe());

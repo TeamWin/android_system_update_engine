@@ -72,6 +72,9 @@ struct OmahaResponse {
   // True if the Omaha rule instructs us to disable p2p for sharing.
   bool disable_p2p_for_sharing = false;
 
+  // True if the Omaha rule instructs us to powerwash.
+  bool powerwash_required = false;
+
   // If not blank, a base-64 encoded representation of the PEM-encoded
   // public key in the response.
   std::string public_key_rsa;

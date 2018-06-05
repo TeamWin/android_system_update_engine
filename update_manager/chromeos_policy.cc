@@ -204,7 +204,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
   result->rollback_allowed_milestones = -1;
-  result->is_interactive = false;
+  result->interactive = false;
 
   EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;
   EnterpriseDevicePolicyImpl enterprise_device_policy;
@@ -329,7 +329,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     bool is_scattering_applicable = false;
     result->scatter_wait_period = kZeroInterval;
     result->scatter_check_threshold = 0;
-    if (!update_state.is_interactive) {
+    if (!update_state.interactive) {
       const bool* is_oobe_enabled_p = ec->GetValue(
           state->config_provider()->var_is_oobe_enabled());
       if (is_oobe_enabled_p && !(*is_oobe_enabled_p)) {
@@ -377,7 +377,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     // interactive, and other limits haven't been reached.
     if (update_state.p2p_downloading_disabled) {
       LOG(INFO) << "Blocked P2P downloading because it is disabled by Omaha.";
-    } else if (update_state.is_interactive) {
+    } else if (update_state.interactive) {
       LOG(INFO) << "Blocked P2P downloading because update is interactive.";
     } else if (update_state.p2p_num_attempts >= kMaxP2PAttempts) {
       LOG(INFO) << "Blocked P2P downloading as it was attempted too many "
@@ -577,7 +577,7 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
   bool may_backoff = false;
   if (update_state.is_backoff_disabled) {
     LOG(INFO) << "Backoff disabled by Omaha.";
-  } else if (update_state.is_interactive) {
+  } else if (update_state.interactive) {
     LOG(INFO) << "No backoff for interactive updates.";
   } else if (update_state.is_delta_payload) {
     LOG(INFO) << "No backoff for delta payloads.";
