@@ -135,7 +135,7 @@ TYPED_TEST(ZipTest, SimpleTest) {
   brillo::Blob decompressed;
   EXPECT_TRUE(this->ZipDecompress(out, &decompressed));
   EXPECT_EQ(in.size(), decompressed.size());
-  EXPECT_TRUE(!memcmp(in.data(), decompressed.data(), in.size()));
+  EXPECT_EQ(0, memcmp(in.data(), decompressed.data(), in.size()));
 }
 
 TYPED_TEST(ZipTest, PoorCompressionTest) {
@@ -163,6 +163,20 @@ TYPED_TEST(ZipTest, EmptyInputsTest) {
 
   EXPECT_TRUE(this->ZipCompress(in, &out));
   EXPECT_EQ(0U, out.size());
+}
+
+TYPED_TEST(ZipTest, CompressELFTest) {
+  string path = test_utils::GetBuildArtifactsPath("delta_generator");
+  brillo::Blob in;
+  utils::ReadFile(path, &in);
+  brillo::Blob out;
+  EXPECT_TRUE(this->ZipCompress(in, &out));
+  EXPECT_LT(out.size(), in.size());
+  EXPECT_GT(out.size(), 0U);
+  brillo::Blob decompressed;
+  EXPECT_TRUE(this->ZipDecompress(out, &decompressed));
+  EXPECT_EQ(in.size(), decompressed.size());
+  EXPECT_EQ(0, memcmp(in.data(), decompressed.data(), in.size()));
 }
 
 }  // namespace chromeos_update_engine
