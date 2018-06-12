@@ -256,9 +256,6 @@ TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
 
   params_.hwid_ = string("SNOW 12345");
   EXPECT_TRUE(params_.CollectECFWVersions());
-
-  params_.hwid_ = string("SAMS ALEX 12345");
-  EXPECT_TRUE(params_.CollectECFWVersions());
 }
 
 }  // namespace chromeos_update_engine
