@@ -39,4 +39,6 @@ interface IUpdateEngine {
   void resetStatus();
   /** @hide */
   boolean verifyPayloadApplicable(in String metadataFilename);
+  /** @hide */
+  void setPerformanceMode(in boolean enable);
 }

@@ -65,6 +65,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
   android::binder::Status resetStatus() override;
   android::binder::Status verifyPayloadApplicable(
       const android::String16& metadata_filename, bool* return_value) override;
+  android::binder::Status setPerformanceMode(bool enable) override;
 
  private:
   // Remove the passed |callback| from the list of registered callbacks. Called

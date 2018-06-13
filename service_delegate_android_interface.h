@@ -76,6 +76,8 @@ class ServiceDelegateAndroidInterface {
   virtual bool VerifyPayloadApplicable(const std::string& metadata_filename,
                                        brillo::ErrorPtr* error) = 0;
 
+  virtual bool SetPerformanceMode(bool enable, brillo::ErrorPtr* error) = 0;
+
  protected:
   ServiceDelegateAndroidInterface() = default;
 };

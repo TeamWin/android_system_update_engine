@@ -131,6 +131,7 @@ cc_defaults {
         "libbase",
         "libcrypto",
         "libfec",
+        "libprocessgroup",
     ],
 }
 
