@@ -30,6 +30,8 @@
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
 #include <log/log_safetynet.h>
+#include <cutils/sched_policy.h>
+#include <log/log.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code_utils.h"
@@ -109,6 +111,7 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       clock_(new Clock()) {
   metrics_reporter_ = metrics::CreateMetricsReporter();
   network_selector_ = network::CreateNetworkSelector();
+  set_cpuset_policy(0, SP_BACKGROUND);
 }
 
 UpdateAttempterAndroid::~UpdateAttempterAndroid() {
@@ -420,6 +423,18 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
     }
     fd->Close();
   }
+  return true;
+}
+
+bool UpdateAttempterAndroid::SetPerformanceMode(bool enable,
+                                                brillo::ErrorPtr* error) {
+  LOG(INFO) << (enable ? "Enabling" : "Disabling") << " performance mode.";
+
+  if (performance_mode_ == enable)
+    return true;
+  if (set_cpuset_policy(0, enable ? SP_FOREGROUND : SP_BACKGROUND) < 0)
+    return LogAndSetError(error, FROM_HERE, "Could not change policy");
+  performance_mode_ = enable;
   return true;
 }
 

@@ -132,6 +132,7 @@ int UpdateEngineClientAndroid::OnInit() {
               false,
               "Follow status update changes until a final state is reached. "
               "Exit status is 0 if the update succeeded, and 1 otherwise.");
+  DEFINE_bool(perf_mode, false, "Enable perf mode.");
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
@@ -180,6 +181,10 @@ int UpdateEngineClientAndroid::OnInit() {
 
   if (FLAGS_reset_status) {
     return ExitWhenIdle(service_->resetStatus());
+  }
+
+  if (FLAGS_perf_mode) {
+    return ExitWhenIdle(service_->setPerformanceMode(true));
   }
 
   if (FLAGS_follow) {
