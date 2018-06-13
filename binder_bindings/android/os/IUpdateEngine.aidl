@@ -37,4 +37,6 @@ interface IUpdateEngine {
   void cancel();
   /** @hide */
   void resetStatus();
+  /** @hide */
+  void setPerformanceMode(in boolean enable);
 }

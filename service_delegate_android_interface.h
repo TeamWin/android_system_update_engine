@@ -70,6 +70,8 @@ class ServiceDelegateAndroidInterface {
   // of error, returns false and sets |error| accordingly.
   virtual bool ResetStatus(brillo::ErrorPtr* error) = 0;
 
+  virtual bool SetPerformanceMode(bool enable, brillo::ErrorPtr* error) = 0;
+
  protected:
   ServiceDelegateAndroidInterface() = default;
 };

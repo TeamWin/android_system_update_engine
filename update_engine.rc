@@ -2,4 +2,3 @@ service update_engine /system/bin/update_engine --logtostderr --foreground
     class late_start
     user root
     group root system wakelock inet cache
-    writepid /dev/cpuset/system-background/tasks

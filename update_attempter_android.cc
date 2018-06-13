@@ -27,6 +27,7 @@
 #include <brillo/data_encoding.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
+#include <cutils/sched_policy.h>
 #include <log/log.h>
 
 #include "update_engine/common/constants.h"
@@ -88,6 +89,7 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       hardware_(hardware),
       processor_(new ActionProcessor()) {
   network_selector_ = network::CreateNetworkSelector();
+  set_cpuset_policy(0, SP_BACKGROUND);
 }
 
 UpdateAttempterAndroid::~UpdateAttempterAndroid() {
@@ -288,6 +290,18 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
           FROM_HERE,
           "Reset not allowed in this state. Cancel the ongoing update first");
   }
+}
+
+bool UpdateAttempterAndroid::SetPerformanceMode(bool enable,
+                                                brillo::ErrorPtr* error) {
+  LOG(INFO) << (enable ? "Enabling" : "Disabling") << " performance mode.";
+
+  if (performance_mode_ == enable)
+    return true;
+  if (set_cpuset_policy(0, enable ? SP_FOREGROUND : SP_BACKGROUND) < 0)
+    return LogAndSetError(error, FROM_HERE, "Could not change policy");
+  performance_mode_ = enable;
+  return true;
 }
 
 void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,

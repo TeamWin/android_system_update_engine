@@ -66,6 +66,7 @@ class UpdateAttempterAndroid
   bool ResumeUpdate(brillo::ErrorPtr* error) override;
   bool CancelUpdate(brillo::ErrorPtr* error) override;
   bool ResetStatus(brillo::ErrorPtr* error) override;
+  bool SetPerformanceMode(bool enable, brillo::ErrorPtr* error) override;
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
@@ -161,6 +162,8 @@ class UpdateAttempterAndroid
   // Whether we have marked the current slot as good. This step is required
   // before applying an update to the other slot.
   bool updated_boot_flags_ = false;
+
+  bool performance_mode_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempterAndroid);
 };
