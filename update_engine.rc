@@ -2,7 +2,7 @@ service update_engine /system/bin/update_engine --logtostderr --logtofile --fore
     class late_start
     user root
     group root system wakelock inet cache media_rw
-    writepid /dev/cpuset/system-background/tasks /dev/blkio/background/tasks
+    writepid /dev/blkio/background/tasks
     disabled
 
 on property:ro.boot.slot_suffix=*

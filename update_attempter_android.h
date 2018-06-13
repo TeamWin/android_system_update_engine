@@ -86,6 +86,8 @@ class UpdateAttempterAndroid
       std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface> callback,
       brillo::ErrorPtr* error) override;
 
+  bool SetPerformanceMode(bool enable, brillo::ErrorPtr* error) override;
+
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
                       ErrorCode code) override;
@@ -235,6 +237,8 @@ class UpdateAttempterAndroid
   // Result of previous CleanupPreviousUpdateAction. Nullopt If
   // CleanupPreviousUpdateAction has not been executed.
   std::optional<ErrorCode> cleanup_previous_update_code_{std::nullopt};
+
+  bool performance_mode_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempterAndroid);
 };

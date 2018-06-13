@@ -76,6 +76,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
       int64_t* return_value) override;
   android::binder::Status cleanupSuccessfulUpdate(
       const android::sp<android::os::IUpdateEngineCallback>& callback) override;
+  android::binder::Status setPerformanceMode(bool enable) override;
 
  private:
   // Remove the passed |callback| from the list of registered callbacks. Called
