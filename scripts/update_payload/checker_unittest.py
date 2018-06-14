@@ -485,13 +485,16 @@ class PayloadCheckerTest(mox.MoxTestBase):
                    fail_bad_nki or fail_bad_nri or fail_old_kernel_fs_size or
                    fail_old_rootfs_fs_size or fail_new_kernel_fs_size or
                    fail_new_rootfs_fs_size)
+    part_sizes = {
+        common.ROOTFS: rootfs_part_size,
+        common.KERNEL: kernel_part_size
+    }
+
     if should_fail:
       self.assertRaises(PayloadError, payload_checker._CheckManifest, report,
-                        rootfs_part_size, kernel_part_size)
+                        part_sizes)
     else:
-      self.assertIsNone(payload_checker._CheckManifest(report,
-                                                       rootfs_part_size,
-                                                       kernel_part_size))
+      self.assertIsNone(payload_checker._CheckManifest(report, part_sizes))
 
   def testCheckLength(self):
     """Tests _CheckLength()."""
@@ -1085,7 +1088,10 @@ class PayloadCheckerTest(mox.MoxTestBase):
     report = checker._PayloadReport()
 
     # We have to check the manifest first in order to set signature attributes.
-    payload_checker._CheckManifest(report, rootfs_part_size, kernel_part_size)
+    payload_checker._CheckManifest(report, {
+        common.ROOTFS: rootfs_part_size,
+        common.KERNEL: kernel_part_size
+    })
 
     should_fail = (fail_empty_sigs_blob or fail_missing_pseudo_op or
                    fail_mismatched_pseudo_op or fail_sig_missing_fields or

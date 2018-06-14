@@ -28,6 +28,7 @@ from __future__ import print_function
 
 import array
 import base64
+import collections
 import hashlib
 import itertools
 import os
@@ -330,10 +331,10 @@ class PayloadChecker(object):
     # Reset state; these will be assigned when the manifest is checked.
     self.sigs_offset = 0
     self.sigs_size = 0
-    self.old_rootfs_fs_size = 0
-    self.old_kernel_fs_size = 0
-    self.new_rootfs_fs_size = 0
-    self.new_kernel_fs_size = 0
+    self.old_part_info = {}
+    self.new_part_info = {}
+    self.new_fs_sizes = collections.defaultdict(int)
+    self.old_fs_sizes = collections.defaultdict(int)
     self.minor_version = None
     # TODO(*): When fixing crbug.com/794404, the major version should be
     # correctly handled in update_payload scripts. So stop forcing
@@ -368,22 +369,24 @@ class PayloadChecker(object):
     Raises:
       error.PayloadError if a mandatory element is missing.
     """
+    element_result = collections.namedtuple('element_result', ['msg', 'report'])
+
     if not msg.HasField(name):
       if is_mandatory:
         raise error.PayloadError('%smissing mandatory %s %r.' %
                                  (msg_name + ' ' if msg_name else '',
                                   'sub-message' if is_submsg else 'field',
                                   name))
-      return None, None
+      return element_result(None, None)
 
     value = getattr(msg, name)
     if is_submsg:
-      return value, report and report.AddSubReport(name)
+      return element_result(value, report and report.AddSubReport(name))
     else:
       if report:
         report.AddField(name, convert(value), linebreak=linebreak,
                         indent=indent)
-      return value, None
+      return element_result(value, None)
 
   @staticmethod
   def _CheckMandatoryField(msg, field_name, report, msg_name, convert=str,
@@ -544,13 +547,12 @@ class PayloadChecker(object):
       raise error.PayloadError('Unsupported minor version: %d' %
                                self.minor_version)
 
-  def _CheckManifest(self, report, rootfs_part_size=0, kernel_part_size=0):
+  def _CheckManifest(self, report, part_sizes=None):
     """Checks the payload manifest.
 
     Args:
       report: A report object to add to.
-      rootfs_part_size: Size of the rootfs partition in bytes.
-      kernel_part_size: Size of the kernel partition in bytes.
+      part_sizes: Map of partition label to partition size in bytes.
 
     Returns:
       A tuple consisting of the partition block size used during the update
@@ -559,6 +561,9 @@ class PayloadChecker(object):
     Raises:
       error.PayloadError if any of the checks fail.
     """
+    if part_sizes is None:
+      part_sizes = collections.defaultdict(int)
+
     manifest = self.payload.manifest
     report.AddSection('manifest')
 
@@ -577,39 +582,38 @@ class PayloadChecker(object):
     self._CheckPresentIff(self.sigs_offset, self.sigs_size,
                           'signatures_offset', 'signatures_size', 'manifest')
 
+    for part in common.CROS_PARTITIONS:
+      self.old_part_info[part] = self._CheckOptionalSubMsg(
+          manifest, 'old_%s_info' % part, report)
+      self.new_part_info[part] = self._CheckMandatorySubMsg(
+          manifest, 'new_%s_info' % part, report, 'manifest')
+
     # Check: old_kernel_info <==> old_rootfs_info.
-    oki_msg, oki_report = self._CheckOptionalSubMsg(manifest,
-                                                    'old_kernel_info', report)
-    ori_msg, ori_report = self._CheckOptionalSubMsg(manifest,
-                                                    'old_rootfs_info', report)
-    self._CheckPresentIff(oki_msg, ori_msg, 'old_kernel_info',
-                          'old_rootfs_info', 'manifest')
-    if oki_msg:  # equivalently, ori_msg
+    self._CheckPresentIff(self.old_part_info[common.KERNEL].msg,
+                          self.old_part_info[common.ROOTFS].msg,
+                          'old_kernel_info', 'old_rootfs_info', 'manifest')
+
+    if self.old_part_info[common.KERNEL].msg:  # equivalently, rootfs msg
       # Assert/mark delta payload.
       if self.payload_type == _TYPE_FULL:
         raise error.PayloadError(
             'Apparent full payload contains old_{kernel,rootfs}_info.')
       self.payload_type = _TYPE_DELTA
 
-      # Check: {size, hash} present in old_{kernel,rootfs}_info.
-      self.old_kernel_fs_size = self._CheckMandatoryField(
-          oki_msg, 'size', oki_report, 'old_kernel_info')
-      self._CheckMandatoryField(oki_msg, 'hash', oki_report, 'old_kernel_info',
-                                convert=common.FormatSha256)
-      self.old_rootfs_fs_size = self._CheckMandatoryField(
-          ori_msg, 'size', ori_report, 'old_rootfs_info')
-      self._CheckMandatoryField(ori_msg, 'hash', ori_report, 'old_rootfs_info',
-                                convert=common.FormatSha256)
+      for part in common.CROS_PARTITIONS:
+        # Check: {size, hash} present in old_{kernel,rootfs}_info.
+        field = 'old_%s_info' % part
+        msg, report = self.old_part_info[part]
+        self.old_fs_sizes[part] = self._CheckMandatoryField(msg, 'size',
+                                                            report, field)
+        self._CheckMandatoryField(msg, 'hash', report, field,
+                                  convert=common.FormatSha256)
 
-      # Check: old_{kernel,rootfs} size must fit in respective partition.
-      if kernel_part_size and self.old_kernel_fs_size > kernel_part_size:
-        raise error.PayloadError(
-            'Old kernel content (%d) exceed partition size (%d).' %
-            (self.old_kernel_fs_size, kernel_part_size))
-      if rootfs_part_size and self.old_rootfs_fs_size > rootfs_part_size:
-        raise error.PayloadError(
-            'Old rootfs content (%d) exceed partition size (%d).' %
-            (self.old_rootfs_fs_size, rootfs_part_size))
+        # Check: old_{kernel,rootfs} size must fit in respective partition.
+        if self.old_fs_sizes[part] > part_sizes[part] > 0:
+          raise error.PayloadError(
+              'Old %s content (%d) exceed partition size (%d).' %
+              (part, self.old_fs_sizes[part], part_sizes[part]))
     else:
       # Assert/mark full payload.
       if self.payload_type == _TYPE_DELTA:
@@ -617,31 +621,21 @@ class PayloadChecker(object):
             'Apparent delta payload missing old_{kernel,rootfs}_info.')
       self.payload_type = _TYPE_FULL
 
-    # Check: new_kernel_info present; contains {size, hash}.
-    nki_msg, nki_report = self._CheckMandatorySubMsg(
-        manifest, 'new_kernel_info', report, 'manifest')
-    self.new_kernel_fs_size = self._CheckMandatoryField(
-        nki_msg, 'size', nki_report, 'new_kernel_info')
-    self._CheckMandatoryField(nki_msg, 'hash', nki_report, 'new_kernel_info',
-                              convert=common.FormatSha256)
+    # Check: new_{kernel,rootfs}_info present; contains {size, hash}.
+    for part in common.CROS_PARTITIONS:
+      field = 'new_%s_info' % part
+      msg, report = self.new_part_info[part]
 
-    # Check: new_rootfs_info present; contains {size, hash}.
-    nri_msg, nri_report = self._CheckMandatorySubMsg(
-        manifest, 'new_rootfs_info', report, 'manifest')
-    self.new_rootfs_fs_size = self._CheckMandatoryField(
-        nri_msg, 'size', nri_report, 'new_rootfs_info')
-    self._CheckMandatoryField(nri_msg, 'hash', nri_report, 'new_rootfs_info',
-                              convert=common.FormatSha256)
+      self.new_fs_sizes[part] = self._CheckMandatoryField(msg, 'size', report,
+                                                          field)
+      self._CheckMandatoryField(msg, 'hash', report, field,
+                                convert=common.FormatSha256)
 
-    # Check: new_{kernel,rootfs} size must fit in respective partition.
-    if kernel_part_size and self.new_kernel_fs_size > kernel_part_size:
-      raise error.PayloadError(
-          'New kernel content (%d) exceed partition size (%d).' %
-          (self.new_kernel_fs_size, kernel_part_size))
-    if rootfs_part_size and self.new_rootfs_fs_size > rootfs_part_size:
-      raise error.PayloadError(
-          'New rootfs content (%d) exceed partition size (%d).' %
-          (self.new_rootfs_fs_size, rootfs_part_size))
+      # Check: new_{kernel,rootfs} size must fit in respective partition.
+      if self.new_fs_sizes[part] > part_sizes[part] > 0:
+        raise error.PayloadError(
+            'New %s content (%d) exceed partition size (%d).' %
+            (part, self.new_fs_sizes[part], part_sizes[part]))
 
     # Check: minor_version makes sense for the payload type. This check should
     # run after the payload type has been set.
@@ -1282,7 +1276,10 @@ class PayloadChecker(object):
       report.AddField('manifest len', self.payload.header.manifest_len)
 
       # Part 2: Check the manifest.
-      self._CheckManifest(report, rootfs_part_size, kernel_part_size)
+      self._CheckManifest(report, {
+          common.ROOTFS: rootfs_part_size,
+          common.KERNEL: kernel_part_size
+      })
       assert self.payload_type, 'payload type should be known by now'
 
       # Infer the usable partition size when validating rootfs operations:
@@ -1291,8 +1288,8 @@ class PayloadChecker(object):
       #   a known constant size. This is necessary because older deltas may
       #   exceed the filesystem size when moving data blocks around.
       # - Otherwise, use the encoded filesystem size.
-      new_rootfs_usable_size = self.new_rootfs_fs_size
-      old_rootfs_usable_size = self.old_rootfs_fs_size
+      new_rootfs_usable_size = self.new_fs_sizes[common.ROOTFS]
+      old_rootfs_usable_size = self.old_fs_sizes[common.ROOTFS]
       if rootfs_part_size:
         new_rootfs_usable_size = rootfs_part_size
         old_rootfs_usable_size = rootfs_part_size
@@ -1307,19 +1304,20 @@ class PayloadChecker(object):
       report.AddSection('rootfs operations')
       total_blob_size = self._CheckOperations(
           self.payload.manifest.install_operations, report,
-          'install_operations', self.old_rootfs_fs_size,
-          self.new_rootfs_fs_size, old_rootfs_usable_size,
+          'install_operations', self.old_fs_sizes[common.ROOTFS],
+          self.new_fs_sizes[common.ROOTFS], old_rootfs_usable_size,
           new_rootfs_usable_size, 0, False)
 
       # Part 4: Examine kernel operations.
       # TODO(garnold)(chromium:243559) as above.
       report.AddSection('kernel operations')
+      old_kernel_fs_size = self.old_fs_sizes[common.KERNEL]
+      new_kernel_fs_size = self.new_fs_sizes[common.KERNEL]
       total_blob_size += self._CheckOperations(
           self.payload.manifest.kernel_install_operations, report,
-          'kernel_install_operations', self.old_kernel_fs_size,
-          self.new_kernel_fs_size,
-          kernel_part_size if kernel_part_size else self.old_kernel_fs_size,
-          kernel_part_size if kernel_part_size else self.new_kernel_fs_size,
+          'kernel_install_operations', old_kernel_fs_size, new_kernel_fs_size,
+          kernel_part_size if kernel_part_size else old_kernel_fs_size,
+          kernel_part_size if kernel_part_size else new_kernel_fs_size,
           total_blob_size, True)
 
       # Check: Operations data reach the end of the payload file.
