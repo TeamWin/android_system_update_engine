@@ -1205,10 +1205,13 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_checker = _GetPayloadChecker(payload_gen.WriteToFileWithData,
                                            **kwargs)
 
-      kwargs = {'pubkey_file_name': test_utils._PUBKEY_FILE_NAME,
-                'rootfs_part_size': rootfs_part_size,
-                'metadata_size': metadata_size,
-                'kernel_part_size': kernel_part_size}
+      kwargs = {
+          'pubkey_file_name': test_utils._PUBKEY_FILE_NAME,
+          'metadata_size': metadata_size,
+          'part_sizes': {
+              common.KERNEL: kernel_part_size,
+              common.ROOTFS: rootfs_part_size}}
+
       should_fail = (fail_wrong_payload_type or fail_mismatched_block_size or
                      fail_mismatched_metadata_size or fail_excess_data or
                      fail_rootfs_part_size_exceeded or

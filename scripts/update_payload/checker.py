@@ -561,8 +561,7 @@ class PayloadChecker(object):
     Raises:
       error.PayloadError if any of the checks fail.
     """
-    if part_sizes is None:
-      part_sizes = collections.defaultdict(int)
+    part_sizes = collections.defaultdict(int, part_sizes)
 
     manifest = self.payload.manifest
     report.AddSection('manifest')
@@ -1226,17 +1225,15 @@ class PayloadChecker(object):
                                  sig.version)
 
   def Run(self, pubkey_file_name=None, metadata_sig_file=None, metadata_size=0,
-          rootfs_part_size=0, kernel_part_size=0, report_out_file=None):
+          part_sizes=None, report_out_file=None):
     """Checker entry point, invoking all checks.
 
     Args:
       pubkey_file_name: Public key used for signature verification.
       metadata_sig_file: Metadata signature, if verification is desired.
-      metadata_size: metadata size, if verification is desired
-      rootfs_part_size: The size of rootfs partitions in bytes (default: infer
-                        based on payload type and version).
-      kernel_part_size: The size of kernel partitions in bytes (default: use
-                        reported filesystem size).
+      metadata_size: Metadata size, if verification is desired.
+      part_sizes: Mapping of partition label to size in bytes (default: infer
+        based on payload type and version or filesystem).
       report_out_file: File object to dump the report to.
 
     Raises:
@@ -1276,10 +1273,7 @@ class PayloadChecker(object):
       report.AddField('manifest len', self.payload.header.manifest_len)
 
       # Part 2: Check the manifest.
-      self._CheckManifest(report, {
-          common.ROOTFS: rootfs_part_size,
-          common.KERNEL: kernel_part_size
-      })
+      self._CheckManifest(report, part_sizes)
       assert self.payload_type, 'payload type should be known by now'
 
       # Infer the usable partition size when validating rootfs operations:
@@ -1290,9 +1284,9 @@ class PayloadChecker(object):
       # - Otherwise, use the encoded filesystem size.
       new_rootfs_usable_size = self.new_fs_sizes[common.ROOTFS]
       old_rootfs_usable_size = self.old_fs_sizes[common.ROOTFS]
-      if rootfs_part_size:
-        new_rootfs_usable_size = rootfs_part_size
-        old_rootfs_usable_size = rootfs_part_size
+      if part_sizes.get(common.ROOTFS, 0):
+        new_rootfs_usable_size = part_sizes[common.ROOTFS]
+        old_rootfs_usable_size = part_sizes[common.ROOTFS]
       elif self.payload_type == _TYPE_DELTA and self.minor_version in (None, 1):
         new_rootfs_usable_size = _OLD_DELTA_USABLE_PART_SIZE
         old_rootfs_usable_size = _OLD_DELTA_USABLE_PART_SIZE
@@ -1313,6 +1307,7 @@ class PayloadChecker(object):
       report.AddSection('kernel operations')
       old_kernel_fs_size = self.old_fs_sizes[common.KERNEL]
       new_kernel_fs_size = self.new_fs_sizes[common.KERNEL]
+      kernel_part_size = part_sizes.get(common.KERNEL, None)
       total_blob_size += self._CheckOperations(
           self.payload.manifest.kernel_install_operations, report,
           'kernel_install_operations', old_kernel_fs_size, new_kernel_fs_size,

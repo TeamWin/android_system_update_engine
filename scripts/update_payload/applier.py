@@ -622,20 +622,23 @@ class PayloadApplier(object):
       _VerifySha256(new_part_file, new_part_info.hash,
                     'new ' + part_name, length=new_part_info.size)
 
-  def Run(self, new_kernel_part, new_rootfs_part, old_kernel_part=None,
-          old_rootfs_part=None):
+  def Run(self, new_parts, old_parts=None):
     """Applier entry point, invoking all update operations.
 
     Args:
-      new_kernel_part: name of dest kernel partition file
-      new_rootfs_part: name of dest rootfs partition file
-      old_kernel_part: name of source kernel partition file (optional)
-      old_rootfs_part: name of source rootfs partition file (optional)
+      new_parts: map of partition name to dest partition file
+      old_parts: map of partition name to source partition file (optional)
 
     Raises:
       PayloadError if payload application failed.
     """
     self.payload.ResetFile()
+
+    # TODO(tbrindus): make payload applying work for major version 2 partitions
+    new_kernel_part = new_parts[common.KERNEL]
+    new_rootfs_part = new_parts[common.ROOTFS]
+    old_kernel_part = old_parts.get(common.KERNEL, None) if old_parts else None
+    old_rootfs_part = old_parts.get(common.ROOTFS, None) if old_parts else None
 
     # Make sure the arguments are sane and match the payload.
     if not (new_kernel_part and new_rootfs_part):
