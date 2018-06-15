@@ -105,6 +105,43 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
       curr_time -= TimeDelta::FromSeconds(1);
     fake_clock_.SetWallclockTime(curr_time);
   }
+
+  // Sets the policies required for a kiosk app to control Chrome OS version:
+  // - AllowKioskAppControlChromeVersion = True
+  // - UpdateDisabled = True
+  // In the kiosk app manifest:
+  // - RequiredPlatformVersion = 1234.
+  void SetKioskAppControlsChromeOsVersion() {
+    fake_state_.device_policy_provider()
+        ->var_allow_kiosk_app_control_chrome_version()
+        ->reset(new bool(true));
+    fake_state_.device_policy_provider()->var_update_disabled()->reset(
+        new bool(true));
+    fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+        new string("1234."));
+  }
+
+  // Sets up a test with the value of RollbackToTargetVersion policy (and
+  // whether it's set), and returns the value of
+  // UpdateCheckParams.rollback_allowed.
+  bool TestRollbackAllowed(bool set_policy,
+                           RollbackToTargetVersion rollback_to_target_version) {
+    // Update check is allowed, response includes attributes for use in the
+    // request.
+    SetUpdateCheckAllowed(true);
+
+    if (set_policy) {
+      // Override RollbackToTargetVersion device policy attribute.
+      fake_state_.device_policy_provider()
+          ->var_rollback_to_target_version()
+          ->reset(new RollbackToTargetVersion(rollback_to_target_version));
+    }
+
+    UpdateCheckParams result;
+    ExpectPolicyStatus(
+        EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
+    return result.rollback_allowed;
+  }
 };
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
@@ -208,62 +245,49 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAllowed) {
-  // Update check is allowed, response includes attributes for use in the
-  // request.
-  SetUpdateCheckAllowed(true);
-
-  // Override RollbackToTargetVersion device policy attribute.
-  fake_state_.device_policy_provider()->var_rollback_to_target_version()->reset(
-      new RollbackToTargetVersion(
-          RollbackToTargetVersion::kRollbackWithFullPowerwash));
-
-  UpdateCheckParams result;
-  ExpectPolicyStatus(
-      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
-  EXPECT_TRUE(result.rollback_allowed);
+  EXPECT_TRUE(TestRollbackAllowed(
+      true, RollbackToTargetVersion::kRollbackWithFullPowerwash));
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackDisabled) {
-  // Update check is allowed, response includes attributes for use in the
-  // request.
-  SetUpdateCheckAllowed(true);
-
-  // Override RollbackToTargetVersion device policy attribute.
-  fake_state_.device_policy_provider()->var_rollback_to_target_version()->reset(
-      new RollbackToTargetVersion(RollbackToTargetVersion::kDisabled));
-
-  UpdateCheckParams result;
-  ExpectPolicyStatus(
-      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
-  EXPECT_FALSE(result.rollback_allowed);
+  EXPECT_FALSE(TestRollbackAllowed(true, RollbackToTargetVersion::kDisabled));
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackUnspecified) {
-  // Update check is allowed, response includes attributes for use in the
-  // request.
-  SetUpdateCheckAllowed(true);
-
-  // Override RollbackToTargetVersion device policy attribute.
-  fake_state_.device_policy_provider()->var_rollback_to_target_version()->reset(
-      new RollbackToTargetVersion(RollbackToTargetVersion::kUnspecified));
-
-  UpdateCheckParams result;
-  ExpectPolicyStatus(
-      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
-  EXPECT_FALSE(result.rollback_allowed);
+  EXPECT_FALSE(
+      TestRollbackAllowed(true, RollbackToTargetVersion::kUnspecified));
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackNotSet) {
-  // Update check is allowed, response includes attributes for use in the
-  // request.
-  SetUpdateCheckAllowed(true);
+  EXPECT_FALSE(
+      TestRollbackAllowed(false, RollbackToTargetVersion::kUnspecified));
+}
 
-  // Don't set RollbackToTargetVersion device policy attribute.
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackAllowed) {
+  SetKioskAppControlsChromeOsVersion();
 
-  UpdateCheckParams result;
-  ExpectPolicyStatus(
-      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
-  EXPECT_FALSE(result.rollback_allowed);
+  EXPECT_TRUE(TestRollbackAllowed(
+      true, RollbackToTargetVersion::kRollbackWithFullPowerwash));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackDisabled) {
+  SetKioskAppControlsChromeOsVersion();
+
+  EXPECT_FALSE(TestRollbackAllowed(true, RollbackToTargetVersion::kDisabled));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackUnspecified) {
+  SetKioskAppControlsChromeOsVersion();
+
+  EXPECT_FALSE(
+      TestRollbackAllowed(true, RollbackToTargetVersion::kUnspecified));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackNotSet) {
+  SetKioskAppControlsChromeOsVersion();
+
+  EXPECT_FALSE(
+      TestRollbackAllowed(false, RollbackToTargetVersion::kUnspecified));
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -341,21 +365,13 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskPin) {
   // Update check is allowed.
   SetUpdateCheckAllowed(true);
 
-  // A typical setup for kiosk pin policy: AU disabled, allow kiosk to pin
-  // and there is a kiosk required platform version.
-  fake_state_.device_policy_provider()->var_update_disabled()->reset(
-      new bool(true));
-  fake_state_.device_policy_provider()
-      ->var_allow_kiosk_app_control_chrome_version()
-      ->reset(new bool(true));
-  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
-      new string("1234.0.0"));
+  SetKioskAppControlsChromeOsVersion();
 
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_EQ("1234.0.0", result.target_version_prefix);
+  EXPECT_EQ("1234.", result.target_version_prefix);
   EXPECT_FALSE(result.interactive);
 }
 
