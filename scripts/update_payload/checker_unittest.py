@@ -891,6 +891,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
                           self.NewExtentList((1, 16)))
         total_src_blocks = 16
 
+    # TODO(tbrindus): add major version 2 tests.
+    payload_checker.major_version = 1
     if op_type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       payload_checker.minor_version = 0
     elif op_type in (common.OpType.MOVE, common.OpType.BSDIFF):
