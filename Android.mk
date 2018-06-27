@@ -655,6 +655,7 @@ ue_libpayload_generator_src_files := \
     payload_generator/annotated_operation.cc \
     payload_generator/blob_file_writer.cc \
     payload_generator/block_mapping.cc \
+    payload_generator/boot_img_filesystem.cc \
     payload_generator/bzip.cc \
     payload_generator/cycle_breaker.cc \
     payload_generator/deflate_utils.cc \
@@ -956,6 +957,7 @@ LOCAL_SRC_FILES := \
     payload_generator/ab_generator_unittest.cc \
     payload_generator/blob_file_writer_unittest.cc \
     payload_generator/block_mapping_unittest.cc \
+    payload_generator/boot_img_filesystem_unittest.cc \
     payload_generator/cycle_breaker_unittest.cc \
     payload_generator/deflate_utils_unittest.cc \
     payload_generator/delta_diff_utils_unittest.cc \

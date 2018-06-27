@@ -227,6 +227,14 @@ Extent ExtentForRange(uint64_t start_block, uint64_t num_blocks) {
   return ret;
 }
 
+Extent ExtentForBytes(uint64_t block_size,
+                      uint64_t start_bytes,
+                      uint64_t size_bytes) {
+  uint64_t start_block = start_bytes / block_size;
+  uint64_t end_block = utils::DivRoundUp(start_bytes + size_bytes, block_size);
+  return ExtentForRange(start_block, end_block - start_block);
+}
+
 vector<Extent> ExtentRanges::GetExtentsForBlockCount(
     uint64_t count) const {
   vector<Extent> out;

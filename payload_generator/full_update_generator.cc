@@ -152,7 +152,7 @@ bool FullUpdateGenerator::GenerateOperations(
   // We potentially have all the ChunkProcessors in memory but only
   // |max_threads| will actually hold a block in memory while we process.
   size_t partition_blocks = new_part.size / config.block_size;
-  size_t num_chunks = (partition_blocks + chunk_blocks - 1) / chunk_blocks;
+  size_t num_chunks = utils::DivRoundUp(partition_blocks, chunk_blocks);
   aops->resize(num_chunks);
   vector<ChunkProcessor> chunk_processors;
   chunk_processors.reserve(num_chunks);
