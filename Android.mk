@@ -336,6 +336,8 @@ LOCAL_SRC_FILES := \
     update_manager/real_updater_provider.cc \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
+    update_manager/update_time_restrictions_policy_impl.cc \
+    update_manager/weekly_time.cc \
     update_status_utils.cc \
     utils_android.cc
 ifeq ($(local_use_binder),1)
@@ -1017,7 +1019,9 @@ LOCAL_SRC_FILES += \
     update_manager/real_updater_provider_unittest.cc \
     update_manager/umtest_utils.cc \
     update_manager/update_manager_unittest.cc \
-    update_manager/variable_unittest.cc
+    update_manager/update_time_restrictions_policy_impl_unittest.cc \
+    update_manager/variable_unittest.cc \
+    update_manager/weekly_time_unittest.cc
 else  # local_use_omaha == 1
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine_android \

@@ -105,6 +105,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_allow_kiosk_app_control_chrome_version_;
   }
 
+  Variable<WeeklyTimeIntervalVector>* var_disallowed_time_intervals() override {
+    return &var_disallowed_time_intervals_;
+  }
+
  private:
   FRIEND_TEST(UmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
@@ -154,6 +158,12 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   bool ConvertAllowedConnectionTypesForUpdate(
       std::set<chromeos_update_engine::ConnectionType>* allowed_types) const;
 
+  // Wrapper for DevicePolicy::GetUpdateTimeRestrictions() that converts
+  // the DevicePolicy::WeeklyTimeInterval structs to WeeklyTimeInterval objects,
+  // which offer more functionality.
+  bool ConvertDisallowedTimeIntervals(
+      WeeklyTimeIntervalVector* disallowed_intervals_out) const;
+
   // Used for fetching information about the device policy.
   policy::PolicyProvider* policy_provider_;
 
@@ -191,6 +201,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled"};
   AsyncCopyVariable<bool> var_allow_kiosk_app_control_chrome_version_{
       "allow_kiosk_app_control_chrome_version"};
+  AsyncCopyVariable<WeeklyTimeIntervalVector> var_disallowed_time_intervals_{
+      "update_time_restrictions"};
 
   DISALLOW_COPY_AND_ASSIGN(RealDevicePolicyProvider);
 };

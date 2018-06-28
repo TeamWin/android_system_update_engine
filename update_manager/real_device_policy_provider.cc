@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include <vector>
+
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/time/time.h>
@@ -33,6 +35,7 @@ using chromeos_update_engine::ConnectionType;
 using policy::DevicePolicy;
 using std::set;
 using std::string;
+using std::vector;
 
 namespace {
 
@@ -179,6 +182,23 @@ bool RealDevicePolicyProvider::ConvertScatterFactor(
   return true;
 }
 
+bool RealDevicePolicyProvider::ConvertDisallowedTimeIntervals(
+    WeeklyTimeIntervalVector* disallowed_intervals_out) const {
+  vector<DevicePolicy::WeeklyTimeInterval> parsed_intervals;
+  if (!policy_provider_->GetDevicePolicy().GetDisallowedTimeIntervals(
+          &parsed_intervals)) {
+    return false;
+  }
+
+  disallowed_intervals_out->clear();
+  for (const auto& interval : parsed_intervals) {
+    disallowed_intervals_out->emplace_back(
+        WeeklyTime(interval.start_day_of_week, interval.start_time),
+        WeeklyTime(interval.end_day_of_week, interval.end_time));
+  }
+  return true;
+}
+
 void RealDevicePolicyProvider::RefreshDevicePolicy() {
   if (!policy_provider_->Reload()) {
     LOG(INFO) << "No device policies/settings present.";
@@ -212,6 +232,8 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(&var_au_p2p_enabled_, &DevicePolicy::GetAuP2PEnabled);
   UpdateVariable(&var_allow_kiosk_app_control_chrome_version_,
                  &DevicePolicy::GetAllowKioskAppControlChromeVersion);
+  UpdateVariable(&var_disallowed_time_intervals_,
+                 &RealDevicePolicyProvider::ConvertDisallowedTimeIntervals);
 }
 
 }  // namespace chromeos_update_manager

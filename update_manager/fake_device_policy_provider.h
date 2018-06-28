@@ -84,6 +84,11 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_allow_kiosk_app_control_chrome_version_;
   }
 
+  FakeVariable<WeeklyTimeIntervalVector>* var_disallowed_time_intervals()
+      override {
+    return &var_disallowed_time_intervals_;
+  }
+
  private:
   FakeVariable<bool> var_device_policy_is_loaded_{
       "policy_is_loaded", kVariableModePoll};
@@ -110,6 +115,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   FakeVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled", kVariableModePoll};
   FakeVariable<bool> var_allow_kiosk_app_control_chrome_version_{
       "allow_kiosk_app_control_chrome_version", kVariableModePoll};
+  FakeVariable<WeeklyTimeIntervalVector> var_disallowed_time_intervals_{
+      "disallowed_time_intervals", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeDevicePolicyProvider);
 };

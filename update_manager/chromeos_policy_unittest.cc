@@ -21,6 +21,7 @@
 
 #include "update_engine/update_manager/next_update_check_policy_impl.h"
 #include "update_engine/update_manager/policy_test_utils.h"
+#include "update_engine/update_manager/weekly_time.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -83,6 +84,9 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
         new bool(false));
     fake_state_.device_policy_provider()->var_release_channel_delegated()->
         reset(new bool(true));
+    fake_state_.device_policy_provider()
+        ->var_disallowed_time_intervals()
+        ->reset(new WeeklyTimeIntervalVector());
   }
 
   // Configures the policy to return a desired value from UpdateCheckAllowed by
@@ -141,6 +145,26 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
     ExpectPolicyStatus(
         EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
     return result.rollback_allowed;
+  }
+
+  // Sets up a test with the given intervals and the current fake wallclock
+  // time.
+  void TestDisallowedTimeIntervals(const WeeklyTimeIntervalVector& intervals,
+                                   const EvalStatus& expected_status,
+                                   bool is_forced_update) {
+    SetUpDefaultTimeProvider();
+    SetUpdateCheckAllowed(true);
+
+    if (is_forced_update)
+      fake_state_.updater_provider()->var_forced_update_requested()->reset(
+          new UpdateRequestStatus(UpdateRequestStatus::kInteractive));
+    fake_state_.device_policy_provider()
+        ->var_disallowed_time_intervals()
+        ->reset(new WeeklyTimeIntervalVector(intervals));
+
+    // Check that |expected_status| matches the value of UpdateCheckAllowed
+    UpdateCheckParams result;
+    ExpectPolicyStatus(expected_status, &Policy::UpdateCheckAllowed, &result);
   }
 };
 
@@ -301,6 +325,43 @@ TEST_F(UmChromeOSPolicyTest,
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateCheckAllowed, &result);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCheckAllowedWaitsForEndOfDisallowedInterval) {
+  // Check that the policy blocks during the disallowed checking intervals.
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
+      EvalStatus::kAskMeAgainLater,
+      false);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCheckAllowedNoBlockOutsideDisallowedInterval) {
+  // Check that updates are allowed outside interval.
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time - TimeDelta::FromMinutes(2)),
+          WeeklyTime::FromTime(curr_time - TimeDelta::FromMinutes(1)))},
+      EvalStatus::kSucceeded,
+      false);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCheckAllowedDisallowedIntervalNoBlockWhenForced) {
+  // Check that updates are not blocked by this policy when an update is forced.
+  Time curr_time = fake_clock_.GetWallclockTime();
+  // Really big interval so that current time definitely falls in it.
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time - TimeDelta::FromMinutes(1234)),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1234)))},
+      EvalStatus::kSucceeded,
+      true);
 }
 
 TEST_F(UmChromeOSPolicyTest,

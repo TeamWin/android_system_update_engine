@@ -36,6 +36,7 @@
 #include "update_engine/update_manager/out_of_box_experience_policy_impl.h"
 #include "update_engine/update_manager/policy_utils.h"
 #include "update_engine/update_manager/shill_provider.h"
+#include "update_engine/update_manager/update_time_restrictions_policy_impl.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -213,6 +214,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   OobePolicyImpl oobe_policy;
   NextUpdateCheckTimePolicyImpl next_update_check_time_policy(
       kNextUpdateCheckPolicyConstants);
+  UpdateTimeRestrictionsPolicyImpl update_time_restrictions_policy;
 
   vector<Policy const*> policies_to_consult = {
       // Do not perform any updates if there are not enough slots to do A/B
@@ -231,6 +233,9 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
 
       // If OOBE is enabled, wait until it is completed.
       &oobe_policy,
+
+      // Ensure that updates are checked only in allowed times.
+      &update_time_restrictions_policy,
 
       // Ensure that periodic update checks are timed properly.
       &next_update_check_time_policy,

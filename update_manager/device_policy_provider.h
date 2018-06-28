@@ -27,6 +27,7 @@
 #include "update_engine/update_manager/rollback_prefs.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/variable.h"
+#include "update_engine/update_manager/weekly_time.h"
 
 namespace chromeos_update_manager {
 
@@ -74,6 +75,11 @@ class DevicePolicyProvider : public Provider {
   virtual Variable<bool>* var_au_p2p_enabled() = 0;
 
   virtual Variable<bool>* var_allow_kiosk_app_control_chrome_version() = 0;
+
+  // Variable that contains the time intervals during the week for which update
+  // checks are disallowed.
+  virtual Variable<WeeklyTimeIntervalVector>*
+  var_disallowed_time_intervals() = 0;
 
  protected:
   DevicePolicyProvider() {}

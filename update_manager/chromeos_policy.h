@@ -114,6 +114,8 @@ class ChromeOSPolicy : public Policy {
               UpdateCanStartAllowedP2PDownloadingBlockedDueToNumAttempts);
   FRIEND_TEST(UmChromeOSPolicyTest,
               UpdateCanStartAllowedP2PDownloadingBlockedDueToAttemptsPeriod);
+  FRIEND_TEST(UmChromeOSPolicyTest,
+              UpdateCheckAllowedNextUpdateCheckOutsideDisallowedInterval);
 
   // Auxiliary constant (zero by default).
   const base::TimeDelta kZeroInterval;

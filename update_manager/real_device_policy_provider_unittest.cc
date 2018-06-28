@@ -17,6 +17,7 @@
 #include "update_engine/update_manager/real_device_policy_provider.h"
 
 #include <memory>
+#include <vector>
 
 #include <base/memory/ptr_util.h>
 #include <brillo/message_loops/fake_message_loop.h>
@@ -40,12 +41,14 @@
 using base::TimeDelta;
 using brillo::MessageLoop;
 using chromeos_update_engine::ConnectionType;
+using policy::DevicePolicy;
 #if USE_DBUS
 using chromeos_update_engine::dbus_test_utils::MockSignalHandler;
 #endif  // USE_DBUS
 using std::set;
 using std::string;
 using std::unique_ptr;
+using std::vector;
 using testing::DoAll;
 using testing::Mock;
 using testing::Return;
@@ -190,6 +193,7 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_au_p2p_enabled());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allow_kiosk_app_control_chrome_version());
+  UmTestUtils::ExpectVariableNotSet(provider_->var_disallowed_time_intervals());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
@@ -325,6 +329,27 @@ TEST_F(UmRealDevicePolicyProviderTest, AllowedTypesConverted) {
   UmTestUtils::ExpectVariableHasValue(
       set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kBluetooth},
       provider_->var_allowed_connection_types_for_update());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, DisallowedIntervalsConverted) {
+  SetUpExistentDevicePolicy();
+
+  vector<DevicePolicy::WeeklyTimeInterval> intervals = {
+      {5, TimeDelta::FromHours(5), 6, TimeDelta::FromHours(8)},
+      {1, TimeDelta::FromHours(1), 3, TimeDelta::FromHours(10)}};
+
+  EXPECT_CALL(mock_device_policy_, GetDisallowedTimeIntervals(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(intervals), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      WeeklyTimeIntervalVector{
+          WeeklyTimeInterval(WeeklyTime(5, TimeDelta::FromHours(5)),
+                             WeeklyTime(6, TimeDelta::FromHours(8))),
+          WeeklyTimeInterval(WeeklyTime(1, TimeDelta::FromHours(1)),
+                             WeeklyTime(3, TimeDelta::FromHours(10)))},
+      provider_->var_disallowed_time_intervals());
 }
 
 }  // namespace chromeos_update_manager
