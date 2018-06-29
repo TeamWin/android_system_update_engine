@@ -118,7 +118,7 @@ usage() {
 
 # Check that a command is specified.
 if [[ $# -lt 1 ]]; then
-  echo "Please specify a command [generate|hash|sign|properties]"
+  echo "Please specify a command [generate|hash|sign|properties|verify]"
   exit 1
 fi
 
@@ -362,18 +362,15 @@ extract_image_cros() {
   # updater supports a newer major version.
   FORCE_MAJOR_VERSION="1"
 
-  # When generating legacy Chrome OS images, we need to use "boot" and "system"
-  # for the partition names to be compatible with updating Brillo devices with
-  # Chrome OS images.
-  eval ${partitions_array}[boot]=\""${kernel}"\"
-  eval ${partitions_array}[system]=\""${root}"\"
+  eval ${partitions_array}[kernel]=\""${kernel}"\"
+  eval ${partitions_array}[root]=\""${root}"\"
 
   if [[ -n "${partitions_order}" ]]; then
-    eval "${partitions_order}=( \"system\" \"boot\" )"
+    eval "${partitions_order}=( \"root\" \"kernel\" )"
   fi
 
   local part varname
-  for part in boot system; do
+  for part in kernel root; do
     varname="${partitions_array}[${part}]"
     printf "md5sum of %s: " "${varname}"
     md5sum "${!varname}"

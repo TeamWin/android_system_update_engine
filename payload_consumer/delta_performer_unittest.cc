@@ -199,22 +199,22 @@ class DeltaPerformerTest : public ::testing::Test {
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
 
-    PartitionConfig old_part(kLegacyPartitionNameRoot);
+    PartitionConfig old_part(kPartitionNameRoot);
     if (minor_version != kFullPayloadMinorVersion) {
       // When generating a delta payload we need to include the old partition
       // information to mark it as a delta payload.
       old_part.path = "/dev/null";
       old_part.size = 0;
     }
-    PartitionConfig new_part(kLegacyPartitionNameRoot);
+    PartitionConfig new_part(kPartitionNameRoot);
     new_part.path = "/dev/zero";
     new_part.size = 1234;
 
     payload.AddPartition(old_part, new_part, aops);
 
     // We include a kernel partition without operations.
-    old_part.name = kLegacyPartitionNameKernel;
-    new_part.name = kLegacyPartitionNameKernel;
+    old_part.name = kPartitionNameKernel;
+    new_part.name = kPartitionNameKernel;
     new_part.size = 0;
     payload.AddPartition(old_part, new_part, {});
 
@@ -277,13 +277,13 @@ class DeltaPerformerTest : public ::testing::Test {
     // We installed the operations only in the rootfs partition, but the
     // delta performer needs to access all the partitions.
     fake_boot_control_.SetPartitionDevice(
-        kLegacyPartitionNameRoot, install_plan_.target_slot, new_part);
+        kPartitionNameRoot, install_plan_.target_slot, new_part);
     fake_boot_control_.SetPartitionDevice(
-        kLegacyPartitionNameRoot, install_plan_.source_slot, source_path);
+        kPartitionNameRoot, install_plan_.source_slot, source_path);
     fake_boot_control_.SetPartitionDevice(
-        kLegacyPartitionNameKernel, install_plan_.target_slot, "/dev/null");
+        kPartitionNameKernel, install_plan_.target_slot, "/dev/null");
     fake_boot_control_.SetPartitionDevice(
-        kLegacyPartitionNameKernel, install_plan_.source_slot, "/dev/null");
+        kPartitionNameKernel, install_plan_.source_slot, "/dev/null");
 
     EXPECT_EQ(expect_success,
               performer_.Write(payload_data.data(), payload_data.size()));

@@ -81,8 +81,8 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
                                const vector<AnnotatedOperation>& aops) {
   // Check partitions order for Chrome OS
   if (major_version_ == kChromeOSMajorPayloadVersion) {
-    const vector<const char*> part_order = { kLegacyPartitionNameRoot,
-                                             kLegacyPartitionNameKernel };
+    const vector<const char*> part_order = { kPartitionNameRoot,
+                                             kPartitionNameKernel };
     TEST_AND_RETURN_FALSE(part_vec_.size() < part_order.size());
     TEST_AND_RETURN_FALSE(new_conf.name == part_order[part_vec_.size()]);
   }
@@ -152,7 +152,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
         *(partition->mutable_new_partition_info()) = part.new_info;
     } else {
       // major_version_ == kChromeOSMajorPayloadVersion
-      if (part.name == kLegacyPartitionNameKernel) {
+      if (part.name == kPartitionNameKernel) {
         for (const AnnotatedOperation& aop : part.aops)
           *manifest_.add_kernel_install_operations() = aop.op;
         if (part.old_info.has_size() || part.old_info.has_hash())

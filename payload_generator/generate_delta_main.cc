@@ -290,8 +290,8 @@ int Main(int argc, char** argv) {
                 "Path to the .map files associated with the partition files "
                 "in the new partition, similar to the -old_mapfiles flag.");
   DEFINE_string(partition_names,
-                string(kLegacyPartitionNameRoot) + ":" +
-                kLegacyPartitionNameKernel,
+                string(kPartitionNameRoot) + ":" +
+                kPartitionNameKernel,
                 "Names of the partitions. To pass multiple names, use a single "
                 "argument with a colon between names, e.g. "
                 "name:name2:name3:last_name . Name can not be empty, and it "
@@ -447,8 +447,8 @@ int Main(int argc, char** argv) {
     LOG_IF(FATAL, partition_names.size() != 2)
         << "To support more than 2 partitions, please use the "
         << "--new_partitions flag and major version 2.";
-    LOG_IF(FATAL, partition_names[0] != kLegacyPartitionNameRoot ||
-                  partition_names[1] != kLegacyPartitionNameKernel)
+    LOG_IF(FATAL, partition_names[0] != kPartitionNameRoot ||
+                  partition_names[1] != kPartitionNameKernel)
         << "To support non-default partition name, please use the "
         << "--new_partitions flag and major version 2.";
   }
