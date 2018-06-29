@@ -25,6 +25,7 @@
 #  sign        generate a signed payload
 #  properties  generate a properties file from a payload
 #  verify      verify a payload by recreating a target image.
+#  check       verify a payload using paycheck (static testing)
 #
 #  Generate command arguments:
 #  --payload             generated unsigned payload output file
@@ -67,6 +68,9 @@
 #  --payload             payload input file
 #  --source_image        verify payload to the specified source image.
 #  --target_image        the target image to verify upon.
+#
+#  Check command arguments:
+#     Symmetrical with the verify command.
 
 
 # Exit codes:
@@ -102,7 +106,9 @@ HELP_HASH="hash: Generate the hashes of the unsigned payload and metadata used \
 for signing."
 HELP_SIGN="sign: Insert the signatures into the unsigned payload."
 HELP_PROPERTIES="properties: Extract payload properties to a file."
-HELP_VERIFY="verify: Verify a (signed) update payload."
+HELP_VERIFY="verify: Verify a (signed) update payload using delta_generator."
+HELP_CHECK="check: Check a (signed) update payload using paycheck (static \
+testing)."
 
 usage() {
   echo "Supported commands:"
@@ -112,13 +118,14 @@ usage() {
   echo "${HELP_SIGN}"
   echo "${HELP_PROPERTIES}"
   echo "${HELP_VERIFY}"
+  echo "${HELP_CHECK}"
   echo
   echo "Use: \"$0 <command> --help\" for more options."
 }
 
 # Check that a command is specified.
 if [[ $# -lt 1 ]]; then
-  echo "Please specify a command [generate|hash|sign|properties|verify]"
+  echo "Please specify a command [generate|hash|sign|properties|verify|check]"
   exit 1
 fi
 
@@ -145,6 +152,10 @@ case "${COMMAND}" in
 
   verify)
     FLAGS_HELP="${HELP_VERIFY}"
+    ;;
+
+  check)
+    FLAGS_HELP="${HELP_CHECK}"
     ;;
 
   *)
@@ -198,7 +209,7 @@ if [[ "${COMMAND}" == "properties" ]]; then
     "Path to output the extracted property files. If '-' is passed stdout will \
 be used."
 fi
-if [[ "${COMMAND}" == "verify" ]]; then
+if [[ "${COMMAND}" == "verify" || "${COMMAND}" == "check" ]]; then
   DEFINE_string payload "" \
     "Path to the input payload file."
   DEFINE_string target_image "" \
@@ -507,6 +518,24 @@ Disabling deltas for this source version."
   done
 }
 
+extract_payload_images() {
+  local payload_type=$1
+  echo "Extracting images for ${payload_type} update."
+
+  if [[ "${payload_type}" == "delta" ]]; then
+    extract_image "${FLAGS_source_image}" SRC_PARTITIONS
+  fi
+  extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
+}
+
+get_payload_type() {
+  if [[ -z "${FLAGS_source_image}" ]]; then
+    echo "full"
+  else
+    echo "delta"
+  fi
+}
+
 validate_generate() {
   [[ -n "${FLAGS_payload}" ]] ||
     die "You must specify an output filename with --payload FILENAME"
@@ -663,7 +692,7 @@ cmd_properties() {
       -properties_file="${FLAGS_properties_file}"
 }
 
-validate_verify() {
+validate_verify_and_check() {
   [[ -n "${FLAGS_payload}" ]] ||
     die "Error: you must specify an input filename with --payload FILENAME"
 
@@ -672,17 +701,8 @@ validate_verify() {
 }
 
 cmd_verify() {
-  local payload_type="delta"
-  if [[ -z "${FLAGS_source_image}" ]]; then
-    payload_type="full"
-  fi
-
-  echo "Extracting images for ${payload_type} update."
-
-  if [[ "${payload_type}" == "delta" ]]; then
-    extract_image "${FLAGS_source_image}" SRC_PARTITIONS
-  fi
-  extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
+  local payload_type=$(get_payload_type)
+  extract_payload_images ${payload_type}
 
   declare -A TMP_PARTITIONS
   for part in "${PARTITIONS_ORDER[@]}"; do
@@ -748,6 +768,33 @@ ${GENERATOR_ARGS[@]}"
   fi
 }
 
+cmd_check() {
+  local payload_type=$(get_payload_type)
+  extract_payload_images ${payload_type}
+
+  local part dst_partitions="" src_partitions=""
+  for part in "${PARTITIONS_ORDER[@]}"; do
+    if [[ -n "${dst_partitions}" ]]; then
+      dst_partitions+=" "
+      src_partitions+=" "
+    fi
+    dst_partitions+="${DST_PARTITIONS[${part}]}"
+    src_partitions+="${SRC_PARTITIONS[${part}]:-}"
+  done
+
+  # Common payload args:
+  PAYCHECK_ARGS=( "${FLAGS_payload}" --type ${payload_type} \
+    --part_names ${PARTITIONS_ORDER[@]} \
+    --dst_part_paths ${dst_partitions} )
+
+  if [[ ! -z "${SRC_PARTITIONS[@]}" ]]; then
+    PAYCHECK_ARGS+=( --src_part_paths ${src_partitions} )
+  fi
+
+  echo "Checking ${payload_type} update."
+  check_update_payload ${PAYCHECK_ARGS[@]} --check
+}
+
 # Sanity check that the real generator exists:
 GENERATOR="$(which delta_generator || true)"
 [[ -x "${GENERATOR}" ]] || die "can't find delta_generator"
@@ -765,7 +812,10 @@ case "$COMMAND" in
   properties) validate_properties
               cmd_properties
               ;;
-  verify) validate_verify
+  verify) validate_verify_and_check
           cmd_verify
           ;;
+  check) validate_verify_and_check
+         cmd_check
+         ;;
 esac
