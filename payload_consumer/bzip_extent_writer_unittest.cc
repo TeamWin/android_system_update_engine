@@ -100,8 +100,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   for (size_t i = 0; i < decompressed_data.size(); ++i)
     decompressed_data[i] = static_cast<uint8_t>("ABC\n"[i % 4]);
 
-  vector<Extent> extents = {
-      ExtentForRange(0, (kDecompressedLength + kBlockSize - 1) / kBlockSize)};
+  vector<Extent> extents = {ExtentForBytes(kBlockSize, 0, kDecompressedLength)};
 
   BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
   EXPECT_TRUE(

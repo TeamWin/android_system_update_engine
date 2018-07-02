@@ -44,14 +44,6 @@ namespace chromeos_update_engine {
 
 namespace {
 
-Extent ExtentForBytes(uint64_t block_size,
-                      uint64_t start_bytes,
-                      uint64_t size_bytes) {
-  uint64_t start_block = start_bytes / block_size;
-  uint64_t end_block = (start_bytes + size_bytes + block_size - 1) / block_size;
-  return ExtentForRange(start_block, end_block - start_block);
-}
-
 // The size of the squashfs super block.
 constexpr size_t kSquashfsSuperBlockSize = 96;
 constexpr uint64_t kSquashfsCompressedBit = 1 << 24;
@@ -192,8 +184,7 @@ bool SquashfsFilesystem::Init(const string& map,
   for (const auto& file : files_) {
     file_extents.AddExtents(file.extents);
   }
-  vector<Extent> full = {
-      ExtentForRange(0, (size_ + kBlockSize - 1) / kBlockSize)};
+  vector<Extent> full = {ExtentForBytes(kBlockSize, 0, size_)};
   auto metadata_extents = FilterExtentRanges(full, file_extents);
   // For now there should be at most two extents. One for superblock and one for
   // metadata at the end. Just create appropriate files with <metadata-i> name.
