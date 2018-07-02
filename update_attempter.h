@@ -84,6 +84,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                       const std::string& target_channel,
                       const std::string& target_version_prefix,
                       bool rollback_allowed,
+                      int rollback_allowed_milestones,
                       bool obey_proxies,
                       bool interactive);
 
@@ -339,6 +340,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                              const std::string& target_channel,
                              const std::string& target_version_prefix,
                              bool rollback_allowed,
+                             int rollback_allowed_milestones,
                              bool obey_proxies,
                              bool interactive);
 

@@ -34,6 +34,7 @@
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
 
+using chromeos_update_manager::kRollforwardInfinity;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateManager;
 using std::numeric_limits;
@@ -145,10 +146,13 @@ void OmahaResponseHandlerAction::PerformAction() {
       completer.set_code(ErrorCode::kOmahaResponseInvalid);
       return;
     }
+
+    // Calculate the values on the version values on current device.
     auto min_kernel_key_version = static_cast<uint32_t>(
         system_state_->hardware()->GetMinKernelKeyVersion());
     auto min_firmware_key_version = static_cast<uint32_t>(
         system_state_->hardware()->GetMinFirmwareKeyVersion());
+
     uint32_t kernel_key_version =
         static_cast<uint32_t>(response.rollback_key_version.kernel_key) << 16 |
         static_cast<uint32_t>(response.rollback_key_version.kernel);
@@ -156,6 +160,12 @@ void OmahaResponseHandlerAction::PerformAction() {
         static_cast<uint32_t>(response.rollback_key_version.firmware_key)
             << 16 |
         static_cast<uint32_t>(response.rollback_key_version.firmware);
+
+    LOG(INFO) << "Rollback image versions:"
+              << " device_kernel_key_version=" << min_kernel_key_version
+              << " image_kernel_key_version=" << kernel_key_version
+              << " device_firmware_key_version=" << min_firmware_key_version
+              << " image_firmware_key_version=" << firmware_key_version;
 
     // Don't attempt a rollback if the versions are incompatible or the
     // target image does not specify the version information.
@@ -208,6 +218,53 @@ void OmahaResponseHandlerAction::PerformAction() {
   update_manager->PolicyRequest(
       &Policy::UpdateCanBeApplied, &ec, &install_plan_);
   completer.set_code(ec);
+
+  const auto allowed_milestones = params->rollback_allowed_milestones();
+  if (allowed_milestones > 0) {
+    auto max_firmware_rollforward = numeric_limits<uint32_t>::max();
+    auto max_kernel_rollforward = numeric_limits<uint32_t>::max();
+
+    // Determine the version to update the max rollforward verified boot
+    // value.
+    OmahaResponse::RollbackKeyVersion version =
+        response.past_rollback_key_version;
+
+    // Determine the max rollforward values to be set in the TPM.
+    max_firmware_rollforward = static_cast<uint32_t>(version.firmware_key)
+                                   << 16 |
+                               static_cast<uint32_t>(version.firmware);
+    max_kernel_rollforward = static_cast<uint32_t>(version.kernel_key) << 16 |
+                             static_cast<uint32_t>(version.kernel);
+
+    // In the case that the value is 0xffffffff, log a warning because the
+    // device should not be installing a rollback image without having version
+    // information.
+    if (max_firmware_rollforward == numeric_limits<uint32_t>::max() ||
+        max_kernel_rollforward == numeric_limits<uint32_t>::max()) {
+      LOG(WARNING)
+          << "Max rollforward values were not sent in rollback response: "
+          << " max_kernel_rollforward=" << max_kernel_rollforward
+          << " max_firmware_rollforward=" << max_firmware_rollforward
+          << " rollback_allowed_milestones="
+          << params->rollback_allowed_milestones();
+    } else {
+      LOG(INFO) << "Setting the max rollforward values: "
+                << " max_kernel_rollforward=" << max_kernel_rollforward
+                << " max_firmware_rollforward=" << max_firmware_rollforward
+                << " rollback_allowed_milestones="
+                << params->rollback_allowed_milestones();
+      system_state_->hardware()->SetMaxKernelKeyRollforward(
+          max_kernel_rollforward);
+      // TODO(crbug/783998): Set max firmware rollforward when implemented.
+    }
+  } else {
+    LOG(INFO) << "Rollback is not allowed. Setting max rollforward values"
+              << " to infinity";
+    // When rollback is not allowed, explicitly set the max roll forward to
+    // infinity.
+    system_state_->hardware()->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+    // TODO(crbug/783998): Set max firmware rollforward when implemented.
+  }
 }
 
 bool OmahaResponseHandlerAction::AreHashChecksMandatory(

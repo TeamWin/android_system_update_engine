@@ -102,6 +102,13 @@ struct OmahaResponse {
   // Key versions of the returned rollback image. Values are 0xffff if the
   // image not a rollback, or the fields were not present.
   RollbackKeyVersion rollback_key_version;
+
+  // Key versions of the N - rollback_allowed_milestones release. For example,
+  // if the current version is 70 and rollback_allowed_milestones is 4, this
+  // will contain the key versions of version 66. This is used to ensure that
+  // the kernel and firmware keys are at most those of v66 so that v66 can be
+  // rolled back to.
+  RollbackKeyVersion past_rollback_key_version;
 };
 static_assert(sizeof(off_t) == 8, "off_t not 64 bit");
 

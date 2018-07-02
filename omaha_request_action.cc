@@ -1002,7 +1002,8 @@ bool ParsePackage(OmahaParserData::App* app,
 
 // Parses the 2 key version strings kernel_version and firmware_version. If the
 // field is not present, or cannot be parsed the values default to 0xffff.
-void ParseRollbackVersions(OmahaParserData* parser_data,
+void ParseRollbackVersions(int allowed_milestones,
+                           OmahaParserData* parser_data,
                            OmahaResponse* output_object) {
   utils::ParseRollbackKeyVersion(
       parser_data->updatecheck_attrs[kAttrFirmwareVersion],
@@ -1012,6 +1013,37 @@ void ParseRollbackVersions(OmahaParserData* parser_data,
       parser_data->updatecheck_attrs[kAttrKernelVersion],
       &output_object->rollback_key_version.kernel_key,
       &output_object->rollback_key_version.kernel);
+
+  // Create the attribute name strings for milestone N - allowed_milestones.
+  const string firmware_max_rollforward_attr =
+      base::StringPrintf("%s_%i", kAttrFirmwareVersion, allowed_milestones);
+  const string kernel_max_rollforward_attr =
+      base::StringPrintf("%s_%i", kAttrKernelVersion, allowed_milestones);
+
+  const bool max_firmware_and_kernel_exist =
+      parser_data->updatecheck_attrs.count(firmware_max_rollforward_attr) > 0 &&
+      parser_data->updatecheck_attrs.count(kernel_max_rollforward_attr) > 0;
+
+  string firmware_version;
+  string kernel_version;
+  if (max_firmware_and_kernel_exist) {
+    firmware_version =
+        parser_data->updatecheck_attrs[firmware_max_rollforward_attr];
+    kernel_version =
+        parser_data->updatecheck_attrs[kernel_max_rollforward_attr];
+  }
+
+  LOG(INFO) << "For milestone N-" << allowed_milestones
+            << " firmware_key_version=" << firmware_version
+            << " kernel_key_version=" << kernel_version;
+
+  OmahaResponse::RollbackKeyVersion version;
+  utils::ParseRollbackKeyVersion(
+      firmware_version, &version.firmware_key, &version.firmware);
+  utils::ParseRollbackKeyVersion(
+      kernel_version, &version.kernel_key, &version.kernel);
+
+  output_object->past_rollback_key_version = std::move(version);
 }
 
 }  // namespace
@@ -1083,7 +1115,8 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   // Parses the rollback versions of the current image. If the fields do not
   // exist they default to 0xffff for the 4 key versions.
-  ParseRollbackVersions(parser_data, output_object);
+  ParseRollbackVersions(
+      params_->rollback_allowed_milestones(), parser_data, output_object);
 
   if (!ParseStatus(parser_data, output_object, completer))
     return false;

@@ -239,6 +239,7 @@ void UpdateAttempter::Update(const string& app_version,
                              const string& target_channel,
                              const string& target_version_prefix,
                              bool rollback_allowed,
+                             int rollback_allowed_milestones,
                              bool obey_proxies,
                              bool interactive) {
   // This is normally called frequently enough so it's appropriate to use as a
@@ -274,6 +275,7 @@ void UpdateAttempter::Update(const string& app_version,
                              target_channel,
                              target_version_prefix,
                              rollback_allowed,
+                             rollback_allowed_milestones,
                              obey_proxies,
                              interactive)) {
     return;
@@ -347,6 +349,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& target_channel,
                                             const string& target_version_prefix,
                                             bool rollback_allowed,
+                                            int rollback_allowed_milestones,
                                             bool obey_proxies,
                                             bool interactive) {
   http_response_code_ = 0;
@@ -370,6 +373,10 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   if (staging_wait_time_.InSeconds() == 0) {
     CalculateScatteringParams(interactive);
   }
+
+  // Set how many milestones of rollback are allowed.
+  omaha_request_params_->set_rollback_allowed_milestones(
+      rollback_allowed_milestones);
 
   CalculateP2PParams(interactive);
   if (payload_state->GetUsingP2PForDownloading() ||
@@ -946,6 +953,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
            params.target_channel,
            params.target_version_prefix,
            params.rollback_allowed,
+           params.rollback_allowed_milestones,
            /*obey_proxies=*/false,
            params.interactive);
     // Always clear the forced app_version and omaha_url after an update attempt

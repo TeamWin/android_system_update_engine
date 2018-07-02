@@ -132,6 +132,14 @@ class OmahaRequestParams {
 
   inline bool rollback_allowed() const { return rollback_allowed_; }
 
+  inline void set_rollback_allowed_milestones(int rollback_allowed_milestones) {
+    rollback_allowed_milestones_ = rollback_allowed_milestones;
+  }
+
+  inline int rollback_allowed_milestones() const {
+    return rollback_allowed_milestones_;
+  }
+
   inline void set_wall_clock_based_wait_enabled(bool enabled) {
     wall_clock_based_wait_enabled_ = enabled;
   }
@@ -321,6 +329,9 @@ class OmahaRequestParams {
 
   // Whether the client is accepting rollback images too.
   bool rollback_allowed_;
+
+  // How many milestones the client can rollback to.
+  int rollback_allowed_milestones_;
 
   // True if scattering or staging are enabled, in which case waiting_period_
   // specifies the amount of absolute time that we've to wait for before sending

@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -56,6 +57,7 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_manager::kRollforwardInfinity;
+using std::pair;
 using std::string;
 using std::vector;
 using testing::_;
@@ -86,7 +88,18 @@ const char kTestAppIdSkipUpdatecheck[] = "test-app-id-skip-updatecheck";
 // values they care about.
 struct FakeUpdateResponse {
   string GetRollbackVersionAttributes() const {
-    return (rollback ? " _rollback=\"true\"" : "") +
+    string num_milestones;
+#if BASE_VER < 576279
+    num_milestones = base::IntToString(rollback_allowed_milestones);
+#else
+    num_milestones = base::NumberToString(rollback_allowed_milestones);
+#endif
+    const string rollback_version =
+        " _firmware_version_" + num_milestones + "=\"" +
+        past_rollback_key_version.first + "\"" + " _kernel_version_" +
+        num_milestones + "=\"" + past_rollback_key_version.second + "\"";
+
+    return (rollback ? " _rollback=\"true\"" : "") + rollback_version +
            (!rollback_firmware_version.empty()
                 ? " _firmware_version=\"" + rollback_firmware_version + "\""
                 : "") +
@@ -239,6 +252,14 @@ struct FakeUpdateResponse {
   string rollback_firmware_version = "";
   // The verified boot kernel key version for the rollback image.
   string rollback_kernel_version = "";
+  // The number of milestones back that the verified boot key version has been
+  // supplied.
+  uint32_t rollback_allowed_milestones = 0;
+  // The verified boot key version for the
+  // |current - rollback_allowed_milestones| most recent release.
+  // The pair contains <firmware_key_version, kernel_key_version> each
+  // of which is in the form "key_version.version".
+  pair<string, string> past_rollback_key_version;
 };
 
 }  // namespace
@@ -3142,6 +3163,71 @@ TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
                               nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.current_version, response.version);
+}
+
+TEST_F(OmahaRequestActionTest, PastRollbackVersionsNoEntries) {
+  OmahaResponse response;
+  fake_update_response_.rollback = true;
+  fake_update_response_.rollback_allowed_milestones = 4;
+  request_params_.set_rollback_allowed_milestones(4);
+  TestRollbackCheck(false /* is_consumer_device */,
+                    4 /* rollback_allowed_milestones */,
+                    true /* is_policy_loaded */,
+                    &response);
+  EXPECT_TRUE(response.is_rollback);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.firmware_key);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.firmware);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.kernel_key);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.kernel);
+}
+
+TEST_F(OmahaRequestActionTest, PastRollbackVersionsValidEntries) {
+  OmahaResponse response;
+  fake_update_response_.rollback = true;
+  fake_update_response_.rollback_allowed_milestones = 4;
+  fake_update_response_.rollback_firmware_version = "4.3";
+  fake_update_response_.rollback_kernel_version = "2.1";
+  fake_update_response_.past_rollback_key_version =
+      std::make_pair("16.15", "14.13");
+  TestRollbackCheck(false /* is_consumer_device */,
+                    4 /* rollback_allowed_milestones */,
+                    true /* is_policy_loaded */,
+                    &response);
+  EXPECT_TRUE(response.is_rollback);
+  EXPECT_EQ(16, response.past_rollback_key_version.firmware_key);
+  EXPECT_EQ(15, response.past_rollback_key_version.firmware);
+  EXPECT_EQ(14, response.past_rollback_key_version.kernel_key);
+  EXPECT_EQ(13, response.past_rollback_key_version.kernel);
+}
+
+TEST_F(OmahaRequestActionTest, MismatchNumberOfVersions) {
+  OmahaResponse response;
+  fake_update_response_.rollback = true;
+  fake_update_response_.rollback_allowed_milestones = 2;
+  request_params_.set_rollback_allowed_milestones(4);
+
+  // Since |request_params_.rollback_allowed_milestones| is 4 but the response
+  // is constructed with |fake_update_response_.rollback_allowed_milestones| set
+  // to 2, OmahaRequestAction will look for the key values of N-4 version but
+  // only the N-2 version will exist.
+
+  TestRollbackCheck(false /* is_consumer_device */,
+                    2 /* rollback_allowed_milestones */,
+                    true /* is_policy_loaded */,
+                    &response);
+  EXPECT_TRUE(response.is_rollback);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.firmware_key);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.firmware);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.kernel_key);
+  EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
+            response.past_rollback_key_version.kernel);
 }
 
 }  // namespace chromeos_update_engine
