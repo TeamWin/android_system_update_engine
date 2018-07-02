@@ -317,6 +317,16 @@ bool ReadExtents(const std::string& path, const std::vector<Extent>& extents,
 // reboot. Returns whether it succeeded getting the boot_id.
 bool GetBootId(std::string* boot_id);
 
+// Divide |x| by |y| and round up to the nearest integer.
+constexpr uint64_t DivRoundUp(uint64_t x, uint64_t y) {
+  return (x + y - 1) / y;
+}
+
+// Round |x| up to be a multiple of |y|.
+constexpr uint64_t RoundUp(uint64_t x, uint64_t y) {
+  return DivRoundUp(x, y) * y;
+}
+
 }  // namespace utils
 
 
