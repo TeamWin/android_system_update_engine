@@ -231,8 +231,8 @@ void PayloadSigner::AddSignatureToManifest(uint64_t signature_blob_offset,
     Extent* dummy_extent = dummy_op->add_dst_extents();
     // Tell the dummy op to write this data to a big sparse hole
     dummy_extent->set_start_block(kSparseHole);
-    dummy_extent->set_num_blocks((signature_blob_length + kBlockSize - 1) /
-                                 kBlockSize);
+    dummy_extent->set_num_blocks(
+        utils::DivRoundUp(signature_blob_length, kBlockSize));
   }
 }
 

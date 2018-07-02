@@ -41,6 +41,9 @@ struct ExtentLess {
 };
 
 Extent ExtentForRange(uint64_t start_block, uint64_t num_blocks);
+Extent ExtentForBytes(uint64_t block_size,
+                      uint64_t start_bytes,
+                      uint64_t size_bytes);
 
 class ExtentRanges {
  public:
