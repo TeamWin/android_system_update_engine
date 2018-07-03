@@ -36,23 +36,16 @@ class PayloadFileTest : public ::testing::Test {
 };
 
 TEST_F(PayloadFileTest, ReorderBlobsTest) {
-  string orig_blobs;
-  EXPECT_TRUE(utils::MakeTempFile("ReorderBlobsTest.orig.XXXXXX", &orig_blobs,
-                                  nullptr));
-  ScopedPathUnlinker orig_blobs_unlinker(orig_blobs);
+  test_utils::ScopedTempFile orig_blobs("ReorderBlobsTest.orig.XXXXXX");
 
   // The operations have three blob and one gap (the whitespace):
   // Rootfs operation 1: [8, 3] bcd
   // Rootfs operation 2: [7, 1] a
   // Kernel operation 1: [0, 6] kernel
   string orig_data = "kernel abcd";
-  EXPECT_TRUE(
-      utils::WriteFile(orig_blobs.c_str(), orig_data.data(), orig_data.size()));
+  EXPECT_TRUE(test_utils::WriteFileString(orig_blobs.path(), orig_data));
 
-  string new_blobs;
-  EXPECT_TRUE(
-      utils::MakeTempFile("ReorderBlobsTest.new.XXXXXX", &new_blobs, nullptr));
-  ScopedPathUnlinker new_blobs_unlinker(new_blobs);
+  test_utils::ScopedTempFile new_blobs("ReorderBlobsTest.new.XXXXXX");
 
   payload_.part_vec_.resize(2);
 
@@ -71,12 +64,12 @@ TEST_F(PayloadFileTest, ReorderBlobsTest) {
   aop.op.set_data_length(6);
   payload_.part_vec_[1].aops = {aop};
 
-  EXPECT_TRUE(payload_.ReorderDataBlobs(orig_blobs, new_blobs));
+  EXPECT_TRUE(payload_.ReorderDataBlobs(orig_blobs.path(), new_blobs.path()));
 
   const vector<AnnotatedOperation>& part0_aops = payload_.part_vec_[0].aops;
   const vector<AnnotatedOperation>& part1_aops = payload_.part_vec_[1].aops;
   string new_data;
-  EXPECT_TRUE(utils::ReadFile(new_blobs, &new_data));
+  EXPECT_TRUE(utils::ReadFile(new_blobs.path(), &new_data));
   // Kernel blobs should appear at the end.
   EXPECT_EQ("bcdakernel", new_data);
 
