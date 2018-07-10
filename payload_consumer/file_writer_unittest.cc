@@ -36,19 +36,17 @@ class FileWriterTest : public ::testing::Test { };
 
 TEST(FileWriterTest, SimpleTest) {
   // Create a uniquely named file for testing.
-  string path;
-  ASSERT_TRUE(utils::MakeTempFile("FileWriterTest-XXXXXX", &path, nullptr));
-  ScopedPathUnlinker path_unlinker(path);
-
+  test_utils::ScopedTempFile file("FileWriterTest-XXXXXX");
   DirectFileWriter file_writer;
-  EXPECT_EQ(0, file_writer.Open(path.c_str(),
-                                O_CREAT | O_LARGEFILE | O_TRUNC | O_WRONLY,
-                                0644));
+  EXPECT_EQ(0,
+            file_writer.Open(file.path().c_str(),
+                             O_CREAT | O_LARGEFILE | O_TRUNC | O_WRONLY,
+                             0644));
   EXPECT_TRUE(file_writer.Write("test", 4));
   brillo::Blob actual_data;
-  EXPECT_TRUE(utils::ReadFile(path, &actual_data));
+  EXPECT_TRUE(utils::ReadFile(file.path(), &actual_data));
 
-  EXPECT_FALSE(memcmp("test", actual_data.data(), actual_data.size()));
+  EXPECT_EQ("test", string(actual_data.begin(), actual_data.end()));
   EXPECT_EQ(0, file_writer.Close());
 }
 
@@ -61,14 +59,12 @@ TEST(FileWriterTest, ErrorTest) {
 
 TEST(FileWriterTest, WriteErrorTest) {
   // Create a uniquely named file for testing.
-  string path;
-  ASSERT_TRUE(utils::MakeTempFile("FileWriterTest-XXXXXX", &path, nullptr));
-  ScopedPathUnlinker path_unlinker(path);
-
+  test_utils::ScopedTempFile file("FileWriterTest-XXXXXX");
   DirectFileWriter file_writer;
-  EXPECT_EQ(0, file_writer.Open(path.c_str(),
-                                O_CREAT | O_LARGEFILE | O_TRUNC | O_RDONLY,
-                                0644));
+  EXPECT_EQ(0,
+            file_writer.Open(file.path().c_str(),
+                             O_CREAT | O_LARGEFILE | O_TRUNC | O_RDONLY,
+                             0644));
   EXPECT_FALSE(file_writer.Write("x", 1));
   EXPECT_EQ(0, file_writer.Close());
 }

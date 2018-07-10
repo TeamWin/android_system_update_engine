@@ -112,13 +112,7 @@ void StartProcessorInRunLoop(ActionProcessor* processor,
 
 bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
                                           bool hash_fail) {
-  string a_loop_file;
-
-  if (!(utils::MakeTempFile("a_loop_file.XXXXXX", &a_loop_file, nullptr))) {
-    ADD_FAILURE();
-    return false;
-  }
-  ScopedPathUnlinker a_loop_file_unlinker(a_loop_file);
+  test_utils::ScopedTempFile a_loop_file("a_loop_file.XXXXXX");
 
   // Make random data for a.
   const size_t kLoopFileSize = 10 * 1024 * 1024 + 512;
@@ -126,7 +120,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   test_utils::FillWithData(&a_loop_data);
 
   // Write data to disk
-  if (!(test_utils::WriteFileVector(a_loop_file, a_loop_data))) {
+  if (!(test_utils::WriteFileVector(a_loop_file.path(), a_loop_data))) {
     ADD_FAILURE();
     return false;
   }
@@ -134,13 +128,13 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   // Attach loop devices to the files
   string a_dev;
   test_utils::ScopedLoopbackDeviceBinder a_dev_releaser(
-      a_loop_file, false, &a_dev);
+      a_loop_file.path(), false, &a_dev);
   if (!(a_dev_releaser.is_bound())) {
     ADD_FAILURE();
     return false;
   }
 
-  LOG(INFO) << "verifying: "  << a_loop_file << " (" << a_dev << ")";
+  LOG(INFO) << "verifying: " << a_loop_file.path() << " (" << a_dev << ")";
 
   bool success = true;
 

@@ -127,16 +127,14 @@ class PayloadSignerTest : public ::testing::Test {
   void DoWriteAndLoadPayloadTest(const PayloadGenerationConfig& config) {
     PayloadFile payload;
     payload.Init(config);
-    string payload_path;
-    EXPECT_TRUE(utils::MakeTempFile("payload.XXXXXX", &payload_path, nullptr));
-    ScopedPathUnlinker payload_path_unlinker(payload_path);
+    test_utils::ScopedTempFile payload_file("payload.XXXXXX");
     uint64_t metadata_size;
-    EXPECT_TRUE(
-        payload.WritePayload(payload_path, "/dev/null", "", &metadata_size));
+    EXPECT_TRUE(payload.WritePayload(
+        payload_file.path(), "/dev/null", "", &metadata_size));
     brillo::Blob payload_metadata_blob;
     DeltaArchiveManifest manifest;
     uint64_t load_metadata_size, load_major_version;
-    EXPECT_TRUE(PayloadSigner::LoadPayloadMetadata(payload_path,
+    EXPECT_TRUE(PayloadSigner::LoadPayloadMetadata(payload_file.path(),
                                                    &payload_metadata_blob,
                                                    &manifest,
                                                    &load_major_version,
@@ -215,50 +213,46 @@ TEST_F(PayloadSignerTest, VerifySignatureTest) {
 }
 
 TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
-  string payload_path;
-  EXPECT_TRUE(utils::MakeTempFile("payload.XXXXXX", &payload_path, nullptr));
-  ScopedPathUnlinker payload_path_unlinker(payload_path);
-
+  test_utils::ScopedTempFile payload_file("payload.XXXXXX");
   PayloadGenerationConfig config;
   config.version.major = kBrilloMajorPayloadVersion;
   PayloadFile payload;
   EXPECT_TRUE(payload.Init(config));
   uint64_t metadata_size;
-  EXPECT_TRUE(
-      payload.WritePayload(payload_path, "/dev/null", "", &metadata_size));
+  EXPECT_TRUE(payload.WritePayload(
+      payload_file.path(), "/dev/null", "", &metadata_size));
   const vector<int> sizes = {256};
   brillo::Blob unsigned_payload_hash, unsigned_metadata_hash;
-  EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(
-      payload_path, sizes, &unsigned_payload_hash, &unsigned_metadata_hash));
+  EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(payload_file.path(),
+                                                   sizes,
+                                                   &unsigned_payload_hash,
+                                                   &unsigned_metadata_hash));
   EXPECT_TRUE(
-      payload.WritePayload(payload_path,
+      payload.WritePayload(payload_file.path(),
                            "/dev/null",
                            GetBuildArtifactsPath(kUnittestPrivateKeyPath),
                            &metadata_size));
   brillo::Blob signed_payload_hash, signed_metadata_hash;
   EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(
-      payload_path, sizes, &signed_payload_hash, &signed_metadata_hash));
+      payload_file.path(), sizes, &signed_payload_hash, &signed_metadata_hash));
   EXPECT_EQ(unsigned_payload_hash, signed_payload_hash);
   EXPECT_EQ(unsigned_metadata_hash, signed_metadata_hash);
 }
 
 TEST_F(PayloadSignerTest, VerifySignedPayloadTest) {
-  string payload_path;
-  EXPECT_TRUE(utils::MakeTempFile("payload.XXXXXX", &payload_path, nullptr));
-  ScopedPathUnlinker payload_path_unlinker(payload_path);
-
+  test_utils::ScopedTempFile payload_file("payload.XXXXXX");
   PayloadGenerationConfig config;
   config.version.major = kBrilloMajorPayloadVersion;
   PayloadFile payload;
   EXPECT_TRUE(payload.Init(config));
   uint64_t metadata_size;
   EXPECT_TRUE(
-      payload.WritePayload(payload_path,
+      payload.WritePayload(payload_file.path(),
                            "/dev/null",
                            GetBuildArtifactsPath(kUnittestPrivateKeyPath),
                            &metadata_size));
   EXPECT_TRUE(PayloadSigner::VerifySignedPayload(
-      payload_path, GetBuildArtifactsPath(kUnittestPublicKeyPath)));
+      payload_file.path(), GetBuildArtifactsPath(kUnittestPublicKeyPath)));
 }
 
 }  // namespace chromeos_update_engine
