@@ -39,23 +39,9 @@ namespace {
 
 class BlockMappingTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    EXPECT_TRUE(utils::MakeTempFile("BlockMappingTest_old.XXXXXX",
-                                    &old_part_path_,
-                                    nullptr));
-    EXPECT_TRUE(utils::MakeTempFile("BlockMappingTest_new.XXXXXX",
-                                    &new_part_path_,
-                                    nullptr));
-
-    old_part_unlinker_.reset(new ScopedPathUnlinker(old_part_path_));
-    new_part_unlinker_.reset(new ScopedPathUnlinker(new_part_path_));
-  }
-
   // Old new partition files used in testing.
-  string old_part_path_;
-  string new_part_path_;
-  std::unique_ptr<ScopedPathUnlinker> old_part_unlinker_;
-  std::unique_ptr<ScopedPathUnlinker> new_part_unlinker_;
+  test_utils::ScopedTempFile old_part_{"BlockMappingTest_old.XXXXXX"};
+  test_utils::ScopedTempFile new_part_{"BlockMappingTest_new.XXXXXX"};
 
   size_t block_size_{1024};
   BlockMapping bm_{block_size_};  // BlockMapping under test.
@@ -72,8 +58,8 @@ TEST_F(BlockMappingTest, FirstAddedBlockIsZero) {
 }
 
 TEST_F(BlockMappingTest, BlocksAreNotKeptInMemory) {
-  test_utils::WriteFileString(old_part_path_, string(block_size_, 'a'));
-  int old_fd = HANDLE_EINTR(open(old_part_path_.c_str(), O_RDONLY));
+  test_utils::WriteFileString(old_part_.path(), string(block_size_, 'a'));
+  int old_fd = HANDLE_EINTR(open(old_part_.path().c_str(), O_RDONLY));
   ScopedFdCloser old_fd_closer(&old_fd);
 
   EXPECT_EQ(0, bm_.AddDiskBlock(old_fd, 0));
@@ -107,18 +93,18 @@ TEST_F(BlockMappingTest, MapPartitionBlocks) {
   string old_contents(10 * block_size_, '\0');
   for (size_t i = 0; i < old_contents.size(); ++i)
     old_contents[i] = 4 + i / block_size_;
-  test_utils::WriteFileString(old_part_path_, old_contents);
+  test_utils::WriteFileString(old_part_.path(), old_contents);
 
   // A string including the block with all zeros and overlapping some of the
   // other blocks in old_contents.
   string new_contents(6 * block_size_, '\0');
   for (size_t i = 0; i < new_contents.size(); ++i)
     new_contents[i] = i / block_size_;
-  test_utils::WriteFileString(new_part_path_, new_contents);
+  test_utils::WriteFileString(new_part_.path(), new_contents);
 
   vector<BlockMapping::BlockId> old_ids, new_ids;
-  EXPECT_TRUE(MapPartitionBlocks(old_part_path_,
-                                 new_part_path_,
+  EXPECT_TRUE(MapPartitionBlocks(old_part_.path(),
+                                 new_part_.path(),
                                  old_contents.size(),
                                  new_contents.size(),
                                  block_size_,

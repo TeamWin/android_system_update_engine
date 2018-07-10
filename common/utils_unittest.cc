@@ -57,13 +57,11 @@ TEST(UtilsTest, WriteFileOpenFailure) {
 }
 
 TEST(UtilsTest, WriteFileReadFile) {
-  base::FilePath file;
-  EXPECT_TRUE(base::CreateTemporaryFile(&file));
-  ScopedPathUnlinker unlinker(file.value());
-  EXPECT_TRUE(utils::WriteFile(file.value().c_str(), "hello", 5));
+  test_utils::ScopedTempFile file;
+  EXPECT_TRUE(utils::WriteFile(file.path().c_str(), "hello", 5));
 
   brillo::Blob readback;
-  EXPECT_TRUE(utils::ReadFile(file.value().c_str(), &readback));
+  EXPECT_TRUE(utils::ReadFile(file.path().c_str(), &readback));
   EXPECT_EQ("hello", string(readback.begin(), readback.end()));
 }
 
@@ -73,24 +71,21 @@ TEST(UtilsTest, ReadFileFailure) {
 }
 
 TEST(UtilsTest, ReadFileChunk) {
-  base::FilePath file;
-  EXPECT_TRUE(base::CreateTemporaryFile(&file));
-  ScopedPathUnlinker unlinker(file.value());
+  test_utils::ScopedTempFile file;
   brillo::Blob data;
   const size_t kSize = 1024 * 1024;
   for (size_t i = 0; i < kSize; i++) {
     data.push_back(i % 255);
   }
-  EXPECT_TRUE(utils::WriteFile(file.value().c_str(), data.data(), data.size()));
+  EXPECT_TRUE(test_utils::WriteFileVector(file.path(), data));
   brillo::Blob in_data;
-  EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), kSize, 10, &in_data));
+  EXPECT_TRUE(utils::ReadFileChunk(file.path().c_str(), kSize, 10, &in_data));
   EXPECT_TRUE(in_data.empty());
-  EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 0, -1, &in_data));
-  EXPECT_TRUE(data == in_data);
+  EXPECT_TRUE(utils::ReadFileChunk(file.path().c_str(), 0, -1, &in_data));
+  EXPECT_EQ(data, in_data);
   in_data.clear();
-  EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 10, 20, &in_data));
-  EXPECT_TRUE(brillo::Blob(data.begin() + 10, data.begin() + 10 + 20) ==
-              in_data);
+  EXPECT_TRUE(utils::ReadFileChunk(file.path().c_str(), 10, 20, &in_data));
+  EXPECT_EQ(brillo::Blob(data.begin() + 10, data.begin() + 10 + 20), in_data);
 }
 
 TEST(UtilsTest, ErrnoNumberAsStringTest) {
@@ -464,20 +459,18 @@ TEST(UtilsTest, RunAsRootUnmountFilesystemFailureTest) {
 }
 
 TEST(UtilsTest, RunAsRootUnmountFilesystemBusyFailureTest) {
-  string tmp_image;
-  EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &tmp_image, nullptr));
-  ScopedPathUnlinker tmp_image_unlinker(tmp_image);
+  test_utils::ScopedTempFile tmp_image("img.XXXXXX");
 
   EXPECT_TRUE(base::CopyFile(
       test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
-      base::FilePath(tmp_image)));
+      base::FilePath(tmp_image.path())));
 
   base::ScopedTempDir mnt_dir;
   EXPECT_TRUE(mnt_dir.CreateUniqueTempDir());
 
   string loop_dev;
   test_utils::ScopedLoopbackDeviceBinder loop_binder(
-      tmp_image, true, &loop_dev);
+      tmp_image.path(), true, &loop_dev);
 
   EXPECT_FALSE(utils::IsMountpoint(mnt_dir.GetPath().value()));
   // This is the actual test part. While we hold a file descriptor open for the
@@ -506,10 +499,8 @@ TEST(UtilsTest, IsMountpointTest) {
   EXPECT_TRUE(mnt_dir.CreateUniqueTempDir());
   EXPECT_FALSE(utils::IsMountpoint(mnt_dir.GetPath().value()));
 
-  base::FilePath file;
-  EXPECT_TRUE(base::CreateTemporaryFile(&file));
-  ScopedPathUnlinker unlinker(file.value());
-  EXPECT_FALSE(utils::IsMountpoint(file.value()));
+  test_utils::ScopedTempFile file;
+  EXPECT_FALSE(utils::IsMountpoint(file.path()));
 }
 
 }  // namespace chromeos_update_engine
