@@ -234,9 +234,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
     RSA_free(rsa);
   }
   int signature_size = GetSignatureSize(private_key_path);
-  string hash_file;
-  ASSERT_TRUE(utils::MakeTempFile("hash.XXXXXX", &hash_file, nullptr));
-  ScopedPathUnlinker hash_unlinker(hash_file);
+  test_utils::ScopedTempFile hash_file("hash.XXXXXX");
   string signature_size_string;
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2)
@@ -251,28 +249,25 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                 delta_generator_path.c_str(),
                 payload_path.c_str(),
                 signature_size_string.c_str(),
-                hash_file.c_str())));
+                hash_file.path().c_str())));
 
   // Sign the hash
   brillo::Blob hash, signature;
-  ASSERT_TRUE(utils::ReadFile(hash_file, &hash));
+  ASSERT_TRUE(utils::ReadFile(hash_file.path(), &hash));
   ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
 
-  string sig_file;
-  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file, nullptr));
-  ScopedPathUnlinker sig_unlinker(sig_file);
-  ASSERT_TRUE(test_utils::WriteFileVector(sig_file, signature));
+  test_utils::ScopedTempFile sig_file("signature.XXXXXX");
+  ASSERT_TRUE(test_utils::WriteFileVector(sig_file.path(), signature));
+  string sig_files = sig_file.path();
 
-  string sig_file2;
-  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file2, nullptr));
-  ScopedPathUnlinker sig2_unlinker(sig_file2);
+  test_utils::ScopedTempFile sig_file2("signature.XXXXXX");
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2) {
     ASSERT_TRUE(PayloadSigner::SignHash(
         hash, GetBuildArtifactsPath(kUnittestPrivateKey2Path), &signature));
-    ASSERT_TRUE(test_utils::WriteFileVector(sig_file2, signature));
+    ASSERT_TRUE(test_utils::WriteFileVector(sig_file2.path(), signature));
     // Append second sig file to first path
-    sig_file += ":" + sig_file2;
+    sig_files += ":" + sig_file2.path();
   }
 
   ASSERT_EQ(0,
@@ -280,7 +275,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                 "%s -in_file=%s -signature_file=%s -out_file=%s",
                 delta_generator_path.c_str(),
                 payload_path.c_str(),
-                sig_file.c_str(),
+                sig_files.c_str(),
                 payload_path.c_str())));
   int verify_result = System(base::StringPrintf(
       "%s -in_file=%s -public_key=%s -public_key_version=%d",
