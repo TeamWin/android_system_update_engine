@@ -628,11 +628,11 @@ class PayloadChecker(object):
                           'signatures_offset', 'signatures_size', 'manifest')
 
     if self.major_version == 1:
-      for part in common.CROS_PARTITIONS:
-        self.old_part_info[part] = self._CheckOptionalSubMsg(
-            manifest, 'old_%s_info' % part, report)
-        self.new_part_info[part] = self._CheckMandatorySubMsg(
-            manifest, 'new_%s_info' % part, report, 'manifest')
+      for real_name, proto_name in common.CROS_PARTITIONS:
+        self.old_part_info[real_name] = self._CheckOptionalSubMsg(
+            manifest, 'old_%s_info' % proto_name, report)
+        self.new_part_info[real_name] = self._CheckMandatorySubMsg(
+            manifest, 'new_%s_info' % proto_name, report, 'manifest')
 
       # Check: old_kernel_info <==> old_rootfs_info.
       self._CheckPresentIff(self.old_part_info[common.KERNEL].msg,
@@ -647,7 +647,7 @@ class PayloadChecker(object):
             part, 'new_partition_info', report, 'manifest.partitions')
 
       # Check: Old-style partition infos should not be specified.
-      for part in common.CROS_PARTITIONS:
+      for _, part in common.CROS_PARTITIONS:
         self._CheckElemNotPresent(manifest, 'old_%s_info' % part, 'manifest')
         self._CheckElemNotPresent(manifest, 'new_%s_info' % part, 'manifest')
 

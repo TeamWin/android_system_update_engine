@@ -43,8 +43,9 @@ BROTLI_BSDIFF_MINOR_PAYLOAD_VERSION = 4
 PUFFDIFF_MINOR_PAYLOAD_VERSION = 5
 
 KERNEL = 'kernel'
-ROOTFS = 'rootfs'
-CROS_PARTITIONS = (KERNEL, ROOTFS)
+ROOTFS = 'root'
+# Tuple of (name in system, name in protobuf).
+CROS_PARTITIONS = ((KERNEL, KERNEL), (ROOTFS, 'rootfs'))
 
 #
 # Payload operation types.

@@ -643,13 +643,13 @@ class PayloadApplier(object):
 
     manifest = self.payload.manifest
     if self.payload.header.version == 1:
-      for name in common.CROS_PARTITIONS:
-        new_part_info[name] = getattr(manifest, 'new_%s_info' % name)
-        old_part_info[name] = getattr(manifest, 'old_%s_info' % name)
+      for real_name, proto_name in common.CROS_PARTITIONS:
+        new_part_info[real_name] = getattr(manifest, 'new_%s_info' % proto_name)
+        old_part_info[real_name] = getattr(manifest, 'old_%s_info' % proto_name)
 
-        install_operations.append((common.ROOTFS, manifest.install_operations))
-        install_operations.append((common.KERNEL,
-                                   manifest.kernel_install_operations))
+      install_operations.append((common.ROOTFS, manifest.install_operations))
+      install_operations.append((common.KERNEL,
+                                 manifest.kernel_install_operations))
     else:
       for part in manifest.partitions:
         name = part.partition_name
