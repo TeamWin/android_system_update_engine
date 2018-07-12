@@ -137,7 +137,7 @@ bool UpdateAttempterAndroid::ApplyPayload(
     return LogAndSetError(
         error, FROM_HERE, "An update already applied, waiting for reboot");
   }
-  if (ongoing_update_) {
+  if (processor_->IsRunning()) {
     return LogAndSetError(
         error, FROM_HERE, "Already processing an update, cancel it first.");
   }
@@ -254,7 +254,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
     fetcher->SetHeader("User-Agent", headers[kPayloadPropertyUserAgent]);
 
   SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
-  ongoing_update_ = true;
 
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts. This will start the update process.
@@ -267,21 +266,21 @@ bool UpdateAttempterAndroid::ApplyPayload(
 }
 
 bool UpdateAttempterAndroid::SuspendUpdate(brillo::ErrorPtr* error) {
-  if (!ongoing_update_)
+  if (!processor_->IsRunning())
     return LogAndSetError(error, FROM_HERE, "No ongoing update to suspend.");
   processor_->SuspendProcessing();
   return true;
 }
 
 bool UpdateAttempterAndroid::ResumeUpdate(brillo::ErrorPtr* error) {
-  if (!ongoing_update_)
+  if (!processor_->IsRunning())
     return LogAndSetError(error, FROM_HERE, "No ongoing update to resume.");
   processor_->ResumeProcessing();
   return true;
 }
 
 bool UpdateAttempterAndroid::CancelUpdate(brillo::ErrorPtr* error) {
-  if (!ongoing_update_)
+  if (!processor_->IsRunning())
     return LogAndSetError(error, FROM_HERE, "No ongoing update to cancel.");
   processor_->StopProcessing();
   return true;
@@ -568,7 +567,6 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
                                          : UpdateStatus::IDLE);
   SetStatusAndNotify(new_status);
-  ongoing_update_ = false;
 
   // The network id is only applicable to one download attempt and once it's
   // done the network id should not be re-used anymore.
