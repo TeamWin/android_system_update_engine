@@ -16,6 +16,7 @@
 
 #include "update_engine/omaha_response_handler_action.h"
 
+#include <limits>
 #include <string>
 
 #include <base/logging.h>
@@ -36,6 +37,7 @@
 
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateManager;
+using std::numeric_limits;
 using std::string;
 
 namespace chromeos_update_engine {
@@ -149,8 +151,20 @@ void OmahaResponseHandlerAction::PerformAction() {
         system_state_->hardware()->GetMinKernelKeyVersion());
     auto min_firmware_key_version = static_cast<uint32_t>(
         system_state_->hardware()->GetMinFirmwareKeyVersion());
-    if (response.kernel_version < min_kernel_key_version ||
-        response.firmware_version < min_firmware_key_version) {
+    uint32_t kernel_key_version =
+        static_cast<uint32_t>(response.rollback_key_version.kernel_key) << 16 |
+        static_cast<uint32_t>(response.rollback_key_version.kernel);
+    uint32_t firmware_key_version =
+        static_cast<uint32_t>(response.rollback_key_version.firmware_key)
+            << 16 |
+        static_cast<uint32_t>(response.rollback_key_version.firmware);
+
+    // Don't attempt a rollback if the versions are incompatible or the
+    // target image does not specify the version information.
+    if (kernel_key_version == numeric_limits<uint32_t>::max() ||
+        firmware_key_version == numeric_limits<uint32_t>::max() ||
+        kernel_key_version < min_kernel_key_version ||
+        firmware_key_version < min_firmware_key_version) {
       LOG(ERROR) << "Device won't be able to boot up the rollback image.";
       completer.set_code(ErrorCode::kRollbackNotPossible);
       return;

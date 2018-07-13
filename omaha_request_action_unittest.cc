@@ -84,6 +84,16 @@ const char kTestAppId2[] = "test-app2-id";
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
 struct FakeUpdateResponse {
+  string GetRollbackVersionAttributes() const {
+    return (rollback ? " _rollback=\"true\"" : "") +
+           (!rollback_firmware_version.empty()
+                ? " _firmware_version=\"" + rollback_firmware_version + "\""
+                : "") +
+           (!rollback_kernel_version.empty()
+                ? " _kernel_version=\"" + rollback_kernel_version + "\""
+                : "");
+  }
+
   string GetNoUpdateResponse() const {
     string entity_str;
     if (include_entity)
@@ -121,8 +131,8 @@ struct FakeUpdateResponse {
                       "\" cohortname=\"" + cohortname + "\" "
                 : "") +
            " status=\"ok\">"
-           "<ping status=\"ok\"/><updatecheck status=\"ok\">"
-           "<urls><url codebase=\"" +
+           "<ping status=\"ok\"/><updatecheck status=\"ok\"" +
+           GetRollbackVersionAttributes() + ">" + "<urls><url codebase=\"" +
            codebase +
            "\"/></urls>"
            "<manifest version=\"" +
@@ -220,6 +230,13 @@ struct FakeUpdateResponse {
   bool multi_app_no_update = false;
   // Whether to include more than one package in an app.
   bool multi_package = false;
+
+  // Whether the payload is a rollback.
+  bool rollback = false;
+  // The verified boot firmware key version for the rollback image.
+  string rollback_firmware_version = "";
+  // The verified boot kernel key version for the rollback image.
+  string rollback_kernel_version = "";
 };
 
 }  // namespace
@@ -292,7 +309,8 @@ class OmahaRequestActionTest : public ::testing::Test {
 
   void TestRollbackCheck(bool is_consumer_device,
                          int rollback_allowed_milestones,
-                         bool is_policy_loaded);
+                         bool is_policy_loaded,
+                         OmahaResponse* out_response);
 
   // Runs and checks a ping test. |ping_only| indicates whether it should send
   // only a ping or also an updatecheck.
@@ -493,8 +511,8 @@ bool OmahaRequestActionTest::TestUpdateCheck(
 
 void OmahaRequestActionTest::TestRollbackCheck(bool is_consumer_device,
                                                int rollback_allowed_milestones,
-                                               bool is_policy_loaded) {
-  OmahaResponse response;
+                                               bool is_policy_loaded,
+                                               OmahaResponse* out_response) {
   fake_update_response_.deadline = "20101020";
   ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
@@ -506,9 +524,9 @@ void OmahaRequestActionTest::TestRollbackCheck(bool is_consumer_device,
                               metrics::CheckResult::kUpdateAvailable,
                               metrics::CheckReaction::kUpdating,
                               metrics::DownloadErrorCode::kUnset,
-                              &response,
+                              out_response,
                               nullptr));
-  ASSERT_TRUE(response.update_exists);
+  ASSERT_TRUE(out_response->update_exists);
 }
 
 // Tests Event requests -- they should always succeed. |out_post_data|
@@ -2822,9 +2840,11 @@ TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
       ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
       .Times(1);
 
+  OmahaResponse response;
   TestRollbackCheck(false /* is_consumer_device */,
                     3 /* rollback_allowed_milestones */,
-                    false /* is_policy_loaded */);
+                    false /* is_policy_loaded */,
+                    &response);
 
   // Verify kernel_max_rollforward was set to the current minimum
   // kernel key version. This has the effect of freezing roll
@@ -2854,9 +2874,11 @@ TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
       ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
       .Times(1);
 
+  OmahaResponse response;
   TestRollbackCheck(true /* is_consumer_device */,
                     3 /* rollback_allowed_milestones */,
-                    false /* is_policy_loaded */);
+                    false /* is_policy_loaded */,
+                    &response);
 
   // Verify that with rollback disabled that kernel_max_rollforward
   // was set to logical infinity. This is the expected behavior for
@@ -2885,9 +2907,11 @@ TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
       ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
       .Times(1);
 
+  OmahaResponse response;
   TestRollbackCheck(false /* is_consumer_device */,
                     allowed_milestones,
-                    true /* is_policy_loaded */);
+                    true /* is_policy_loaded */,
+                    &response);
 
   // Verify that with rollback enabled that kernel_max_rollforward
   // was set to the current minimum kernel key version. This has
@@ -2917,14 +2941,42 @@ TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
       ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
       .Times(1);
 
+  OmahaResponse response;
   TestRollbackCheck(false /* is_consumer_device */,
                     allowed_milestones,
-                    true /* is_policy_loaded */);
+                    true /* is_policy_loaded */,
+                    &response);
 
   // Verify that with rollback disabled that kernel_max_rollforward
   // was set to logical infinity.
   EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+TEST_F(OmahaRequestActionTest, RollbackResponseParsedNoEntries) {
+  OmahaResponse response;
+  fake_update_response_.rollback = true;
+  TestRollbackCheck(false /* is_consumer_device */,
+                    4 /* rollback_allowed_milestones */,
+                    true /* is_policy_loaded */,
+                    &response);
+  EXPECT_TRUE(response.is_rollback);
+}
+
+TEST_F(OmahaRequestActionTest, RollbackResponseValidVersionsParsed) {
+  OmahaResponse response;
+  fake_update_response_.rollback_firmware_version = "1.2";
+  fake_update_response_.rollback_kernel_version = "3.4";
+  fake_update_response_.rollback = true;
+  TestRollbackCheck(false /* is_consumer_device */,
+                    4 /* rollback_allowed_milestones */,
+                    true /* is_policy_loaded */,
+                    &response);
+  EXPECT_TRUE(response.is_rollback);
+  EXPECT_EQ(1, response.rollback_key_version.firmware_key);
+  EXPECT_EQ(2, response.rollback_key_version.firmware);
+  EXPECT_EQ(3, response.rollback_key_version.kernel_key);
+  EXPECT_EQ(4, response.rollback_key_version.kernel);
 }
 
 }  // namespace chromeos_update_engine

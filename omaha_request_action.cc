@@ -18,6 +18,7 @@
 
 #include <inttypes.h>
 
+#include <limits>
 #include <map>
 #include <sstream>
 #include <string>
@@ -55,6 +56,7 @@ using base::Time;
 using base::TimeDelta;
 using chromeos_update_manager::kRollforwardInfinity;
 using std::map;
+using std::numeric_limits;
 using std::string;
 using std::vector;
 
@@ -938,6 +940,20 @@ bool ParsePackage(OmahaParserData::App* app,
   return true;
 }
 
+// Parses the 2 key version strings kernel_version and firmware_version. If the
+// field is not present, or cannot be parsed the values default to 0xffff.
+void ParseRollbackVersions(OmahaParserData* parser_data,
+                           OmahaResponse* output_object) {
+  utils::ParseRollbackKeyVersion(
+      parser_data->updatecheck_attrs[kFirmwareVersion],
+      &output_object->rollback_key_version.firmware_key,
+      &output_object->rollback_key_version.firmware);
+  utils::ParseRollbackKeyVersion(
+      parser_data->updatecheck_attrs[kKernelVersion],
+      &output_object->rollback_key_version.kernel_key,
+      &output_object->rollback_key_version.kernel);
+}
+
 }  // namespace
 
 bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
@@ -1004,14 +1020,10 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   // Defaults to false if attribute is not present.
   output_object->is_rollback =
       ParseBool(parser_data->updatecheck_attrs[kRollback]);
-  // Defaults to 0 if attribute is not present. This is fine for these values,
-  // because it's the lowest possible value, and the rollback image won't be
-  // installed, if the values in the TPM are larger than these, and in case the
-  // values in the TPM are 0, all images will be able to boot up.
-  output_object->firmware_version = static_cast<uint32_t>(
-      ParseInt(parser_data->updatecheck_attrs[kFirmwareVersion]));
-  output_object->kernel_version = static_cast<uint32_t>(
-      ParseInt(parser_data->updatecheck_attrs[kKernelVersion]));
+
+  // Parses the rollback versions of the current image. If the fields do not
+  // exist they default to 0xffff for the 4 key versions.
+  ParseRollbackVersions(parser_data, output_object);
 
   if (!ParseStatus(parser_data, output_object, completer))
     return false;

@@ -61,6 +61,7 @@
 using base::Time;
 using base::TimeDelta;
 using std::min;
+using std::numeric_limits;
 using std::pair;
 using std::string;
 using std::vector;
@@ -1080,6 +1081,36 @@ int VersionPrefix(const std::string& version) {
   if (tokens.empty() || !base::StringToInt(tokens[0], &value))
     return -1;  // Target version is invalid.
   return value;
+}
+
+void ParseRollbackKeyVersion(const string& raw_version,
+                             uint16_t* high_version,
+                             uint16_t* low_version) {
+  DCHECK(high_version);
+  DCHECK(low_version);
+  *high_version = numeric_limits<uint16_t>::max();
+  *low_version = numeric_limits<uint16_t>::max();
+
+  vector<string> parts = base::SplitString(
+      raw_version, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  if (parts.size() != 2) {
+    // The version string must have exactly one period.
+    return;
+  }
+
+  int high;
+  int low;
+  if (!(base::StringToInt(parts[0], &high) &&
+        base::StringToInt(parts[1], &low))) {
+    // Both parts of the version could not be parsed correctly.
+    return;
+  }
+
+  if (high >= 0 && high < numeric_limits<uint16_t>::max() && low >= 0 &&
+      low < numeric_limits<uint16_t>::max()) {
+    *high_version = static_cast<uint16_t>(high);
+    *low_version = static_cast<uint16_t>(low);
+  }
 }
 
 }  // namespace utils

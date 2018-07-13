@@ -502,8 +502,10 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackTest) {
                          .size = 1,
                          .hash = kPayloadHashHex});
   in.is_rollback = true;
-  in.kernel_version = 0x00010002;
-  in.firmware_version = 0x00030004;
+  in.rollback_key_version.kernel = 1;
+  in.rollback_key_version.kernel = 2;
+  in.rollback_key_version.firmware_key = 3;
+  in.rollback_key_version.firmware = 4;
 
   fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
   fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
@@ -524,8 +526,10 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackKernelVersionErrorTest) {
                          .size = 1,
                          .hash = kPayloadHashHex});
   in.is_rollback = true;
-  in.kernel_version = 0x00010001;  // This is lower than the minimum.
-  in.firmware_version = 0x00030004;
+  in.rollback_key_version.kernel_key = 1;
+  in.rollback_key_version.kernel = 1;  // This is lower than the minimum.
+  in.rollback_key_version.firmware_key = 3;
+  in.rollback_key_version.firmware = 4;
 
   fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
   fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
@@ -545,8 +549,10 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackFirmwareVersionErrorTest) {
                          .size = 1,
                          .hash = kPayloadHashHex});
   in.is_rollback = true;
-  in.kernel_version = 0x00010002;
-  in.firmware_version = 0x00030003;  // This is lower than the minimum.
+  in.rollback_key_version.kernel_key = 1;
+  in.rollback_key_version.kernel = 2;
+  in.rollback_key_version.firmware_key = 3;
+  in.rollback_key_version.firmware = 3;  // This is lower than the minimum.
 
   fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
   fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
