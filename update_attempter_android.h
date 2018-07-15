@@ -179,11 +179,6 @@ class UpdateAttempterAndroid
   // Pointer to the DownloadAction in the actions_ vector.
   std::shared_ptr<DownloadAction> download_action_;
 
-  // Whether there is an ongoing update. This implies that an update was started
-  // but not finished yet. This value will be true even if the update was
-  // suspended.
-  bool ongoing_update_{false};
-
   // The InstallPlan used during the ongoing update.
   InstallPlan install_plan_;
 
