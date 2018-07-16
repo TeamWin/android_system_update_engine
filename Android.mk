@@ -335,6 +335,7 @@ LOCAL_SRC_FILES := \
     update_manager/real_system_provider.cc \
     update_manager/real_time_provider.cc \
     update_manager/real_updater_provider.cc \
+    update_manager/staging_utils.cc \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
     update_manager/update_time_restrictions_policy_impl.cc \
@@ -1021,6 +1022,7 @@ LOCAL_SRC_FILES += \
     update_manager/real_system_provider_unittest.cc \
     update_manager/real_time_provider_unittest.cc \
     update_manager/real_updater_provider_unittest.cc \
+    update_manager/staging_utils_unittest.cc \
     update_manager/umtest_utils.cc \
     update_manager/update_manager_unittest.cc \
     update_manager/update_time_restrictions_policy_impl_unittest.cc \
