@@ -147,6 +147,8 @@ class PayloadState : public PayloadStateInterface {
 
   void SetScatteringWaitPeriod(base::TimeDelta wait_period) override;
 
+  void SetStagingWaitPeriod(base::TimeDelta wait_period) override;
+
   void SetP2PUrl(const std::string& url) override {
     p2p_url_ = url;
   }
@@ -408,8 +410,6 @@ class PayloadState : public PayloadStateInterface {
   // increments num_reboots.
   void UpdateNumReboots();
 
-
-
   // Loads the |kPrefsP2PFirstAttemptTimestamp| state variable from disk
   // into |p2p_first_attempt_timestamp_|.
   void LoadP2PFirstAttemptTimestamp();
@@ -425,6 +425,9 @@ class PayloadState : public PayloadStateInterface {
 
   // Loads the persisted scattering wallclock-based wait period.
   void LoadScatteringWaitPeriod();
+
+  // Loads the persisted staging wallclock-based wait period.
+  void LoadStagingWaitPeriod();
 
   // Get the total size of all payloads.
   int64_t GetPayloadSize();
@@ -585,6 +588,9 @@ class PayloadState : public PayloadStateInterface {
 
   // The current scattering wallclock-based wait period.
   base::TimeDelta scattering_wait_period_;
+
+  // The current staging wallclock-based wait period.
+  base::TimeDelta staging_wait_period_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

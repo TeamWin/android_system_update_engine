@@ -90,7 +90,8 @@ extern const char kPrefsUpdateStateSignatureBlob[];
 extern const char kPrefsUpdateStateSignedSHA256Context[];
 extern const char kPrefsUpdateTimestampStart[];
 extern const char kPrefsUrlSwitchCount[];
-extern const char kPrefsWallClockWaitPeriod[];
+extern const char kPrefsWallClockScatteringWaitPeriod[];
+extern const char kPrefsWallClockStagingWaitPeriod[];
 
 // Keys used when storing and loading payload properties.
 extern const char kPayloadPropertyFileSize[];

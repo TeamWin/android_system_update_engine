@@ -909,7 +909,8 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
   fake_system_state_.set_prefs(&fake_prefs);
 
-  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsWallClockWaitPeriod, initial_value));
+  EXPECT_TRUE(
+      fake_prefs.SetInt64(kPrefsWallClockScatteringWaitPeriod, initial_value));
   EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
 
   // make sure scatter_factor is non-zero as scattering is disabled
@@ -942,7 +943,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   // checks and all artifacts are removed.
   EXPECT_FALSE(
       attempter_.omaha_request_params_->wall_clock_based_wait_enabled());
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsWallClockWaitPeriod));
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsWallClockScatteringWaitPeriod));
   EXPECT_EQ(0, attempter_.omaha_request_params_->waiting_period().InSeconds());
   EXPECT_FALSE(
       attempter_.omaha_request_params_->update_check_count_wait_enabled());

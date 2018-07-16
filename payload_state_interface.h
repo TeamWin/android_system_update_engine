@@ -205,6 +205,9 @@ class PayloadStateInterface {
 
   // Switch to next payload.
   virtual bool NextPayload() = 0;
+
+  // Sets and persists the staging wallclock-based wait period.
+  virtual void SetStagingWaitPeriod(base::TimeDelta wait_period) = 0;
 };
 
 }  // namespace chromeos_update_engine

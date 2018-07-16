@@ -793,6 +793,7 @@ void PayloadState::ResetPersistedState() {
   SetP2PNumAttempts(0);
   SetP2PFirstAttemptTimestamp(Time());  // Set to null time
   SetScatteringWaitPeriod(TimeDelta());
+  SetStagingWaitPeriod(TimeDelta());
 }
 
 void PayloadState::ResetRollbackVersion() {
@@ -915,7 +916,7 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
 
 void PayloadState::LoadScatteringWaitPeriod() {
   SetScatteringWaitPeriod(TimeDelta::FromSeconds(
-      GetPersistedValue(kPrefsWallClockWaitPeriod, prefs_)));
+      GetPersistedValue(kPrefsWallClockScatteringWaitPeriod, prefs_)));
 }
 
 void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
@@ -924,10 +925,27 @@ void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
   LOG(INFO) << "Scattering Wait Period (seconds) = "
             << scattering_wait_period_.InSeconds();
   if (scattering_wait_period_.InSeconds() > 0) {
-    prefs_->SetInt64(kPrefsWallClockWaitPeriod,
+    prefs_->SetInt64(kPrefsWallClockScatteringWaitPeriod,
                      scattering_wait_period_.InSeconds());
   } else {
-    prefs_->Delete(kPrefsWallClockWaitPeriod);
+    prefs_->Delete(kPrefsWallClockScatteringWaitPeriod);
+  }
+}
+
+void PayloadState::LoadStagingWaitPeriod() {
+  SetStagingWaitPeriod(TimeDelta::FromSeconds(
+      GetPersistedValue(kPrefsWallClockStagingWaitPeriod, prefs_)));
+}
+
+void PayloadState::SetStagingWaitPeriod(TimeDelta wait_period) {
+  CHECK(prefs_);
+  staging_wait_period_ = wait_period;
+  LOG(INFO) << "Staging Wait Period (days) =" << staging_wait_period_.InDays();
+  if (staging_wait_period_.InSeconds() > 0) {
+    prefs_->SetInt64(kPrefsWallClockStagingWaitPeriod,
+                     staging_wait_period_.InSeconds());
+  } else {
+    prefs_->Delete(kPrefsWallClockStagingWaitPeriod);
   }
 }
 

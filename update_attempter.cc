@@ -497,7 +497,8 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     if (omaha_request_params_->waiting_period().InSeconds() == 0) {
       // First case. Check if we have a suitable value to set for
       // the waiting period.
-      if (prefs_->GetInt64(kPrefsWallClockWaitPeriod, &wait_period_in_secs) &&
+      if (prefs_->GetInt64(kPrefsWallClockScatteringWaitPeriod,
+                           &wait_period_in_secs) &&
           wait_period_in_secs > 0 &&
           wait_period_in_secs <= scatter_factor_.InSeconds()) {
         // This means:
@@ -557,7 +558,7 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     omaha_request_params_->set_wall_clock_based_wait_enabled(false);
     omaha_request_params_->set_update_check_count_wait_enabled(false);
     omaha_request_params_->set_waiting_period(TimeDelta::FromSeconds(0));
-    prefs_->Delete(kPrefsWallClockWaitPeriod);
+    prefs_->Delete(kPrefsWallClockScatteringWaitPeriod);
     prefs_->Delete(kPrefsUpdateCheckCount);
     // Don't delete the UpdateFirstSeenAt file as we don't want manual checks
     // that result in no-updates (e.g. due to server side throttling) to
