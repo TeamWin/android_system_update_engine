@@ -311,14 +311,14 @@ class OmahaRequestParams {
   // Whether the client is accepting rollback images too.
   bool rollback_allowed_;
 
-  // True if scattering is enabled, in which case waiting_period_ specifies the
-  // amount of absolute time that we've to wait for before sending a request to
-  // Omaha.
+  // True if scattering or staging are enabled, in which case waiting_period_
+  // specifies the amount of absolute time that we've to wait for before sending
+  // a request to Omaha.
   bool wall_clock_based_wait_enabled_;
   base::TimeDelta waiting_period_;
 
-  // True if scattering is enabled to denote the number of update checks
-  // we've to skip before we can send a request to Omaha. The min and max
+  // True if scattering or staging are enabled to denote the number of update
+  // checks we've to skip before we can send a request to Omaha. The min and max
   // values establish the bounds for a random number to be chosen within that
   // range to enable such a wait.
   bool update_check_count_wait_enabled_;

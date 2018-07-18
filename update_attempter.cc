@@ -76,6 +76,8 @@ using brillo::MessageLoop;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateCheckParams;
+using chromeos_update_manager::CalculateStagingCase;
+using chromeos_update_manager::StagingCase;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -373,7 +375,11 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   // Set whether rollback is allowed.
   omaha_request_params_->set_rollback_allowed(rollback_allowed);
 
-  CalculateScatteringParams(interactive);
+  CalculateStagingParams(interactive);
+  // If staging_wait_time_ wasn't set, staging is off, use scattering instead.
+  if (staging_wait_time_.InSeconds() == 0) {
+    CalculateScatteringParams(interactive);
+  }
 
   CalculateP2PParams(interactive);
   if (payload_state->GetUsingP2PForDownloading() ||
@@ -578,6 +584,45 @@ void UpdateAttempter::GenerateNewWaitingPeriod() {
   // across multiple devices if they tend to reboot too often.
   system_state_->payload_state()->SetScatteringWaitPeriod(
       omaha_request_params_->waiting_period());
+}
+
+void UpdateAttempter::CalculateStagingParams(bool interactive) {
+  bool oobe_complete = system_state_->hardware()->IsOOBEEnabled() &&
+                       system_state_->hardware()->IsOOBEComplete(nullptr);
+  auto device_policy = system_state_->device_policy();
+  StagingCase staging_case = StagingCase::kOff;
+  if (device_policy && !interactive && oobe_complete) {
+    staging_wait_time_ = omaha_request_params_->waiting_period();
+    staging_case = CalculateStagingCase(
+        device_policy, prefs_, &staging_wait_time_, &staging_schedule_);
+  }
+  switch (staging_case) {
+    case StagingCase::kOff:
+      // Staging is off, get rid of persisted value.
+      prefs_->Delete(kPrefsWallClockStagingWaitPeriod);
+      // Set |staging_wait_time_| to its default value so scattering can still
+      // be turned on
+      staging_wait_time_ = TimeDelta();
+      break;
+    // Let the cases fall through since they just add, and never remove, steps
+    // to turning staging on.
+    case StagingCase::kNoSavedValue:
+      prefs_->SetInt64(kPrefsWallClockStagingWaitPeriod,
+                       staging_wait_time_.InDays());
+    case StagingCase::kSetStagingFromPref:
+      omaha_request_params_->set_waiting_period(staging_wait_time_);
+    case StagingCase::kNoAction:
+      // Staging is on, enable wallclock based wait so that its values get used.
+      omaha_request_params_->set_wall_clock_based_wait_enabled(true);
+      // Use UpdateCheckCount if possible to prevent devices updating all at
+      // once.
+      omaha_request_params_->set_update_check_count_wait_enabled(
+          DecrementUpdateCheckCount());
+      // Scattering should not be turned on if staging is on, delete the
+      // existing scattering configuration.
+      prefs_->Delete(kPrefsWallClockScatteringWaitPeriod);
+      scatter_factor_ = TimeDelta();
+  }
 }
 
 void UpdateAttempter::BuildUpdateActions(bool interactive) {
@@ -955,6 +1000,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     // way.
     prefs_->Delete(kPrefsUpdateCheckCount);
     system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
+    system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
 
     SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);

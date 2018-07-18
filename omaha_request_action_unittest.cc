@@ -1336,6 +1336,42 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   EXPECT_TRUE(response.update_exists);
 }
 
+TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
+  // If staging is on, the value for max days to scatter should be ignored, and
+  // staging's scatter value should be used.
+  OmahaResponse response;
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta::FromDays(6));
+  request_params_.set_update_check_count_wait_enabled(false);
+
+  ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsWallClockStagingWaitPeriod, 6));
+  // This should not prevent scattering due to staging.
+  fake_update_response_.max_days_to_scatter = "0";
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateDeferredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kDeferring,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+
+  // Interactive updates should not be affected.
+  request_params_.set_interactive(true);
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+}
+
 TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
   OmahaResponse response;
   fake_update_response_.include_cohorts = true;

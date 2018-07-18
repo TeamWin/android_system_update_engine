@@ -54,7 +54,9 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_manager::EvalStatus;
+using chromeos_update_manager::StagingSchedule;
 using chromeos_update_manager::UpdateCheckParams;
+using policy::DevicePolicy;
 using std::string;
 using std::unique_ptr;
 using testing::_;
@@ -175,6 +177,12 @@ class UpdateAttempterTest : public ::testing::Test {
   void ResetRollbackHappenedStart(bool is_consumer,
                                   bool is_policy_available,
                                   bool expected_reset);
+  // Staging related callbacks.
+  void SetUpStagingTest(const StagingSchedule& schedule, FakePrefs* prefs);
+  void CheckStagingOff();
+  void StagingSetsPrefsAndTurnsOffScatteringStart();
+  void StagingOffIfInteractiveStart();
+  void StagingOffIfOobeStart();
 
   bool actual_using_p2p_for_downloading() {
     return actual_using_p2p_for_downloading_;
@@ -458,6 +466,9 @@ const string kRollbackActionTypes[] = {  // NOLINT(runtime/string)
   InstallPlanAction::StaticType(),
   PostinstallRunnerAction::StaticType(),
 };
+
+const StagingSchedule kValidStagingSchedule = {
+    {4, 10}, {10, 40}, {19, 70}, {26, 100}};
 
 }  // namespace
 
@@ -927,6 +938,125 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   EXPECT_FALSE(
       attempter_.omaha_request_params_->update_check_count_wait_enabled());
   EXPECT_FALSE(fake_prefs.Exists(kPrefsUpdateCheckCount));
+
+  ScheduleQuitMainLoop();
+}
+
+void UpdateAttempterTest::SetUpStagingTest(const StagingSchedule& schedule,
+                                           FakePrefs* prefs) {
+  attempter_.prefs_ = prefs;
+  fake_system_state_.set_prefs(prefs);
+
+  int64_t initial_value = 8;
+  EXPECT_TRUE(
+      prefs->SetInt64(kPrefsWallClockScatteringWaitPeriod, initial_value));
+  EXPECT_TRUE(prefs->SetInt64(kPrefsUpdateCheckCount, initial_value));
+  attempter_.scatter_factor_ = TimeDelta::FromSeconds(20);
+
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
+  EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
+  fake_system_state_.set_device_policy(device_policy.get());
+  EXPECT_CALL(*device_policy, GetDeviceUpdateStagingSchedule(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(schedule), Return(true)));
+
+  attempter_.policy_provider_.reset(
+      new policy::PolicyProvider(std::move(device_policy)));
+}
+
+TEST_F(UpdateAttempterTest, StagingSetsPrefsAndTurnsOffScattering) {
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(
+          &UpdateAttempterTest::StagingSetsPrefsAndTurnsOffScatteringStart,
+          base::Unretained(this)));
+  loop_.Run();
+}
+
+void UpdateAttempterTest::StagingSetsPrefsAndTurnsOffScatteringStart() {
+  // Tests that staging sets its prefs properly and turns off scattering.
+  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  FakePrefs fake_prefs;
+  SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
+
+  attempter_.Update("", "", "", "", false, false, false);
+  // Check that prefs have the correct values.
+  int64_t update_count;
+  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &update_count));
+  int64_t waiting_time_days;
+  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsWallClockStagingWaitPeriod,
+                                  &waiting_time_days));
+  EXPECT_GT(waiting_time_days, 0);
+  // Update count should have been decremented.
+  EXPECT_EQ(7, update_count);
+  // Check that Omaha parameters were updated correctly.
+  EXPECT_TRUE(
+      attempter_.omaha_request_params_->update_check_count_wait_enabled());
+  EXPECT_TRUE(
+      attempter_.omaha_request_params_->wall_clock_based_wait_enabled());
+  EXPECT_EQ(waiting_time_days,
+            attempter_.omaha_request_params_->waiting_period().InDays());
+  // Check class variables.
+  EXPECT_EQ(waiting_time_days, attempter_.staging_wait_time_.InDays());
+  EXPECT_EQ(kValidStagingSchedule, attempter_.staging_schedule_);
+  // Check that scattering is turned off
+  EXPECT_EQ(0, attempter_.scatter_factor_.InSeconds());
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsWallClockScatteringWaitPeriod));
+
+  ScheduleQuitMainLoop();
+}
+
+void UpdateAttempterTest::CheckStagingOff() {
+  // Check that all prefs were removed.
+  EXPECT_FALSE(attempter_.prefs_->Exists(kPrefsUpdateCheckCount));
+  EXPECT_FALSE(attempter_.prefs_->Exists(kPrefsWallClockScatteringWaitPeriod));
+  EXPECT_FALSE(attempter_.prefs_->Exists(kPrefsWallClockStagingWaitPeriod));
+  // Check that the Omaha parameters have the correct value.
+  EXPECT_EQ(0, attempter_.omaha_request_params_->waiting_period().InDays());
+  EXPECT_EQ(attempter_.omaha_request_params_->waiting_period(),
+            attempter_.staging_wait_time_);
+  EXPECT_FALSE(
+      attempter_.omaha_request_params_->update_check_count_wait_enabled());
+  EXPECT_FALSE(
+      attempter_.omaha_request_params_->wall_clock_based_wait_enabled());
+  // Check that scattering is turned off too.
+  EXPECT_EQ(0, attempter_.scatter_factor_.InSeconds());
+}
+
+TEST_F(UpdateAttempterTest, StagingOffIfInteractive) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::StagingOffIfInteractiveStart,
+                            base::Unretained(this)));
+  loop_.Run();
+}
+
+void UpdateAttempterTest::StagingOffIfInteractiveStart() {
+  // Tests that staging is turned off when an interactive update is requested.
+  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  FakePrefs fake_prefs;
+  SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
+
+  attempter_.Update("", "", "", "", false, false, /* interactive = */ true);
+  CheckStagingOff();
+
+  ScheduleQuitMainLoop();
+}
+
+TEST_F(UpdateAttempterTest, StagingOffIfOobe) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::StagingOffIfOobeStart,
+                            base::Unretained(this)));
+  loop_.Run();
+}
+
+void UpdateAttempterTest::StagingOffIfOobeStart() {
+  // Tests that staging is turned off if OOBE hasn't been completed.
+  fake_system_state_.fake_hardware()->SetIsOOBEEnabled(true);
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakePrefs fake_prefs;
+  SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
+
+  attempter_.Update("", "", "", "", false, false, /* interactive = */ true);
+  CheckStagingOff();
 
   ScheduleQuitMainLoop();
 }

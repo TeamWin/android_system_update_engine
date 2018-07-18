@@ -44,6 +44,7 @@
 #include "update_engine/service_observer_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
+#include "update_engine/update_manager/staging_utils.h"
 #include "update_engine/update_manager/update_manager.h"
 
 namespace policy {
@@ -410,6 +411,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Returns whether an update is currently running or scheduled.
   bool IsUpdateRunningOrScheduled();
 
+  void CalculateStagingParams(bool interactive);
+
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.
@@ -509,6 +512,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // actually scheduled.
   std::string forced_app_version_;
   std::string forced_omaha_url_;
+
+  // If this is not TimeDelta(), then that means staging is turned on.
+  base::TimeDelta staging_wait_time_;
+  chromeos_update_manager::StagingSchedule staging_schedule_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

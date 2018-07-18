@@ -1481,13 +1481,18 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
       system_state_->clock()->GetWallclockTime() - update_first_seen_at;
   TimeDelta max_scatter_period =
       TimeDelta::FromDays(output_object->max_days_to_scatter);
+  int64_t staging_wait_time_in_days = 0;
+  // Use staging and its default max value if staging is on.
+  if (system_state_->prefs()->GetInt64(kPrefsWallClockStagingWaitPeriod,
+                                       &staging_wait_time_in_days) &&
+      staging_wait_time_in_days > 0)
+    max_scatter_period = TimeDelta::FromDays(kMaxWaitTimeStagingInDays);
 
   LOG(INFO) << "Waiting Period = "
             << utils::FormatSecs(params_->waiting_period().InSeconds())
             << ", Time Elapsed = "
             << utils::FormatSecs(elapsed_time.InSeconds())
-            << ", MaxDaysToScatter = "
-            << max_scatter_period.InDays();
+            << ", MaxDaysToScatter = " << max_scatter_period.InDays();
 
   if (!output_object->deadline.empty()) {
     // The deadline is set for all rules which serve a delta update from a
