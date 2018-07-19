@@ -214,7 +214,6 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   OobePolicyImpl oobe_policy;
   NextUpdateCheckTimePolicyImpl next_update_check_time_policy(
       kNextUpdateCheckPolicyConstants);
-  UpdateTimeRestrictionsPolicyImpl update_time_restrictions_policy;
 
   vector<Policy const*> policies_to_consult = {
       // Do not perform any updates if there are not enough slots to do A/B
@@ -233,9 +232,6 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
 
       // If OOBE is enabled, wait until it is completed.
       &oobe_policy,
-
-      // Ensure that updates are checked only in allowed times.
-      &update_time_restrictions_policy,
 
       // Ensure that periodic update checks are timed properly.
       &next_update_check_time_policy,
@@ -265,8 +261,33 @@ EvalStatus ChromeOSPolicy::UpdateCanBeApplied(EvaluationContext* ec,
                                               std::string* error,
                                               ErrorCode* result,
                                               InstallPlan* install_plan) const {
-  *result = ErrorCode::kSuccess;
-  return EvalStatus::kSucceeded;
+  UpdateTimeRestrictionsPolicyImpl update_time_restrictions_policy;
+  InteractiveUpdatePolicyImpl interactive_update_policy;
+
+  vector<Policy const*> policies_to_consult = {
+      // Check to see if an interactive update has been requested.
+      &interactive_update_policy,
+
+      // Do not apply or download an update if we are inside one of the
+      // restricted times.
+      &update_time_restrictions_policy,
+  };
+
+  EvalStatus status = ConsultPolicies(policies_to_consult,
+                                      &Policy::UpdateCanBeApplied,
+                                      ec,
+                                      state,
+                                      error,
+                                      result,
+                                      install_plan);
+  if (EvalStatus::kContinue != status) {
+    return status;
+  } else {
+    // The update can proceed.
+    LOG(INFO) << "Allowing update to be applied.";
+    *result = ErrorCode::kSuccess;
+    return EvalStatus::kSucceeded;
+  }
 }
 
 EvalStatus ChromeOSPolicy::UpdateCanStart(

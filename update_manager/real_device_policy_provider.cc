@@ -232,6 +232,8 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(&var_au_p2p_enabled_, &DevicePolicy::GetAuP2PEnabled);
   UpdateVariable(&var_allow_kiosk_app_control_chrome_version_,
                  &DevicePolicy::GetAllowKioskAppControlChromeVersion);
+  UpdateVariable(&var_auto_launched_kiosk_app_id_,
+                 &DevicePolicy::GetAutoLaunchedKioskAppId);
   UpdateVariable(&var_disallowed_time_intervals_,
                  &RealDevicePolicyProvider::ConvertDisallowedTimeIntervals);
 }

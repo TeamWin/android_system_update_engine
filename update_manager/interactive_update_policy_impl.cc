@@ -16,6 +16,9 @@
 
 #include "update_engine/update_manager/interactive_update_policy_impl.h"
 
+using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
+
 namespace chromeos_update_manager {
 
 // Check to see if an interactive update was requested.
@@ -24,21 +27,51 @@ EvalStatus InteractiveUpdatePolicyImpl::UpdateCheckAllowed(
     State* state,
     std::string* error,
     UpdateCheckParams* result) const {
-  UpdaterProvider* const updater_provider = state->updater_provider();
+  bool interactive;
+  if (CheckInteractiveUpdateRequested(
+          ec, state->updater_provider(), &interactive)) {
+    result->interactive = interactive;
+    LOG(INFO) << "Forced update signaled ("
+              << (interactive ? "interactive" : "periodic")
+              << "), allowing update check.";
+    return EvalStatus::kSucceeded;
+  }
+  return EvalStatus::kContinue;
+}
 
+EvalStatus InteractiveUpdatePolicyImpl::UpdateCanBeApplied(
+    EvaluationContext* ec,
+    State* state,
+    std::string* error,
+    ErrorCode* result,
+    InstallPlan* install_plan) const {
+  bool interactive;
+  if (CheckInteractiveUpdateRequested(
+          ec, state->updater_provider(), &interactive)) {
+    LOG(INFO) << "Forced update signaled ("
+              << (interactive ? "interactive" : "periodic")
+              << "), allowing update to be applied.";
+    *result = ErrorCode::kSuccess;
+    return EvalStatus::kSucceeded;
+  }
+  return EvalStatus::kContinue;
+}
+
+bool InteractiveUpdatePolicyImpl::CheckInteractiveUpdateRequested(
+    EvaluationContext* ec,
+    UpdaterProvider* const updater_provider,
+    bool* interactive_out) const {
   // First, check to see if an interactive update was requested.
   const UpdateRequestStatus* forced_update_requested_p =
       ec->GetValue(updater_provider->var_forced_update_requested());
   if (forced_update_requested_p != nullptr &&
       *forced_update_requested_p != UpdateRequestStatus::kNone) {
-    result->interactive =
-        (*forced_update_requested_p == UpdateRequestStatus::kInteractive);
-    LOG(INFO) << "Forced update signaled ("
-              << (result->interactive ? "interactive" : "periodic")
-              << "), allowing update check.";
-    return EvalStatus::kSucceeded;
+    if (interactive_out)
+      *interactive_out =
+          (*forced_update_requested_p == UpdateRequestStatus::kInteractive);
+    return true;
   }
-  return EvalStatus::kContinue;
+  return false;
 }
 
 }  // namespace chromeos_update_manager

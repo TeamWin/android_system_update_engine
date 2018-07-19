@@ -25,6 +25,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
 using std::string;
 
 namespace chromeos_update_manager {
@@ -49,40 +51,67 @@ class UmUpdateTimeRestrictionsPolicyImplTest : public UmPolicyTestBase {
 
   void TestPolicy(const Time::Exploded& exploded,
                   const WeeklyTimeIntervalVector& test_intervals,
-                  const EvalStatus& expected_value) {
+                  const EvalStatus& expected_value,
+                  bool kiosk) {
+    if (kiosk)
+      fake_state_.device_policy_provider()
+          ->var_auto_launched_kiosk_app_id()
+          ->reset(new string("myapp"));
     fake_clock_.SetWallclockTime(Time::FromLocalExploded(exploded));
     SetUpDefaultTimeProvider();
     fake_state_.device_policy_provider()
         ->var_disallowed_time_intervals()
         ->reset(new WeeklyTimeIntervalVector(test_intervals));
-    UpdateCheckParams result;
-    ExpectPolicyStatus(expected_value, &Policy::UpdateCheckAllowed, &result);
+    ErrorCode result;
+    InstallPlan install_plan;
+    ExpectPolicyStatus(
+        expected_value, &Policy::UpdateCanBeApplied, &result, &install_plan);
+    if (expected_value == EvalStatus::kAskMeAgainLater)
+      EXPECT_EQ(result, ErrorCode::kOmahaUpdateDeferredPerPolicy);
   }
 };
 
 // If there are no intervals, then the check should always return kContinue.
 TEST_F(UmUpdateTimeRestrictionsPolicyImplTest, NoIntervalsSetTest) {
   Time::Exploded random_time{2018, 7, 1, 9, 12, 30, 0, 0};
-  TestPolicy(random_time, WeeklyTimeIntervalVector(), EvalStatus::kContinue);
+  TestPolicy(random_time,
+             WeeklyTimeIntervalVector(),
+             EvalStatus::kContinue,
+             /* kiosk = */ true);
 }
 
 // Check that all intervals are checked.
 TEST_F(UmUpdateTimeRestrictionsPolicyImplTest, TimeInRange) {
   // Monday, July 9th 2018 12:30 PM.
   Time::Exploded first_interval_time{2018, 7, 1, 9, 12, 30, 0, 0};
-  TestPolicy(first_interval_time, kTestIntervals, EvalStatus::kAskMeAgainLater);
+  TestPolicy(first_interval_time,
+             kTestIntervals,
+             EvalStatus::kAskMeAgainLater,
+             /* kiosk = */ true);
 
   // Check second interval.
   // Thursday, July 12th 2018 4:30 AM.
   Time::Exploded second_interval_time{2018, 7, 4, 12, 4, 30, 0, 0};
-  TestPolicy(
-      second_interval_time, kTestIntervals, EvalStatus::kAskMeAgainLater);
+  TestPolicy(second_interval_time,
+             kTestIntervals,
+             EvalStatus::kAskMeAgainLater,
+             /* kiosk = */ true);
 }
 
 TEST_F(UmUpdateTimeRestrictionsPolicyImplTest, TimeOutOfRange) {
   // Monday, July 9th 2018 6:30 PM.
   Time::Exploded out_of_range_time{2018, 7, 1, 9, 18, 30, 0, 0};
-  TestPolicy(out_of_range_time, kTestIntervals, EvalStatus::kContinue);
+  TestPolicy(out_of_range_time,
+             kTestIntervals,
+             EvalStatus::kContinue,
+             /* kiosk = */ true);
 }
 
+TEST_F(UmUpdateTimeRestrictionsPolicyImplTest, NoKioskDisablesPolicy) {
+  Time::Exploded in_range_time{2018, 7, 1, 9, 12, 30, 0, 0};
+  TestPolicy(in_range_time,
+             kTestIntervals,
+             EvalStatus::kContinue,
+             /* kiosk = */ false);
+}
 }  // namespace chromeos_update_manager

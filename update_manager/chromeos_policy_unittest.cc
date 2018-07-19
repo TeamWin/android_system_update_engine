@@ -28,6 +28,7 @@ using base::TimeDelta;
 using chromeos_update_engine::ConnectionTethering;
 using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
 using std::set;
 using std::string;
 
@@ -151,20 +152,25 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
   // time.
   void TestDisallowedTimeIntervals(const WeeklyTimeIntervalVector& intervals,
                                    const EvalStatus& expected_status,
-                                   bool is_forced_update) {
+                                   bool kiosk) {
     SetUpDefaultTimeProvider();
-    SetUpdateCheckAllowed(true);
-
-    if (is_forced_update)
-      fake_state_.updater_provider()->var_forced_update_requested()->reset(
-          new UpdateRequestStatus(UpdateRequestStatus::kInteractive));
+    if (kiosk)
+      fake_state_.device_policy_provider()
+          ->var_auto_launched_kiosk_app_id()
+          ->reset(new string("myapp"));
     fake_state_.device_policy_provider()
         ->var_disallowed_time_intervals()
         ->reset(new WeeklyTimeIntervalVector(intervals));
 
     // Check that |expected_status| matches the value of UpdateCheckAllowed
-    UpdateCheckParams result;
-    ExpectPolicyStatus(expected_status, &Policy::UpdateCheckAllowed, &result);
+    ErrorCode result;
+    InstallPlan install_plan;
+    ExpectPolicyStatus(
+        expected_status, &Policy::UpdateCanBeApplied, &result, &install_plan);
+    if (expected_status == EvalStatus::kAskMeAgainLater)
+      EXPECT_EQ(result, ErrorCode::kOmahaUpdateDeferredPerPolicy);
+    else
+      EXPECT_EQ(result, ErrorCode::kSuccess);
   }
 };
 
@@ -325,43 +331,6 @@ TEST_F(UmChromeOSPolicyTest,
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateCheckAllowed, &result);
-}
-
-TEST_F(UmChromeOSPolicyTest,
-       UpdateCheckAllowedWaitsForEndOfDisallowedInterval) {
-  // Check that the policy blocks during the disallowed checking intervals.
-  Time curr_time = fake_clock_.GetWallclockTime();
-  TestDisallowedTimeIntervals(
-      {WeeklyTimeInterval(
-          WeeklyTime::FromTime(curr_time),
-          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
-      EvalStatus::kAskMeAgainLater,
-      false);
-}
-
-TEST_F(UmChromeOSPolicyTest,
-       UpdateCheckAllowedNoBlockOutsideDisallowedInterval) {
-  // Check that updates are allowed outside interval.
-  Time curr_time = fake_clock_.GetWallclockTime();
-  TestDisallowedTimeIntervals(
-      {WeeklyTimeInterval(
-          WeeklyTime::FromTime(curr_time - TimeDelta::FromMinutes(2)),
-          WeeklyTime::FromTime(curr_time - TimeDelta::FromMinutes(1)))},
-      EvalStatus::kSucceeded,
-      false);
-}
-
-TEST_F(UmChromeOSPolicyTest,
-       UpdateCheckAllowedDisallowedIntervalNoBlockWhenForced) {
-  // Check that updates are not blocked by this policy when an update is forced.
-  Time curr_time = fake_clock_.GetWallclockTime();
-  // Really big interval so that current time definitely falls in it.
-  TestDisallowedTimeIntervals(
-      {WeeklyTimeInterval(
-          WeeklyTime::FromTime(curr_time - TimeDelta::FromMinutes(1234)),
-          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1234)))},
-      EvalStatus::kSucceeded,
-      true);
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -1634,6 +1603,50 @@ TEST_F(UmChromeOSPolicyTest, P2PEnabledChangedBlocks) {
   bool result;
   ExpectPolicyStatus(EvalStatus::kAskMeAgainLater, &Policy::P2PEnabledChanged,
                      &result, false);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCanBeAppliedForcedUpdatesDisablesTimeRestrictions) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  fake_state_.updater_provider()->var_forced_update_requested()->reset(
+      new UpdateRequestStatus(UpdateRequestStatus::kInteractive));
+  // Should return kAskMeAgainLater when updated are not forced.
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
+      EvalStatus::kSucceeded,
+      /* kiosk = */ true);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedFailsInDisallowedTime) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
+      EvalStatus::kAskMeAgainLater,
+      /* kiosk = */ true);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedOutsideDisallowedTime) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time - TimeDelta::FromHours(3)),
+          WeeklyTime::FromTime(curr_time))},
+      EvalStatus::kSucceeded,
+      /* kiosk = */ true);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedPassesOnNonKiosk) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
+      EvalStatus::kSucceeded,
+      /* kiosk = */ false);
 }
 
 }  // namespace chromeos_update_manager

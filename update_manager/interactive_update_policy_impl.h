@@ -19,6 +19,8 @@
 
 #include <string>
 
+#include "update_engine/common/error_code.h"
+#include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/update_manager/policy_utils.h"
 
 namespace chromeos_update_manager {
@@ -35,12 +37,27 @@ class InteractiveUpdatePolicyImpl : public PolicyImplBase {
                                 std::string* error,
                                 UpdateCheckParams* result) const override;
 
+  EvalStatus UpdateCanBeApplied(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      chromeos_update_engine::ErrorCode* result,
+      chromeos_update_engine::InstallPlan* install_plan) const override;
+
  protected:
   std::string PolicyName() const override {
     return "InteractiveUpdatePolicyImpl";
   }
 
  private:
+  // Checks whether a forced update was requested. If there is a forced update,
+  // return true and set |interactive_out| to true if the forced update is
+  // interactive, and false otherwise. If there are no forced updates, return
+  // true and don't modify |interactive_out|.
+  bool CheckInteractiveUpdateRequested(EvaluationContext* ec,
+                                       UpdaterProvider* const updater_provider,
+                                       bool* interactive_out) const;
+
   DISALLOW_COPY_AND_ASSIGN(InteractiveUpdatePolicyImpl);
 };
 

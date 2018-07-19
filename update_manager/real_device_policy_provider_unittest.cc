@@ -193,6 +193,8 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_au_p2p_enabled());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allow_kiosk_app_control_chrome_version());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_auto_launched_kiosk_app_id());
   UmTestUtils::ExpectVariableNotSet(provider_->var_disallowed_time_intervals());
 }
 
@@ -211,6 +213,8 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
       .WillOnce(Return(false));
   EXPECT_CALL(mock_device_policy_, GetAllowKioskAppControlChromeVersion(_))
       .WillOnce(DoAll(SetArgPointee<0>(true), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetAutoLaunchedKioskAppId(_))
+      .WillOnce(DoAll(SetArgPointee<0>(string("myapp")), Return(true)));
 
   provider_->RefreshDevicePolicy();
 
@@ -224,6 +228,8 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
       provider_->var_allowed_connection_types_for_update());
   UmTestUtils::ExpectVariableHasValue(
       true, provider_->var_allow_kiosk_app_control_chrome_version());
+  UmTestUtils::ExpectVariableHasValue(
+      string("myapp"), provider_->var_auto_launched_kiosk_app_id());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {

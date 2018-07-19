@@ -20,6 +20,8 @@
 
 #include <base/time/time.h>
 
+#include "update_engine/common/error_code.h"
+#include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/update_manager/policy_utils.h"
 
 namespace chromeos_update_manager {
@@ -38,10 +40,12 @@ class UpdateTimeRestrictionsPolicyImpl : public PolicyImplBase {
   // kAskMeAgainLater. If the current time is not inside any intervals returns
   // kContinue. In case of errors, i.e. cannot access intervals or time, return
   // kContinue.
-  EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
-                                State* state,
-                                std::string* error,
-                                UpdateCheckParams* result) const override;
+  EvalStatus UpdateCanBeApplied(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      chromeos_update_engine::ErrorCode* result,
+      chromeos_update_engine::InstallPlan* install_plan) const override;
 
  protected:
   std::string PolicyName() const override {

@@ -26,15 +26,23 @@
 using base::Time;
 using base::TimeDelta;
 
+using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
+
 namespace chromeos_update_manager {
 
-EvalStatus UpdateTimeRestrictionsPolicyImpl::UpdateCheckAllowed(
+EvalStatus UpdateTimeRestrictionsPolicyImpl::UpdateCanBeApplied(
     EvaluationContext* ec,
     State* state,
     std::string* error,
-    UpdateCheckParams* result) const {
-  TimeProvider* const time_provider = state->time_provider();
+    ErrorCode* result,
+    InstallPlan* install_plan) const {
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+  TimeProvider* const time_provider = state->time_provider();
+
+  // If kiosk mode is not enabled, don't restrict updates.
+  if (!ec->GetValue(dp_provider->var_auto_launched_kiosk_app_id()))
+    return EvalStatus::kContinue;
 
   const Time* curr_date = ec->GetValue(time_provider->var_curr_date());
   const int* curr_hour = ec->GetValue(time_provider->var_curr_hour());
@@ -55,6 +63,7 @@ EvalStatus UpdateTimeRestrictionsPolicyImpl::UpdateCheckAllowed(
   }
   for (const auto& interval : *intervals) {
     if (interval.InRange(now)) {
+      *result = ErrorCode::kOmahaUpdateDeferredPerPolicy;
       return EvalStatus::kAskMeAgainLater;
     }
   }

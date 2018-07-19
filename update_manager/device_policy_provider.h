@@ -76,6 +76,10 @@ class DevicePolicyProvider : public Provider {
 
   virtual Variable<bool>* var_allow_kiosk_app_control_chrome_version() = 0;
 
+  // Variable that contains the app that is to be run when launched in kiosk
+  // mode. If the device is not in kiosk-mode this should be empty.
+  virtual Variable<std::string>* var_auto_launched_kiosk_app_id() = 0;
+
   // Variable that contains the time intervals during the week for which update
   // checks are disallowed.
   virtual Variable<WeeklyTimeIntervalVector>*
