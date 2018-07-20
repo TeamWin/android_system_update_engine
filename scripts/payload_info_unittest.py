@@ -1,25 +1,35 @@
-# -*- coding: utf-8 -*-
-# Copyright 2015 The Chromium OS Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#!/usr/bin/python2
+#
+# Copyright (C) 2015 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
-"""This module tests the cros payload command."""
+"""Unit testing payload_info.py."""
 
 from __future__ import print_function
 
+import StringIO
 import collections
+import mock
 import sys
+import unittest
 
-from chromite.lib import constants
-from chromite.cli.cros import cros_payload
-from chromite.lib import cros_test_lib
-
-# Needed for the update_payload import below.
-sys.path.insert(0, constants.UPDATE_ENGINE_SCRIPTS_PATH)
-
-# TODO(alliewood)(chromium:454629) update once update_payload is moved
-# into chromite
+import payload_info
 import update_payload
+
+from contextlib import contextmanager
+
 from update_payload import update_metadata_pb2
 
 class FakePayloadError(Exception):
@@ -74,8 +84,8 @@ class FakeManifest(object):
         [FakeExtent(x, x) for x in xrange(20)],
         update_payload.common.OpType.SOURCE_COPY,
         src_length=4096)]
-    if major_version == cros_payload.MAJOR_PAYLOAD_VERSION_BRILLO:
-      self.partitions = [FakePartition('rootfs', self.install_operations),
+    if major_version == payload_info.MAJOR_PAYLOAD_VERSION_BRILLO:
+      self.partitions = [FakePartition('root', self.install_operations),
                          FakePartition('kernel',
                                        self.kernel_install_operations)]
       self.install_operations = self.kernel_install_operations = []
@@ -103,9 +113,8 @@ class FakeHeader(object):
 
   @property
   def size(self):
-    return (20 if self.version == cros_payload.MAJOR_PAYLOAD_VERSION_CHROMEOS
+    return (20 if self.version == payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS
             else 24)
-
 
 class FakePayload(object):
   """Fake payload for testing."""
@@ -161,53 +170,60 @@ class FakePayload(object):
     self._header.metadata_signature_len = len(blob)
     self._blobs[-len(blob)] = blob
 
-
-class PayloadCommandTest(cros_test_lib.MockOutputTestCase):
+class PayloadCommandTest(unittest.TestCase):
   """Test class for our PayloadCommand class."""
+
+  @contextmanager
+  def OutputCapturer(self):
+    """A tool for capturing the sys.stdout"""
+    stdout = sys.stdout
+    try:
+      sys.stdout = StringIO.StringIO()
+      yield sys.stdout
+    finally:
+      sys.stdout = stdout
+
+  def TestCommand(self, payload_cmd, payload, expected_out):
+    """A tool for testing a payload command.
+
+    It tests that a payload command which runs with a given payload produces a
+    correct output.
+    """
+    with mock.patch.object(update_payload, 'Payload', return_value=payload), \
+         self.OutputCapturer() as output:
+      payload_cmd.Run()
+    self.assertEquals(output.getvalue(), expected_out)
 
   def testDisplayValue(self):
     """Verify that DisplayValue prints what we expect."""
     with self.OutputCapturer() as output:
-      cros_payload.DisplayValue('key', 'value')
-    stdout = output.GetStdout()
-    self.assertEquals(stdout, 'key:                     value\n')
+      payload_info.DisplayValue('key', 'value')
+    self.assertEquals(output.getvalue(), 'key:                         value\n')
 
   def testRun(self):
     """Verify that Run parses and displays the payload like we expect."""
-    payload_cmd = cros_payload.PayloadCommand(FakeOption(action='show'))
-    self.PatchObject(update_payload, 'Payload', return_value=FakePayload(
-        cros_payload.MAJOR_PAYLOAD_VERSION_CHROMEOS))
-
-    with self.OutputCapturer() as output:
-      payload_cmd.Run()
-
-    stdout = output.GetStdout()
-    expected_out = """Payload version:         1
-Manifest length:         222
-Number of operations:    1
-Number of kernel ops:    1
-Block size:              4096
-Minor version:           4
+    payload_cmd = payload_info.PayloadCommand(FakeOption(action='show'))
+    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
+    expected_out = """Payload version:             1
+Manifest length:             222
+Number of operations:        1
+Number of kernel ops:        1
+Block size:                  4096
+Minor version:               4
 """
-    self.assertEquals(stdout, expected_out)
+    self.TestCommand(payload_cmd, payload, expected_out)
 
   def testListOpsOnVersion1(self):
     """Verify that the --list_ops option gives the correct output."""
-    payload_cmd = cros_payload.PayloadCommand(FakeOption(list_ops=True,
-                                                         action='show'))
-    self.PatchObject(update_payload, 'Payload', return_value=FakePayload(
-        cros_payload.MAJOR_PAYLOAD_VERSION_CHROMEOS))
-
-    with self.OutputCapturer() as output:
-      payload_cmd.Run()
-
-    stdout = output.GetStdout()
-    expected_out = """Payload version:         1
-Manifest length:         222
-Number of operations:    1
-Number of kernel ops:    1
-Block size:              4096
-Minor version:           4
+    payload_cmd = payload_info.PayloadCommand(
+        FakeOption(list_ops=True, action='show'))
+    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
+    expected_out = """Payload version:             1
+Manifest length:             222
+Number of operations:        1
+Number of kernel ops:        1
+Block size:                  4096
+Minor version:               4
 
 Install operations:
   0: REPLACE_BZ
@@ -223,28 +239,22 @@ Kernel install operations:
       (0,0) (1,1) (2,2) (3,3) (4,4) (5,5) (6,6) (7,7) (8,8) (9,9) (10,10)
       (11,11) (12,12) (13,13) (14,14) (15,15) (16,16) (17,17) (18,18) (19,19)
 """
-    self.assertEquals(stdout, expected_out)
+    self.TestCommand(payload_cmd, payload, expected_out)
 
   def testListOpsOnVersion2(self):
     """Verify that the --list_ops option gives the correct output."""
-    payload_cmd = cros_payload.PayloadCommand(FakeOption(list_ops=True,
-                                                         action='show'))
-    self.PatchObject(update_payload, 'Payload', return_value=FakePayload(
-        cros_payload.MAJOR_PAYLOAD_VERSION_BRILLO))
+    payload_cmd = payload_info.PayloadCommand(
+        FakeOption(list_ops=True, action='show'))
+    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_BRILLO)
+    expected_out = """Payload version:             2
+Manifest length:             222
+Number of partitions:        2
+  Number of "root" ops:      1
+  Number of "kernel" ops:    1
+Block size:                  4096
+Minor version:               4
 
-    with self.OutputCapturer() as output:
-      payload_cmd.Run()
-
-    stdout = output.GetStdout()
-    expected_out = """Payload version:         2
-Manifest length:         222
-Number of partitions:    2
-  Number of "rootfs" ops: 1
-  Number of "kernel" ops: 1
-Block size:              4096
-Minor version:           4
-
-rootfs install operations:
+root install operations:
   0: REPLACE_BZ
     Data offset: 1
     Data length: 1
@@ -258,105 +268,80 @@ kernel install operations:
       (0,0) (1,1) (2,2) (3,3) (4,4) (5,5) (6,6) (7,7) (8,8) (9,9) (10,10)
       (11,11) (12,12) (13,13) (14,14) (15,15) (16,16) (17,17) (18,18) (19,19)
 """
-    self.assertEquals(stdout, expected_out)
+    self.TestCommand(payload_cmd, payload, expected_out)
 
   def testStatsOnVersion1(self):
     """Verify that the --stats option works correctly."""
-    payload_cmd = cros_payload.PayloadCommand(FakeOption(stats=True,
-                                                         action='show'))
-    self.PatchObject(update_payload, 'Payload', return_value=FakePayload(
-        cros_payload.MAJOR_PAYLOAD_VERSION_CHROMEOS))
-
-    with self.OutputCapturer() as output:
-      payload_cmd.Run()
-
-    stdout = output.GetStdout()
-    expected_out = """Payload version:         1
-Manifest length:         222
-Number of operations:    1
-Number of kernel ops:    1
-Block size:              4096
-Minor version:           4
-Blocks read:             11
-Blocks written:          193
-Seeks when writing:      18
+    payload_cmd = payload_info.PayloadCommand(
+        FakeOption(stats=True, action='show'))
+    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
+    expected_out = """Payload version:             1
+Manifest length:             222
+Number of operations:        1
+Number of kernel ops:        1
+Block size:                  4096
+Minor version:               4
+Blocks read:                 11
+Blocks written:              193
+Seeks when writing:          18
 """
-    self.assertEquals(stdout, expected_out)
+    self.TestCommand(payload_cmd, payload, expected_out)
 
   def testStatsOnVersion2(self):
     """Verify that the --stats option works correctly on version 2."""
-    payload_cmd = cros_payload.PayloadCommand(FakeOption(stats=True,
-                                                         action='show'))
-    self.PatchObject(update_payload, 'Payload', return_value=FakePayload(
-        cros_payload.MAJOR_PAYLOAD_VERSION_BRILLO))
-
-    with self.OutputCapturer() as output:
-      payload_cmd.Run()
-
-    stdout = output.GetStdout()
-    expected_out = """Payload version:         2
-Manifest length:         222
-Number of partitions:    2
-  Number of "rootfs" ops: 1
-  Number of "kernel" ops: 1
-Block size:              4096
-Minor version:           4
-Blocks read:             11
-Blocks written:          193
-Seeks when writing:      18
+    payload_cmd = payload_info.PayloadCommand(
+        FakeOption(stats=True, action='show'))
+    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_BRILLO)
+    expected_out = """Payload version:             2
+Manifest length:             222
+Number of partitions:        2
+  Number of "root" ops:      1
+  Number of "kernel" ops:    1
+Block size:                  4096
+Minor version:               4
+Blocks read:                 11
+Blocks written:              193
+Seeks when writing:          18
 """
-    self.assertEquals(stdout, expected_out)
+    self.TestCommand(payload_cmd, payload, expected_out)
 
   def testEmptySignatures(self):
     """Verify that the --signatures option works with unsigned payloads."""
-    payload_cmd = cros_payload.PayloadCommand(
+    payload_cmd = payload_info.PayloadCommand(
         FakeOption(action='show', signatures=True))
-    self.PatchObject(update_payload, 'Payload', return_value=FakePayload(
-        cros_payload.MAJOR_PAYLOAD_VERSION_CHROMEOS))
-
-    with self.OutputCapturer() as output:
-      payload_cmd.Run()
-
-    stdout = output.GetStdout()
-    expected_out = """Payload version:         1
-Manifest length:         222
-Number of operations:    1
-Number of kernel ops:    1
-Block size:              4096
-Minor version:           4
+    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
+    expected_out = """Payload version:             1
+Manifest length:             222
+Number of operations:        1
+Number of kernel ops:        1
+Block size:                  4096
+Minor version:               4
 No metadata signatures stored in the payload
 No payload signatures stored in the payload
 """
-    self.assertEquals(stdout, expected_out)
-
+    self.TestCommand(payload_cmd, payload, expected_out)
 
   def testSignatures(self):
     """Verify that the --signatures option shows the present signatures."""
-    payload_cmd = cros_payload.PayloadCommand(
+    payload_cmd = payload_info.PayloadCommand(
         FakeOption(action='show', signatures=True))
-    payload = FakePayload(cros_payload.MAJOR_PAYLOAD_VERSION_BRILLO)
+    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_BRILLO)
     payload.AddPayloadSignature(version=1,
                                 data='12345678abcdefgh\x00\x01\x02\x03')
     payload.AddPayloadSignature(data='I am a signature so access is yes.')
     payload.AddMetadataSignature(data='\x00\x0a\x0c')
-    self.PatchObject(update_payload, 'Payload', return_value=payload)
-
-    with self.OutputCapturer() as output:
-      payload_cmd.Run()
-
-    stdout = output.GetStdout()
-    expected_out = """Payload version:         2
-Manifest length:         222
-Number of partitions:    2
-  Number of "rootfs" ops: 1
-  Number of "kernel" ops: 1
-Block size:              4096
-Minor version:           4
-Metadata signatures blob: file_offset=246 (7 bytes)
+    expected_out = """Payload version:             2
+Manifest length:             222
+Number of partitions:        2
+  Number of "root" ops:      1
+  Number of "kernel" ops:    1
+Block size:                  4096
+Minor version:               4
+Metadata signatures blob:    file_offset=246 (7 bytes)
 Metadata signatures: (1 entries)
   version=None, hex_data: (3 bytes)
     00 0a 0c                                        | ...
-Payload signatures blob: blob_offset=1234 (64 bytes)
+Payload signatures blob:     blob_offset=1234 (64 bytes)
 Payload signatures: (2 entries)
   version=1, hex_data: (20 bytes)
     31 32 33 34 35 36 37 38 61 62 63 64 65 66 67 68 | 12345678abcdefgh
@@ -366,4 +351,7 @@ Payload signatures: (2 entries)
     20 73 6f 20 61 63 63 65 73 73 20 69 73 20 79 65 |  so access is ye
     73 2e                                           | s.
 """
-    self.assertEquals(stdout, expected_out)
+    self.TestCommand(payload_cmd, payload, expected_out)
+
+if __name__ == '__main__':
+  unittest.main()
