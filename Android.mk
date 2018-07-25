@@ -421,6 +421,7 @@ LOCAL_SRC_FILES += \
     network_selector_android.cc \
     proxy_resolver.cc \
     update_attempter_android.cc \
+    update_boot_flags_action.cc \
     update_status_utils.cc \
     utils_android.cc
 include $(BUILD_STATIC_LIBRARY)
@@ -497,6 +498,7 @@ LOCAL_SRC_FILES := \
     proxy_resolver.cc \
     sideload_main.cc \
     update_attempter_android.cc \
+    update_boot_flags_action.cc \
     update_status_utils.cc \
     utils_android.cc
 LOCAL_STATIC_LIBRARIES := \

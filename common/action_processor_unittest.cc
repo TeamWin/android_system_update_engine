@@ -166,7 +166,7 @@ TEST_F(ActionProcessorTest, ChainActionsTest) {
   action_processor_.EnqueueAction(std::move(action1));
   action_processor_.EnqueueAction(std::move(action2));
 
-  EXPECT_EQ(action_processor_.actions_.size(), 3);
+  EXPECT_EQ(action_processor_.actions_.size(), 3u);
   EXPECT_EQ(action_processor_.actions_[0].get(), action0_ptr);
   EXPECT_EQ(action_processor_.actions_[1].get(), action1_ptr);
   EXPECT_EQ(action_processor_.actions_[2].get(), action2_ptr);
