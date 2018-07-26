@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -54,17 +55,12 @@ class FilesystemVerifierAction : public InstallPlanAction {
   void PerformAction() override;
   void TerminateProcessing() override;
 
-  // Used for testing. Return true if Cleanup() has not yet been called due
-  // to a callback upon the completion or cancellation of the verifier action.
-  // A test should wait until IsCleanupPending() returns false before
-  // terminating the main loop.
-  bool IsCleanupPending() const;
-
   // Debugging/logging
   static std::string StaticType() { return "FilesystemVerifierAction"; }
   std::string Type() const override { return StaticType(); }
 
  private:
+  friend class FilesystemVerifierActionTestDelegate;
   // Starts the hashing of the current partition. If there aren't any partitions
   // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();

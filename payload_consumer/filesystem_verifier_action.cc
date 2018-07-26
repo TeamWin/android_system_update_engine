@@ -70,10 +70,6 @@ void FilesystemVerifierAction::TerminateProcessing() {
   Cleanup(ErrorCode::kSuccess);  // error code is ignored if canceled_ is true.
 }
 
-bool FilesystemVerifierAction::IsCleanupPending() const {
-  return src_stream_ != nullptr;
-}
-
 void FilesystemVerifierAction::Cleanup(ErrorCode code) {
   src_stream_.reset();
   // This memory is not used anymore.

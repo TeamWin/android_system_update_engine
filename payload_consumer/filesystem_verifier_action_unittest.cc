@@ -64,27 +64,14 @@ class FilesystemVerifierActionTest : public ::testing::Test {
 
 class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
  public:
-  explicit FilesystemVerifierActionTestDelegate(
-      FilesystemVerifierAction* action)
-      : action_(action), ran_(false), code_(ErrorCode::kError) {}
-  void ExitMainLoop() {
-    // We need to wait for the Action to call Cleanup.
-    if (action_->IsCleanupPending()) {
-      LOG(INFO) << "Waiting for Cleanup() to be called.";
-      MessageLoop::current()->PostDelayedTask(
-          FROM_HERE,
-          base::Bind(&FilesystemVerifierActionTestDelegate::ExitMainLoop,
-                     base::Unretained(this)),
-          base::TimeDelta::FromMilliseconds(100));
-    } else {
-      MessageLoop::current()->BreakLoop();
-    }
-  }
+  FilesystemVerifierActionTestDelegate()
+      : ran_(false), code_(ErrorCode::kError) {}
+
   void ProcessingDone(const ActionProcessor* processor, ErrorCode code) {
-    ExitMainLoop();
+    MessageLoop::current()->BreakLoop();
   }
   void ProcessingStopped(const ActionProcessor* processor) {
-    ExitMainLoop();
+    MessageLoop::current()->BreakLoop();
   }
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
@@ -92,6 +79,7 @@ class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
     if (action->Type() == FilesystemVerifierAction::StaticType()) {
       ran_ = true;
       code_ = code;
+      EXPECT_FALSE(static_cast<FilesystemVerifierAction*>(action)->src_stream_);
     } else if (action->Type() ==
                ObjectCollectorAction<InstallPlan>::StaticType()) {
       auto collector_action =
@@ -105,7 +93,6 @@ class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
   std::unique_ptr<InstallPlan> install_plan_;
 
  private:
-  FilesystemVerifierAction* action_;
   bool ran_;
   ErrorCode code_;
 };
@@ -174,7 +161,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   BondActions(copier_action.get(), collector_action.get());
 
   ActionProcessor processor;
-  FilesystemVerifierActionTestDelegate delegate(copier_action.get());
+  FilesystemVerifierActionTestDelegate delegate;
   processor.set_delegate(&delegate);
   processor.EnqueueAction(std::move(feeder_action));
   processor.EnqueueAction(std::move(copier_action));
