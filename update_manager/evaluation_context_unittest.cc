@@ -20,6 +20,7 @@
 #include <string>
 
 #include <base/bind.h>
+#include <base/bind_helpers.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
@@ -47,8 +48,6 @@ using testing::_;
 namespace chromeos_update_manager {
 
 namespace {
-
-void DoNothing() {}
 
 // Sets the value of the passed pointer to true.
 void SetTrue(bool* value) {
@@ -207,7 +206,7 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithoutVariables) {
   fake_const_var_.reset(new string("Hello world!"));
   EXPECT_EQ(*eval_ctx_->GetValue(&fake_const_var_), "Hello world!");
 
-  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
 }
 
 // Test that reevaluation occurs when an async variable it depends on changes.
@@ -277,11 +276,11 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutExpires) {
   EXPECT_TRUE(value);
 
   // Ensure that we cannot reschedule an evaluation.
-  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
 
   // Ensure that we can reschedule an evaluation after resetting expiration.
   eval_ctx_->ResetExpiration();
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
 }
 
 // Test that we clear the events when destroying the EvaluationContext.
@@ -327,7 +326,7 @@ TEST_F(UmEvaluationContextTest, ObjectDeletedWithPendingEventsTest) {
   fake_poll_var_.reset(new string("Polled value"));
   eval_ctx_->GetValue(&fake_async_var_);
   eval_ctx_->GetValue(&fake_poll_var_);
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
   // TearDown() checks for leaked observers on this async_variable, which means
   // that our object is still alive after removing its reference.
 }
@@ -420,7 +419,7 @@ TEST_F(UmEvaluationContextTest,
 
   // The "false" from IsWallclockTimeGreaterThan means that's not that timestamp
   // yet, so this should schedule a callback for when that happens.
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
 }
 
 TEST_F(UmEvaluationContextTest,
@@ -430,7 +429,7 @@ TEST_F(UmEvaluationContextTest,
 
   // The "false" from IsMonotonicTimeGreaterThan means that's not that timestamp
   // yet, so this should schedule a callback for when that happens.
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
 }
 
 TEST_F(UmEvaluationContextTest,
@@ -443,7 +442,7 @@ TEST_F(UmEvaluationContextTest,
       fake_clock_.GetWallclockTime() - TimeDelta::FromSeconds(1)));
 
   // Callback should not be scheduled.
-  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
 }
 
 TEST_F(UmEvaluationContextTest,
@@ -456,7 +455,7 @@ TEST_F(UmEvaluationContextTest,
       fake_clock_.GetMonotonicTime() - TimeDelta::FromSeconds(1)));
 
   // Callback should not be scheduled.
-  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(base::DoNothing()));
 }
 
 TEST_F(UmEvaluationContextTest, DumpContext) {
