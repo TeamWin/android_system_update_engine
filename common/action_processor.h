@@ -26,6 +26,8 @@
 
 #include "update_engine/common/error_code.h"
 
+#include <gtest/gtest_prod.h>
+
 // The structure of these classes (Action, ActionPipe, ActionProcessor, etc.)
 // is based on the KSAction* classes from the Google Update Engine code at
 // http://code.google.com/p/update-engine/ . The author of this file sends

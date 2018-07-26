@@ -19,6 +19,8 @@
 #include "update_engine/common/action.h"
 #include "update_engine/common/boot_control_interface.h"
 
+#include <gtest/gtest_prod.h>
+
 namespace chromeos_update_engine {
 
 class UpdateBootFlagsAction : public AbstractAction {
