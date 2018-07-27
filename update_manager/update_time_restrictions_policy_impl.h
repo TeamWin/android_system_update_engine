@@ -37,9 +37,9 @@ class UpdateTimeRestrictionsPolicyImpl : public PolicyImplBase {
   ~UpdateTimeRestrictionsPolicyImpl() override = default;
 
   // When the current time is inside one of the intervals returns
-  // kAskMeAgainLater. If the current time is not inside any intervals returns
-  // kContinue. In case of errors, i.e. cannot access intervals or time, return
-  // kContinue.
+  // kSucceeded and sets |result| to kOmahaUpdateDeferredPerPolicy. If the
+  // current time is not inside any intervals returns kContinue. In case of
+  // errors, i.e. cannot access intervals or time, return kContinue.
   EvalStatus UpdateCanBeApplied(
       EvaluationContext* ec,
       State* state,

@@ -66,7 +66,7 @@ class UmUpdateTimeRestrictionsPolicyImplTest : public UmPolicyTestBase {
     InstallPlan install_plan;
     ExpectPolicyStatus(
         expected_value, &Policy::UpdateCanBeApplied, &result, &install_plan);
-    if (expected_value == EvalStatus::kAskMeAgainLater)
+    if (expected_value == EvalStatus::kSucceeded)
       EXPECT_EQ(result, ErrorCode::kOmahaUpdateDeferredPerPolicy);
   }
 };
@@ -86,7 +86,7 @@ TEST_F(UmUpdateTimeRestrictionsPolicyImplTest, TimeInRange) {
   Time::Exploded first_interval_time{2018, 7, 1, 9, 12, 30, 0, 0};
   TestPolicy(first_interval_time,
              kTestIntervals,
-             EvalStatus::kAskMeAgainLater,
+             EvalStatus::kSucceeded,
              /* kiosk = */ true);
 
   // Check second interval.
@@ -94,7 +94,7 @@ TEST_F(UmUpdateTimeRestrictionsPolicyImplTest, TimeInRange) {
   Time::Exploded second_interval_time{2018, 7, 4, 12, 4, 30, 0, 0};
   TestPolicy(second_interval_time,
              kTestIntervals,
-             EvalStatus::kAskMeAgainLater,
+             EvalStatus::kSucceeded,
              /* kiosk = */ true);
 }
 

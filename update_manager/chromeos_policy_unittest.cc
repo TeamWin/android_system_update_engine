@@ -151,7 +151,7 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
   // Sets up a test with the given intervals and the current fake wallclock
   // time.
   void TestDisallowedTimeIntervals(const WeeklyTimeIntervalVector& intervals,
-                                   const EvalStatus& expected_status,
+                                   const ErrorCode& expected_error_code,
                                    bool kiosk) {
     SetUpDefaultTimeProvider();
     if (kiosk)
@@ -165,12 +165,11 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
     // Check that |expected_status| matches the value of UpdateCheckAllowed
     ErrorCode result;
     InstallPlan install_plan;
-    ExpectPolicyStatus(
-        expected_status, &Policy::UpdateCanBeApplied, &result, &install_plan);
-    if (expected_status == EvalStatus::kAskMeAgainLater)
-      EXPECT_EQ(result, ErrorCode::kOmahaUpdateDeferredPerPolicy);
-    else
-      EXPECT_EQ(result, ErrorCode::kSuccess);
+    ExpectPolicyStatus(EvalStatus::kSucceeded,
+                       &Policy::UpdateCanBeApplied,
+                       &result,
+                       &install_plan);
+    EXPECT_EQ(result, expected_error_code);
   }
 };
 
@@ -1615,7 +1614,7 @@ TEST_F(UmChromeOSPolicyTest,
       {WeeklyTimeInterval(
           WeeklyTime::FromTime(curr_time),
           WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
-      EvalStatus::kSucceeded,
+      ErrorCode::kSuccess,
       /* kiosk = */ true);
 }
 
@@ -1625,7 +1624,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedFailsInDisallowedTime) {
       {WeeklyTimeInterval(
           WeeklyTime::FromTime(curr_time),
           WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
-      EvalStatus::kAskMeAgainLater,
+      ErrorCode::kOmahaUpdateDeferredPerPolicy,
       /* kiosk = */ true);
 }
 
@@ -1635,7 +1634,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedOutsideDisallowedTime) {
       {WeeklyTimeInterval(
           WeeklyTime::FromTime(curr_time - TimeDelta::FromHours(3)),
           WeeklyTime::FromTime(curr_time))},
-      EvalStatus::kSucceeded,
+      ErrorCode::kSuccess,
       /* kiosk = */ true);
 }
 
@@ -1645,7 +1644,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedPassesOnNonKiosk) {
       {WeeklyTimeInterval(
           WeeklyTime::FromTime(curr_time),
           WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
-      EvalStatus::kSucceeded,
+      ErrorCode::kSuccess,
       /* kiosk = */ false);
 }
 

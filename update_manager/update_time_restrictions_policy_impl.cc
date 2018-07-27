@@ -64,7 +64,7 @@ EvalStatus UpdateTimeRestrictionsPolicyImpl::UpdateCanBeApplied(
   for (const auto& interval : *intervals) {
     if (interval.InRange(now)) {
       *result = ErrorCode::kOmahaUpdateDeferredPerPolicy;
-      return EvalStatus::kAskMeAgainLater;
+      return EvalStatus::kSucceeded;
     }
   }
 
