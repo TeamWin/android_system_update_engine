@@ -412,12 +412,13 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
   HttpFetcherTestDelegate() = default;
 
-  void ReceivedBytes(HttpFetcher* /* fetcher */,
+  bool ReceivedBytes(HttpFetcher* /* fetcher */,
                      const void* bytes,
                      size_t length) override {
     data.append(reinterpret_cast<const char*>(bytes), length);
     // Update counters
     times_received_bytes_called_++;
+    return true;
   }
 
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
@@ -560,11 +561,13 @@ TYPED_TEST(HttpFetcherTest, ExtraHeadersInRequestTest) {
 namespace {
 class PausingHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* /* bytes */, size_t /* length */) override {
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* /* bytes */,
+                     size_t /* length */) override {
     CHECK(!paused_);
     paused_ = true;
     fetcher->Pause();
+    return true;
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     MessageLoop::current()->BreakLoop();
@@ -641,8 +644,11 @@ TYPED_TEST(HttpFetcherTest, PauseWhileResolvingProxyTest) {
 namespace {
 class AbortingHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* bytes, size_t length) override {}
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
+    return true;
+  }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     ADD_FAILURE();  // We should never get here
     MessageLoop::current()->BreakLoop();
@@ -736,9 +742,11 @@ TYPED_TEST(HttpFetcherTest, TerminateTransferWhileResolvingProxyTest) {
 namespace {
 class FlakyHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* bytes, size_t length) override {
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
     data.append(reinterpret_cast<const char*>(bytes), length);
+    return true;
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_TRUE(successful);
@@ -800,13 +808,15 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
     }
   }
 
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* bytes, size_t length) override {
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
     if (server_) {
       LOG(INFO) << "Stopping server in ReceivedBytes";
       server_.reset();
       LOG(INFO) << "server stopped";
     }
+    return true;
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);
@@ -974,9 +984,11 @@ class RedirectHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
   explicit RedirectHttpFetcherTestDelegate(bool expected_successful)
       : expected_successful_(expected_successful) {}
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* bytes, size_t length) override {
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
     data.append(reinterpret_cast<const char*>(bytes), length);
+    return true;
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_EQ(expected_successful_, successful);
@@ -1073,10 +1085,12 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
   explicit MultiHttpFetcherTestDelegate(int expected_response_code)
       : expected_response_code_(expected_response_code) {}
 
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* bytes, size_t length) override {
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
     EXPECT_EQ(fetcher, fetcher_.get());
     data.append(reinterpret_cast<const char*>(bytes), length);
+    return true;
   }
 
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
@@ -1272,7 +1286,7 @@ class MultiHttpFetcherTerminateTestDelegate : public HttpFetcherDelegate {
   explicit MultiHttpFetcherTerminateTestDelegate(size_t terminate_trigger_bytes)
       : terminate_trigger_bytes_(terminate_trigger_bytes) {}
 
-  void ReceivedBytes(HttpFetcher* fetcher,
+  bool ReceivedBytes(HttpFetcher* fetcher,
                      const void* bytes,
                      size_t length) override {
     LOG(INFO) << "ReceivedBytes, " << length << " bytes.";
@@ -1285,6 +1299,7 @@ class MultiHttpFetcherTerminateTestDelegate : public HttpFetcherDelegate {
                      base::Unretained(fetcher_.get())));
     }
     bytes_downloaded_ += length;
+    return true;
   }
 
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
@@ -1338,9 +1353,11 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherTerminateBetweenRangesTest) {
 namespace {
 class BlockedTransferTestDelegate : public HttpFetcherDelegate {
  public:
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* bytes, size_t length) override {
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
     ADD_FAILURE();
+    return true;
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);

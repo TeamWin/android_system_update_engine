@@ -167,8 +167,9 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   std::string Type() const override { return StaticType(); }
 
   // Delegate methods (see http_fetcher.h)
-  void ReceivedBytes(HttpFetcher *fetcher,
-                     const void* bytes, size_t length) override;
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override;
 
   void TransferComplete(HttpFetcher *fetcher, bool successful) override;
 

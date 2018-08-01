@@ -801,11 +801,12 @@ void OmahaRequestAction::TerminateProcessing() {
 
 // We just store the response in the buffer. Once we've received all bytes,
 // we'll look in the buffer and decide what to do.
-void OmahaRequestAction::ReceivedBytes(HttpFetcher *fetcher,
+bool OmahaRequestAction::ReceivedBytes(HttpFetcher* fetcher,
                                        const void* bytes,
                                        size_t length) {
   const uint8_t* byte_ptr = reinterpret_cast<const uint8_t*>(bytes);
   response_buffer_.insert(response_buffer_.end(), byte_ptr, byte_ptr + length);
+  return true;
 }
 
 namespace {
