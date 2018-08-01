@@ -1076,15 +1076,15 @@ TEST_F(UpdateAttempterTest, RollbackAllowedSetAndReset) {
 TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
   // Construct an OmahaResponseHandlerAction that has processed an InstallPlan,
   // but the update is being deferred by the Policy.
-  auto response_action = new OmahaResponseHandlerAction(&fake_system_state_);
-  response_action->install_plan_.version = "a.b.c.d";
-  response_action->install_plan_.system_version = "b.c.d.e";
-  response_action->install_plan_.payloads.push_back(
+  OmahaResponseHandlerAction response_action(&fake_system_state_);
+  response_action.install_plan_.version = "a.b.c.d";
+  response_action.install_plan_.system_version = "b.c.d.e";
+  response_action.install_plan_.payloads.push_back(
       {.size = 1234ULL, .type = InstallPayloadType::kFull});
   // Inform the UpdateAttempter that the OmahaResponseHandlerAction has
   // completed, with the deferred-update error code.
   attempter_.ActionCompleted(
-      nullptr, response_action, ErrorCode::kOmahaUpdateDeferredPerPolicy);
+      nullptr, &response_action, ErrorCode::kOmahaUpdateDeferredPerPolicy);
   {
     UpdateEngineStatus status;
     attempter_.GetStatus(&status);
@@ -1112,10 +1112,10 @@ TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
     UpdateEngineStatus status;
     attempter_.GetStatus(&status);
     EXPECT_EQ(UpdateStatus::REPORTING_ERROR_EVENT, status.status);
-    EXPECT_EQ(response_action->install_plan_.version, status.new_version);
-    EXPECT_EQ(response_action->install_plan_.system_version,
+    EXPECT_EQ(response_action.install_plan_.version, status.new_version);
+    EXPECT_EQ(response_action.install_plan_.system_version,
               status.new_system_version);
-    EXPECT_EQ(response_action->install_plan_.payloads[0].size,
+    EXPECT_EQ(response_action.install_plan_.payloads[0].size,
               status.new_size_bytes);
   }
 }
