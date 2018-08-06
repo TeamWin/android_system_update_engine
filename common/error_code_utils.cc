@@ -144,6 +144,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kUserCanceled";
     case ErrorCode::kNonCriticalUpdateInOOBE:
       return "ErrorCode::kNonCriticalUpdateInOOBE";
+    case ErrorCode::kPayloadTimestampError:
+      return "ErrorCode::kPayloadTimestampError";
     case ErrorCode::kUpdatedButNotActive:
       return "ErrorCode::kUpdatedButNotActive";
     case ErrorCode::kNoUpdate:
