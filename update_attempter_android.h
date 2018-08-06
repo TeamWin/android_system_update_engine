@@ -130,7 +130,10 @@ class UpdateAttempterAndroid
   // payload_id.
   // |KprefsNumReboots|: number of reboots when applying the current update.
   // |kPrefsSystemUpdatedMarker|: end timestamp of the last successful update.
-  // |kPrefsUpdateTimestampStart|: start timestamp of the current update.
+  // |kPrefsUpdateTimestampStart|: start timestamp in monotonic time of the
+  // current update.
+  // |kPrefsUpdateBootTimestampStart|: start timestamp in boot time of
+  // the current update.
   // |kPrefsCurrentBytesDownloaded|: number of bytes downloaded for the current
   // payload_id.
   // |kPrefsTotalBytesDownloaded|: number of bytes downloaded in total since
@@ -151,13 +154,14 @@ class UpdateAttempterAndroid
   void UpdatePrefsAndReportUpdateMetricsOnReboot();
 
   // Prefs to update:
-  //   |kPrefsPayloadAttemptNumber|, |kPrefsUpdateTimestampStart|
+  //   |kPrefsPayloadAttemptNumber|, |kPrefsUpdateTimestampStart|,
+  //   |kPrefsUpdateBootTimestampStart|
   void UpdatePrefsOnUpdateStart(bool is_resume);
 
   // Prefs to delete:
   //   |kPrefsNumReboots|, |kPrefsPayloadAttemptNumber|,
   //   |kPrefsSystemUpdatedMarker|, |kPrefsUpdateTimestampStart|,
-  //   |kPrefsCurrentBytesDownloaded|
+  //   |kPrefsUpdateBootTimestampStart|, |kPrefsCurrentBytesDownloaded|
   void ClearMetricsPrefs();
 
   DaemonStateInterface* daemon_state_;
