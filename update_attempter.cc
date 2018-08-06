@@ -253,10 +253,6 @@ void UpdateAttempter::Update(const string& app_version,
   // timeout event.
   CheckAndReportDailyMetrics();
 
-  // Notify of the new update attempt, clearing prior interactive requests.
-  if (forced_update_pending_callback_.get())
-    forced_update_pending_callback_->Run(false, false);
-
   fake_update_success_ = false;
   if (status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
     // Although we have applied an update, we still want to ping Omaha
@@ -964,6 +960,10 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   // reset the state that's only valid for a single update pass
   current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
 
+  if (forced_update_pending_callback_.get())
+    // Clear prior interactive requests once the processor is done.
+    forced_update_pending_callback_->Run(false, false);
+
   if (status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
 
@@ -1052,6 +1052,9 @@ void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
   download_progress_ = 0.0;
+  if (forced_update_pending_callback_.get())
+    // Clear prior interactive requests once the processor is done.
+    forced_update_pending_callback_->Run(false, false);
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
   error_event_.reset(nullptr);
