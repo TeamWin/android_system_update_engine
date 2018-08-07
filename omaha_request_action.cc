@@ -1173,13 +1173,13 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
       reinterpret_cast<const char*>(response_buffer_.data()),
       response_buffer_.size(),
       XML_TRUE);
-  XML_ParserFree(parser);
 
   if (res != XML_STATUS_OK || parser_data.failed) {
     LOG(ERROR) << "Omaha response not valid XML: "
                << XML_ErrorString(XML_GetErrorCode(parser))
                << " at line " << XML_GetCurrentLineNumber(parser)
                << " col " << XML_GetCurrentColumnNumber(parser);
+    XML_ParserFree(parser);
     ErrorCode error_code = ErrorCode::kOmahaRequestXMLParseError;
     if (response_buffer_.empty()) {
       error_code = ErrorCode::kOmahaRequestEmptyResponseError;
@@ -1189,6 +1189,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     completer.set_code(error_code);
     return;
   }
+  XML_ParserFree(parser);
 
   // Update the last ping day preferences based on the server daystart response
   // even if we didn't send a ping. Omaha always includes the daystart in the
