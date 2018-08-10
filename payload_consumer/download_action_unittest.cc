@@ -624,12 +624,6 @@ class P2PDownloadActionTest : public testing::Test {
 };
 
 TEST_F(P2PDownloadActionTest, IsWrittenTo) {
-  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
-    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
-                 << "Please update your system to support this feature.";
-    return;
-  }
-
   SetupDownload(0);     // starting_offset
   StartDownload(true);  // use_p2p_to_share
 
@@ -647,12 +641,6 @@ TEST_F(P2PDownloadActionTest, IsWrittenTo) {
 }
 
 TEST_F(P2PDownloadActionTest, DeleteIfHoleExists) {
-  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
-    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
-                 << "Please update your system to support this feature.";
-    return;
-  }
-
   SetupDownload(1000);  // starting_offset
   StartDownload(true);  // use_p2p_to_share
 
@@ -663,12 +651,6 @@ TEST_F(P2PDownloadActionTest, DeleteIfHoleExists) {
 }
 
 TEST_F(P2PDownloadActionTest, CanAppend) {
-  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
-    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
-                 << "Please update your system to support this feature.";
-    return;
-  }
-
   SetupDownload(1000);  // starting_offset
 
   // Prepare the file with existing data before starting to write to
@@ -701,12 +683,6 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
 }
 
 TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
-  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
-    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
-                 << "Please update your system to support this feature.";
-    return;
-  }
-
   SetupDownload(1000);  // starting_offset
 
   // Prepare the file with all existing data before starting to write
