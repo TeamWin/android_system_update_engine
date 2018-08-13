@@ -61,6 +61,7 @@ NEW_DELTA_KERN_PART=new_delta_kern.part
 NEW_DELTA_ROOT_PART=new_delta_root.part
 NEW_FULL_KERN_PART=new_full_kern.part
 NEW_FULL_ROOT_PART=new_full_root.part
+CROS_PARTS="kernel root"
 
 
 log() {
@@ -92,7 +93,8 @@ apply_full_payload() {
   out_dst_root_part="$2/$4"
 
   time ${paycheck} ${payload_file} \
-    --out_dst_kern ${out_dst_kern_part} --out_dst_root ${out_dst_root_part}
+    --part_names ${CROS_PARTS} \
+    --out_dst_part_paths ${out_dst_kern_part} ${out_dst_root_part}
 }
 
 apply_delta_payload() {
@@ -105,9 +107,10 @@ apply_delta_payload() {
   src_root_part="$2/$8"
 
   time ${paycheck} ${payload_file} \
-    --out_dst_kern ${out_dst_kern_part} --out_dst_root ${out_dst_root_part} \
-    --dst_kern ${dst_kern_part} --dst_root ${dst_root_part} \
-    --src_kern ${src_kern_part} --src_root ${src_root_part}
+    --part_names ${CROS_PARTS} \
+    --out_dst_part_paths ${out_dst_kern_part} ${out_dst_root_part} \
+    --dst_part_paths ${dst_kern_part} ${dst_root_part} \
+    --src_part_paths ${src_kern_part} ${src_root_part}
 }
 
 main() {

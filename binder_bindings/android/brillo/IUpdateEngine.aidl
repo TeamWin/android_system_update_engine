@@ -34,6 +34,8 @@ interface IUpdateEngine {
   void SetP2PUpdatePermission(in boolean enabled);
   boolean GetP2PUpdatePermission();
   void SetUpdateOverCellularPermission(in boolean enabled);
+  void SetUpdateOverCellularTarget(in String target_version,
+                                   in long target_size);
   boolean GetUpdateOverCellularPermission();
   long GetDurationSinceUpdate();
   String GetPrevVersion();

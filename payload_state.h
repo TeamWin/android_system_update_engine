@@ -80,7 +80,8 @@ class PayloadState : public PayloadStateInterface {
   }
 
   inline std::string GetCurrentUrl() override {
-    return candidate_urls_.size() && candidate_urls_[payload_index_].size()
+    return (payload_index_ < candidate_urls_.size() &&
+            url_index_ < candidate_urls_[payload_index_].size())
                ? candidate_urls_[payload_index_][url_index_]
                : "";
   }
@@ -119,6 +120,10 @@ class PayloadState : public PayloadStateInterface {
 
   void UpdateEngineStarted() override;
 
+  inline bool GetRollbackHappened() override { return rollback_happened_; }
+
+  void SetRollbackHappened(bool rollback_happened) override;
+
   inline std::string GetRollbackVersion() override {
     return rollback_version_;
   }
@@ -142,6 +147,8 @@ class PayloadState : public PayloadStateInterface {
 
   void SetScatteringWaitPeriod(base::TimeDelta wait_period) override;
 
+  void SetStagingWaitPeriod(base::TimeDelta wait_period) override;
+
   void SetP2PUrl(const std::string& url) override {
     p2p_url_ = url;
   }
@@ -162,6 +169,7 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateFailedMetric);
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateSucceed);
   FRIEND_TEST(PayloadStateTest, RebootAfterCanceledUpdate);
+  FRIEND_TEST(PayloadStateTest, RollbackHappened);
   FRIEND_TEST(PayloadStateTest, RollbackVersion);
   FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
 
@@ -359,6 +367,10 @@ class PayloadState : public PayloadStateInterface {
                                uint64_t total_bytes_downloaded,
                                bool log);
 
+  // Loads whether rollback has happened on this device since the last update
+  // check where policy was available. This info is preserved over powerwash.
+  void LoadRollbackHappened();
+
   // Loads the blacklisted version from our prefs file.
   void LoadRollbackVersion();
 
@@ -370,9 +382,10 @@ class PayloadState : public PayloadStateInterface {
   void ResetRollbackVersion();
 
   inline uint32_t GetUrlIndex() {
-    return url_index_ ? std::min(candidate_urls_[payload_index_].size() - 1,
-                                 url_index_)
-                      : 0;
+    return (url_index_ != 0 && payload_index_ < candidate_urls_.size())
+               ? std::min(candidate_urls_[payload_index_].size() - 1,
+                          url_index_)
+               : 0;
   }
 
   // Computes the list of candidate URLs from the total list of payload URLs in
@@ -397,8 +410,6 @@ class PayloadState : public PayloadStateInterface {
   // increments num_reboots.
   void UpdateNumReboots();
 
-
-
   // Loads the |kPrefsP2PFirstAttemptTimestamp| state variable from disk
   // into |p2p_first_attempt_timestamp_|.
   void LoadP2PFirstAttemptTimestamp();
@@ -414,6 +425,9 @@ class PayloadState : public PayloadStateInterface {
 
   // Loads the persisted scattering wallclock-based wait period.
   void LoadScatteringWaitPeriod();
+
+  // Loads the persisted staging wallclock-based wait period.
+  void LoadStagingWaitPeriod();
 
   // Get the total size of all payloads.
   int64_t GetPayloadSize();
@@ -546,6 +560,11 @@ class PayloadState : public PayloadStateInterface {
   // allowed as per device policy.
   std::vector<std::vector<std::string>> candidate_urls_;
 
+  // This stores whether rollback has happened since the last time device policy
+  // was available during update check. When this is set, we're preventing
+  // forced updates to avoid update-rollback loops.
+  bool rollback_happened_;
+
   // This stores a blacklisted version set as part of rollback. When we rollback
   // we store the version of the os from which we are rolling back from in order
   // to guarantee that we do not re-update to it on the next au attempt after
@@ -569,6 +588,9 @@ class PayloadState : public PayloadStateInterface {
 
   // The current scattering wallclock-based wait period.
   base::TimeDelta scattering_wait_period_;
+
+  // The current staging wallclock-based wait period.
+  base::TimeDelta staging_wait_period_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

@@ -36,6 +36,7 @@
 #include "update_engine/update_manager/out_of_box_experience_policy_impl.h"
 #include "update_engine/update_manager/policy_utils.h"
 #include "update_engine/update_manager/shill_provider.h"
+#include "update_engine/update_manager/update_time_restrictions_policy_impl.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -142,8 +143,11 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
+    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     case ErrorCode::kUpdatedButNotActive:
     case ErrorCode::kNoUpdate:
+    case ErrorCode::kRollbackNotPossible:
+    case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
       LOG(INFO) << "Not changing URL index or failure count due to error "
                 << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
@@ -200,6 +204,8 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   result->updates_enabled = true;
   result->target_channel.clear();
   result->target_version_prefix.clear();
+  result->rollback_allowed = false;
+  result->rollback_allowed_milestones = -1;
   result->interactive = false;
 
   EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;
@@ -256,8 +262,33 @@ EvalStatus ChromeOSPolicy::UpdateCanBeApplied(EvaluationContext* ec,
                                               std::string* error,
                                               ErrorCode* result,
                                               InstallPlan* install_plan) const {
-  *result = ErrorCode::kSuccess;
-  return EvalStatus::kSucceeded;
+  UpdateTimeRestrictionsPolicyImpl update_time_restrictions_policy;
+  InteractiveUpdatePolicyImpl interactive_update_policy;
+
+  vector<Policy const*> policies_to_consult = {
+      // Check to see if an interactive update has been requested.
+      &interactive_update_policy,
+
+      // Do not apply or download an update if we are inside one of the
+      // restricted times.
+      &update_time_restrictions_policy,
+  };
+
+  EvalStatus status = ConsultPolicies(policies_to_consult,
+                                      &Policy::UpdateCanBeApplied,
+                                      ec,
+                                      state,
+                                      error,
+                                      result,
+                                      install_plan);
+  if (EvalStatus::kContinue != status) {
+    return status;
+  } else {
+    // The update can proceed.
+    LOG(INFO) << "Allowing update to be applied.";
+    *result = ErrorCode::kSuccess;
+    return EvalStatus::kSucceeded;
+  }
 }
 
 EvalStatus ChromeOSPolicy::UpdateCanStart(

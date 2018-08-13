@@ -144,12 +144,18 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kUserCanceled";
     case ErrorCode::kNonCriticalUpdateInOOBE:
       return "ErrorCode::kNonCriticalUpdateInOOBE";
+    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
+      return "ErrorCode::kOmahaUpdateIgnoredOverCellular";
     case ErrorCode::kPayloadTimestampError:
       return "ErrorCode::kPayloadTimestampError";
     case ErrorCode::kUpdatedButNotActive:
       return "ErrorCode::kUpdatedButNotActive";
     case ErrorCode::kNoUpdate:
       return "ErrorCode::kNoUpdate";
+    case ErrorCode::kRollbackNotPossible:
+      return "ErrorCode::kRollbackNotPossible";
+    case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
+      return "ErrorCode::kFirstActiveOmahaPingSentPersistenceError";
       // Don't add a default case to let the compiler warn about newly added
       // error codes which should be added here.
   }

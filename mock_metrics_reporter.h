@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_
 #define UPDATE_ENGINE_MOCK_METRICS_REPORTER_H_
 
+#include <string>
+
 #include <gmock/gmock.h>
 
 #include "update_engine/metrics_reporter_interface.h"
@@ -28,6 +30,9 @@ class MockMetricsReporter : public MetricsReporterInterface {
   MOCK_METHOD0(Initialize, void());
 
   MOCK_METHOD1(ReportRollbackMetrics, void(metrics::RollbackResult result));
+
+  MOCK_METHOD2(ReportEnterpriseRollbackMetrics,
+               void(bool success, const std::string& rollback_version));
 
   MOCK_METHOD1(ReportDailyMetrics, void(base::TimeDelta os_age));
 
@@ -77,6 +82,13 @@ class MockMetricsReporter : public MetricsReporterInterface {
   MOCK_METHOD1(ReportTimeToReboot, void(int time_to_reboot_minutes));
 
   MOCK_METHOD2(ReportInstallDateProvisioningSource, void(int source, int max));
+
+  MOCK_METHOD1(ReportInternalErrorCode, void(ErrorCode error_code));
+
+  MOCK_METHOD3(ReportKeyVersionMetrics,
+               void(int kernel_min_version,
+                    int kernel_max_rollforward_version,
+                    bool kernel_max_rollforward_success));
 };
 
 }  // namespace chromeos_update_engine

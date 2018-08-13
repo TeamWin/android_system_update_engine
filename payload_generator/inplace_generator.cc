@@ -802,7 +802,7 @@ bool InplaceGenerator::GenerateOperations(
                                config.hard_chunk_size / config.block_size);
   size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
   uint64_t partition_size = new_part.size;
-  if (new_part.name == kLegacyPartitionNameRoot)
+  if (new_part.name == kPartitionNameRoot)
     partition_size = config.rootfs_partition_size;
 
   LOG(INFO) << "Delta compressing " << new_part.name << " partition...";

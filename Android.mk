@@ -318,6 +318,7 @@ LOCAL_SRC_FILES := \
     proxy_resolver.cc \
     real_system_state.cc \
     update_attempter.cc \
+    update_boot_flags_action.cc \
     update_manager/android_things_policy.cc \
     update_manager/api_restricted_downloads_policy_impl.cc \
     update_manager/boxed_value.cc \
@@ -334,8 +335,11 @@ LOCAL_SRC_FILES := \
     update_manager/real_system_provider.cc \
     update_manager/real_time_provider.cc \
     update_manager/real_updater_provider.cc \
+    update_manager/staging_utils.cc \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
+    update_manager/update_time_restrictions_policy_impl.cc \
+    update_manager/weekly_time.cc \
     update_status_utils.cc \
     utils_android.cc
 ifeq ($(local_use_binder),1)
@@ -418,6 +422,7 @@ LOCAL_SRC_FILES += \
     network_selector_android.cc \
     proxy_resolver.cc \
     update_attempter_android.cc \
+    update_boot_flags_action.cc \
     update_status_utils.cc \
     utils_android.cc
 include $(BUILD_STATIC_LIBRARY)
@@ -494,6 +499,7 @@ LOCAL_SRC_FILES := \
     proxy_resolver.cc \
     sideload_main.cc \
     update_attempter_android.cc \
+    update_boot_flags_action.cc \
     update_status_utils.cc \
     utils_android.cc
 LOCAL_STATIC_LIBRARIES := \
@@ -1001,6 +1007,7 @@ LOCAL_SRC_FILES += \
     payload_state_unittest.cc \
     parcelable_update_engine_status_unittest.cc \
     update_attempter_unittest.cc \
+    update_boot_flags_action_unittest.cc \
     update_manager/android_things_policy_unittest.cc \
     update_manager/boxed_value_unittest.cc \
     update_manager/chromeos_policy.cc \
@@ -1017,9 +1024,12 @@ LOCAL_SRC_FILES += \
     update_manager/real_system_provider_unittest.cc \
     update_manager/real_time_provider_unittest.cc \
     update_manager/real_updater_provider_unittest.cc \
+    update_manager/staging_utils_unittest.cc \
     update_manager/umtest_utils.cc \
     update_manager/update_manager_unittest.cc \
-    update_manager/variable_unittest.cc
+    update_manager/update_time_restrictions_policy_impl_unittest.cc \
+    update_manager/variable_unittest.cc \
+    update_manager/weekly_time_unittest.cc
 else  # local_use_omaha == 1
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine_android \

@@ -26,7 +26,7 @@
 
 namespace org {
 namespace chromium {
-class LibCrosServiceInterfaceProxyInterface;
+class KioskAppServiceInterfaceProxyInterface;
 }  // namespace chromium
 }  // namespace org
 
@@ -38,11 +38,12 @@ class RealSystemProvider : public SystemProvider {
   RealSystemProvider(
       chromeos_update_engine::HardwareInterface* hardware,
       chromeos_update_engine::BootControlInterface* boot_control,
-      org::chromium::LibCrosServiceInterfaceProxyInterface* libcros_proxy)
+      org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy)
       : hardware_(hardware),
 #if USE_CHROME_KIOSK_APP
         boot_control_(boot_control),
-        libcros_proxy_(libcros_proxy) {}
+        kiosk_app_proxy_(kiosk_app_proxy) {
+  }
 #else
         boot_control_(boot_control) {}
 #endif  // USE_CHROME_KIOSK_APP
@@ -83,7 +84,7 @@ class RealSystemProvider : public SystemProvider {
   chromeos_update_engine::HardwareInterface* const hardware_;
   chromeos_update_engine::BootControlInterface* const boot_control_;
 #if USE_CHROME_KIOSK_APP
-  org::chromium::LibCrosServiceInterfaceProxyInterface* const libcros_proxy_;
+  org::chromium::KioskAppServiceInterfaceProxyInterface* const kiosk_app_proxy_;
 #endif  // USE_CHROME_KIOSK_APP
 
   DISALLOW_COPY_AND_ASSIGN(RealSystemProvider);

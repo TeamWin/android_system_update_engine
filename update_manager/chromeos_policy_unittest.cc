@@ -21,12 +21,14 @@
 
 #include "update_engine/update_manager/next_update_check_policy_impl.h"
 #include "update_engine/update_manager/policy_test_utils.h"
+#include "update_engine/update_manager/weekly_time.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ConnectionTethering;
 using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
 using std::set;
 using std::string;
 
@@ -83,6 +85,9 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
         new bool(false));
     fake_state_.device_policy_provider()->var_release_channel_delegated()->
         reset(new bool(true));
+    fake_state_.device_policy_provider()
+        ->var_disallowed_time_intervals()
+        ->reset(new WeeklyTimeIntervalVector());
   }
 
   // Configures the policy to return a desired value from UpdateCheckAllowed by
@@ -104,6 +109,67 @@ class UmChromeOSPolicyTest : public UmPolicyTestBase {
     else
       curr_time -= TimeDelta::FromSeconds(1);
     fake_clock_.SetWallclockTime(curr_time);
+  }
+
+  // Sets the policies required for a kiosk app to control Chrome OS version:
+  // - AllowKioskAppControlChromeVersion = True
+  // - UpdateDisabled = True
+  // In the kiosk app manifest:
+  // - RequiredPlatformVersion = 1234.
+  void SetKioskAppControlsChromeOsVersion() {
+    fake_state_.device_policy_provider()
+        ->var_allow_kiosk_app_control_chrome_version()
+        ->reset(new bool(true));
+    fake_state_.device_policy_provider()->var_update_disabled()->reset(
+        new bool(true));
+    fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+        new string("1234."));
+  }
+
+  // Sets up a test with the value of RollbackToTargetVersion policy (and
+  // whether it's set), and returns the value of
+  // UpdateCheckParams.rollback_allowed.
+  bool TestRollbackAllowed(bool set_policy,
+                           RollbackToTargetVersion rollback_to_target_version) {
+    // Update check is allowed, response includes attributes for use in the
+    // request.
+    SetUpdateCheckAllowed(true);
+
+    if (set_policy) {
+      // Override RollbackToTargetVersion device policy attribute.
+      fake_state_.device_policy_provider()
+          ->var_rollback_to_target_version()
+          ->reset(new RollbackToTargetVersion(rollback_to_target_version));
+    }
+
+    UpdateCheckParams result;
+    ExpectPolicyStatus(
+        EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
+    return result.rollback_allowed;
+  }
+
+  // Sets up a test with the given intervals and the current fake wallclock
+  // time.
+  void TestDisallowedTimeIntervals(const WeeklyTimeIntervalVector& intervals,
+                                   const ErrorCode& expected_error_code,
+                                   bool kiosk) {
+    SetUpDefaultTimeProvider();
+    if (kiosk)
+      fake_state_.device_policy_provider()
+          ->var_auto_launched_kiosk_app_id()
+          ->reset(new string("myapp"));
+    fake_state_.device_policy_provider()
+        ->var_disallowed_time_intervals()
+        ->reset(new WeeklyTimeIntervalVector(intervals));
+
+    // Check that |expected_status| matches the value of UpdateCheckAllowed
+    ErrorCode result;
+    InstallPlan install_plan;
+    ExpectPolicyStatus(EvalStatus::kSucceeded,
+                       &Policy::UpdateCanBeApplied,
+                       &result,
+                       &install_plan);
+    EXPECT_EQ(result, expected_error_code);
   }
 };
 
@@ -189,8 +255,11 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   // Override specific device policy attributes.
   fake_state_.device_policy_provider()->var_target_version_prefix()->
       reset(new string("1.2"));
-  fake_state_.device_policy_provider()->var_release_channel_delegated()->
-      reset(new bool(false));
+  fake_state_.device_policy_provider()
+      ->var_rollback_allowed_milestones()
+      ->reset(new int(5));
+  fake_state_.device_policy_provider()->var_release_channel_delegated()->reset(
+      new bool(false));
   fake_state_.device_policy_provider()->var_release_channel()->
       reset(new string("foo-channel"));
 
@@ -199,8 +268,55 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_EQ("1.2", result.target_version_prefix);
+  EXPECT_EQ(5, result.rollback_allowed_milestones);
   EXPECT_EQ("foo-channel", result.target_channel);
   EXPECT_FALSE(result.interactive);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAllowed) {
+  EXPECT_TRUE(TestRollbackAllowed(
+      true, RollbackToTargetVersion::kRollbackWithFullPowerwash));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackDisabled) {
+  EXPECT_FALSE(TestRollbackAllowed(true, RollbackToTargetVersion::kDisabled));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackUnspecified) {
+  EXPECT_FALSE(
+      TestRollbackAllowed(true, RollbackToTargetVersion::kUnspecified));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackNotSet) {
+  EXPECT_FALSE(
+      TestRollbackAllowed(false, RollbackToTargetVersion::kUnspecified));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackAllowed) {
+  SetKioskAppControlsChromeOsVersion();
+
+  EXPECT_TRUE(TestRollbackAllowed(
+      true, RollbackToTargetVersion::kRollbackWithFullPowerwash));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackDisabled) {
+  SetKioskAppControlsChromeOsVersion();
+
+  EXPECT_FALSE(TestRollbackAllowed(true, RollbackToTargetVersion::kDisabled));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackUnspecified) {
+  SetKioskAppControlsChromeOsVersion();
+
+  EXPECT_FALSE(
+      TestRollbackAllowed(true, RollbackToTargetVersion::kUnspecified));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackNotSet) {
+  SetKioskAppControlsChromeOsVersion();
+
+  EXPECT_FALSE(
+      TestRollbackAllowed(false, RollbackToTargetVersion::kUnspecified));
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -278,21 +394,13 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskPin) {
   // Update check is allowed.
   SetUpdateCheckAllowed(true);
 
-  // A typical setup for kiosk pin policy: AU disabled, allow kiosk to pin
-  // and there is a kiosk required platform version.
-  fake_state_.device_policy_provider()->var_update_disabled()->reset(
-      new bool(true));
-  fake_state_.device_policy_provider()
-      ->var_allow_kiosk_app_control_chrome_version()
-      ->reset(new bool(true));
-  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
-      new string("1234.0.0"));
+  SetKioskAppControlsChromeOsVersion();
 
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
-  EXPECT_EQ("1234.0.0", result.target_version_prefix);
+  EXPECT_EQ("1234.", result.target_version_prefix);
   EXPECT_FALSE(result.interactive);
 }
 
@@ -1494,6 +1602,50 @@ TEST_F(UmChromeOSPolicyTest, P2PEnabledChangedBlocks) {
   bool result;
   ExpectPolicyStatus(EvalStatus::kAskMeAgainLater, &Policy::P2PEnabledChanged,
                      &result, false);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCanBeAppliedForcedUpdatesDisablesTimeRestrictions) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  fake_state_.updater_provider()->var_forced_update_requested()->reset(
+      new UpdateRequestStatus(UpdateRequestStatus::kInteractive));
+  // Should return kAskMeAgainLater when updated are not forced.
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
+      ErrorCode::kSuccess,
+      /* kiosk = */ true);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedFailsInDisallowedTime) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
+      ErrorCode::kOmahaUpdateDeferredPerPolicy,
+      /* kiosk = */ true);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedOutsideDisallowedTime) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time - TimeDelta::FromHours(3)),
+          WeeklyTime::FromTime(curr_time))},
+      ErrorCode::kSuccess,
+      /* kiosk = */ true);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCanBeAppliedPassesOnNonKiosk) {
+  Time curr_time = fake_clock_.GetWallclockTime();
+  TestDisallowedTimeIntervals(
+      {WeeklyTimeInterval(
+          WeeklyTime::FromTime(curr_time),
+          WeeklyTime::FromTime(curr_time + TimeDelta::FromMinutes(1)))},
+      ErrorCode::kSuccess,
+      /* kiosk = */ false);
 }
 
 }  // namespace chromeos_update_manager

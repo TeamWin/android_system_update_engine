@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
@@ -34,6 +35,7 @@
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/metrics_reporter_omaha.h"
+#include "update_engine/update_boot_flags_action.h"
 #if USE_DBUS
 #include "update_engine/dbus_connection.h"
 #endif  // USE_DBUS
@@ -67,8 +69,8 @@ bool RealSystemState::Initialize() {
   }
 
 #if USE_CHROME_KIOSK_APP
-  libcros_proxy_.reset(new org::chromium::LibCrosServiceInterfaceProxy(
-      DBusConnection::Get()->GetDBus(), chromeos::kLibCrosServiceName));
+  kiosk_app_proxy_.reset(new org::chromium::KioskAppServiceInterfaceProxy(
+      DBusConnection::Get()->GetDBus(), chromeos::kKioskAppServiceName));
 #endif  // USE_CHROME_KIOSK_APP
 
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
@@ -150,7 +152,7 @@ bool RealSystemState::Initialize() {
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(&policy_provider_,
 #if USE_CHROME_KIOSK_APP
-                                                   libcros_proxy_.get(),
+                                                   kiosk_app_proxy_.get(),
 #else
                                                    nullptr,
 #endif  // USE_CHROME_KIOSK_APP
@@ -183,11 +185,14 @@ bool RealSystemState::StartUpdater() {
   // Initiate update checks.
   update_attempter_->ScheduleUpdates();
 
+  auto update_boot_flags_action =
+      std::make_unique<UpdateBootFlagsAction>(boot_control_.get());
+  processor_.EnqueueAction(std::move(update_boot_flags_action));
   // Update boot flags after 45 seconds.
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempter::UpdateBootFlags,
-                 base::Unretained(update_attempter_.get())),
+      base::Bind(&ActionProcessor::StartProcessing,
+                 base::Unretained(&processor_)),
       base::TimeDelta::FromSeconds(45));
 
   // Broadcast the update engine status on startup to ensure consistent system

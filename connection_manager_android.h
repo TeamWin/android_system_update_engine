@@ -34,6 +34,7 @@ class ConnectionManagerAndroid : public ConnectionManagerInterface {
                                ConnectionTethering* out_tethering) override;
   bool IsUpdateAllowedOver(ConnectionType type,
                            ConnectionTethering tethering) const override;
+  bool IsAllowedConnectionTypesForUpdateSet() const override;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectionManagerAndroid);
 };

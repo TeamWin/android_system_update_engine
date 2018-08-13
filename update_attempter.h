@@ -44,6 +44,7 @@
 #include "update_engine/service_observer_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
+#include "update_engine/update_manager/staging_utils.h"
 #include "update_engine/update_manager/update_manager.h"
 
 namespace policy {
@@ -83,6 +84,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                       const std::string& omaha_url,
                       const std::string& target_channel,
                       const std::string& target_version_prefix,
+                      bool rollback_allowed,
                       bool obey_proxies,
                       bool interactive);
 
@@ -266,8 +268,17 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, MarkDeltaUpdateFailureTest);
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
+  FRIEND_TEST(UpdateAttempterTest, RollbackNotAllowed);
+  FRIEND_TEST(UpdateAttempterTest, RollbackAllowed);
+  FRIEND_TEST(UpdateAttempterTest, RollbackAllowedSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackFailure);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackFailure);
+  FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackSuccess);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
+  FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
+  FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
   FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
@@ -337,6 +348,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                              const std::string& omaha_url,
                              const std::string& target_channel,
                              const std::string& target_version_prefix,
+                             bool rollback_allowed,
                              bool obey_proxies,
                              bool interactive);
 
@@ -350,12 +362,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // an update, if one available. This value will be upperbounded by the
   // scatter factor value specified from policy.
   void GenerateNewWaitingPeriod();
-
-  // Helper method of Update() and Rollback() to construct the sequence of
-  // actions to be performed for the postinstall.
-  // |previous_action| is the previous action to get
-  // bonded with the install_plan that gets passed to postinstall.
-  void BuildPostInstallActions(InstallPlanAction* previous_action);
 
   // Helper method of Update() to construct the sequence of actions to
   // be performed for an update check. Please refer to
@@ -398,15 +404,20 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Updates the time an update was last attempted to the current time.
   void UpdateLastCheckedTime();
 
+  // Checks whether we need to clear the rollback-happened preference after
+  // policy is available again.
+  void UpdateRollbackHappened();
+
   // Returns whether an update is currently running or scheduled.
   bool IsUpdateRunningOrScheduled();
+
+  void CalculateStagingParams(bool interactive);
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.
   base::TimeTicks last_notify_time_;
 
-  std::vector<std::shared_ptr<AbstractAction>> actions_;
   std::unique_ptr<ActionProcessor> processor_;
 
   // External state of the system outside the update_engine process
@@ -419,11 +430,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // The list of services observing changes in the updater.
   std::set<ServiceObserverInterface*> service_observers_;
 
-  // Pointer to the OmahaResponseHandlerAction in the actions_ vector.
-  std::shared_ptr<OmahaResponseHandlerAction> response_handler_action_;
-
-  // Pointer to the DownloadAction in the actions_ vector.
-  std::shared_ptr<DownloadAction> download_action_;
+  // The install plan.
+  std::unique_ptr<InstallPlan> install_plan_;
 
   // Pointer to the preferences store interface. This is just a cached
   // copy of system_state->prefs() because it's used in many methods and
@@ -475,20 +483,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
 #endif  // USE_CHROME_NETWORK_PROXY
 
-  // Originally, both of these flags are false. Once UpdateBootFlags is called,
-  // |update_boot_flags_running_| is set to true. As soon as UpdateBootFlags
-  // completes its asynchronous run, |update_boot_flags_running_| is reset to
-  // false and |updated_boot_flags_| is set to true. From that point on there
-  // will be no more changes to these flags.
-  //
-  // True if UpdateBootFlags has completed.
-  bool updated_boot_flags_ = false;
-  // True if UpdateBootFlags is running.
-  bool update_boot_flags_running_ = false;
-
-  // True if the action processor needs to be started by the boot flag updater.
-  bool start_action_processor_ = false;
-
   // Used for fetching information about the device policy.
   std::unique_ptr<policy::PolicyProvider> policy_provider_;
 
@@ -518,6 +512,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // actually scheduled.
   std::string forced_app_version_;
   std::string forced_omaha_url_;
+
+  // If this is not TimeDelta(), then that means staging is turned on.
+  base::TimeDelta staging_wait_time_;
+  chromeos_update_manager::StagingSchedule staging_schedule_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

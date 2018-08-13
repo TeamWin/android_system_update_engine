@@ -17,6 +17,7 @@
 #include "update_engine/common/action_processor.h"
 
 #include <string>
+#include <utility>
 
 #include <base/logging.h>
 
@@ -24,27 +25,30 @@
 #include "update_engine/common/error_code_utils.h"
 
 using std::string;
+using std::unique_ptr;
 
 namespace chromeos_update_engine {
 
 ActionProcessor::~ActionProcessor() {
   if (IsRunning())
     StopProcessing();
-  for (auto action : actions_)
-    action->SetProcessor(nullptr);
 }
 
-void ActionProcessor::EnqueueAction(AbstractAction* action) {
-  actions_.push_back(action);
+void ActionProcessor::EnqueueAction(unique_ptr<AbstractAction> action) {
   action->SetProcessor(this);
+  actions_.push_back(std::move(action));
+}
+
+bool ActionProcessor::IsRunning() const {
+  return current_action_ != nullptr || suspended_;
 }
 
 void ActionProcessor::StartProcessing() {
   CHECK(!IsRunning());
   if (!actions_.empty()) {
-    current_action_ = actions_.front();
-    LOG(INFO) << "ActionProcessor: starting " << current_action_->Type();
+    current_action_ = std::move(actions_.front());
     actions_.pop_front();
+    LOG(INFO) << "ActionProcessor: starting " << current_action_->Type();
     current_action_->PerformAction();
   }
 }
@@ -53,16 +57,13 @@ void ActionProcessor::StopProcessing() {
   CHECK(IsRunning());
   if (current_action_) {
     current_action_->TerminateProcessing();
-    current_action_->SetProcessor(nullptr);
   }
   LOG(INFO) << "ActionProcessor: aborted "
             << (current_action_ ? current_action_->Type() : "")
             << (suspended_ ? " while suspended" : "");
-  current_action_ = nullptr;
+  current_action_.reset();
   suspended_ = false;
   // Delete all the actions before calling the delegate.
-  for (auto action : actions_)
-    action->SetProcessor(nullptr);
   actions_.clear();
   if (delegate_)
     delegate_->ProcessingStopped(this);
@@ -106,13 +107,12 @@ void ActionProcessor::ResumeProcessing() {
 
 void ActionProcessor::ActionComplete(AbstractAction* actionptr,
                                      ErrorCode code) {
-  CHECK_EQ(actionptr, current_action_);
+  CHECK_EQ(actionptr, current_action_.get());
   if (delegate_)
     delegate_->ActionCompleted(this, actionptr, code);
   string old_type = current_action_->Type();
   current_action_->ActionCompleted(code);
-  current_action_->SetProcessor(nullptr);
-  current_action_ = nullptr;
+  current_action_.reset();
   LOG(INFO) << "ActionProcessor: finished "
             << (actions_.empty() ? "last action " : "") << old_type
             << (suspended_ ? " while suspended" : "")
@@ -138,7 +138,7 @@ void ActionProcessor::StartNextActionOrFinish(ErrorCode code) {
     }
     return;
   }
-  current_action_ = actions_.front();
+  current_action_ = std::move(actions_.front());
   actions_.pop_front();
   LOG(INFO) << "ActionProcessor: starting " << current_action_->Type();
   current_action_->PerformAction();

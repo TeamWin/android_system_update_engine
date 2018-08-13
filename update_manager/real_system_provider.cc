@@ -21,7 +21,7 @@
 #include <base/logging.h>
 #include <base/time/time.h>
 #if USE_CHROME_KIOSK_APP
-#include <libcros/dbus-proxies.h>
+#include <kiosk-app/dbus-proxies.h>
 #endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/utils.h"
@@ -126,8 +126,8 @@ bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     string* required_platform_version) {
 #if USE_CHROME_KIOSK_APP
   brillo::ErrorPtr error;
-  if (!libcros_proxy_->GetKioskAppRequiredPlatformVersion(
-          required_platform_version, &error)) {
+  if (!kiosk_app_proxy_->GetRequiredPlatformVersion(required_platform_version,
+                                                    &error)) {
     LOG(WARNING) << "Failed to get kiosk required platform version";
     required_platform_version->clear();
     return false;

@@ -36,6 +36,9 @@ class TimeProvider : public Provider {
   // consistent with base::Time.
   virtual Variable<int>* var_curr_hour() = 0;
 
+  // Returns the current minutes (0 to 60) in local time.
+  virtual Variable<int>* var_curr_minute() = 0;
+
  protected:
   TimeProvider() {}
 

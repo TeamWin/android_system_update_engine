@@ -272,7 +272,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
 
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                "%s -in_file=%s -signature_file=%s -out_file=%s",
+                "%s -in_file=%s -payload_signature_file=%s -out_file=%s",
                 delta_generator_path.c_str(),
                 payload_path.c_str(),
                 sig_files.c_str(),
@@ -499,8 +499,8 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.version.major = kChromeOSMajorPayloadVersion;
     payload_config.version.minor = minor_version;
     if (!full_rootfs) {
-      payload_config.source.partitions.emplace_back(kLegacyPartitionNameRoot);
-      payload_config.source.partitions.emplace_back(kLegacyPartitionNameKernel);
+      payload_config.source.partitions.emplace_back(kPartitionNameRoot);
+      payload_config.source.partitions.emplace_back(kPartitionNameKernel);
       payload_config.source.partitions.front().path = state->a_img;
       if (!full_kernel)
         payload_config.source.partitions.back().path = state->old_kernel;
@@ -513,9 +513,9 @@ static void GenerateDeltaFile(bool full_kernel,
         // Use 1 MiB chunk size for the full unittests.
         payload_config.hard_chunk_size = 1024 * 1024;
     }
-    payload_config.target.partitions.emplace_back(kLegacyPartitionNameRoot);
+    payload_config.target.partitions.emplace_back(kPartitionNameRoot);
     payload_config.target.partitions.back().path = state->b_img;
-    payload_config.target.partitions.emplace_back(kLegacyPartitionNameKernel);
+    payload_config.target.partitions.emplace_back(kPartitionNameKernel);
     payload_config.target.partitions.back().path = state->new_kernel;
     payload_config.target.image_info = new_image_info;
     EXPECT_TRUE(payload_config.target.LoadImageSize());
@@ -717,10 +717,10 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   install_plan->target_slot = 1;
 
   InstallPlan::Partition root_part;
-  root_part.name = kLegacyPartitionNameRoot;
+  root_part.name = kPartitionNameRoot;
 
   InstallPlan::Partition kernel_part;
-  kernel_part.name = kLegacyPartitionNameKernel;
+  kernel_part.name = kPartitionNameKernel;
 
   LOG(INFO) << "Setting payload metadata size in Omaha  = "
             << state->metadata_size;
@@ -766,13 +766,13 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   }
 
   state->fake_boot_control_.SetPartitionDevice(
-      kLegacyPartitionNameRoot, install_plan->source_slot, state->a_img);
+      kPartitionNameRoot, install_plan->source_slot, state->a_img);
   state->fake_boot_control_.SetPartitionDevice(
-      kLegacyPartitionNameKernel, install_plan->source_slot, state->old_kernel);
+      kPartitionNameKernel, install_plan->source_slot, state->old_kernel);
   state->fake_boot_control_.SetPartitionDevice(
-      kLegacyPartitionNameRoot, install_plan->target_slot, target_root);
+      kPartitionNameRoot, install_plan->target_slot, target_root);
   state->fake_boot_control_.SetPartitionDevice(
-      kLegacyPartitionNameKernel, install_plan->target_slot, target_kernel);
+      kPartitionNameKernel, install_plan->target_slot, target_kernel);
 
   ErrorCode expected_error, actual_error;
   bool continue_writing;
@@ -874,8 +874,8 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 
   const auto& partitions = state->install_plan.partitions;
   EXPECT_EQ(2U, partitions.size());
-  EXPECT_EQ(kLegacyPartitionNameRoot, partitions[0].name);
-  EXPECT_EQ(kLegacyPartitionNameKernel, partitions[1].name);
+  EXPECT_EQ(kPartitionNameRoot, partitions[0].name);
+  EXPECT_EQ(kPartitionNameKernel, partitions[1].name);
 
   EXPECT_EQ(kDefaultKernelSize, partitions[1].target_size);
   brillo::Blob expected_new_kernel_hash;

@@ -57,7 +57,8 @@ void PostinstallRunnerAction::PerformAction() {
   CHECK(HasInputObject());
   install_plan_ = GetInputObject();
 
-  if (install_plan_.powerwash_required) {
+  // Currently we're always powerwashing when rolling back.
+  if (install_plan_.powerwash_required || install_plan_.is_rollback) {
     if (hardware_->SchedulePowerwash()) {
       powerwash_scheduled_ = true;
     } else {

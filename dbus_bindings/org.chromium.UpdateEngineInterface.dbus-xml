@@ -67,6 +67,10 @@
     <method name="SetUpdateOverCellularPermission">
       <arg type="b" name="allowed" direction="in" />
     </method>
+    <method name="SetUpdateOverCellularTarget">
+      <arg type="s" name="target_version" direction="in" />
+      <arg type="x" name="target_size" direction="in" />
+    </method>
     <method name="GetUpdateOverCellularPermission">
       <arg type="b" name="allowed" direction="out" />
     </method>
