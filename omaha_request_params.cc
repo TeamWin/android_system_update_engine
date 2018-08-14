@@ -131,16 +131,10 @@ bool OmahaRequestParams::IsUpdateUrlOfficial() const {
 }
 
 bool OmahaRequestParams::CollectECFWVersions() const {
-  return base::StartsWith(hwid_, string("SAMS ALEX"),
-                          base::CompareCase::SENSITIVE) ||
-         base::StartsWith(hwid_, string("BUTTERFLY"),
-                          base::CompareCase::SENSITIVE) ||
-         base::StartsWith(hwid_, string("LUMPY"),
-                          base::CompareCase::SENSITIVE) ||
-         base::StartsWith(hwid_, string("PARROT"),
-                          base::CompareCase::SENSITIVE) ||
-         base::StartsWith(hwid_, string("SPRING"),
-                          base::CompareCase::SENSITIVE) ||
+  return base::StartsWith(
+             hwid_, string("PARROT"), base::CompareCase::SENSITIVE) ||
+         base::StartsWith(
+             hwid_, string("SPRING"), base::CompareCase::SENSITIVE) ||
          base::StartsWith(hwid_, string("SNOW"), base::CompareCase::SENSITIVE);
 }
 

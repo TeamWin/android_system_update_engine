@@ -216,7 +216,7 @@ bool PayloadGenerationConfig::Validate() const {
     TEST_AND_RETURN_FALSE(part.ValidateExists());
     TEST_AND_RETURN_FALSE(part.size % block_size == 0);
     if (version.minor == kInPlaceMinorPayloadVersion &&
-        part.name == kLegacyPartitionNameRoot)
+        part.name == kPartitionNameRoot)
       TEST_AND_RETURN_FALSE(rootfs_partition_size >= part.size);
     if (version.major == kChromeOSMajorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());

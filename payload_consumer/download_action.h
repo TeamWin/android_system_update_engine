@@ -97,8 +97,9 @@ class DownloadAction : public InstallPlanAction,
   int GetHTTPResponseCode() { return http_fetcher_->http_response_code(); }
 
   // HttpFetcherDelegate methods (see http_fetcher.h)
-  void ReceivedBytes(HttpFetcher* fetcher,
-                     const void* bytes, size_t length) override;
+  bool ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override;
   void SeekToOffset(off_t offset) override;
   void TransferComplete(HttpFetcher* fetcher, bool successful) override;
   void TransferTerminated(HttpFetcher* fetcher) override;

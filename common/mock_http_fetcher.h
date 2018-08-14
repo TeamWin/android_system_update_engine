@@ -112,13 +112,10 @@ class MockHttpFetcher : public HttpFetcher {
   }
 
  private:
-  // Sends data to the delegate and sets up a timeout callback if needed.
-  // There must be a delegate and there must be data to send. If there is
-  // already a timeout callback, and it should be deleted by the caller,
-  // this will return false; otherwise true is returned.
-  // If skip_delivery is true, no bytes will be delivered, but the callbacks
-  // still be set if needed.
-  bool SendData(bool skip_delivery);
+  // Sends data to the delegate and sets up a timeout callback if needed. There
+  // must be a delegate. If |skip_delivery| is true, no bytes will be delivered,
+  // but the callbacks still be set if needed.
+  void SendData(bool skip_delivery);
 
   // Callback for when our message loop timeout expires.
   void TimeoutCallback();

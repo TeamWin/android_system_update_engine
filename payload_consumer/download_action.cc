@@ -318,7 +318,7 @@ void DownloadAction::SeekToOffset(off_t offset) {
   bytes_received_ = offset;
 }
 
-void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
+bool DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
                                    const void* bytes,
                                    size_t length) {
   // Note that bytes_received_ is the current offset.
@@ -345,7 +345,7 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
     // the TransferTerminated callback. Otherwise, this and the HTTP fetcher
     // objects may get destroyed before all callbacks are complete.
     TerminateProcessing();
-    return;
+    return false;
   }
 
   // Call p2p_manager_->FileMakeVisible() when we've successfully
@@ -356,6 +356,7 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
     system_state_->p2p_manager()->FileMakeVisible(p2p_file_id_);
     p2p_visible_ = true;
   }
+  return true;
 }
 
 void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {

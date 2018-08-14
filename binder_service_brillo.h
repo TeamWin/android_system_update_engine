@@ -75,6 +75,8 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
       bool* out_p2p_permission) override;
   android::binder::Status SetUpdateOverCellularPermission(
       bool enabled) override;
+  android::binder::Status SetUpdateOverCellularTarget(
+      const android::String16& target_version, int64_t target_size) override;
   android::binder::Status GetUpdateOverCellularPermission(
       bool* out_cellular_permission) override;
   android::binder::Status GetDurationSinceUpdate(

@@ -53,6 +53,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(SetScatteringWaitPeriod, void(base::TimeDelta));
   MOCK_METHOD1(SetP2PUrl, void(const std::string&));
   MOCK_METHOD0(NextPayload, bool());
+  MOCK_METHOD1(SetStagingWaitPeriod, void(base::TimeDelta));
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());
@@ -68,6 +69,8 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(GetCurrentBytesDownloaded, uint64_t(DownloadSource source));
   MOCK_METHOD1(GetTotalBytesDownloaded, uint64_t(DownloadSource source));
   MOCK_METHOD0(GetNumReboots, uint32_t());
+  MOCK_METHOD0(GetRollbackHappened, bool());
+  MOCK_METHOD1(SetRollbackHappened, void(bool));
   MOCK_METHOD0(GetRollbackVersion, std::string());
   MOCK_METHOD0(GetP2PNumAttempts, int());
   MOCK_METHOD0(GetP2PFirstAttemptTimestamp, base::Time());
@@ -75,6 +78,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_CONST_METHOD0(GetUsingP2PForSharing, bool());
   MOCK_METHOD0(GetScatteringWaitPeriod, base::TimeDelta());
   MOCK_CONST_METHOD0(GetP2PUrl, std::string());
+  MOCK_METHOD0(GetStagingWaitPeriod, base::TimeDelta());
 };
 
 }  // namespace chromeos_update_engine

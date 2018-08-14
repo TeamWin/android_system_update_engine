@@ -22,7 +22,7 @@
 
 namespace org {
 namespace chromium {
-class LibCrosServiceInterfaceProxyInterface;
+class KioskAppServiceInterfaceProxyInterface;
 }  // namespace chromium
 }  // namespace org
 
@@ -35,7 +35,7 @@ namespace chromeos_update_manager {
 // to initialize.
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
-    org::chromium::LibCrosServiceInterfaceProxyInterface* libcros_proxy,
+    org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy,
     chromeos_update_engine::SystemState* system_state);
 
 }  // namespace chromeos_update_manager

@@ -42,6 +42,9 @@ class UmPolicyTestBase : public ::testing::Test {
   // Sets the clock to fixed values.
   virtual void SetUpDefaultClock();
 
+  // Sets the fake time provider to the time given by the fake clock.
+  virtual void SetUpDefaultTimeProvider();
+
   // Sets up the default state in fake_state_.  override to add Policy-specific
   // items, but only after calling this class's implementation.
   virtual void SetUpDefaultState();

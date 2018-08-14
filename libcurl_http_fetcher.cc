@@ -545,8 +545,8 @@ size_t LibcurlHttpFetcher::LibcurlWrite(void *ptr, size_t size, size_t nmemb) {
   }
   bytes_downloaded_ += payload_size;
   in_write_callback_ = true;
-  if (delegate_)
-    delegate_->ReceivedBytes(this, ptr, payload_size);
+  if (delegate_ && !delegate_->ReceivedBytes(this, ptr, payload_size))
+    return payload_size;
   in_write_callback_ = false;
   return payload_size;
 }

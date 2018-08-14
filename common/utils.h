@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -326,6 +327,18 @@ constexpr uint64_t DivRoundUp(uint64_t x, uint64_t y) {
 constexpr uint64_t RoundUp(uint64_t x, uint64_t y) {
   return DivRoundUp(x, y) * y;
 }
+
+// Returns the integer value of the first section of |version|. E.g. for
+//  "10575.39." returns 10575. Returns 0 if |version| is empty, returns -1 if
+// first section of |version| is invalid (e.g. not a number).
+int VersionPrefix(const std::string& version);
+
+// Parses a string in the form high.low, where high and low are 16 bit unsigned
+// integers. If there is more than 1 dot, or if either of the two parts are
+// not valid 16 bit unsigned numbers, then 0xffff is returned for both.
+void ParseRollbackKeyVersion(const std::string& raw_version,
+                             uint16_t* high_version,
+                             uint16_t* low_version);
 
 }  // namespace utils
 

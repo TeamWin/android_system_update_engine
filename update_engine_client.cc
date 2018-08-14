@@ -458,8 +458,8 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(INFO) << "Target Channel (pending update): " << target_channel;
   }
 
-  bool do_update_request = FLAGS_check_for_update | FLAGS_update |
-                           !FLAGS_app_version.empty() |
+  bool do_update_request = FLAGS_check_for_update || FLAGS_update ||
+                           !FLAGS_app_version.empty() ||
                            !FLAGS_omaha_url.empty();
   if (FLAGS_update) FLAGS_follow = true;
 

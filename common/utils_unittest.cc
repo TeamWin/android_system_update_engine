@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,7 @@
 
 #include "update_engine/common/test_utils.h"
 
+using std::numeric_limits;
 using std::string;
 using std::vector;
 
@@ -446,6 +448,22 @@ static void VoidMacroTestHelper(bool* ret) {
   *ret = true;
 }
 
+static void ExpectParseRollbackKeyVersion(const string& version,
+                                          uint16_t expected_high,
+                                          uint16_t expected_low) {
+  uint16_t actual_high;
+  uint16_t actual_low;
+  utils::ParseRollbackKeyVersion(version, &actual_high, &actual_low);
+  EXPECT_EQ(expected_high, actual_high);
+  EXPECT_EQ(expected_low, actual_low);
+}
+
+static void ExpectInvalidParseRollbackKeyVersion(const string& version) {
+  ExpectParseRollbackKeyVersion(version,
+                                numeric_limits<uint16_t>::max(),
+                                numeric_limits<uint16_t>::max());
+}
+
 TEST(UtilsTest, TestMacros) {
   bool void_test = false;
   VoidMacroTestHelper(&void_test);
@@ -501,6 +519,43 @@ TEST(UtilsTest, IsMountpointTest) {
 
   test_utils::ScopedTempFile file;
   EXPECT_FALSE(utils::IsMountpoint(file.path()));
+}
+
+TEST(UtilsTest, VersionPrefix) {
+  EXPECT_EQ(10575, utils::VersionPrefix("10575.39."));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575.39"));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575.x"));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575."));
+  EXPECT_EQ(10575, utils::VersionPrefix("10575"));
+  EXPECT_EQ(0, utils::VersionPrefix(""));
+  EXPECT_EQ(-1, utils::VersionPrefix("x"));
+  EXPECT_EQ(-1, utils::VersionPrefix("1x"));
+  EXPECT_EQ(-1, utils::VersionPrefix("x.1"));
+}
+
+TEST(UtilsTest, ParseDottedVersion) {
+  // Valid case.
+  ExpectParseRollbackKeyVersion("2.3", 2, 3);
+  ExpectParseRollbackKeyVersion("65535.65535", 65535, 65535);
+
+  // Zero is technically allowed but never actually used.
+  ExpectParseRollbackKeyVersion("0.0", 0, 0);
+
+  // Invalid cases.
+  ExpectInvalidParseRollbackKeyVersion("");
+  ExpectInvalidParseRollbackKeyVersion("2");
+  ExpectInvalidParseRollbackKeyVersion("2.");
+  ExpectInvalidParseRollbackKeyVersion(".2");
+  ExpectInvalidParseRollbackKeyVersion("2.2.");
+  ExpectInvalidParseRollbackKeyVersion("2.2.3");
+  ExpectInvalidParseRollbackKeyVersion(".2.2");
+  ExpectInvalidParseRollbackKeyVersion("a.b");
+  ExpectInvalidParseRollbackKeyVersion("1.b");
+  ExpectInvalidParseRollbackKeyVersion("a.2");
+  ExpectInvalidParseRollbackKeyVersion("65536.65536");
+  ExpectInvalidParseRollbackKeyVersion("99999.99999");
+  ExpectInvalidParseRollbackKeyVersion("99999.1");
+  ExpectInvalidParseRollbackKeyVersion("1.99999");
 }
 
 }  // namespace chromeos_update_engine

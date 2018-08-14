@@ -95,11 +95,6 @@ inline int Chdir(const std::string& path) {
 // Reads a symlink from disk. Returns empty string on failure.
 std::string Readlink(const std::string& path);
 
-// Checks if xattr is supported in the directory specified by
-// |dir_path| which must be writable. Returns true if the feature is
-// supported, false if not or if an error occurred.
-bool IsXAttrSupported(const base::FilePath& dir_path);
-
 void FillWithData(brillo::Blob* buffer);
 
 // Compare the value of native array for download source parameter.

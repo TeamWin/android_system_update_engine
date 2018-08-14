@@ -25,7 +25,7 @@
 #include <policy/device_policy.h>
 
 #if USE_CHROME_KIOSK_APP
-#include <libcros/dbus-proxies.h>
+#include <kiosk-app/dbus-proxies.h>
 #endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/certificate_checker.h"
@@ -129,7 +129,8 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
  private:
   // Real DBus proxies using the DBus connection.
 #if USE_CHROME_KIOSK_APP
-  std::unique_ptr<org::chromium::LibCrosServiceInterfaceProxy> libcros_proxy_;
+  std::unique_ptr<org::chromium::KioskAppServiceInterfaceProxy>
+      kiosk_app_proxy_;
 #endif  // USE_CHROME_KIOSK_APP
 
   // Interface for the power manager.
@@ -184,6 +185,8 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   // rebooted. Important for tracking whether you are running instance of the
   // update engine on first boot or due to a crash/restart.
   bool system_rebooted_{false};
+
+  ActionProcessor processor_;
 };
 
 }  // namespace chromeos_update_engine
