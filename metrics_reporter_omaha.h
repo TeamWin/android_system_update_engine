@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_METRICS_REPORTER_OMAHA_H_
 
 #include <memory>
+#include <string>
 
 #include <base/time/time.h>
 #include <metrics/metrics_library.h>
@@ -42,6 +43,8 @@ extern const char kMetricDailyOSAgeDays[];
 extern const char kMetricCheckDownloadErrorCode[];
 extern const char kMetricCheckReaction[];
 extern const char kMetricCheckResult[];
+extern const char kMetricCheckTargetVersion[];
+extern const char kMetricCheckRollbackTargetVersion[];
 extern const char kMetricCheckTimeSinceLastCheckMinutes[];
 extern const char kMetricCheckTimeSinceLastCheckUptimeMinutes[];
 
@@ -77,9 +80,18 @@ extern const char kMetricSuccessfulUpdateUrlSwitchCount[];
 // UpdateEngine.Rollback.* metric.
 extern const char kMetricRollbackResult[];
 
+// UpdateEngine.EnterpriseRollback.* metrics.
+extern const char kMetricEnterpriseRollbackFailure[];
+extern const char kMetricEnterpriseRollbackSuccess[];
+
 // UpdateEngine.CertificateCheck.* metrics.
 extern const char kMetricCertificateCheckUpdateCheck[];
 extern const char kMetricCertificateCheckDownload[];
+
+// UpdateEngine.KernelKey.* metrics.
+extern const char kMetricKernelMinVersion[];
+extern const char kMetricKernelMaxRollforwardVersion[];
+extern const char kMetricKernelMaxRollforwardSetSuccess[];
 
 // UpdateEngine.* metrics.
 extern const char kMetricFailedUpdateCount[];
@@ -97,6 +109,9 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void Initialize() override;
 
   void ReportRollbackMetrics(metrics::RollbackResult result) override;
+
+  void ReportEnterpriseRollbackMetrics(
+      bool success, const std::string& rollback_version) override;
 
   void ReportDailyMetrics(base::TimeDelta os_age) override;
 
@@ -144,6 +159,12 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportTimeToReboot(int time_to_reboot_minutes) override;
 
   void ReportInstallDateProvisioningSource(int source, int max) override;
+
+  void ReportInternalErrorCode(ErrorCode error_code) override;
+
+  void ReportKeyVersionMetrics(int kernel_min_version,
+                               int kernel_max_rollforward_version,
+                               bool kernel_max_rollforward_success) override;
 
  private:
   friend class MetricsReporterOmahaTest;

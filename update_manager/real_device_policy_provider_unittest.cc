@@ -17,6 +17,7 @@
 #include "update_engine/update_manager/real_device_policy_provider.h"
 
 #include <memory>
+#include <vector>
 
 #include <base/memory/ptr_util.h>
 #include <brillo/message_loops/fake_message_loop.h>
@@ -40,12 +41,14 @@
 using base::TimeDelta;
 using brillo::MessageLoop;
 using chromeos_update_engine::ConnectionType;
+using policy::DevicePolicy;
 #if USE_DBUS
 using chromeos_update_engine::dbus_test_utils::MockSignalHandler;
 #endif  // USE_DBUS
 using std::set;
 using std::string;
 using std::unique_ptr;
+using std::vector;
 using testing::DoAll;
 using testing::Mock;
 using testing::Return;
@@ -178,6 +181,10 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_release_channel_delegated());
   UmTestUtils::ExpectVariableNotSet(provider_->var_update_disabled());
   UmTestUtils::ExpectVariableNotSet(provider_->var_target_version_prefix());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_allowed_milestones());
   UmTestUtils::ExpectVariableNotSet(provider_->var_scatter_factor());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allowed_connection_types_for_update());
@@ -186,6 +193,9 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_au_p2p_enabled());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allow_kiosk_app_control_chrome_version());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_auto_launched_kiosk_app_id());
+  UmTestUtils::ExpectVariableNotSet(provider_->var_disallowed_time_intervals());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
@@ -203,6 +213,8 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
       .WillOnce(Return(false));
   EXPECT_CALL(mock_device_policy_, GetAllowKioskAppControlChromeVersion(_))
       .WillOnce(DoAll(SetArgPointee<0>(true), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetAutoLaunchedKioskAppId(_))
+      .WillOnce(DoAll(SetArgPointee<0>(string("myapp")), Return(true)));
 
   provider_->RefreshDevicePolicy();
 
@@ -216,6 +228,63 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
       provider_->var_allowed_connection_types_for_update());
   UmTestUtils::ExpectVariableHasValue(
       true, provider_->var_allow_kiosk_app_control_chrome_version());
+  UmTestUtils::ExpectVariableHasValue(
+      string("myapp"), provider_->var_auto_launched_kiosk_app_id());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+#if USE_DBUS
+      .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
+      .WillRepeatedly(DoAll(SetArgPointee<0>(2), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackWithFullPowerwash,
+      provider_->var_rollback_to_target_version());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, RollbackAllowedMilestonesOobe) {
+  SetUpNonExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetRollbackAllowedMilestones(_)).Times(0);
+  ON_CALL(mock_policy_provider_, IsConsumerDevice())
+      .WillByDefault(Return(false));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_allowed_milestones());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, RollbackAllowedMilestonesConsumer) {
+  SetUpNonExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetRollbackAllowedMilestones(_)).Times(0);
+  ON_CALL(mock_policy_provider_, IsConsumerDevice())
+      .WillByDefault(Return(true));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      0, provider_->var_rollback_allowed_milestones());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       RollbackAllowedMilestonesEnterprisePolicySet) {
+  SetUpExistentDevicePolicy();
+  ON_CALL(mock_device_policy_, GetRollbackAllowedMilestones(_))
+      .WillByDefault(DoAll(SetArgPointee<0>(2), Return(true)));
+  ON_CALL(mock_policy_provider_, IsConsumerDevice())
+      .WillByDefault(Return(false));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      2, provider_->var_rollback_allowed_milestones());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
@@ -266,6 +335,27 @@ TEST_F(UmRealDevicePolicyProviderTest, AllowedTypesConverted) {
   UmTestUtils::ExpectVariableHasValue(
       set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kBluetooth},
       provider_->var_allowed_connection_types_for_update());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, DisallowedIntervalsConverted) {
+  SetUpExistentDevicePolicy();
+
+  vector<DevicePolicy::WeeklyTimeInterval> intervals = {
+      {5, TimeDelta::FromHours(5), 6, TimeDelta::FromHours(8)},
+      {1, TimeDelta::FromHours(1), 3, TimeDelta::FromHours(10)}};
+
+  EXPECT_CALL(mock_device_policy_, GetDisallowedTimeIntervals(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(intervals), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      WeeklyTimeIntervalVector{
+          WeeklyTimeInterval(WeeklyTime(5, TimeDelta::FromHours(5)),
+                             WeeklyTime(6, TimeDelta::FromHours(8))),
+          WeeklyTimeInterval(WeeklyTime(1, TimeDelta::FromHours(1)),
+                             WeeklyTime(3, TimeDelta::FromHours(10)))},
+      provider_->var_disallowed_time_intervals());
 }
 
 }  // namespace chromeos_update_manager

@@ -29,10 +29,12 @@ class FakeTimeProvider : public TimeProvider {
 
   FakeVariable<base::Time>* var_curr_date() override { return &var_curr_date_; }
   FakeVariable<int>* var_curr_hour() override { return &var_curr_hour_; }
+  FakeVariable<int>* var_curr_minute() override { return &var_curr_minute_; }
 
  private:
   FakeVariable<base::Time> var_curr_date_{"curr_date", kVariableModePoll};
   FakeVariable<int> var_curr_hour_{"curr_hour", kVariableModePoll};
+  FakeVariable<int> var_curr_minute_{"curr_minute", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeTimeProvider);
 };

@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_COMMON_HTTP_FETCHER_H_
 
 #include <deque>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -186,8 +187,9 @@ class HttpFetcherDelegate {
  public:
   virtual ~HttpFetcherDelegate() = default;
 
-  // Called every time bytes are received.
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
+  // Called every time bytes are received. Returns false if this call causes the
+  // transfer be terminated or completed otherwise it returns true.
+  virtual bool ReceivedBytes(HttpFetcher* fetcher,
                              const void* bytes,
                              size_t length) = 0;
 

@@ -18,6 +18,7 @@
 
 #include <inttypes.h>
 
+#include <limits>
 #include <map>
 #include <sstream>
 #include <string>
@@ -35,6 +36,7 @@
 #include <brillo/key_value_store.h>
 #include <expat.h>
 #include <metrics/metrics_library.h>
+#include <policy/libpolicy.h>
 
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/constants.h"
@@ -52,7 +54,9 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_manager::kRollforwardInfinity;
 using std::map;
+using std::numeric_limits;
 using std::string;
 using std::vector;
 
@@ -87,6 +91,9 @@ static const char* kXGoogleUpdateUpdater = "X-Goog-Update-Updater";
 
 // updatecheck attributes (without the underscore prefix).
 static const char* kEolAttr = "eol";
+static const char* kRollback = "rollback";
+static const char* kFirmwareVersion = "firmware_version";
+static const char* kKernelVersion = "kernel_version";
 
 namespace {
 
@@ -126,10 +133,17 @@ string GetAppBody(const OmahaEvent* event,
     if (include_ping)
         app_body = GetPingXml(ping_active_days, ping_roll_call_days);
     if (!ping_only) {
-      app_body += base::StringPrintf(
-          "        <updatecheck targetversionprefix=\"%s\""
-          "></updatecheck>\n",
-          XmlEncodeWithDefault(params->target_version_prefix(), "").c_str());
+      app_body += "        <updatecheck";
+      if (!params->target_version_prefix().empty()) {
+        app_body += base::StringPrintf(
+            " targetversionprefix=\"%s\"",
+            XmlEncodeWithDefault(params->target_version_prefix(), "").c_str());
+        // Rollback requires target_version_prefix set.
+        if (params->rollback_allowed()) {
+          app_body += " rollback_allowed=\"true\"";
+        }
+      }
+      app_body += "></updatecheck>\n";
 
       // If this is the first update check after a reboot following a previous
       // update, generate an event containing the previous version number. If
@@ -620,12 +634,14 @@ OmahaRequestAction::OmahaRequestAction(
     std::unique_ptr<HttpFetcher> http_fetcher,
     bool ping_only)
     : system_state_(system_state),
+      params_(system_state->request_params()),
       event_(event),
       http_fetcher_(std::move(http_fetcher)),
+      policy_provider_(std::make_unique<policy::PolicyProvider>()),
       ping_only_(ping_only),
       ping_active_days_(0),
       ping_roll_call_days_(0) {
-  params_ = system_state->request_params();
+  policy_provider_->Reload();
 }
 
 OmahaRequestAction::~OmahaRequestAction() {}
@@ -785,11 +801,12 @@ void OmahaRequestAction::TerminateProcessing() {
 
 // We just store the response in the buffer. Once we've received all bytes,
 // we'll look in the buffer and decide what to do.
-void OmahaRequestAction::ReceivedBytes(HttpFetcher *fetcher,
+bool OmahaRequestAction::ReceivedBytes(HttpFetcher* fetcher,
                                        const void* bytes,
                                        size_t length) {
   const uint8_t* byte_ptr = reinterpret_cast<const uint8_t*>(bytes);
   response_buffer_.insert(response_buffer_.end(), byte_ptr, byte_ptr + length);
+  return true;
 }
 
 namespace {
@@ -924,6 +941,20 @@ bool ParsePackage(OmahaParserData::App* app,
   return true;
 }
 
+// Parses the 2 key version strings kernel_version and firmware_version. If the
+// field is not present, or cannot be parsed the values default to 0xffff.
+void ParseRollbackVersions(OmahaParserData* parser_data,
+                           OmahaResponse* output_object) {
+  utils::ParseRollbackKeyVersion(
+      parser_data->updatecheck_attrs[kFirmwareVersion],
+      &output_object->rollback_key_version.firmware_key,
+      &output_object->rollback_key_version.firmware);
+  utils::ParseRollbackKeyVersion(
+      parser_data->updatecheck_attrs[kKernelVersion],
+      &output_object->rollback_key_version.kernel_key,
+      &output_object->rollback_key_version.kernel);
+}
+
 }  // namespace
 
 bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
@@ -986,6 +1017,14 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   // Parse the updatecheck attributes.
   PersistEolStatus(parser_data->updatecheck_attrs);
+  // Rollback-related updatecheck attributes.
+  // Defaults to false if attribute is not present.
+  output_object->is_rollback =
+      ParseBool(parser_data->updatecheck_attrs[kRollback]);
+
+  // Parses the rollback versions of the current image. If the fields do not
+  // exist they default to 0xffff for the 4 key versions.
+  ParseRollbackVersions(parser_data, output_object);
 
   if (!ParseStatus(parser_data, output_object, completer))
     return false;
@@ -1102,6 +1141,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
 
   PayloadStateInterface* const payload_state = system_state_->payload_state();
 
+  // Set the max kernel key version based on whether rollback is allowed.
+  SetMaxKernelKeyVersionForRollback();
+
   // Events are best effort transactions -- assume they always succeed.
   if (IsEvent()) {
     CHECK(!HasOutputPipe()) << "No output pipe allowed for event requests.";
@@ -1131,13 +1173,13 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
       reinterpret_cast<const char*>(response_buffer_.data()),
       response_buffer_.size(),
       XML_TRUE);
-  XML_ParserFree(parser);
 
   if (res != XML_STATUS_OK || parser_data.failed) {
     LOG(ERROR) << "Omaha response not valid XML: "
                << XML_ErrorString(XML_GetErrorCode(parser))
                << " at line " << XML_GetCurrentLineNumber(parser)
                << " col " << XML_GetCurrentColumnNumber(parser);
+    XML_ParserFree(parser);
     ErrorCode error_code = ErrorCode::kOmahaRequestXMLParseError;
     if (response_buffer_.empty()) {
       error_code = ErrorCode::kOmahaRequestEmptyResponseError;
@@ -1147,6 +1189,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     completer.set_code(error_code);
     return;
   }
+  XML_ParserFree(parser);
 
   // Update the last ping day preferences based on the server daystart response
   // even if we didn't send a ping. Omaha always includes the daystart in the
@@ -1161,7 +1204,10 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   // their a=-1 in the past and we have to set first_active_omaha_ping_sent for
   // future checks.
   if (!system_state_->hardware()->GetFirstActiveOmahaPingSent()) {
-    system_state_->hardware()->SetFirstActiveOmahaPingSent();
+    if (!system_state_->hardware()->SetFirstActiveOmahaPingSent()) {
+      system_state_->metrics_reporter()->ReportInternalErrorCode(
+          ErrorCode::kFirstActiveOmahaPingSentPersistenceError);
+    }
   }
 
   if (!HasOutputPipe()) {
@@ -1177,9 +1223,11 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   output_object.update_exists = true;
   SetOutputObject(output_object);
 
-  if (ShouldIgnoreUpdate(output_object)) {
-    output_object.update_exists = false;
-    completer.set_code(ErrorCode::kOmahaUpdateIgnoredPerPolicy);
+  ErrorCode error = ErrorCode::kSuccess;
+  if (ShouldIgnoreUpdate(&error, output_object)) {
+    // No need to change output_object.update_exists here, since the value
+    // has been output to the pipe.
+    completer.set_code(error);
     return;
   }
 
@@ -1237,7 +1285,8 @@ void OmahaRequestAction::CompleteProcessing() {
 
   if (system_state_->hardware()->IsOOBEEnabled() &&
       !system_state_->hardware()->IsOOBEComplete(nullptr) &&
-      output_object.deadline.empty() &&
+      (output_object.deadline.empty() ||
+       payload_state->GetRollbackHappened()) &&
       params_->app_version() != "ForcedUpdate") {
     output_object.update_exists = false;
     LOG(INFO) << "Ignoring non-critical Omaha updates until OOBE is done.";
@@ -1433,13 +1482,18 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
       system_state_->clock()->GetWallclockTime() - update_first_seen_at;
   TimeDelta max_scatter_period =
       TimeDelta::FromDays(output_object->max_days_to_scatter);
+  int64_t staging_wait_time_in_days = 0;
+  // Use staging and its default max value if staging is on.
+  if (system_state_->prefs()->GetInt64(kPrefsWallClockStagingWaitPeriod,
+                                       &staging_wait_time_in_days) &&
+      staging_wait_time_in_days > 0)
+    max_scatter_period = TimeDelta::FromDays(kMaxWaitTimeStagingInDays);
 
   LOG(INFO) << "Waiting Period = "
             << utils::FormatSecs(params_->waiting_period().InSeconds())
             << ", Time Elapsed = "
             << utils::FormatSecs(elapsed_time.InSeconds())
-            << ", MaxDaysToScatter = "
-            << max_scatter_period.InDays();
+            << ", MaxDaysToScatter = " << max_scatter_period.InDays();
 
   if (!output_object->deadline.empty()) {
     // The deadline is set for all rules which serve a delta update from a
@@ -1639,6 +1693,7 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
     break;
 
   case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+  case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     result = metrics::CheckResult::kUpdateAvailable;
     reaction = metrics::CheckReaction::kIgnored;
     break;
@@ -1673,7 +1728,7 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(
-    const OmahaResponse& response) const {
+    ErrorCode* error, const OmahaResponse& response) const {
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       system_state_->payload_state()->GetRollbackVersion();
@@ -1681,11 +1736,12 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
     if (rollback_version == response.version) {
       LOG(INFO) << "Received version that we rolled back from. Ignoring.";
+      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
       return true;
     }
   }
 
-  if (!IsUpdateAllowedOverCurrentConnection()) {
+  if (!IsUpdateAllowedOverCurrentConnection(error, response)) {
     LOG(INFO) << "Update is not allowed over current connection.";
     return true;
   }
@@ -1700,7 +1756,62 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
   return false;
 }
 
-bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
+bool OmahaRequestAction::IsUpdateAllowedOverCellularByPrefs(
+    const OmahaResponse& response) const {
+  PrefsInterface* prefs = system_state_->prefs();
+
+  if (!prefs) {
+    LOG(INFO) << "Disabling updates over cellular as the preferences are "
+                 "not available.";
+    return false;
+  }
+
+  bool is_allowed;
+
+  if (prefs->Exists(kPrefsUpdateOverCellularPermission) &&
+      prefs->GetBoolean(kPrefsUpdateOverCellularPermission, &is_allowed) &&
+      is_allowed) {
+    LOG(INFO) << "Allowing updates over cellular as permission preference is "
+                 "set to true.";
+    return true;
+  }
+
+  if (!prefs->Exists(kPrefsUpdateOverCellularTargetVersion) ||
+      !prefs->Exists(kPrefsUpdateOverCellularTargetSize)) {
+    LOG(INFO) << "Disabling updates over cellular as permission preference is "
+                 "set to false or does not exist while target does not exist.";
+    return false;
+  }
+
+  std::string target_version;
+  int64_t target_size;
+
+  if (!prefs->GetString(kPrefsUpdateOverCellularTargetVersion,
+                        &target_version) ||
+      !prefs->GetInt64(kPrefsUpdateOverCellularTargetSize, &target_size)) {
+    LOG(INFO) << "Disabling updates over cellular as the target version or "
+                 "size is not accessible.";
+    return false;
+  }
+
+  uint64_t total_packages_size = 0;
+  for (const auto& package : response.packages) {
+    total_packages_size += package.size;
+  }
+  if (target_version == response.version &&
+      static_cast<uint64_t>(target_size) == total_packages_size) {
+    LOG(INFO) << "Allowing updates over cellular as the target matches the"
+                 "omaha response.";
+    return true;
+  } else {
+    LOG(INFO) << "Disabling updates over cellular as the target does not"
+                 "match the omaha response.";
+    return false;
+  }
+}
+
+bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
+    ErrorCode* error, const OmahaResponse& response) const {
   ConnectionType type;
   ConnectionTethering tethering;
   ConnectionManagerInterface* connection_manager =
@@ -1710,11 +1821,97 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
               << "Defaulting to allow updates.";
     return true;
   }
+
   bool is_allowed = connection_manager->IsUpdateAllowedOver(type, tethering);
+  bool is_device_policy_set =
+      connection_manager->IsAllowedConnectionTypesForUpdateSet();
+  // Treats tethered connection as if it is cellular connection.
+  bool is_over_cellular = type == ConnectionType::kCellular ||
+                          tethering == ConnectionTethering::kConfirmed;
+
+  if (!is_over_cellular) {
+    // There's no need to further check user preferences as we are not over
+    // cellular connection.
+    if (!is_allowed)
+      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
+  } else if (is_device_policy_set) {
+    // There's no need to further check user preferences as the device policy
+    // is set regarding updates over cellular.
+    if (!is_allowed)
+      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
+  } else {
+    // Deivce policy is not set, so user preferences overwrite whether to
+    // allow updates over cellular.
+    is_allowed = IsUpdateAllowedOverCellularByPrefs(response);
+    if (!is_allowed)
+      *error = ErrorCode::kOmahaUpdateIgnoredOverCellular;
+  }
+
   LOG(INFO) << "We are connected via "
             << connection_utils::StringForConnectionType(type)
             << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
   return is_allowed;
+}
+
+bool OmahaRequestAction::IsRollbackEnabled() const {
+  if (policy_provider_->IsConsumerDevice()) {
+    LOG(INFO) << "Rollback is not enabled for consumer devices.";
+    return false;
+  }
+
+  if (!policy_provider_->device_policy_is_loaded()) {
+    LOG(INFO) << "No device policy is loaded. Assuming rollback enabled.";
+    return true;
+  }
+
+  int allowed_milestones;
+  if (!policy_provider_->GetDevicePolicy().GetRollbackAllowedMilestones(
+          &allowed_milestones)) {
+    LOG(INFO) << "RollbackAllowedMilestones policy can't be read. "
+                 "Defaulting to rollback enabled.";
+    return true;
+  }
+
+  LOG(INFO) << "Rollback allows " << allowed_milestones << " milestones.";
+  return allowed_milestones > 0;
+}
+
+void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
+  int max_kernel_rollforward;
+  int min_kernel_version = system_state_->hardware()->GetMinKernelKeyVersion();
+  if (IsRollbackEnabled()) {
+    // If rollback is enabled, set the max kernel key version to the current
+    // kernel key version. This has the effect of freezing kernel key roll
+    // forwards.
+    //
+    // TODO(zentaro): This behavior is temporary, and ensures that no kernel
+    // key roll forward happens until the server side components of rollback
+    // are implemented. Future changes will allow the Omaha server to return
+    // the kernel key version from max_rollback_versions in the past. At that
+    // point the max kernel key version will be set to that value, creating a
+    // sliding window of versions that can be rolled back to.
+    LOG(INFO) << "Rollback is enabled. Setting kernel_max_rollforward to "
+              << min_kernel_version;
+    max_kernel_rollforward = min_kernel_version;
+  } else {
+    // For devices that are not rollback enabled (ie. consumer devices), the
+    // max kernel key version is set to 0xfffffffe, which is logically
+    // infinity. This maintains the previous behavior that that kernel key
+    // versions roll forward each time they are incremented.
+    LOG(INFO) << "Rollback is disabled. Setting kernel_max_rollforward to "
+              << kRollforwardInfinity;
+    max_kernel_rollforward = kRollforwardInfinity;
+  }
+
+  bool max_rollforward_set =
+      system_state_->hardware()->SetMaxKernelKeyRollforward(
+          max_kernel_rollforward);
+  if (!max_rollforward_set) {
+    LOG(ERROR) << "Failed to set kernel_max_rollforward";
+  }
+  // Report metrics
+  system_state_->metrics_reporter()->ReportKeyVersionMetrics(
+      min_kernel_version, max_kernel_rollforward, max_rollforward_set);
 }
 
 }  // namespace chromeos_update_engine

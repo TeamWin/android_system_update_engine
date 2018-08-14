@@ -26,10 +26,10 @@
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/update_manager/umtest_utils.h"
 #if USE_CHROME_KIOSK_APP
-#include "libcros/dbus-proxies.h"
-#include "libcros/dbus-proxy-mocks.h"
+#include "kiosk-app/dbus-proxies.h"
+#include "kiosk-app/dbus-proxy-mocks.h"
 
-using org::chromium::LibCrosServiceInterfaceProxyMock;
+using org::chromium::KioskAppServiceInterfaceProxyMock;
 #endif  // USE_CHROME_KIOSK_APP
 using std::unique_ptr;
 using testing::_;
@@ -49,14 +49,13 @@ class UmRealSystemProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
 #if USE_CHROME_KIOSK_APP
-    libcros_proxy_mock_.reset(new LibCrosServiceInterfaceProxyMock());
-    ON_CALL(*libcros_proxy_mock_,
-            GetKioskAppRequiredPlatformVersion(_, _, _))
+    kiosk_app_proxy_mock_.reset(new KioskAppServiceInterfaceProxyMock());
+    ON_CALL(*kiosk_app_proxy_mock_, GetRequiredPlatformVersion(_, _, _))
         .WillByDefault(
             DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
 
     provider_.reset(new RealSystemProvider(
-        &fake_hardware_, &fake_boot_control_, libcros_proxy_mock_.get()));
+        &fake_hardware_, &fake_boot_control_, kiosk_app_proxy_mock_.get()));
 #else
     provider_.reset(
         new RealSystemProvider(&fake_hardware_, &fake_boot_control_, nullptr));
@@ -69,7 +68,7 @@ class UmRealSystemProviderTest : public ::testing::Test {
   unique_ptr<RealSystemProvider> provider_;
 
 #if USE_CHROME_KIOSK_APP
-  unique_ptr<LibCrosServiceInterfaceProxyMock> libcros_proxy_mock_;
+  unique_ptr<KioskAppServiceInterfaceProxyMock> kiosk_app_proxy_mock_;
 #endif  // USE_CHROME_KIOSK_APP
 };
 
@@ -98,8 +97,7 @@ TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
 }
 
 TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionFailure) {
-  EXPECT_CALL(*libcros_proxy_mock_,
-              GetKioskAppRequiredPlatformVersion(_, _, _))
+  EXPECT_CALL(*kiosk_app_proxy_mock_, GetRequiredPlatformVersion(_, _, _))
       .WillOnce(Return(false));
 
   UmTestUtils::ExpectVariableNotSet(
@@ -108,15 +106,13 @@ TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionFailure) {
 
 TEST_F(UmRealSystemProviderTest,
        KioskRequiredPlatformVersionRecoveryFromFailure) {
-  EXPECT_CALL(*libcros_proxy_mock_,
-              GetKioskAppRequiredPlatformVersion(_, _, _))
+  EXPECT_CALL(*kiosk_app_proxy_mock_, GetRequiredPlatformVersion(_, _, _))
       .WillOnce(Return(false));
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_kiosk_required_platform_version());
-  testing::Mock::VerifyAndClearExpectations(libcros_proxy_mock_.get());
+  testing::Mock::VerifyAndClearExpectations(kiosk_app_proxy_mock_.get());
 
-  EXPECT_CALL(*libcros_proxy_mock_,
-              GetKioskAppRequiredPlatformVersion(_, _, _))
+  EXPECT_CALL(*kiosk_app_proxy_mock_, GetRequiredPlatformVersion(_, _, _))
       .WillOnce(
           DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
   UmTestUtils::ExpectVariableHasValue(

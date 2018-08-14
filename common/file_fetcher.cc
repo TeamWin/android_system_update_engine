@@ -138,8 +138,9 @@ void FileFetcher::OnReadDoneCallback(size_t bytes_read) {
       delegate_->TransferComplete(this, true);
   } else {
     bytes_copied_ += bytes_read;
-    if (delegate_)
-      delegate_->ReceivedBytes(this, buffer_.data(), bytes_read);
+    if (delegate_ &&
+        !delegate_->ReceivedBytes(this, buffer_.data(), bytes_read))
+      return;
     ScheduleRead();
   }
 }

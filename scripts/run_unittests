@@ -25,4 +25,6 @@ for unittest_script in update_payload/*_unittest.py; do
   python -m update_payload."${filename%.*}"
 done
 
+./payload_info_unittest.py
+
 exit 0

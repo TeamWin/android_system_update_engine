@@ -86,7 +86,7 @@ void MultiRangeHttpFetcher::StartTransfer() {
 }
 
 // State change: Downloading -> Downloading or Pending transfer ended
-void MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
+bool MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
                                           const void* bytes,
                                           size_t length) {
   CHECK_LT(current_index_, ranges_.size());
@@ -99,15 +99,9 @@ void MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
                          range.length() - bytes_received_this_range_);
   }
   LOG_IF(WARNING, next_size <= 0) << "Asked to write length <= 0";
-  if (delegate_) {
-    delegate_->ReceivedBytes(this, bytes, next_size);
-    // If the transfer was already terminated by |delegate_|, return immediately
-    // to avoid calling TerminateTransfer() again.
-    if (!base_fetcher_active_) {
-      LOG(INFO) << "Delegate has terminated the transfer.";
-      return;
-    }
-  }
+  if (delegate_ && !delegate_->ReceivedBytes(this, bytes, next_size))
+    return false;
+
   bytes_received_this_range_ += length;
   if (range.HasLength() && bytes_received_this_range_ >= range.length()) {
     // Terminates the current fetcher. Waits for its TransferTerminated
@@ -115,9 +109,10 @@ void MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
     // signalling the delegate that the whole multi-transfer is complete
     // before all fetchers are really done and cleaned up.
     pending_transfer_ended_ = true;
-    LOG(INFO) << "terminating transfer";
+    LOG(INFO) << "Terminating transfer.";
     fetcher->TerminateTransfer();
   }
+  return true;
 }
 
 // State change: Downloading or Pending transfer ended -> Stopped

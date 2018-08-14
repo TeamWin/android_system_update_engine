@@ -21,9 +21,6 @@
     {
       'rule_name': 'tar-bunzip2',
       'extension': 'bz2',
-      'inputs': [
-        '<(RULE_INPUT_PATH)',
-      ],
       'outputs': [
         # The .flag file is used to mark the timestamp of the file extraction
         # and re-run this action if a new .bz2 file is generated.

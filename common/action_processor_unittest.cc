@@ -17,6 +17,7 @@
 #include "update_engine/common/action_processor.h"
 
 #include <string>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -96,7 +97,11 @@ class ActionProcessorTest : public ::testing::Test {
   void SetUp() override {
     action_processor_.set_delegate(&delegate_);
     // Silence Type() calls used for logging.
-    EXPECT_CALL(mock_action_, Type()).Times(testing::AnyNumber());
+    mock_action_.reset(new testing::StrictMock<MockAction>());
+    mock_action_ptr_ = mock_action_.get();
+    action_.reset(new ActionProcessorTestAction());
+    action_ptr_ = action_.get();
+    EXPECT_CALL(*mock_action_, Type()).Times(testing::AnyNumber());
   }
 
   void TearDown() override {
@@ -110,34 +115,35 @@ class ActionProcessorTest : public ::testing::Test {
   MyActionProcessorDelegate delegate_{&action_processor_};
 
   // Common actions used during most tests.
-  testing::StrictMock<MockAction> mock_action_;
-  ActionProcessorTestAction action_;
+  std::unique_ptr<testing::StrictMock<MockAction>> mock_action_;
+  testing::StrictMock<MockAction>* mock_action_ptr_;
+  std::unique_ptr<ActionProcessorTestAction> action_;
+  ActionProcessorTestAction* action_ptr_;
 };
 
 TEST_F(ActionProcessorTest, SimpleTest) {
   EXPECT_FALSE(action_processor_.IsRunning());
-  action_processor_.EnqueueAction(&action_);
+  action_processor_.EnqueueAction(std::move(action_));
   EXPECT_FALSE(action_processor_.IsRunning());
-  EXPECT_FALSE(action_.IsRunning());
+  EXPECT_FALSE(action_ptr_->IsRunning());
   action_processor_.StartProcessing();
   EXPECT_TRUE(action_processor_.IsRunning());
-  EXPECT_TRUE(action_.IsRunning());
-  EXPECT_EQ(action_processor_.current_action(), &action_);
-  action_.CompleteAction();
+  EXPECT_TRUE(action_ptr_->IsRunning());
+  action_ptr_->CompleteAction();
   EXPECT_FALSE(action_processor_.IsRunning());
-  EXPECT_FALSE(action_.IsRunning());
+  EXPECT_EQ(action_processor_.current_action(), nullptr);
 }
 
 TEST_F(ActionProcessorTest, DelegateTest) {
-  action_processor_.EnqueueAction(&action_);
+  action_processor_.EnqueueAction(std::move(action_));
   action_processor_.StartProcessing();
-  action_.CompleteAction();
+  action_ptr_->CompleteAction();
   EXPECT_TRUE(delegate_.processing_done_called_);
   EXPECT_TRUE(delegate_.action_completed_called_);
 }
 
 TEST_F(ActionProcessorTest, StopProcessingTest) {
-  action_processor_.EnqueueAction(&action_);
+  action_processor_.EnqueueAction(std::move(action_));
   action_processor_.StartProcessing();
   action_processor_.StopProcessing();
   EXPECT_TRUE(delegate_.processing_stopped_called_);
@@ -150,54 +156,58 @@ TEST_F(ActionProcessorTest, ChainActionsTest) {
   // This test doesn't use a delegate since it terminates several actions.
   action_processor_.set_delegate(nullptr);
 
-  ActionProcessorTestAction action1, action2;
-  action_processor_.EnqueueAction(&action1);
-  action_processor_.EnqueueAction(&action2);
+  auto action0 = std::make_unique<ActionProcessorTestAction>();
+  auto action1 = std::make_unique<ActionProcessorTestAction>();
+  auto action2 = std::make_unique<ActionProcessorTestAction>();
+  auto action0_ptr = action0.get();
+  auto action1_ptr = action1.get();
+  auto action2_ptr = action2.get();
+  action_processor_.EnqueueAction(std::move(action0));
+  action_processor_.EnqueueAction(std::move(action1));
+  action_processor_.EnqueueAction(std::move(action2));
+
+  EXPECT_EQ(action_processor_.actions_.size(), 3u);
+  EXPECT_EQ(action_processor_.actions_[0].get(), action0_ptr);
+  EXPECT_EQ(action_processor_.actions_[1].get(), action1_ptr);
+  EXPECT_EQ(action_processor_.actions_[2].get(), action2_ptr);
+
   action_processor_.StartProcessing();
-  EXPECT_EQ(&action1, action_processor_.current_action());
+  EXPECT_EQ(action0_ptr, action_processor_.current_action());
   EXPECT_TRUE(action_processor_.IsRunning());
-  action1.CompleteAction();
-  EXPECT_EQ(&action2, action_processor_.current_action());
+  action0_ptr->CompleteAction();
+  EXPECT_EQ(action1_ptr, action_processor_.current_action());
   EXPECT_TRUE(action_processor_.IsRunning());
-  action2.CompleteAction();
+  action1_ptr->CompleteAction();
+  EXPECT_EQ(action2_ptr, action_processor_.current_action());
+  EXPECT_TRUE(action_processor_.actions_.empty());
+  EXPECT_TRUE(action_processor_.IsRunning());
+  action2_ptr->CompleteAction();
   EXPECT_EQ(nullptr, action_processor_.current_action());
+  EXPECT_TRUE(action_processor_.actions_.empty());
   EXPECT_FALSE(action_processor_.IsRunning());
 }
 
-TEST_F(ActionProcessorTest, DtorTest) {
-  ActionProcessorTestAction action1, action2;
-  {
-    ActionProcessor action_processor;
-    action_processor.EnqueueAction(&action1);
-    action_processor.EnqueueAction(&action2);
-    action_processor.StartProcessing();
-  }
-  EXPECT_EQ(nullptr, action1.processor());
-  EXPECT_FALSE(action1.IsRunning());
-  EXPECT_EQ(nullptr, action2.processor());
-  EXPECT_FALSE(action2.IsRunning());
-}
-
 TEST_F(ActionProcessorTest, DefaultDelegateTest) {
-  // Just make sure it doesn't crash
-  action_processor_.EnqueueAction(&action_);
+  // Just make sure it doesn't crash.
+  action_processor_.EnqueueAction(std::move(action_));
   action_processor_.StartProcessing();
-  action_.CompleteAction();
+  action_ptr_->CompleteAction();
 
-  action_processor_.EnqueueAction(&action_);
+  action_.reset(new ActionProcessorTestAction());
+  action_processor_.EnqueueAction(std::move(action_));
   action_processor_.StartProcessing();
   action_processor_.StopProcessing();
 }
 
-// This test suspends and resume the action processor while running one action_.
+// This test suspends and resume the action processor while running one action.
 TEST_F(ActionProcessorTest, SuspendResumeTest) {
-  action_processor_.EnqueueAction(&mock_action_);
+  action_processor_.EnqueueAction(std::move(mock_action_));
 
   testing::InSequence s;
-  EXPECT_CALL(mock_action_, PerformAction());
+  EXPECT_CALL(*mock_action_ptr_, PerformAction());
   action_processor_.StartProcessing();
 
-  EXPECT_CALL(mock_action_, SuspendAction());
+  EXPECT_CALL(*mock_action_ptr_, SuspendAction());
   action_processor_.SuspendProcessing();
   // Suspending the processor twice should not suspend the action twice.
   action_processor_.SuspendProcessing();
@@ -205,32 +215,31 @@ TEST_F(ActionProcessorTest, SuspendResumeTest) {
   // IsRunning should return whether there's is an action doing some work, even
   // if it is suspended.
   EXPECT_TRUE(action_processor_.IsRunning());
-  EXPECT_EQ(&mock_action_, action_processor_.current_action());
+  EXPECT_EQ(mock_action_ptr_, action_processor_.current_action());
 
-  EXPECT_CALL(mock_action_, ResumeAction());
+  EXPECT_CALL(*mock_action_ptr_, ResumeAction());
   action_processor_.ResumeProcessing();
 
   // Calling ResumeProcessing twice should not affect the action_.
   action_processor_.ResumeProcessing();
-
-  action_processor_.ActionComplete(&mock_action_, ErrorCode::kSuccess);
+  action_processor_.ActionComplete(mock_action_ptr_, ErrorCode::kSuccess);
 }
 
 // This test suspends an action that presumably doesn't support suspend/resume
 // and it finished before being resumed.
 TEST_F(ActionProcessorTest, ActionCompletedWhileSuspendedTest) {
-  action_processor_.EnqueueAction(&mock_action_);
+  action_processor_.EnqueueAction(std::move(mock_action_));
 
   testing::InSequence s;
-  EXPECT_CALL(mock_action_, PerformAction());
+  EXPECT_CALL(*mock_action_ptr_, PerformAction());
   action_processor_.StartProcessing();
 
-  EXPECT_CALL(mock_action_, SuspendAction());
+  EXPECT_CALL(*mock_action_ptr_, SuspendAction());
   action_processor_.SuspendProcessing();
 
   // Simulate the action completion while suspended. No other call to
   // |mock_action_| is expected at this point.
-  action_processor_.ActionComplete(&mock_action_, ErrorCode::kSuccess);
+  action_processor_.ActionComplete(mock_action_ptr_, ErrorCode::kSuccess);
 
   // The processing should not be done since the ActionProcessor is suspended
   // and the processing is considered to be still running until resumed.
@@ -243,15 +252,15 @@ TEST_F(ActionProcessorTest, ActionCompletedWhileSuspendedTest) {
 }
 
 TEST_F(ActionProcessorTest, StoppedWhileSuspendedTest) {
-  action_processor_.EnqueueAction(&mock_action_);
+  action_processor_.EnqueueAction(std::move(mock_action_));
 
   testing::InSequence s;
-  EXPECT_CALL(mock_action_, PerformAction());
+  EXPECT_CALL(*mock_action_ptr_, PerformAction());
   action_processor_.StartProcessing();
-  EXPECT_CALL(mock_action_, SuspendAction());
+  EXPECT_CALL(*mock_action_ptr_, SuspendAction());
   action_processor_.SuspendProcessing();
 
-  EXPECT_CALL(mock_action_, TerminateProcessing());
+  EXPECT_CALL(*mock_action_ptr_, TerminateProcessing());
   action_processor_.StopProcessing();
   // Stopping the processing should abort the current execution no matter what.
   EXPECT_TRUE(delegate_.processing_stopped_called_);

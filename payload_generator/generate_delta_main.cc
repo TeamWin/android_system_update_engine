@@ -150,13 +150,16 @@ void SignPayload(const string& in_file,
   LOG_IF(FATAL, out_file.empty())
       << "Must pass --out_file to sign payload.";
   LOG_IF(FATAL, payload_signature_file.empty())
-      << "Must pass --signature_file to sign payload.";
-  vector<brillo::Blob> signatures, metadata_signatures;
-  SignatureFileFlagToBlobs(payload_signature_file, &signatures);
+      << "Must pass --payload_signature_file to sign payload.";
+  vector<brillo::Blob> payload_signatures, metadata_signatures;
+  SignatureFileFlagToBlobs(payload_signature_file, &payload_signatures);
   SignatureFileFlagToBlobs(metadata_signature_file, &metadata_signatures);
   uint64_t final_metadata_size;
-  CHECK(PayloadSigner::AddSignatureToPayload(in_file, signatures,
-      metadata_signatures, out_file, &final_metadata_size));
+  CHECK(PayloadSigner::AddSignatureToPayload(in_file,
+                                             payload_signatures,
+                                             metadata_signatures,
+                                             out_file,
+                                             &final_metadata_size));
   LOG(INFO) << "Done signing payload. Final metadata size = "
             << final_metadata_size;
   if (!out_metadata_size_file.empty()) {
@@ -287,8 +290,8 @@ int Main(int argc, char** argv) {
                 "Path to the .map files associated with the partition files "
                 "in the new partition, similar to the -old_mapfiles flag.");
   DEFINE_string(partition_names,
-                string(kLegacyPartitionNameRoot) + ":" +
-                kLegacyPartitionNameKernel,
+                string(kPartitionNameRoot) + ":" +
+                kPartitionNameKernel,
                 "Names of the partitions. To pass multiple names, use a single "
                 "argument with a colon between names, e.g. "
                 "name:name2:name3:last_name . Name can not be empty, and it "
@@ -311,7 +314,8 @@ int Main(int argc, char** argv) {
                 "You may pass in multiple sizes by colon separating them. E.g. "
                 "2048:2048:4096 will assume 3 signatures, the first two with "
                 "2048 size and the last 4096.");
-  DEFINE_string(signature_file, "",
+  DEFINE_string(payload_signature_file,
+                "",
                 "Raw signature file to sign payload with. To pass multiple "
                 "signatures, use a single argument with a colon between paths, "
                 "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
@@ -406,9 +410,12 @@ int Main(int argc, char** argv) {
                             FLAGS_out_metadata_hash_file, FLAGS_in_file);
     return 0;
   }
-  if (!FLAGS_signature_file.empty()) {
-    SignPayload(FLAGS_in_file, FLAGS_out_file, FLAGS_signature_file,
-                FLAGS_metadata_signature_file, FLAGS_out_metadata_size_file);
+  if (!FLAGS_payload_signature_file.empty()) {
+    SignPayload(FLAGS_in_file,
+                FLAGS_out_file,
+                FLAGS_payload_signature_file,
+                FLAGS_metadata_signature_file,
+                FLAGS_out_metadata_size_file);
     return 0;
   }
   if (!FLAGS_public_key.empty()) {
@@ -444,8 +451,8 @@ int Main(int argc, char** argv) {
     LOG_IF(FATAL, partition_names.size() != 2)
         << "To support more than 2 partitions, please use the "
         << "--new_partitions flag and major version 2.";
-    LOG_IF(FATAL, partition_names[0] != kLegacyPartitionNameRoot ||
-                  partition_names[1] != kLegacyPartitionNameKernel)
+    LOG_IF(FATAL, partition_names[0] != kPartitionNameRoot ||
+                  partition_names[1] != kPartitionNameKernel)
         << "To support non-default partition name, please use the "
         << "--new_partitions flag and major version 2.";
   }

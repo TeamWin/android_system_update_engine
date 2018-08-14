@@ -44,9 +44,6 @@ class OmahaRequestParamsTest : public ::testing::Test {
   void SetUp() override {
     // Create a uniquely named test directory.
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
-    // Create a fresh copy of the params for each test, so there's no
-    // unintended reuse of state across tests.
-    params_ = OmahaRequestParams(&fake_system_state_);
     params_.set_root(tempdir_.GetPath().value());
     SetLockDown(false);
     fake_system_state_.set_prefs(&fake_prefs_);
@@ -57,8 +54,8 @@ class OmahaRequestParamsTest : public ::testing::Test {
     fake_system_state_.fake_hardware()->SetIsNormalBootMode(locked_down);
   }
 
-  OmahaRequestParams params_;
   FakeSystemState fake_system_state_;
+  OmahaRequestParams params_{&fake_system_state_};
   FakePrefs fake_prefs_;
 
   base::ScopedTempDir tempdir_;
@@ -258,9 +255,6 @@ TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
   EXPECT_FALSE(params_.CollectECFWVersions());
 
   params_.hwid_ = string("SNOW 12345");
-  EXPECT_TRUE(params_.CollectECFWVersions());
-
-  params_.hwid_ = string("SAMS ALEX 12345");
   EXPECT_TRUE(params_.CollectECFWVersions());
 }
 

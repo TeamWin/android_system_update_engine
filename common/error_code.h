@@ -73,14 +73,16 @@ enum class ErrorCode : int {
   kFilesystemVerifierError = 47,
   kUserCanceled = 48,
   kNonCriticalUpdateInOOBE = 49,
-  // kOmahaUpdateIgnoredOverCellular = 50,
+  kOmahaUpdateIgnoredOverCellular = 50,
   kPayloadTimestampError = 51,
   kUpdatedButNotActive = 52,
   kNoUpdate = 53,
+  kRollbackNotPossible = 54,
+  kFirstActiveOmahaPingSentPersistenceError = 55,
 
   // VERY IMPORTANT! When adding new error codes:
   //
-  // 1) Update tools/metrics/histograms/histograms.xml in Chrome.
+  // 1) Update tools/metrics/histograms/enums.xml in Chrome.
   //
   // 2) Update the assorted switch statements in update_engine which won't
   //    build until this case is added.

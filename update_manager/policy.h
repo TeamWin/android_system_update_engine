@@ -24,6 +24,7 @@
 #include "update_engine/common/error_code.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/update_manager/evaluation_context.h"
+#include "update_engine/update_manager/rollback_prefs.h"
 #include "update_engine/update_manager/state.h"
 
 namespace chromeos_update_manager {
@@ -47,6 +48,13 @@ struct UpdateCheckParams {
   //
   // A target version prefix, if imposed by policy; otherwise, an empty string.
   std::string target_version_prefix;
+  // Specifies whether rollback images are allowed by device policy.
+  bool rollback_allowed;
+  // Specifies the number of Chrome milestones rollback should be allowed,
+  // starting from the stable version at any time. Value is -1 if unspecified
+  // (e.g. no device policy is available yet), in this case no version
+  // roll-forward should happen.
+  int rollback_allowed_milestones;
   // A target channel, if so imposed by policy; otherwise, an empty string.
   std::string target_channel;
 

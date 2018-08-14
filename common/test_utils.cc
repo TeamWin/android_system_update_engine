@@ -28,7 +28,6 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
-#include <sys/xattr.h>
 #include <unistd.h>
 
 #include <set>
@@ -110,36 +109,6 @@ string Readlink(const string& path) {
     return "";
   CHECK_LT(r, static_cast<ssize_t>(buf.size()));
   return string(buf.begin(), buf.begin() + r);
-}
-
-bool IsXAttrSupported(const base::FilePath& dir_path) {
-  char *path = strdup(dir_path.Append("xattr_test_XXXXXX").value().c_str());
-
-  int fd = mkstemp(path);
-  if (fd == -1) {
-    PLOG(ERROR) << "Error creating temporary file in " << dir_path.value();
-    free(path);
-    return false;
-  }
-
-  if (unlink(path) != 0) {
-    PLOG(ERROR) << "Error unlinking temporary file " << path;
-    close(fd);
-    free(path);
-    return false;
-  }
-
-  int xattr_res = fsetxattr(fd, "user.xattr-test", "value", strlen("value"), 0);
-  if (xattr_res != 0) {
-    if (errno == ENOTSUP) {
-      // Leave it to call-sites to warn about non-support.
-    } else {
-      PLOG(ERROR) << "Error setting xattr on " << path;
-    }
-  }
-  close(fd);
-  free(path);
-  return xattr_res == 0;
 }
 
 bool WriteFileVector(const string& path, const brillo::Blob& data) {
