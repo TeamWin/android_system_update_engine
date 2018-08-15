@@ -471,12 +471,12 @@ include $(BUILD_EXECUTABLE)
 
 # update_engine_sideload (type: executable)
 # ========================================================
-# A static binary equivalent to update_engine daemon that installs an update
-# from a local file directly instead of running in the background.
+# A binary executable equivalent to update_engine daemon that installs an update
+# from a local file directly instead of running in the background. Used in
+# recovery image.
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine_sideload
-LOCAL_FORCE_STATIC_EXECUTABLE := true
-LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/system/bin
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CFLAGS := \
@@ -502,43 +502,32 @@ LOCAL_SRC_FILES := \
     update_boot_flags_action.cc \
     update_status_utils.cc \
     utils_android.cc
+# Use commonly used shared libraries. libprotobuf-cpp-lite.so is filtered out,
+# as it doesn't look beneficial to be installed separately due to its size. Note
+# that we explicitly request their recovery variants, so that the expected files
+# will be used and installed.
+LOCAL_SHARED_LIBRARIES := \
+    libbase.recovery \
+    libbootloader_message.recovery \
+    libfs_mgr.recovery \
+    liblog.recovery \
+    $(filter-out libprotobuf-cpp-lite.recovery,$(ue_libpayload_consumer_exported_shared_libraries:=.recovery))
 LOCAL_STATIC_LIBRARIES := \
-    libbootloader_message \
-    libfs_mgr \
-    libbase \
-    liblog \
     libpayload_consumer \
     update_metadata-protos \
     $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
-# We add the static versions of the shared libraries since we are forcing this
-# binary to be a static binary, so we also need to include all the static
-# library dependencies of these static libraries.
+# We add the static versions of the shared libraries that are not installed to
+# recovery image due to size concerns. Need to include all the static library
+# dependencies of these static libraries.
 LOCAL_STATIC_LIBRARIES += \
     $(ue_common_shared_libraries) \
-    libbase \
-    liblog \
-    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
     $(ue_update_metadata_protos_exported_shared_libraries) \
     libevent \
     libmodpb64 \
-    libgtest_prod
-
-ifeq ($(local_use_fec),1)
-# The static library "libfec" depends on a bunch of other static libraries, but
-# such dependency is not handled by the build system, so we need to add them
-# here.
-LOCAL_STATIC_LIBRARIES += \
-    libext4_utils \
-    libsquashfs_utils \
-    libcutils \
-    libcrypto_utils \
-    libcrypto \
-    libcutils \
-    libbase \
-    libfec_rs
-endif  # local_use_fec == 1
+    libgtest_prod \
+    libprotobuf-cpp-lite
 
 ifeq ($(strip $(PRODUCT_STATIC_BOOT_CONTROL_HAL)),)
 # No static boot_control HAL defined, so no sideload support. We use a fake
