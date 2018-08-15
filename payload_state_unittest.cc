@@ -985,6 +985,37 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   EXPECT_EQ(0U, payload_state.GetNumReboots());
 }
 
+TEST(PayloadStateTest, RollbackHappened) {
+  FakeSystemState fake_system_state;
+  PayloadState payload_state;
+
+  NiceMock<MockPrefs>* mock_powerwash_safe_prefs =
+      fake_system_state.mock_powerwash_safe_prefs();
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  // Verify pre-conditions are good.
+  EXPECT_FALSE(payload_state.GetRollbackHappened());
+
+  // Set to true.
+  EXPECT_CALL(*mock_powerwash_safe_prefs,
+              SetBoolean(kPrefsRollbackHappened, true));
+  payload_state.SetRollbackHappened(true);
+  EXPECT_TRUE(payload_state.GetRollbackHappened());
+
+  // Set to false.
+  EXPECT_CALL(*mock_powerwash_safe_prefs, Delete(kPrefsRollbackHappened));
+  payload_state.SetRollbackHappened(false);
+  EXPECT_FALSE(payload_state.GetRollbackHappened());
+
+  // Let's verify we can reload it correctly.
+  EXPECT_CALL(*mock_powerwash_safe_prefs, GetBoolean(kPrefsRollbackHappened, _))
+      .WillOnce(DoAll(SetArgPointee<1>(true), Return(true)));
+  EXPECT_CALL(*mock_powerwash_safe_prefs,
+              SetBoolean(kPrefsRollbackHappened, true));
+  payload_state.LoadRollbackHappened();
+  EXPECT_TRUE(payload_state.GetRollbackHappened());
+}
+
 TEST(PayloadStateTest, RollbackVersion) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;

@@ -47,6 +47,7 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
+#include "update_engine/update_boot_flags_action.h"
 #include "update_engine/update_status_utils.h"
 
 #ifndef _UE_SIDELOAD
@@ -246,23 +247,34 @@ bool UpdateAttempterAndroid::ApplyPayload(
   LOG(INFO) << "Using this install plan:";
   install_plan_.Dump();
 
-  BuildUpdateActions(payload_url);
+  HttpFetcher* fetcher = nullptr;
+  if (FileFetcher::SupportedUrl(payload_url)) {
+    DLOG(INFO) << "Using FileFetcher for file URL.";
+    fetcher = new FileFetcher();
+  } else {
+#ifdef _UE_SIDELOAD
+    LOG(FATAL) << "Unsupported sideload URI: " << payload_url;
+#else
+    LibcurlHttpFetcher* libcurl_fetcher =
+        new LibcurlHttpFetcher(&proxy_resolver_, hardware_);
+    libcurl_fetcher->set_server_to_check(ServerToCheck::kDownload);
+    fetcher = libcurl_fetcher;
+#endif  // _UE_SIDELOAD
+  }
   // Setup extra headers.
-  HttpFetcher* fetcher = download_action_->http_fetcher();
   if (!headers[kPayloadPropertyAuthorization].empty())
     fetcher->SetHeader("Authorization", headers[kPayloadPropertyAuthorization]);
   if (!headers[kPayloadPropertyUserAgent].empty())
     fetcher->SetHeader("User-Agent", headers[kPayloadPropertyUserAgent]);
 
-  SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
+  BuildUpdateActions(fetcher);
 
-  // Just in case we didn't update boot flags yet, make sure they're updated
-  // before any update processing starts. This will start the update process.
-  UpdateBootFlags();
+  SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
 
   UpdatePrefsOnUpdateStart(install_plan_.is_resume);
   // TODO(xunchang) report the metrics for unresumable updates
 
+  ScheduleProcessingStart();
   return true;
 }
 
@@ -532,27 +544,6 @@ void UpdateAttempterAndroid::ProgressUpdate(double progress) {
   }
 }
 
-void UpdateAttempterAndroid::UpdateBootFlags() {
-  if (updated_boot_flags_) {
-    LOG(INFO) << "Already updated boot flags. Skipping.";
-    CompleteUpdateBootFlags(true);
-    return;
-  }
-  // This is purely best effort.
-  LOG(INFO) << "Marking booted slot as good.";
-  if (!boot_control_->MarkBootSuccessfulAsync(
-          Bind(&UpdateAttempterAndroid::CompleteUpdateBootFlags,
-               base::Unretained(this)))) {
-    LOG(ERROR) << "Failed to mark current boot as successful.";
-    CompleteUpdateBootFlags(false);
-  }
-}
-
-void UpdateAttempterAndroid::CompleteUpdateBootFlags(bool successful) {
-  updated_boot_flags_ = true;
-  ScheduleProcessingStart();
-}
-
 void UpdateAttempterAndroid::ScheduleProcessingStart() {
   LOG(INFO) << "Scheduling an action processor start.";
   brillo::MessageLoop::current()->PostTask(
@@ -568,7 +559,6 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   }
 
   download_progress_ = 0;
-  actions_.clear();
   UpdateStatus new_status =
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
                                          : UpdateStatus::IDLE);
@@ -606,50 +596,28 @@ void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
   last_notify_time_ = TimeTicks::Now();
 }
 
-void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
+void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
 
   // Actions:
-  shared_ptr<InstallPlanAction> install_plan_action(
-      new InstallPlanAction(install_plan_));
-
-  HttpFetcher* download_fetcher = nullptr;
-  if (FileFetcher::SupportedUrl(url)) {
-    DLOG(INFO) << "Using FileFetcher for file URL.";
-    download_fetcher = new FileFetcher();
-  } else {
-#ifdef _UE_SIDELOAD
-    LOG(FATAL) << "Unsupported sideload URI: " << url;
-#else
-    LibcurlHttpFetcher* libcurl_fetcher =
-        new LibcurlHttpFetcher(&proxy_resolver_, hardware_);
-    libcurl_fetcher->set_server_to_check(ServerToCheck::kDownload);
-    download_fetcher = libcurl_fetcher;
-#endif  // _UE_SIDELOAD
-  }
-  shared_ptr<DownloadAction> download_action(
-      new DownloadAction(prefs_,
-                         boot_control_,
-                         hardware_,
-                         nullptr,           // system_state, not used.
-                         download_fetcher,  // passes ownership
-                         true /* interactive */));
-  shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
-      new FilesystemVerifierAction());
-
-  shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
-      new PostinstallRunnerAction(boot_control_, hardware_));
-
+  auto update_boot_flags_action =
+      std::make_unique<UpdateBootFlagsAction>(boot_control_);
+  auto install_plan_action = std::make_unique<InstallPlanAction>(install_plan_);
+  auto download_action =
+      std::make_unique<DownloadAction>(prefs_,
+                                       boot_control_,
+                                       hardware_,
+                                       nullptr,  // system_state, not used.
+                                       fetcher,  // passes ownership
+                                       true /* interactive */);
   download_action->set_delegate(this);
   download_action->set_base_offset(base_offset_);
-  download_action_ = download_action;
+  auto filesystem_verifier_action =
+      std::make_unique<FilesystemVerifierAction>();
+  auto postinstall_runner_action =
+      std::make_unique<PostinstallRunnerAction>(boot_control_, hardware_);
   postinstall_runner_action->set_delegate(this);
-
-  actions_.push_back(shared_ptr<AbstractAction>(install_plan_action));
-  actions_.push_back(shared_ptr<AbstractAction>(download_action));
-  actions_.push_back(shared_ptr<AbstractAction>(filesystem_verifier_action));
-  actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
 
   // Bond them together. We have to use the leaf-types when calling
   // BondActions().
@@ -658,9 +626,11 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
   BondActions(filesystem_verifier_action.get(),
               postinstall_runner_action.get());
 
-  // Enqueue the actions.
-  for (const shared_ptr<AbstractAction>& action : actions_)
-    processor_->EnqueueAction(action.get());
+  processor_->EnqueueAction(std::move(update_boot_flags_action));
+  processor_->EnqueueAction(std::move(install_plan_action));
+  processor_->EnqueueAction(std::move(download_action));
+  processor_->EnqueueAction(std::move(filesystem_verifier_action));
+  processor_->EnqueueAction(std::move(postinstall_runner_action));
 }
 
 bool UpdateAttempterAndroid::WriteUpdateCompletedMarker() {

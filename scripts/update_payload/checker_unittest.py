@@ -485,13 +485,16 @@ class PayloadCheckerTest(mox.MoxTestBase):
                    fail_bad_nki or fail_bad_nri or fail_old_kernel_fs_size or
                    fail_old_rootfs_fs_size or fail_new_kernel_fs_size or
                    fail_new_rootfs_fs_size)
+    part_sizes = {
+        common.ROOTFS: rootfs_part_size,
+        common.KERNEL: kernel_part_size
+    }
+
     if should_fail:
       self.assertRaises(PayloadError, payload_checker._CheckManifest, report,
-                        rootfs_part_size, kernel_part_size)
+                        part_sizes)
     else:
-      self.assertIsNone(payload_checker._CheckManifest(report,
-                                                       rootfs_part_size,
-                                                       kernel_part_size))
+      self.assertIsNone(payload_checker._CheckManifest(report, part_sizes))
 
   def testCheckLength(self):
     """Tests _CheckLength()."""
@@ -888,6 +891,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
                           self.NewExtentList((1, 16)))
         total_src_blocks = 16
 
+    # TODO(tbrindus): add major version 2 tests.
+    payload_checker.major_version = 1
     if op_type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       payload_checker.minor_version = 0
     elif op_type in (common.OpType.MOVE, common.OpType.BSDIFF):
@@ -1085,7 +1090,10 @@ class PayloadCheckerTest(mox.MoxTestBase):
     report = checker._PayloadReport()
 
     # We have to check the manifest first in order to set signature attributes.
-    payload_checker._CheckManifest(report, rootfs_part_size, kernel_part_size)
+    payload_checker._CheckManifest(report, {
+        common.ROOTFS: rootfs_part_size,
+        common.KERNEL: kernel_part_size
+    })
 
     should_fail = (fail_empty_sigs_blob or fail_missing_pseudo_op or
                    fail_mismatched_pseudo_op or fail_sig_missing_fields or
@@ -1127,8 +1135,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
   def DoRunTest(self, rootfs_part_size_provided, kernel_part_size_provided,
                 fail_wrong_payload_type, fail_invalid_block_size,
-                fail_mismatched_block_size, fail_excess_data,
-                fail_rootfs_part_size_exceeded,
+                fail_mismatched_metadata_size, fail_mismatched_block_size,
+                fail_excess_data, fail_rootfs_part_size_exceeded,
                 fail_kernel_part_size_exceeded):
     """Tests Run()."""
     # Generate a test payload. For this test, we generate a full update that
@@ -1178,6 +1186,11 @@ class PayloadCheckerTest(mox.MoxTestBase):
     else:
       use_block_size = block_size
 
+    # For the unittests 246 is the value that generated for the payload.
+    metadata_size = 246
+    if fail_mismatched_metadata_size:
+      metadata_size += 1
+
     kwargs = {
         'payload_gen_dargs': {
             'privkey_file_name': test_utils._PRIVKEY_FILE_NAME,
@@ -1194,11 +1207,15 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_checker = _GetPayloadChecker(payload_gen.WriteToFileWithData,
                                            **kwargs)
 
-      kwargs = {'pubkey_file_name': test_utils._PUBKEY_FILE_NAME,
-                'rootfs_part_size': rootfs_part_size,
-                'kernel_part_size': kernel_part_size}
+      kwargs = {
+          'pubkey_file_name': test_utils._PUBKEY_FILE_NAME,
+          'metadata_size': metadata_size,
+          'part_sizes': {
+              common.KERNEL: kernel_part_size,
+              common.ROOTFS: rootfs_part_size}}
+
       should_fail = (fail_wrong_payload_type or fail_mismatched_block_size or
-                     fail_excess_data or
+                     fail_mismatched_metadata_size or fail_excess_data or
                      fail_rootfs_part_size_exceeded or
                      fail_kernel_part_size_exceeded)
       if should_fail:
@@ -1353,6 +1370,7 @@ def AddAllParametricTests():
                       'kernel_part_size_provided': (True, False),
                       'fail_wrong_payload_type': (True, False),
                       'fail_invalid_block_size': (True, False),
+                      'fail_mismatched_metadata_size': (True, False),
                       'fail_mismatched_block_size': (True, False),
                       'fail_excess_data': (True, False),
                       'fail_rootfs_part_size_exceeded': (True, False),

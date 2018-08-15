@@ -43,12 +43,15 @@ class RealTimeProvider : public TimeProvider {
     return var_curr_hour_.get();
   }
 
+  Variable<int>* var_curr_minute() override { return var_curr_minute_.get(); }
+
  private:
   // A clock abstraction (fakeable).
   chromeos_update_engine::ClockInterface* const clock_;
 
   std::unique_ptr<Variable<base::Time>> var_curr_date_;
   std::unique_ptr<Variable<int>> var_curr_hour_;
+  std::unique_ptr<Variable<int>> var_curr_minute_;
 
   DISALLOW_COPY_AND_ASSIGN(RealTimeProvider);
 };

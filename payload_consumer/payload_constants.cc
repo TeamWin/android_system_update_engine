@@ -36,8 +36,8 @@ const uint64_t kMaxSupportedMajorPayloadVersion = 2;
 
 const uint64_t kMaxPayloadHeaderSize = 24;
 
-const char kLegacyPartitionNameKernel[] = "boot";
-const char kLegacyPartitionNameRoot[] = "system";
+const char kPartitionNameKernel[] = "kernel";
+const char kPartitionNameRoot[] = "root";
 
 const char kDeltaMagic[4] = {'C', 'r', 'A', 'U'};
 

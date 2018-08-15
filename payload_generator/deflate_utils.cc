@@ -287,12 +287,16 @@ bool PreprocessParitionFiles(const PartitionConfig& part,
     }
 
     // Search for deflates if the file is in zip format.
+    // .zvoice files may eventually move out of rootfs. If that happens, remove
+    // ".zvoice" (crbug.com/782918).
+    const string zip_file_extensions[] = {".apk", ".zip", ".jar", ".zvoice"};
     bool is_zip =
-        base::EndsWith(
-            file.name, ".apk", base::CompareCase::INSENSITIVE_ASCII) ||
-        base::EndsWith(
-            file.name, ".zip", base::CompareCase::INSENSITIVE_ASCII) ||
-        base::EndsWith(file.name, ".jar", base::CompareCase::INSENSITIVE_ASCII);
+        any_of(zip_file_extensions,
+               std::end(zip_file_extensions),
+               [&file](const string& ext) {
+                 return base::EndsWith(
+                     file.name, ext, base::CompareCase::INSENSITIVE_ASCII);
+               });
 
     if (is_zip && extract_deflates) {
       brillo::Blob data;

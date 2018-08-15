@@ -18,6 +18,8 @@
 #define UPDATE_ENGINE_COMMON_ACTION_PROCESSOR_H_
 
 #include <deque>
+#include <memory>
+#include <vector>
 
 #include <base/macros.h>
 #include <brillo/errors/error.h>
@@ -69,10 +71,10 @@ class ActionProcessor {
 
   // Returns true iff the processing was started but not yet completed nor
   // stopped.
-  bool IsRunning() const { return current_action_ != nullptr || suspended_; }
+  bool IsRunning() const;
 
   // Adds another Action to the end of the queue.
-  virtual void EnqueueAction(AbstractAction* action);
+  virtual void EnqueueAction(std::unique_ptr<AbstractAction> action);
 
   // Sets/gets the current delegate. Set to null to remove a delegate.
   ActionProcessorDelegate* delegate() const { return delegate_; }
@@ -81,14 +83,17 @@ class ActionProcessor {
   }
 
   // Returns a pointer to the current Action that's processing.
-  AbstractAction* current_action() const {
-    return current_action_;
-  }
+  AbstractAction* current_action() const { return current_action_.get(); }
 
   // Called by an action to notify processor that it's done. Caller passes self.
+  // But this call deletes the action if there no other object has a reference
+  // to it, so in that case, the caller should not try to access any of its
+  // member variables after this call.
   void ActionComplete(AbstractAction* actionptr, ErrorCode code);
 
  private:
+  FRIEND_TEST(ActionProcessorTest, ChainActionsTest);
+
   // Continue processing actions (if any) after the last action terminated with
   // the passed error code. If there are no more actions to process, the
   // processing will terminate.
@@ -96,10 +101,10 @@ class ActionProcessor {
 
   // Actions that have not yet begun processing, in the order in which
   // they'll be processed.
-  std::deque<AbstractAction*> actions_;
+  std::deque<std::unique_ptr<AbstractAction>> actions_;
 
   // A pointer to the currently processing Action, if any.
-  AbstractAction* current_action_{nullptr};
+  std::unique_ptr<AbstractAction> current_action_;
 
   // The ErrorCode reported by an action that was suspended but finished while
   // being suspended. This error code is stored here to be reported back to the

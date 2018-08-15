@@ -42,6 +42,11 @@ OPSRCHASH_MINOR_PAYLOAD_VERSION = 3
 BROTLI_BSDIFF_MINOR_PAYLOAD_VERSION = 4
 PUFFDIFF_MINOR_PAYLOAD_VERSION = 5
 
+KERNEL = 'kernel'
+ROOTFS = 'root'
+# Tuple of (name in system, name in protobuf).
+CROS_PARTITIONS = ((KERNEL, KERNEL), (ROOTFS, 'rootfs'))
+
 #
 # Payload operation types.
 #

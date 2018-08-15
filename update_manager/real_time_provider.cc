@@ -77,9 +77,28 @@ class CurrHourVariable : public Variable<int> {
   DISALLOW_COPY_AND_ASSIGN(CurrHourVariable);
 };
 
+class CurrMinuteVariable : public Variable<int> {
+ public:
+  CurrMinuteVariable(const string& name, ClockInterface* clock)
+      : Variable<int>(name, TimeDelta::FromSeconds(15)), clock_(clock) {}
+
+ protected:
+  virtual const int* GetValue(TimeDelta /* timeout */, string* /* errmsg */) {
+    Time::Exploded exploded;
+    clock_->GetWallclockTime().LocalExplode(&exploded);
+    return new int(exploded.minute);
+  }
+
+ private:
+  ClockInterface* clock_;
+
+  DISALLOW_COPY_AND_ASSIGN(CurrMinuteVariable);
+};
+
 bool RealTimeProvider::Init() {
   var_curr_date_.reset(new CurrDateVariable("curr_date", clock_));
   var_curr_hour_.reset(new CurrHourVariable("curr_hour", clock_));
+  var_curr_minute_.reset(new CurrMinuteVariable("curr_minute", clock_));
   return true;
 }
 

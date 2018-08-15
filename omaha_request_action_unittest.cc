@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/bind.h>
@@ -35,6 +36,8 @@
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
+#include <policy/libpolicy.h>
+#include <policy/mock_libpolicy.h>
 
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/constants.h"
@@ -49,9 +52,11 @@
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/update_manager/rollback_prefs.h"
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_manager::kRollforwardInfinity;
 using std::string;
 using std::vector;
 using testing::AllOf;
@@ -61,6 +66,7 @@ using testing::Ge;
 using testing::Le;
 using testing::NiceMock;
 using testing::Return;
+using testing::ReturnRef;
 using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgPointee;
@@ -68,12 +74,26 @@ using testing::_;
 
 namespace {
 
+static_assert(kRollforwardInfinity == 0xfffffffe,
+              "Don't change the value of kRollforward infinity unless its "
+              "size has been changed in firmware.");
+
 const char kTestAppId[] = "test-app-id";
 const char kTestAppId2[] = "test-app2-id";
 
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
 struct FakeUpdateResponse {
+  string GetRollbackVersionAttributes() const {
+    return (rollback ? " _rollback=\"true\"" : "") +
+           (!rollback_firmware_version.empty()
+                ? " _firmware_version=\"" + rollback_firmware_version + "\""
+                : "") +
+           (!rollback_kernel_version.empty()
+                ? " _kernel_version=\"" + rollback_kernel_version + "\""
+                : "");
+  }
+
   string GetNoUpdateResponse() const {
     string entity_str;
     if (include_entity)
@@ -111,8 +131,8 @@ struct FakeUpdateResponse {
                       "\" cohortname=\"" + cohortname + "\" "
                 : "") +
            " status=\"ok\">"
-           "<ping status=\"ok\"/><updatecheck status=\"ok\">"
-           "<urls><url codebase=\"" +
+           "<ping status=\"ok\"/><updatecheck status=\"ok\"" +
+           GetRollbackVersionAttributes() + ">" + "<urls><url codebase=\"" +
            codebase +
            "\"/></urls>"
            "<manifest version=\"" +
@@ -210,15 +230,88 @@ struct FakeUpdateResponse {
   bool multi_app_no_update = false;
   // Whether to include more than one package in an app.
   bool multi_package = false;
+
+  // Whether the payload is a rollback.
+  bool rollback = false;
+  // The verified boot firmware key version for the rollback image.
+  string rollback_firmware_version = "";
+  // The verified boot kernel key version for the rollback image.
+  string rollback_kernel_version = "";
 };
 
 }  // namespace
 
 namespace chromeos_update_engine {
 
+class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
+ public:
+  OmahaRequestActionTestProcessorDelegate()
+      : expected_code_(ErrorCode::kSuccess),
+        interactive_(false),
+        test_http_fetcher_headers_(false) {}
+  ~OmahaRequestActionTestProcessorDelegate() override = default;
+
+  void ProcessingDone(const ActionProcessor* processor,
+                      ErrorCode code) override {
+    brillo::MessageLoop::current()->BreakLoop();
+  }
+
+  void ActionCompleted(ActionProcessor* processor,
+                       AbstractAction* action,
+                       ErrorCode code) override {
+    // Make sure actions always succeed.
+    if (action->Type() == OmahaRequestAction::StaticType()) {
+      EXPECT_EQ(expected_code_, code);
+      // Check that the headers were set in the fetcher during the action. Note
+      // that we set this request as "interactive".
+      auto fetcher = static_cast<const MockHttpFetcher*>(
+          static_cast<OmahaRequestAction*>(action)->http_fetcher_.get());
+
+      if (test_http_fetcher_headers_) {
+        EXPECT_EQ(interactive_ ? "fg" : "bg",
+                  fetcher->GetHeader("X-Goog-Update-Interactivity"));
+        EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-Goog-Update-AppId"));
+        EXPECT_NE("", fetcher->GetHeader("X-Goog-Update-Updater"));
+      }
+      post_data_ = fetcher->post_data();
+    } else if (action->Type() ==
+               ObjectCollectorAction<OmahaResponse>::StaticType()) {
+      EXPECT_EQ(ErrorCode::kSuccess, code);
+      auto collector_action =
+          static_cast<ObjectCollectorAction<OmahaResponse>*>(action);
+      omaha_response_.reset(new OmahaResponse(collector_action->object()));
+      EXPECT_TRUE(omaha_response_);
+    } else {
+      EXPECT_EQ(ErrorCode::kSuccess, code);
+    }
+  }
+  ErrorCode expected_code_;
+  brillo::Blob post_data_;
+  bool interactive_;
+  bool test_http_fetcher_headers_;
+  std::unique_ptr<OmahaResponse> omaha_response_;
+};
+
 class OmahaRequestActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    request_params_.set_os_sp("service_pack");
+    request_params_.set_os_board("x86-generic");
+    request_params_.set_app_id(kTestAppId);
+    request_params_.set_app_version("0.1.0.0");
+    request_params_.set_app_lang("en-US");
+    request_params_.set_current_channel("unittest");
+    request_params_.set_target_channel("unittest");
+    request_params_.set_hwid("OEM MODEL 09235 7471");
+    request_params_.set_fw_version("ChromeOSFirmware.1.0");
+    request_params_.set_ec_version("0X0A1");
+    request_params_.set_delta_okay(true);
+    request_params_.set_interactive(false);
+    request_params_.set_update_url("http://url");
+    request_params_.set_target_version_prefix("");
+    request_params_.set_rollback_allowed(false);
+    request_params_.set_is_powerwash_allowed(false);
+
     fake_system_state_.set_request_params(&request_params_);
     fake_system_state_.set_prefs(&fake_prefs_);
   }
@@ -238,8 +331,22 @@ class OmahaRequestActionTest : public ::testing::Test {
   // about reporting UpdateEngine.Check.{Result,Reaction,DownloadError}
   // UMA statistics. Use the appropriate ::kUnset value to specify that
   // the given metric should not be reported.
-  bool TestUpdateCheck(OmahaRequestParams* request_params,
-                       const string& http_response,
+  bool TestUpdateCheck(const string& http_response,
+                       int fail_http_response_code,
+                       bool ping_only,
+                       bool is_consumer_device,
+                       int rollback_allowed_milestones,
+                       bool is_policy_loaded,
+                       ErrorCode expected_code,
+                       metrics::CheckResult expected_check_result,
+                       metrics::CheckReaction expected_check_reaction,
+                       metrics::DownloadErrorCode expected_download_error_code,
+                       OmahaResponse* out_response,
+                       brillo::Blob* out_post_data);
+
+  // Overload of TestUpdateCheck that does not supply |is_consumer_device| or
+  // |rollback_allowed_milestones| which are only required for rollback tests.
+  bool TestUpdateCheck(const string& http_response,
                        int fail_http_response_code,
                        bool ping_only,
                        ErrorCode expected_code,
@@ -248,6 +355,15 @@ class OmahaRequestActionTest : public ::testing::Test {
                        metrics::DownloadErrorCode expected_download_error_code,
                        OmahaResponse* out_response,
                        brillo::Blob* out_post_data);
+
+  void TestRollbackCheck(bool is_consumer_device,
+                         int rollback_allowed_milestones,
+                         bool is_policy_loaded,
+                         OmahaResponse* out_response);
+
+  void TestEvent(OmahaEvent* event,
+                 const string& http_response,
+                 brillo::Blob* out_post_data);
 
   // Runs and checks a ping test. |ping_only| indicates whether it should send
   // only a ping or also an updatecheck.
@@ -272,98 +388,23 @@ class OmahaRequestActionTest : public ::testing::Test {
 
   FakeSystemState fake_system_state_;
   FakeUpdateResponse fake_update_response_;
-
-  // By default, all tests use these objects unless they replace them in the
-  // fake_system_state_.
-  OmahaRequestParams request_params_ = OmahaRequestParams{
-      &fake_system_state_,
-      constants::kOmahaPlatformName,
-      OmahaRequestParams::kOsVersion,
-      "service_pack",
-      "x86-generic",
-      kTestAppId,
-      "0.1.0.0",
-      "en-US",
-      "unittest",
-      "OEM MODEL 09235 7471",
-      "ChromeOSFirmware.1.0",
-      "0X0A1",
-      false,   // delta okay
-      false,   // interactive
-      "http://url",
-      ""};     // target_version_prefix
+  // Used by all tests.
+  OmahaRequestParams request_params_{&fake_system_state_};
 
   FakePrefs fake_prefs_;
-};
 
-namespace {
-class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
- public:
-  OmahaRequestActionTestProcessorDelegate()
-      : expected_code_(ErrorCode::kSuccess) {}
-  ~OmahaRequestActionTestProcessorDelegate() override {
-  }
-  void ProcessingDone(const ActionProcessor* processor,
-                      ErrorCode code) override {
-    brillo::MessageLoop::current()->BreakLoop();
-  }
+  OmahaRequestActionTestProcessorDelegate delegate_;
 
-  void ActionCompleted(ActionProcessor* processor,
-                       AbstractAction* action,
-                       ErrorCode code) override {
-    // make sure actions always succeed
-    if (action->Type() == OmahaRequestAction::StaticType())
-      EXPECT_EQ(expected_code_, code);
-    else
-      EXPECT_EQ(ErrorCode::kSuccess, code);
-  }
-  ErrorCode expected_code_;
-};
-}  // namespace
-
-class OutputObjectCollectorAction;
-
-template<>
-class ActionTraits<OutputObjectCollectorAction> {
- public:
-  // Does not take an object for input
-  typedef OmahaResponse InputObjectType;
-  // On success, puts the output path on output
-  typedef NoneType OutputObjectType;
-};
-
-class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
- public:
-  OutputObjectCollectorAction() : has_input_object_(false) {}
-  void PerformAction() {
-    // copy input object
-    has_input_object_ = HasInputObject();
-    if (has_input_object_)
-      omaha_response_ = GetInputObject();
-    processor_->ActionComplete(this, ErrorCode::kSuccess);
-  }
-  // Should never be called
-  void TerminateProcessing() {
-    CHECK(false);
-  }
-  // Debugging/logging
-  static string StaticType() {
-    return "OutputObjectCollectorAction";
-  }
-  string Type() const { return StaticType(); }
-  using InputObjectType =
-      ActionTraits<OutputObjectCollectorAction>::InputObjectType;
-  using OutputObjectType =
-      ActionTraits<OutputObjectCollectorAction>::OutputObjectType;
-  bool has_input_object_;
-  OmahaResponse omaha_response_;
+  bool test_http_fetcher_headers_{false};
 };
 
 bool OmahaRequestActionTest::TestUpdateCheck(
-    OmahaRequestParams* request_params,
     const string& http_response,
     int fail_http_response_code,
     bool ping_only,
+    bool is_consumer_device,
+    int rollback_allowed_milestones,
+    bool is_policy_loaded,
     ErrorCode expected_code,
     metrics::CheckResult expected_check_result,
     metrics::CheckReaction expected_check_reaction,
@@ -372,28 +413,47 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     brillo::Blob* out_post_data) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
-  MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
-                                                 http_response.size(),
-                                                 nullptr);
+  auto fetcher = std::make_unique<MockHttpFetcher>(
+      http_response.data(), http_response.size(), nullptr);
   if (fail_http_response_code >= 0) {
     fetcher->FailTransfer(fail_http_response_code);
   }
-  if (request_params)
-    fake_system_state_.set_request_params(request_params);
-  OmahaRequestAction action(&fake_system_state_,
-                            nullptr,
-                            base::WrapUnique(fetcher),
-                            ping_only);
-  OmahaRequestActionTestProcessorDelegate delegate;
-  delegate.expected_code_ = expected_code;
+  // This ensures the tests didn't forget to update fake_system_state_ if they
+  // are not using the default request_params_.
+  EXPECT_EQ(&request_params_, fake_system_state_.request_params());
 
+  auto omaha_request_action = std::make_unique<OmahaRequestAction>(
+      &fake_system_state_, nullptr, std::move(fetcher), ping_only);
+
+  auto mock_policy_provider =
+      std::make_unique<NiceMock<policy::MockPolicyProvider>>();
+  EXPECT_CALL(*mock_policy_provider, IsConsumerDevice())
+      .WillRepeatedly(Return(is_consumer_device));
+
+  EXPECT_CALL(*mock_policy_provider, device_policy_is_loaded())
+      .WillRepeatedly(Return(is_policy_loaded));
+
+  const policy::MockDevicePolicy device_policy;
+  const bool get_allowed_milestone_succeeds = rollback_allowed_milestones >= 0;
+  EXPECT_CALL(device_policy, GetRollbackAllowedMilestones(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(rollback_allowed_milestones),
+                            Return(get_allowed_milestone_succeeds)));
+
+  EXPECT_CALL(*mock_policy_provider, GetDevicePolicy())
+      .WillRepeatedly(ReturnRef(device_policy));
+  omaha_request_action->policy_provider_ = std::move(mock_policy_provider);
+
+  delegate_.expected_code_ = expected_code;
+  delegate_.interactive_ = request_params_.interactive();
+  delegate_.test_http_fetcher_headers_ = test_http_fetcher_headers_;
   ActionProcessor processor;
-  processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.set_delegate(&delegate_);
 
-  OutputObjectCollectorAction collector_action;
-  BondActions(&action, &collector_action);
-  processor.EnqueueAction(&collector_action);
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<OmahaResponse>>();
+  BondActions(omaha_request_action.get(), collector_action.get());
+  processor.EnqueueAction(std::move(omaha_request_action));
+  processor.EnqueueAction(std::move(collector_action));
 
   EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
               ReportUpdateCheckMetrics(_, _, _, _))
@@ -411,35 +471,75 @@ bool OmahaRequestActionTest::TestUpdateCheck(
       base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
-  if (collector_action.has_input_object_ && out_response)
-    *out_response = collector_action.omaha_response_;
+  if (delegate_.omaha_response_ && out_response)
+    *out_response = *delegate_.omaha_response_;
   if (out_post_data)
-    *out_post_data = fetcher->post_data();
-  return collector_action.has_input_object_;
+    *out_post_data = delegate_.post_data_;
+  return delegate_.omaha_response_ != nullptr;
 }
 
-// Tests Event requests -- they should always succeed. |out_post_data|
-// may be null; if non-null, the post-data received by the mock
-// HttpFetcher is returned.
-void TestEvent(OmahaRequestParams params,
-               OmahaEvent* event,
-               const string& http_response,
-               brillo::Blob* out_post_data) {
+bool OmahaRequestActionTest::TestUpdateCheck(
+    const string& http_response,
+    int fail_http_response_code,
+    bool ping_only,
+    ErrorCode expected_code,
+    metrics::CheckResult expected_check_result,
+    metrics::CheckReaction expected_check_reaction,
+    metrics::DownloadErrorCode expected_download_error_code,
+    OmahaResponse* out_response,
+    brillo::Blob* out_post_data) {
+  return TestUpdateCheck(http_response,
+                         fail_http_response_code,
+                         ping_only,
+                         true,   // is_consumer_device
+                         0,      // rollback_allowed_milestones
+                         false,  // is_policy_loaded
+                         expected_code,
+                         expected_check_result,
+                         expected_check_reaction,
+                         expected_download_error_code,
+                         out_response,
+                         out_post_data);
+}
+
+void OmahaRequestActionTest::TestRollbackCheck(bool is_consumer_device,
+                                               int rollback_allowed_milestones,
+                                               bool is_policy_loaded,
+                                               OmahaResponse* out_response) {
+  fake_update_response_.deadline = "20101020";
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              is_consumer_device,
+                              rollback_allowed_milestones,
+                              is_policy_loaded,
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              out_response,
+                              nullptr));
+  ASSERT_TRUE(out_response->update_exists);
+}
+
+// Tests Event requests -- they should always succeed. |out_post_data| may be
+// null; if non-null, the post-data received by the mock HttpFetcher is
+// returned.
+void OmahaRequestActionTest::TestEvent(OmahaEvent* event,
+                                       const string& http_response,
+                                       brillo::Blob* out_post_data) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
-  MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
-                                                 http_response.size(),
-                                                 nullptr);
-  FakeSystemState fake_system_state;
-  fake_system_state.set_request_params(&params);
-  OmahaRequestAction action(&fake_system_state,
-                            event,
-                            base::WrapUnique(fetcher),
-                            false);
-  OmahaRequestActionTestProcessorDelegate delegate;
+
+  auto action = std::make_unique<OmahaRequestAction>(
+      &fake_system_state_,
+      event,
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
+      false);
   ActionProcessor processor;
-  processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.set_delegate(&delegate_);
+  processor.EnqueueAction(std::move(action));
 
   loop.PostTask(base::Bind(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
@@ -448,47 +548,42 @@ void TestEvent(OmahaRequestParams params,
   EXPECT_FALSE(loop.PendingTasks());
 
   if (out_post_data)
-    *out_post_data = fetcher->post_data();
+    *out_post_data = delegate_.post_data_;
 }
 
 TEST_F(OmahaRequestActionTest, RejectEntities) {
   OmahaResponse response;
   fake_update_response_.include_entity = true;
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaRequestXMLHasEntityDecl,
-                      metrics::CheckResult::kParsingError,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestXMLHasEntityDecl,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, NoUpdateTest) {
   OmahaResponse response;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppNoUpdateTest) {
   OmahaResponse response;
   fake_update_response_.multi_app_no_update = true;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetNoUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -503,8 +598,7 @@ TEST_F(OmahaRequestActionTest, MultiAppNoUpdateTest) {
 TEST_F(OmahaRequestActionTest, MultiAppNoPartialUpdateTest) {
   OmahaResponse response;
   fake_update_response_.multi_app_no_update = true;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -519,7 +613,6 @@ TEST_F(OmahaRequestActionTest, MultiAppNoPartialUpdateTest) {
 TEST_F(OmahaRequestActionTest, NoSelfUpdateTest) {
   OmahaResponse response;
   ASSERT_TRUE(TestUpdateCheck(
-      nullptr,  // request_params
       "<response><app><updatecheck status=\"ok\"><manifest><actions><action "
       "event=\"postinstall\" noupdate=\"true\"/></actions>"
       "</manifest></updatecheck></app></response>",
@@ -539,17 +632,15 @@ TEST_F(OmahaRequestActionTest, NoSelfUpdateTest) {
 TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   OmahaResponse response;
   fake_update_response_.deadline = "20101020";
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
   EXPECT_EQ("", response.system_version);
@@ -572,8 +663,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
 TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
   OmahaResponse response;
   fake_update_response_.multi_package = true;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -602,8 +692,7 @@ TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
 TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
   OmahaResponse response;
   fake_update_response_.multi_app = true;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -635,8 +724,7 @@ TEST_F(OmahaRequestActionTest, MultiAppAndSystemUpdateTest) {
   // trigger the lining up of the app and system versions
   request_params_.set_system_app_id(fake_update_response_.app_id2);
 
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -667,8 +755,7 @@ TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
   OmahaResponse response;
   fake_update_response_.multi_app = true;
   fake_update_response_.multi_app_self_update = true;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -696,8 +783,7 @@ TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
   OmahaResponse response;
   fake_update_response_.multi_app = true;
   fake_update_response_.multi_package = true;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -733,8 +819,7 @@ TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
 TEST_F(OmahaRequestActionTest, PowerwashTest) {
   OmahaResponse response;
   fake_update_response_.powerwash = true;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -747,31 +832,36 @@ TEST_F(OmahaRequestActionTest, PowerwashTest) {
   EXPECT_TRUE(response.powerwash_required);
 }
 
-TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
-  const string http_response = "<?xml invalid response";
+TEST_F(OmahaRequestActionTest, ExtraHeadersSentInteractiveTest) {
+  OmahaResponse response;
   request_params_.set_interactive(true);
+  test_http_fetcher_headers_ = true;
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
 
-  brillo::FakeMessageLoop loop(nullptr);
-  loop.SetAsCurrent();
-
-  MockHttpFetcher* fetcher =
-      new MockHttpFetcher(http_response.data(), http_response.size(), nullptr);
-  OmahaRequestAction action(&fake_system_state_, nullptr,
-                            base::WrapUnique(fetcher), false);
-  ActionProcessor processor;
-  processor.EnqueueAction(&action);
-
-  loop.PostTask(base::Bind(
-      [](ActionProcessor* processor) { processor->StartProcessing(); },
-      base::Unretained(&processor)));
-  loop.Run();
-  EXPECT_FALSE(loop.PendingTasks());
-
-  // Check that the headers were set in the fetcher during the action. Note that
-  // we set this request as "interactive".
-  EXPECT_EQ("fg", fetcher->GetHeader("X-Goog-Update-Interactivity"));
-  EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-Goog-Update-AppId"));
-  EXPECT_NE("", fetcher->GetHeader("X-Goog-Update-Updater"));
+TEST_F(OmahaRequestActionTest, ExtraHeadersSentNoInteractiveTest) {
+  OmahaResponse response;
+  request_params_.set_interactive(false);
+  test_http_fetcher_headers_ = true;
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
@@ -789,18 +879,180 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kEthernet, _))
       .WillRepeatedly(Return(false));
 
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateIgnoredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kIgnored,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateIgnoredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kIgnored,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularAllowedByDevicePolicy) {
+  // This test tests that update over cellular is allowed as device policy
+  // says yes.
+  OmahaResponse response;
+  MockConnectionManager mock_cm;
+
+  fake_system_state_.set_connection_manager(&mock_cm);
+
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
+  EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
+      .WillRepeatedly(Return(true));
+
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularBlockedByDevicePolicy) {
+  // This test tests that update over cellular is blocked as device policy
+  // says no.
+  OmahaResponse response;
+  MockConnectionManager mock_cm;
+
+  fake_system_state_.set_connection_manager(&mock_cm);
+
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
+  EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
+      .WillRepeatedly(Return(false));
+
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateIgnoredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kIgnored,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest,
+       ValidUpdateOverCellularAllowedByUserPermissionTrue) {
+  // This test tests that, when device policy is not set, update over cellular
+  // is allowed as permission for update over cellular is set to true.
+  OmahaResponse response;
+  MockConnectionManager mock_cm;
+
+  fake_prefs_.SetBoolean(kPrefsUpdateOverCellularPermission, true);
+  fake_system_state_.set_connection_manager(&mock_cm);
+
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
+  EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
+      .WillRepeatedly(Return(true));
+
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest,
+       ValidUpdateOverCellularBlockedByUpdateTargetNotMatch) {
+  // This test tests that, when device policy is not set and permission for
+  // update over cellular is set to false or does not exist, update over
+  // cellular is blocked as update target does not match the omaha response.
+  OmahaResponse response;
+  MockConnectionManager mock_cm;
+  // A version different from the version in omaha response.
+  string diff_version = "99.99.99";
+  // A size different from the size in omaha response.
+  int64_t diff_size = 999;
+
+  fake_prefs_.SetString(kPrefsUpdateOverCellularTargetVersion, diff_version);
+  fake_prefs_.SetInt64(kPrefsUpdateOverCellularTargetSize, diff_size);
+  // This test tests cellular (3G) being the only connection type being allowed.
+  fake_system_state_.set_connection_manager(&mock_cm);
+
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
+  EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
+      .WillRepeatedly(Return(true));
+
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateIgnoredOverCellular,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kIgnored,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest,
+       ValidUpdateOverCellularAllowedByUpdateTargetMatch) {
+  // This test tests that, when device policy is not set and permission for
+  // update over cellular is set to false or does not exist, update over
+  // cellular is allowed as update target matches the omaha response.
+  OmahaResponse response;
+  MockConnectionManager mock_cm;
+  // A version same as the version in omaha response.
+  string new_version = fake_update_response_.version;
+  // A size same as the size in omaha response.
+  int64_t new_size = fake_update_response_.size;
+
+  fake_prefs_.SetString(kPrefsUpdateOverCellularTargetVersion, new_version);
+  fake_prefs_.SetInt64(kPrefsUpdateOverCellularTargetSize, new_size);
+  fake_system_state_.set_connection_manager(&mock_cm);
+
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
+  EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
+      .WillRepeatedly(Return(true));
+
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
@@ -814,30 +1066,27 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
     .WillRepeatedly(Return(rollback_version));
 
   fake_update_response_.version = rollback_version;
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateIgnoredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kIgnored,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateIgnoredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kIgnored,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
-// Verify that update checks called during OOBE will only try to download
-// an update if the response includes a non-empty deadline field.
+// Verify that update checks called during OOBE will not try to download an
+// update if the response doesn't include the deadline field.
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
   OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
 
   // TODO(senj): set better default value for metrics::checkresult in
   // OmahaRequestAction::ActionCompleted.
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
-  ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
-                               fake_update_response_.GetUpdateResponse(),
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                                -1,
                                false,  // ping_only
                                ErrorCode::kNonCriticalUpdateInOOBE,
@@ -847,11 +1096,16 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
                                &response,
                                nullptr));
   EXPECT_FALSE(response.update_exists);
+}
 
-  // The IsOOBEComplete() value is ignored when the OOBE flow is not enabled.
+// Verify that the IsOOBEComplete() value is ignored when the OOBE flow is not
+// enabled.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDisabled) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
   fake_system_state_.fake_hardware()->SetIsOOBEEnabled(false);
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetUpdateResponse(),
+
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -861,122 +1115,131 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
                               &response,
                               nullptr));
   EXPECT_TRUE(response.update_exists);
-  fake_system_state_.fake_hardware()->SetIsOOBEEnabled(true);
+}
 
-  // The payload is applied when a deadline was set in the response.
+// Verify that update checks called during OOBE will still try to download an
+// update if the response includes the deadline field.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDeadlineSet) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
   fake_update_response_.deadline = "20101020";
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
+}
+
+// Verify that update checks called during OOBE will not try to download an
+// update if a rollback happened, even when the response includes the deadline
+// field.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBERollback) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  fake_update_response_.deadline = "20101020";
+  EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetRollbackHappened())
+      .WillOnce(Return(true));
+
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kNonCriticalUpdateInOOBE,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(true);
-  params.set_update_check_count_wait_enabled(false);
-  params.set_waiting_period(TimeDelta::FromDays(2));
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_update_check_count_wait_enabled(false);
+  request_params_.set_waiting_period(TimeDelta::FromDays(2));
 
-  ASSERT_FALSE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kDeferring,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateDeferredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kDeferring,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
-  params.set_interactive(true);
-  ASSERT_TRUE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  request_params_.set_interactive(true);
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(false);
-  params.set_waiting_period(TimeDelta::FromDays(2));
+  request_params_.set_wall_clock_based_wait_enabled(false);
+  request_params_.set_waiting_period(TimeDelta::FromDays(2));
+  request_params_.set_update_check_count_wait_enabled(true);
+  request_params_.set_min_update_checks_needed(1);
+  request_params_.set_max_update_checks_allowed(8);
 
-  params.set_update_check_count_wait_enabled(true);
-  params.set_min_update_checks_needed(1);
-  params.set_max_update_checks_allowed(8);
-
-  ASSERT_TRUE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(true);
-  params.set_waiting_period(TimeDelta::FromDays(2));
-
-  params.set_update_check_count_wait_enabled(true);
-  params.set_min_update_checks_needed(1);
-  params.set_max_update_checks_allowed(8);
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta::FromDays(2));
+  request_params_.set_update_check_count_wait_enabled(true);
+  request_params_.set_min_update_checks_needed(1);
+  request_params_.set_max_update_checks_allowed(8);
 
   fake_update_response_.max_days_to_scatter = "0";
-  ASSERT_TRUE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
 
 TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(true);
-  params.set_waiting_period(TimeDelta());
-
-  params.set_update_check_count_wait_enabled(true);
-  params.set_min_update_checks_needed(0);
-  params.set_max_update_checks_allowed(0);
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta());
+  request_params_.set_update_check_count_wait_enabled(true);
+  request_params_.set_min_update_checks_needed(0);
+  request_params_.set_max_update_checks_allowed(0);
 
   ASSERT_TRUE(TestUpdateCheck(
-                      &params,
                       fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
@@ -995,16 +1258,13 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
 
 TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(true);
-  params.set_waiting_period(TimeDelta());
-
-  params.set_update_check_count_wait_enabled(true);
-  params.set_min_update_checks_needed(1);
-  params.set_max_update_checks_allowed(8);
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta());
+  request_params_.set_update_check_count_wait_enabled(true);
+  request_params_.set_min_update_checks_needed(1);
+  request_params_.set_max_update_checks_allowed(8);
 
   ASSERT_FALSE(TestUpdateCheck(
-                      &params,
                       fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
@@ -1021,35 +1281,30 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
-  params.set_interactive(true);
-  ASSERT_TRUE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  request_params_.set_interactive(true);
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(true);
-  params.set_waiting_period(TimeDelta());
-
-  params.set_update_check_count_wait_enabled(true);
-  params.set_min_update_checks_needed(1);
-  params.set_max_update_checks_allowed(8);
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta());
+  request_params_.set_update_check_count_wait_enabled(true);
+  request_params_.set_min_update_checks_needed(1);
+  request_params_.set_max_update_checks_allowed(8);
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsUpdateCheckCount, 5));
 
   ASSERT_FALSE(TestUpdateCheck(
-                      &params,
                       fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
@@ -1068,31 +1323,63 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
-  params.set_interactive(true);
-  ASSERT_TRUE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  request_params_.set_interactive(true);
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
+  // If staging is on, the value for max days to scatter should be ignored, and
+  // staging's scatter value should be used.
+  OmahaResponse response;
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta::FromDays(6));
+  request_params_.set_update_check_count_wait_enabled(false);
+
+  ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsWallClockStagingWaitPeriod, 6));
+  // This should not prevent scattering due to staging.
+  fake_update_response_.max_days_to_scatter = "0";
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateDeferredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kDeferring,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+
+  // Interactive updates should not be affected.
+  request_params_.set_interactive(true);
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
   fake_update_response_.include_cohorts = true;
   fake_update_response_.cohort = "s/154454/8479665";
   fake_update_response_.cohorthint = "please-put-me-on-beta";
   fake_update_response_.cohortname = "stable";
 
-  ASSERT_TRUE(TestUpdateCheck(&params,
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -1115,7 +1402,6 @@ TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
 
 TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortHint, "old_hint"));
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortName, "old_name"));
@@ -1124,8 +1410,7 @@ TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
   fake_update_response_.cohorthint = "please-put-me-on-beta";
   fake_update_response_.cohortname = "";
 
-  ASSERT_TRUE(TestUpdateCheck(&params,
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -1147,11 +1432,9 @@ TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
 
 TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
 
-  ASSERT_TRUE(TestUpdateCheck(&params,
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -1171,14 +1454,12 @@ TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
 
 TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
   fake_update_response_.include_cohorts = true;
   fake_update_response_.cohort = "s/154454/8479665";
   fake_update_response_.cohorthint = "please-put-me-on-beta";
   fake_update_response_.cohortname = "stable";
 
-  ASSERT_TRUE(TestUpdateCheck(&params,
-                              fake_update_response_.GetNoUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -1201,15 +1482,13 @@ TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
 
 TEST_F(OmahaRequestActionTest, MultiAppCohortTest) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
   fake_update_response_.multi_app = true;
   fake_update_response_.include_cohorts = true;
   fake_update_response_.cohort = "s/154454/8479665";
   fake_update_response_.cohorthint = "please-put-me-on-beta";
   fake_update_response_.cohortname = "stable";
 
-  ASSERT_TRUE(TestUpdateCheck(&params,
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -1236,19 +1515,15 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
-  OmahaRequestParams params = request_params_;
-  fake_system_state_.set_request_params(&params);
-  OmahaRequestAction action(
+  auto action = std::make_unique<OmahaRequestAction>(
       &fake_system_state_,
       nullptr,
-      std::make_unique<MockHttpFetcher>(http_response.data(),
-                                        http_response.size(),
-                                        nullptr),
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
       false);
-  OmahaRequestActionTestProcessorDelegate delegate;
   ActionProcessor processor;
-  processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.set_delegate(&delegate_);
+  processor.EnqueueAction(std::move(action));
 
   loop.PostTask(base::Bind(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
@@ -1260,40 +1535,35 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
 
 TEST_F(OmahaRequestActionTest, InvalidXmlTest) {
   OmahaResponse response;
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "invalid xml>",
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaRequestXMLParseError,
-                      metrics::CheckResult::kParsingError,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, EmptyResponseTest) {
   OmahaResponse response;
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "",
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaRequestEmptyResponseError,
-                      metrics::CheckResult::kParsingError,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck("",
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestEmptyResponseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, MissingStatusTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
-      nullptr,  // request_params
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
       "<app appid=\"foo\" status=\"ok\">"
@@ -1313,7 +1583,6 @@ TEST_F(OmahaRequestActionTest, MissingStatusTest) {
 TEST_F(OmahaRequestActionTest, InvalidStatusTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
-      nullptr,  // request_params
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
       "<app appid=\"foo\" status=\"ok\">"
@@ -1333,7 +1602,6 @@ TEST_F(OmahaRequestActionTest, InvalidStatusTest) {
 TEST_F(OmahaRequestActionTest, MissingNodesetTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
-      nullptr,  // request_params
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
       "<app appid=\"foo\" status=\"ok\">"
@@ -1374,8 +1642,7 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
   LOG(INFO) << "Input Response = " << input_response;
 
   OmahaResponse response;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              input_response,
+  ASSERT_TRUE(TestUpdateCheck(input_response,
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -1415,17 +1682,16 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
   loop.SetAsCurrent();
 
   string http_response("doesn't matter");
-  OmahaRequestAction action(
+  auto action = std::make_unique<OmahaRequestAction>(
       &fake_system_state_,
       nullptr,
-      std::make_unique<MockHttpFetcher>(http_response.data(),
-                                        http_response.size(),
-                                        nullptr),
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
       false);
   TerminateEarlyTestProcessorDelegate delegate;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
-  processor.EnqueueAction(&action);
+  processor.EnqueueAction(std::move(action));
 
   loop.PostTask(base::Bind(&TerminateTransferTestStarter, &processor));
   loop.Run();
@@ -1457,39 +1723,26 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   brillo::Blob post_data;
 
   // Make sure XML Encode is being called on the params
-  OmahaRequestParams params(&fake_system_state_,
-                            constants::kOmahaPlatformName,
-                            OmahaRequestParams::kOsVersion,
-                            "testtheservice_pack>",
-                            "x86 generic<id",
-                            kTestAppId,
-                            "0.1.0.0",
-                            "en-US",
-                            "unittest_track&lt;",
-                            "<OEM MODEL>",
-                            "ChromeOSFirmware.1.0",
-                            "EC100",
-                            false,   // delta okay
-                            false,   // interactive
-                            "http://url",
-                            "");     // target_version_prefix
+  request_params_.set_os_sp("testtheservice_pack>");
+  request_params_.set_os_board("x86 generic<id");
+  request_params_.set_current_channel("unittest_track&lt;");
+  request_params_.set_target_channel("unittest_track&lt;");
+  request_params_.set_hwid("<OEM MODEL>");
   fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
   fake_prefs_.SetString(kPrefsOmahaCohortName,
                         base::JoinString(
                             vector<string>(100, "My spoon is too big."), " "));
   OmahaResponse response;
-  ASSERT_FALSE(
-      TestUpdateCheck(&params,
-                      "invalid xml>",
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaRequestXMLParseError,
-                      metrics::CheckResult::kParsingError,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      &post_data));
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               &post_data));
   // convert post_data to string
   string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(string::npos, post_str.find("testtheservice_pack&gt;"));
@@ -1513,17 +1766,15 @@ TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
   fake_update_response_.deadline = "&lt;20110101";
   fake_update_response_.more_info_url = "testthe&lt;url";
   fake_update_response_.codebase = "testthe&amp;codebase/";
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
 
   EXPECT_EQ("testthe<url", response.more_info_url);
   EXPECT_EQ("testthe&codebase/file.signed",
@@ -1535,17 +1786,15 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
   OmahaResponse response;
   // overflows int32_t:
   fake_update_response_.size = 123123123123123ull;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
 
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
 }
@@ -1560,8 +1809,7 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
   // An existing but empty previous version means that we didn't reboot to a new
   // update, therefore, no need to update the previous version.
   EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(0);
-  ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
-                               "invalid xml>",
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
                                -1,
                                false,  // ping_only
                                ErrorCode::kOmahaRequestXMLParseError,
@@ -1572,9 +1820,9 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                &post_data));
   // convert post_data to string
   string post_str(post_data.begin(), post_data.end());
-  EXPECT_NE(post_str.find(
-      "        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
-      "        <updatecheck targetversionprefix=\"\"></updatecheck>\n"),
+  EXPECT_NE(
+      post_str.find("        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
+                    "        <updatecheck></updatecheck>\n"),
       string::npos);
   EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
             string::npos);
@@ -1589,8 +1837,7 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
 
 TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
   brillo::Blob post_data;
-  TestEvent(request_params_,
-            new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
+  TestEvent(new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
             "invalid xml>",
             &post_data);
   // convert post_data to string
@@ -1606,8 +1853,7 @@ TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
 
 TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
   brillo::Blob post_data;
-  TestEvent(request_params_,
-            new OmahaEvent(OmahaEvent::kTypeDownloadComplete,
+  TestEvent(new OmahaEvent(OmahaEvent::kTypeDownloadComplete,
                            OmahaEvent::kResultError,
                            ErrorCode::kError),
             "invalid xml>",
@@ -1626,9 +1872,6 @@ TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
 
 TEST_F(OmahaRequestActionTest, IsEventTest) {
   string http_response("doesn't matter");
-  // Create a copy of the OmahaRequestParams to reuse it later.
-  OmahaRequestParams params = request_params_;
-  fake_system_state_.set_request_params(&params);
   OmahaRequestAction update_check_action(
       &fake_system_state_,
       nullptr,
@@ -1638,8 +1881,6 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
       false);
   EXPECT_FALSE(update_check_action.IsEvent());
 
-  params = request_params_;
-  fake_system_state_.set_request_params(&params);
   OmahaRequestAction event_action(
       &fake_system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
@@ -1655,24 +1896,10 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
     bool delta_okay = i == 1;
     const char* delta_okay_str = delta_okay ? "true" : "false";
     brillo::Blob post_data;
-    OmahaRequestParams params(&fake_system_state_,
-                              constants::kOmahaPlatformName,
-                              OmahaRequestParams::kOsVersion,
-                              "service_pack",
-                              "x86-generic",
-                              kTestAppId,
-                              "0.1.0.0",
-                              "en-US",
-                              "unittest_track",
-                              "OEM MODEL REV 1234",
-                              "ChromeOSFirmware.1.0",
-                              "EC100",
-                              delta_okay,
-                              false,  // interactive
-                              "http://url",
-                              "");    // target_version_prefix
-    ASSERT_FALSE(TestUpdateCheck(&params,
-                                 "invalid xml>",
+
+    request_params_.set_delta_okay(delta_okay);
+
+    ASSERT_FALSE(TestUpdateCheck("invalid xml>",
                                  -1,
                                  false,  // ping_only
                                  ErrorCode::kOmahaRequestXMLParseError,
@@ -1696,24 +1923,10 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
     const char* interactive_str = interactive ? "ondemandupdate" : "scheduler";
     brillo::Blob post_data;
     FakeSystemState fake_system_state;
-    OmahaRequestParams params(&fake_system_state_,
-                              constants::kOmahaPlatformName,
-                              OmahaRequestParams::kOsVersion,
-                              "service_pack",
-                              "x86-generic",
-                              kTestAppId,
-                              "0.1.0.0",
-                              "en-US",
-                              "unittest_track",
-                              "OEM MODEL REV 1234",
-                              "ChromeOSFirmware.1.0",
-                              "EC100",
-                              true,   // delta_okay
-                              interactive,
-                              "http://url",
-                              "");    // target_version_prefix
-    ASSERT_FALSE(TestUpdateCheck(&params,
-                                 "invalid xml>",
+
+    request_params_.set_interactive(interactive);
+
+    ASSERT_FALSE(TestUpdateCheck("invalid xml>",
                                  -1,
                                  false,  // ping_only
                                  ErrorCode::kOmahaRequestXMLParseError,
@@ -1724,10 +1937,72 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  &post_data));
     // convert post_data to string
     string post_str(post_data.begin(), post_data.end());
-    EXPECT_NE(post_str.find(base::StringPrintf("installsource=\"%s\"",
-                                               interactive_str)),
+    EXPECT_NE(post_str.find(
+                  base::StringPrintf("installsource=\"%s\"", interactive_str)),
               string::npos)
         << "i = " << i;
+  }
+}
+
+TEST_F(OmahaRequestActionTest, FormatTargetVersionPrefixOutputTest) {
+  for (int i = 0; i < 2; i++) {
+    bool target_version_set = i == 1;
+    const char* target_version_prefix = target_version_set ? "10032." : "";
+    brillo::Blob post_data;
+    FakeSystemState fake_system_state;
+
+    request_params_.set_target_version_prefix(target_version_prefix);
+
+    ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                                 -1,
+                                 false,  // ping_only
+                                 ErrorCode::kOmahaRequestXMLParseError,
+                                 metrics::CheckResult::kParsingError,
+                                 metrics::CheckReaction::kUnset,
+                                 metrics::DownloadErrorCode::kUnset,
+                                 nullptr,
+                                 &post_data));
+    // convert post_data to string
+    string post_str(post_data.begin(), post_data.end());
+    if (target_version_set) {
+      EXPECT_NE(post_str.find("<updatecheck targetversionprefix=\"10032.\">"),
+                string::npos)
+          << "i = " << i;
+    } else {
+      EXPECT_EQ(post_str.find("targetversionprefix"), string::npos)
+          << "i = " << i;
+    }
+  }
+}
+
+TEST_F(OmahaRequestActionTest, FormatRollbackAllowedOutputTest) {
+  for (int i = 0; i < 4; i++) {
+    bool rollback_allowed = i / 2 == 0;
+    bool target_version_set = i % 2 == 0;
+    brillo::Blob post_data;
+    FakeSystemState fake_system_state;
+
+    request_params_.set_target_version_prefix(target_version_set ? "10032."
+                                                                 : "");
+    request_params_.set_rollback_allowed(rollback_allowed);
+
+    ASSERT_FALSE(TestUpdateCheck("invalid xml>",
+                                 -1,
+                                 false,  // ping_only
+                                 ErrorCode::kOmahaRequestXMLParseError,
+                                 metrics::CheckResult::kParsingError,
+                                 metrics::CheckReaction::kUnset,
+                                 metrics::DownloadErrorCode::kUnset,
+                                 nullptr,
+                                 &post_data));
+    // convert post_data to string
+    string post_str(post_data.begin(), post_data.end());
+    if (rollback_allowed && target_version_set) {
+      EXPECT_NE(post_str.find("rollback_allowed=\"true\""), string::npos)
+          << "i = " << i;
+    } else {
+      EXPECT_EQ(post_str.find("rollback_allowed"), string::npos) << "i = " << i;
+    }
   }
 }
 
@@ -1768,8 +2043,7 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgPointee<1>(five_days_ago), Return(true)));
   brillo::Blob post_data;
-  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
-                              fake_update_response_.GetNoUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
                               -1,
                               ping_only,
                               ErrorCode::kSuccess,
@@ -1814,17 +2088,15 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   brillo::Blob post_data;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find("<ping active=\"1\" a=\"3\"></ping>"),
             string::npos);
@@ -1846,17 +2118,15 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgPointee<1>(four_days_ago), Return(true)));
   brillo::Blob post_data;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find("<ping active=\"1\" r=\"4\"></ping>\n"),
             string::npos);
@@ -1883,17 +2153,15 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(Return(true));
   brillo::Blob post_data;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   string post_str(post_data.begin(), post_data.end());
   EXPECT_EQ(post_str.find("ping"), string::npos);
 }
@@ -1910,17 +2178,15 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   brillo::Blob post_data;
-  EXPECT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      true,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUnset,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  EXPECT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              true,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUnset,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   EXPECT_EQ(0U, post_data.size());
 }
 
@@ -1944,8 +2210,7 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
       .WillOnce(Return(true));
   brillo::Blob post_data;
   ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      TestUpdateCheck("<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"100\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
                       "<updatecheck status=\"noupdate\"/></app></response>",
@@ -1981,8 +2246,7 @@ TEST_F(OmahaRequestActionTest, LastPingDayUpdateTest) {
                               AllOf(Ge(midnight), Le(midnight_slack))))
       .WillOnce(Return(true));
   ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      TestUpdateCheck("<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"200\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
                       "<updatecheck status=\"noupdate\"/></app></response>",
@@ -2004,8 +2268,7 @@ TEST_F(OmahaRequestActionTest, NoElapsedSecondsTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      TestUpdateCheck("<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart blah=\"200\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
                       "<updatecheck status=\"noupdate\"/></app></response>",
@@ -2027,8 +2290,7 @@ TEST_F(OmahaRequestActionTest, BadElapsedSecondsTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      TestUpdateCheck("<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"x\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
                       "<updatecheck status=\"noupdate\"/></app></response>",
@@ -2046,8 +2308,7 @@ TEST_F(OmahaRequestActionTest, ParseUpdateCheckAttributesTest) {
   // Test that the "eol" flags is only parsed from the "_eol" attribute and not
   // the "eol" attribute.
   ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      TestUpdateCheck("<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
                       "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
                       "_eol=\"security-only\" eol=\"eol\" _foo=\"bar\"/>"
@@ -2070,8 +2331,7 @@ TEST_F(OmahaRequestActionTest, ParseUpdateCheckAttributesTest) {
 
 TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {
   brillo::Blob post_data;
-  ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
-                               "invalid xml>",
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
                                -1,
                                false,  // ping_only
                                ErrorCode::kOmahaRequestXMLParseError,
@@ -2090,17 +2350,15 @@ TEST_F(OmahaRequestActionTest, NetworkFailureTest) {
   OmahaResponse response;
   const int http_error_code =
       static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + 501;
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "",
-                      501,
-                      false,  // ping_only
-                      static_cast<ErrorCode>(http_error_code),
-                      metrics::CheckResult::kDownloadError,
-                      metrics::CheckReaction::kUnset,
-                      static_cast<metrics::DownloadErrorCode>(501),
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck("",
+                               501,
+                               false,  // ping_only
+                               static_cast<ErrorCode>(http_error_code),
+                               metrics::CheckResult::kDownloadError,
+                               metrics::CheckReaction::kUnset,
+                               static_cast<metrics::DownloadErrorCode>(501),
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -2108,32 +2366,28 @@ TEST_F(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
   OmahaResponse response;
   const int http_error_code =
       static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + 999;
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      "",
-                      1500,
-                      false,  // ping_only
-                      static_cast<ErrorCode>(http_error_code),
-                      metrics::CheckResult::kDownloadError,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kHttpStatusOther,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck("",
+                               1500,
+                               false,  // ping_only
+                               static_cast<ErrorCode>(http_error_code),
+                               metrics::CheckResult::kDownloadError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kHttpStatusOther,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(true);
-  params.set_waiting_period(TimeDelta().FromDays(1));
-  params.set_update_check_count_wait_enabled(false);
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta().FromDays(1));
+  request_params_.set_update_check_count_wait_enabled(false);
 
   Time arbitrary_date;
   ASSERT_TRUE(Time::FromString("6/4/1989", &arbitrary_date));
   fake_system_state_.fake_clock()->SetWallclockTime(arbitrary_date);
-  ASSERT_FALSE(TestUpdateCheck(&params,
-                               fake_update_response_.GetUpdateResponse(),
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                                -1,
                                false,  // ping_only
                                ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -2149,9 +2403,8 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
-  params.set_interactive(true);
-  ASSERT_TRUE(TestUpdateCheck(&params,
-                              fake_update_response_.GetUpdateResponse(),
+  request_params_.set_interactive(true);
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -2165,10 +2418,9 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
 
 TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   OmahaResponse response;
-  OmahaRequestParams params = request_params_;
-  params.set_wall_clock_based_wait_enabled(true);
-  params.set_waiting_period(TimeDelta().FromDays(1));
-  params.set_update_check_count_wait_enabled(false);
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_waiting_period(TimeDelta().FromDays(1));
+  request_params_.set_update_check_count_wait_enabled(false);
 
   Time t1, t2;
   ASSERT_TRUE(Time::FromString("1/1/2012", &t1));
@@ -2176,8 +2428,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   ASSERT_TRUE(
       fake_prefs_.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
   fake_system_state_.fake_clock()->SetWallclockTime(t2);
-  ASSERT_TRUE(TestUpdateCheck(&params,
-                              fake_update_response_.GetUpdateResponse(),
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
                               false,  // ping_only
                               ErrorCode::kSuccess,
@@ -2201,17 +2452,16 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
   brillo::Blob post_data;
-  OmahaRequestParams params(&fake_system_state_);
-  params.set_root(tempdir.GetPath().value());
-  params.set_app_id("{22222222-2222-2222-2222-222222222222}");
-  params.set_app_version("1.2.3.4");
-  params.set_product_components("o.bundle=1");
-  params.set_current_channel("canary-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
-  params.UpdateDownloadChannel();
-  EXPECT_TRUE(params.ShouldPowerwash());
-  ASSERT_FALSE(TestUpdateCheck(&params,
-                               "invalid xml>",
+  request_params_.set_root(tempdir.GetPath().value());
+  request_params_.set_app_id("{22222222-2222-2222-2222-222222222222}");
+  request_params_.set_app_version("1.2.3.4");
+  request_params_.set_product_components("o.bundle=1");
+  request_params_.set_current_channel("canary-channel");
+  EXPECT_TRUE(
+      request_params_.SetTargetChannel("stable-channel", true, nullptr));
+  request_params_.UpdateDownloadChannel();
+  EXPECT_TRUE(request_params_.ShouldPowerwash());
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
                                -1,
                                false,  // ping_only
                                ErrorCode::kOmahaRequestXMLParseError,
@@ -2235,17 +2485,16 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
   brillo::Blob post_data;
-  OmahaRequestParams params(&fake_system_state_);
-  params.set_root(tempdir.GetPath().value());
-  params.set_app_id("{11111111-1111-1111-1111-111111111111}");
-  params.set_app_version("5.6.7.8");
-  params.set_product_components("o.bundle=1");
-  params.set_current_channel("stable-channel");
-  EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
-  params.UpdateDownloadChannel();
-  EXPECT_FALSE(params.ShouldPowerwash());
-  ASSERT_FALSE(TestUpdateCheck(&params,
-                               "invalid xml>",
+  request_params_.set_root(tempdir.GetPath().value());
+  request_params_.set_app_id("{11111111-1111-1111-1111-111111111111}");
+  request_params_.set_app_version("5.6.7.8");
+  request_params_.set_product_components("o.bundle=1");
+  request_params_.set_current_channel("stable-channel");
+  EXPECT_TRUE(
+      request_params_.SetTargetChannel("canary-channel", false, nullptr));
+  request_params_.UpdateDownloadChannel();
+  EXPECT_FALSE(request_params_.ShouldPowerwash());
+  ASSERT_FALSE(TestUpdateCheck("invalid xml>",
                                -1,
                                false,  // ping_only
                                ErrorCode::kOmahaRequestXMLParseError,
@@ -2273,17 +2522,15 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   fake_system_state_.fake_hardware()->SetPowerwashCount(1);
 
   brillo::Blob post_data;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   // We shouldn't send a ping in this case since powerwash > 0.
   string post_str(post_data.begin(), post_data.end());
   EXPECT_EQ(string::npos, post_str.find("<ping"));
@@ -2301,17 +2548,15 @@ TEST_F(OmahaRequestActionTest, PingWhenFirstActiveOmahaPingIsSent) {
   fake_system_state_.fake_hardware()->SetFirstActiveOmahaPingSent();
 
   brillo::Blob post_data;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   // We shouldn't send a ping in this case since
   // first_active_omaha_ping_sent=true
   string post_str(post_data.begin(), post_data.end());
@@ -2324,17 +2569,15 @@ TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
   fake_prefs_.SetString(kPrefsPreviousVersion, "1.2.3.4");
 
   brillo::Blob post_data;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   string post_str(post_data.begin(), post_data.end());
 
   // An event 54 is included and has the right version.
@@ -2364,7 +2607,6 @@ void OmahaRequestActionTest::P2PTest(
     bool expected_allow_p2p_for_sharing,
     const string& expected_p2p_url) {
   OmahaResponse response;
-  OmahaRequestParams request_params = request_params_;
   bool actual_allow_p2p_for_downloading = initial_allow_p2p_for_downloading;
   bool actual_allow_p2p_for_sharing = initial_allow_p2p_for_sharing;
   string actual_p2p_url;
@@ -2395,17 +2637,15 @@ void OmahaRequestActionTest::P2PTest(
   fake_update_response_.disable_p2p_for_downloading =
       omaha_disable_p2p_for_downloading;
   fake_update_response_.disable_p2p_for_sharing = omaha_disable_p2p_for_sharing;
-  ASSERT_TRUE(
-      TestUpdateCheck(&request_params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 
   EXPECT_EQ(omaha_disable_p2p_for_downloading,
@@ -2500,17 +2740,15 @@ TEST_F(OmahaRequestActionTest, P2PWithPeerBothDisabledByOmaha) {
 bool OmahaRequestActionTest::InstallDateParseHelper(const string &elapsed_days,
                                                     OmahaResponse *response) {
   fake_update_response_.elapsed_days = elapsed_days;
-  return
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      response,
-                      nullptr);
+  return TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                         -1,
+                         false,  // ping_only
+                         ErrorCode::kSuccess,
+                         metrics::CheckResult::kUpdateAvailable,
+                         metrics::CheckReaction::kUpdating,
+                         metrics::DownloadErrorCode::kUnset,
+                         response,
+                         nullptr);
 }
 
 TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
@@ -2610,6 +2848,164 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedDateChanges) {
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), 28);
   EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 28);
+}
+
+// Verifies that a device with no device policy, and is not a consumer
+// device sets the max kernel key version to the current version.
+// ie. the same behavior as if rollback is enabled.
+TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int min_kernel_version = 4;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
+      .Times(1);
+
+  OmahaResponse response;
+  TestRollbackCheck(false /* is_consumer_device */,
+                    3 /* rollback_allowed_milestones */,
+                    false /* is_policy_loaded */,
+                    &response);
+
+  // Verify kernel_max_rollforward was set to the current minimum
+  // kernel key version. This has the effect of freezing roll
+  // forwards indefinitely. This will hold the rollback window
+  // open until a future change will be able to move this forward
+  // relative the configured window.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+// Verifies that a conmsumer device with no device policy sets the
+// max kernel key version to the current version. ie. the same
+// behavior as if rollback is enabled.
+TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int min_kernel_version = 3;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
+      .Times(1);
+
+  OmahaResponse response;
+  TestRollbackCheck(true /* is_consumer_device */,
+                    3 /* rollback_allowed_milestones */,
+                    false /* is_policy_loaded */,
+                    &response);
+
+  // Verify that with rollback disabled that kernel_max_rollforward
+  // was set to logical infinity. This is the expected behavior for
+  // consumer devices and matches the existing behavior prior to the
+  // rollback features.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+// Verifies that a device with rollback enabled sets kernel_max_rollforward
+// in the TPM to prevent roll forward.
+TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int allowed_milestones = 4;
+  const int min_kernel_version = 3;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
+      .Times(1);
+
+  OmahaResponse response;
+  TestRollbackCheck(false /* is_consumer_device */,
+                    allowed_milestones,
+                    true /* is_policy_loaded */,
+                    &response);
+
+  // Verify that with rollback enabled that kernel_max_rollforward
+  // was set to the current minimum kernel key version. This has
+  // the effect of freezing roll forwards indefinitely. This will
+  // hold the rollback window open until a future change will
+  // be able to move this forward relative the configured window.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+// Verifies that a device with rollback disabled sets kernel_max_rollforward
+// in the TPM to logical infinity, to allow roll forward.
+TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
+  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+
+  // Setup and verify some initial default values for the kernel TPM
+  // values that control verified boot and rollback.
+  const int allowed_milestones = 0;
+  const int min_kernel_version = 3;
+  fake_hw->SetMinKernelKeyVersion(min_kernel_version);
+  fake_hw->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+
+  EXPECT_CALL(
+      *fake_system_state_.mock_metrics_reporter(),
+      ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
+      .Times(1);
+
+  OmahaResponse response;
+  TestRollbackCheck(false /* is_consumer_device */,
+                    allowed_milestones,
+                    true /* is_policy_loaded */,
+                    &response);
+
+  // Verify that with rollback disabled that kernel_max_rollforward
+  // was set to logical infinity.
+  EXPECT_EQ(min_kernel_version, fake_hw->GetMinKernelKeyVersion());
+  EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
+}
+
+TEST_F(OmahaRequestActionTest, RollbackResponseParsedNoEntries) {
+  OmahaResponse response;
+  fake_update_response_.rollback = true;
+  TestRollbackCheck(false /* is_consumer_device */,
+                    4 /* rollback_allowed_milestones */,
+                    true /* is_policy_loaded */,
+                    &response);
+  EXPECT_TRUE(response.is_rollback);
+}
+
+TEST_F(OmahaRequestActionTest, RollbackResponseValidVersionsParsed) {
+  OmahaResponse response;
+  fake_update_response_.rollback_firmware_version = "1.2";
+  fake_update_response_.rollback_kernel_version = "3.4";
+  fake_update_response_.rollback = true;
+  TestRollbackCheck(false /* is_consumer_device */,
+                    4 /* rollback_allowed_milestones */,
+                    true /* is_policy_loaded */,
+                    &response);
+  EXPECT_TRUE(response.is_rollback);
+  EXPECT_EQ(1, response.rollback_key_version.firmware_key);
+  EXPECT_EQ(2, response.rollback_key_version.firmware);
+  EXPECT_EQ(3, response.rollback_key_version.kernel_key);
+  EXPECT_EQ(4, response.rollback_key_version.kernel);
 }
 
 }  // namespace chromeos_update_engine

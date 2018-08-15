@@ -64,6 +64,7 @@ PayloadState::PayloadState()
       url_index_(0),
       url_failure_count_(0),
       url_switch_count_(0),
+      rollback_happened_(false),
       attempt_num_bytes_downloaded_(0),
       attempt_connection_type_(metrics::ConnectionType::kUnknown),
       attempt_type_(AttemptType::kUpdate) {
@@ -93,6 +94,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
   }
   LoadNumReboots();
   LoadNumResponsesSeen();
+  LoadRollbackHappened();
   LoadRollbackVersion();
   LoadP2PFirstAttemptTimestamp();
   LoadP2PNumAttempts();
@@ -355,8 +357,11 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
+    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     case ErrorCode::kUpdatedButNotActive:
     case ErrorCode::kNoUpdate:
+    case ErrorCode::kRollbackNotPossible:
+    case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 
@@ -406,9 +411,11 @@ bool PayloadState::ShouldBackoffDownload() {
     }
   }
 
-  if (!system_state_->hardware()->IsOfficialBuild()) {
+  if (!system_state_->hardware()->IsOfficialBuild() &&
+      !prefs_->Exists(kPrefsNoIgnoreBackoff)) {
     // Backoffs are needed only for official builds. We do not want any delays
-    // or update failures due to backoffs during testing or development.
+    // or update failures due to backoffs during testing or development. Unless
+    // the |kPrefsNoIgnoreBackoff| is manually set.
     LOG(INFO) << "No backoffs for test/dev images. "
               << "Can proceed with the download";
     return false;
@@ -787,6 +794,7 @@ void PayloadState::ResetPersistedState() {
   SetP2PNumAttempts(0);
   SetP2PFirstAttemptTimestamp(Time());  // Set to null time
   SetScatteringWaitPeriod(TimeDelta());
+  SetStagingWaitPeriod(TimeDelta());
 }
 
 void PayloadState::ResetRollbackVersion() {
@@ -909,7 +917,7 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
 
 void PayloadState::LoadScatteringWaitPeriod() {
   SetScatteringWaitPeriod(TimeDelta::FromSeconds(
-      GetPersistedValue(kPrefsWallClockWaitPeriod, prefs_)));
+      GetPersistedValue(kPrefsWallClockScatteringWaitPeriod, prefs_)));
 }
 
 void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
@@ -918,10 +926,27 @@ void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
   LOG(INFO) << "Scattering Wait Period (seconds) = "
             << scattering_wait_period_.InSeconds();
   if (scattering_wait_period_.InSeconds() > 0) {
-    prefs_->SetInt64(kPrefsWallClockWaitPeriod,
+    prefs_->SetInt64(kPrefsWallClockScatteringWaitPeriod,
                      scattering_wait_period_.InSeconds());
   } else {
-    prefs_->Delete(kPrefsWallClockWaitPeriod);
+    prefs_->Delete(kPrefsWallClockScatteringWaitPeriod);
+  }
+}
+
+void PayloadState::LoadStagingWaitPeriod() {
+  SetStagingWaitPeriod(TimeDelta::FromSeconds(
+      GetPersistedValue(kPrefsWallClockStagingWaitPeriod, prefs_)));
+}
+
+void PayloadState::SetStagingWaitPeriod(TimeDelta wait_period) {
+  CHECK(prefs_);
+  staging_wait_period_ = wait_period;
+  LOG(INFO) << "Staging Wait Period (days) =" << staging_wait_period_.InDays();
+  if (staging_wait_period_.InSeconds() > 0) {
+    prefs_->SetInt64(kPrefsWallClockStagingWaitPeriod,
+                     staging_wait_period_.InSeconds());
+  } else {
+    prefs_->Delete(kPrefsWallClockStagingWaitPeriod);
   }
 }
 
@@ -1068,6 +1093,25 @@ void PayloadState::LoadUpdateDurationUptime() {
 
 void PayloadState::LoadNumReboots() {
   SetNumReboots(GetPersistedValue(kPrefsNumReboots, prefs_));
+}
+
+void PayloadState::LoadRollbackHappened() {
+  CHECK(powerwash_safe_prefs_);
+  bool rollback_happened = false;
+  powerwash_safe_prefs_->GetBoolean(kPrefsRollbackHappened, &rollback_happened);
+  SetRollbackHappened(rollback_happened);
+}
+
+void PayloadState::SetRollbackHappened(bool rollback_happened) {
+  CHECK(powerwash_safe_prefs_);
+  LOG(INFO) << "Setting rollback-happened to " << rollback_happened << ".";
+  rollback_happened_ = rollback_happened;
+  if (rollback_happened) {
+    powerwash_safe_prefs_->SetBoolean(kPrefsRollbackHappened,
+                                      rollback_happened);
+  } else {
+    powerwash_safe_prefs_->Delete(kPrefsRollbackHappened);
+  }
 }
 
 void PayloadState::LoadRollbackVersion() {

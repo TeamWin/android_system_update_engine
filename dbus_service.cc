@@ -50,14 +50,11 @@ bool DBusUpdateEngineService::AttemptUpdateWithFlags(
   bool interactive = !(flags & update_engine::kAttemptUpdateFlagNonInteractive);
   bool result;
   return common_->AttemptUpdate(
-             error,
-             in_app_version,
-             in_omaha_url,
-             interactive
-                 ? 0
-                 : update_engine::UpdateAttemptFlags::kFlagNonInteractive,
-             &result) &&
-         result;
+      error,
+      in_app_version,
+      in_omaha_url,
+      interactive ? 0 : update_engine::UpdateAttemptFlags::kFlagNonInteractive,
+      &result);
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,
@@ -131,6 +128,14 @@ bool DBusUpdateEngineService::GetP2PUpdatePermission(ErrorPtr* error,
 bool DBusUpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
                                                               bool in_allowed) {
   return common_->SetUpdateOverCellularPermission(error, in_allowed);
+}
+
+bool DBusUpdateEngineService::SetUpdateOverCellularTarget(
+    brillo::ErrorPtr* error,
+    const std::string& target_version,
+    int64_t target_size) {
+  return common_->SetUpdateOverCellularTarget(
+      error, target_version, target_size);
 }
 
 bool DBusUpdateEngineService::GetUpdateOverCellularPermission(

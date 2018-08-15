@@ -194,6 +194,8 @@ int main(int argc, char** argv) {
   chromeos_update_engine::UpdateEngineDaemon update_engine_daemon;
   int exit_code = update_engine_daemon.Run();
 
+  chromeos_update_engine::Subprocess::Get().FlushBufferedLogsAtExit();
+
   LOG(INFO) << "A/B Update Engine terminating with exit code " << exit_code;
   return exit_code;
 }

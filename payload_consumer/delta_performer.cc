@@ -800,7 +800,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   } else if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
     LOG(INFO) << "Converting update information from old format.";
     PartitionUpdate root_part;
-    root_part.set_partition_name(kLegacyPartitionNameRoot);
+    root_part.set_partition_name(kPartitionNameRoot);
 #ifdef __ANDROID__
     LOG(WARNING) << "Legacy payload major version provided to an Android "
                     "build. Assuming no post-install. Please use major version "
@@ -822,7 +822,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     partitions_.push_back(std::move(root_part));
 
     PartitionUpdate kern_part;
-    kern_part.set_partition_name(kLegacyPartitionNameKernel);
+    kern_part.set_partition_name(kPartitionNameKernel);
     kern_part.set_run_postinstall(false);
     if (manifest_.has_old_kernel_info()) {
       *kern_part.mutable_old_partition_info() = manifest_.old_kernel_info();

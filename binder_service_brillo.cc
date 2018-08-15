@@ -153,6 +153,13 @@ Status BinderUpdateEngineBrilloService::SetUpdateOverCellularPermission(
       &UpdateEngineService::SetUpdateOverCellularPermission, enabled);
 }
 
+Status BinderUpdateEngineBrilloService::SetUpdateOverCellularTarget(
+    const String16& target_version, int64_t target_size) {
+  return CallCommonHandler(&UpdateEngineService::SetUpdateOverCellularTarget,
+                           NormalString(target_version),
+                           target_size);
+}
+
 Status BinderUpdateEngineBrilloService::GetUpdateOverCellularPermission(
     bool* out_cellular_permission) {
   return CallCommonHandler(

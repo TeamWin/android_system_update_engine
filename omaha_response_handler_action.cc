@@ -16,6 +16,7 @@
 
 #include "update_engine/omaha_response_handler_action.h"
 
+#include <limits>
 #include <string>
 
 #include <base/logging.h>
@@ -36,20 +37,15 @@
 
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateManager;
+using std::numeric_limits;
 using std::string;
 
 namespace chromeos_update_engine {
 
 OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state)
-    : OmahaResponseHandlerAction(system_state,
-                                 constants::kOmahaResponseDeadlineFile) {}
-
-OmahaResponseHandlerAction::OmahaResponseHandlerAction(
-    SystemState* system_state, const string& deadline_file)
     : system_state_(system_state),
-      key_path_(constants::kUpdatePayloadPublicKeyPath),
-      deadline_file_(deadline_file) {}
+      deadline_file_(constants::kOmahaResponseDeadlineFile) {}
 
 void OmahaResponseHandlerAction::PerformAction() {
   CHECK(HasInputObject());
@@ -138,6 +134,38 @@ void OmahaResponseHandlerAction::PerformAction() {
   system_state_->prefs()->SetString(current_channel_key,
                                     params->download_channel());
 
+  // Checking whether device is able to boot up the returned rollback image.
+  if (response.is_rollback) {
+    if (!params->rollback_allowed()) {
+      LOG(ERROR) << "Received rollback image but rollback is not allowed.";
+      completer.set_code(ErrorCode::kOmahaResponseInvalid);
+      return;
+    }
+    auto min_kernel_key_version = static_cast<uint32_t>(
+        system_state_->hardware()->GetMinKernelKeyVersion());
+    auto min_firmware_key_version = static_cast<uint32_t>(
+        system_state_->hardware()->GetMinFirmwareKeyVersion());
+    uint32_t kernel_key_version =
+        static_cast<uint32_t>(response.rollback_key_version.kernel_key) << 16 |
+        static_cast<uint32_t>(response.rollback_key_version.kernel);
+    uint32_t firmware_key_version =
+        static_cast<uint32_t>(response.rollback_key_version.firmware_key)
+            << 16 |
+        static_cast<uint32_t>(response.rollback_key_version.firmware);
+
+    // Don't attempt a rollback if the versions are incompatible or the
+    // target image does not specify the version information.
+    if (kernel_key_version == numeric_limits<uint32_t>::max() ||
+        firmware_key_version == numeric_limits<uint32_t>::max() ||
+        kernel_key_version < min_kernel_key_version ||
+        firmware_key_version < min_firmware_key_version) {
+      LOG(ERROR) << "Device won't be able to boot up the rollback image.";
+      completer.set_code(ErrorCode::kRollbackNotPossible);
+      return;
+    }
+    install_plan_.is_rollback = true;
+  }
+
   if (response.powerwash_required || params->ShouldPowerwash())
     install_plan_.powerwash_required = true;
 
@@ -155,9 +183,16 @@ void OmahaResponseHandlerAction::PerformAction() {
   // method and UpdateStatus signal. A potential issue is that update_engine may
   // be unresponsive during an update download.
   if (!deadline_file_.empty()) {
-    utils::WriteFile(deadline_file_.c_str(),
-                     response.deadline.data(),
-                     response.deadline.size());
+    if (payload_state->GetRollbackHappened()) {
+      // Don't do forced update if rollback has happened since the last update
+      // check where policy was present.
+      LOG(INFO) << "Not forcing update because a rollback happened.";
+      utils::WriteFile(deadline_file_.c_str(), nullptr, 0);
+    } else {
+      utils::WriteFile(deadline_file_.c_str(),
+                       response.deadline.data(),
+                       response.deadline.size());
+    }
     chmod(deadline_file_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   }
 
