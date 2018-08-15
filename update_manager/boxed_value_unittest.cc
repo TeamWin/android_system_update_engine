@@ -26,9 +26,11 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 
+#include "update_engine/update_manager/rollback_prefs.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/umtest_utils.h"
 #include "update_engine/update_manager/updater_provider.h"
+#include "update_engine/update_manager/weekly_time.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -192,6 +194,21 @@ TEST(UmBoxedValueTest, ConnectionTetheringToString) {
             .ToString());
 }
 
+TEST(UmBoxedValueTest, RollbackToTargetVersionToString) {
+  EXPECT_EQ("Unspecified",
+            BoxedValue(new RollbackToTargetVersion(
+                           RollbackToTargetVersion::kUnspecified))
+                .ToString());
+  EXPECT_EQ("Disabled",
+            BoxedValue(
+                new RollbackToTargetVersion(RollbackToTargetVersion::kDisabled))
+                .ToString());
+  EXPECT_EQ("Rollback with full powerwash",
+            BoxedValue(new RollbackToTargetVersion(
+                           RollbackToTargetVersion::kRollbackWithFullPowerwash))
+                .ToString());
+}
+
 TEST(UmBoxedValueTest, SetConnectionTypeToString) {
   set<ConnectionType>* set1 = new set<ConnectionType>;
   set1->insert(ConnectionType::kWimax);
@@ -240,6 +257,36 @@ TEST(UmBoxedValueTest, UpdateRestrictionsToString) {
             BoxedValue(new UpdateRestrictions(
                            UpdateRestrictions::kRestrictDownloading))
                 .ToString());
+}
+
+TEST(UmBoxedValueTest, WeeklyTimeIntervalToString) {
+  EXPECT_EQ("Start: day_of_week=2 time=100\nEnd: day_of_week=4 time=200",
+            BoxedValue(new WeeklyTimeInterval(
+                           WeeklyTime(2, TimeDelta::FromMinutes(100)),
+                           WeeklyTime(4, TimeDelta::FromMinutes(200))))
+                .ToString());
+  EXPECT_EQ("Start: day_of_week=1 time=10\nEnd: day_of_week=1 time=20",
+            BoxedValue(new WeeklyTimeInterval(
+                           WeeklyTime(1, TimeDelta::FromMinutes(10)),
+                           WeeklyTime(1, TimeDelta::FromMinutes(20))))
+                .ToString());
+}
+
+TEST(UmBoxedValueTest, WeeklyTimeIntervalVectorToString) {
+  WeeklyTimeIntervalVector intervals;
+  intervals.emplace_back(WeeklyTime(5, TimeDelta::FromMinutes(10)),
+                         WeeklyTime(1, TimeDelta::FromMinutes(30)));
+  EXPECT_EQ(
+      "Disallowed intervals:\nStart: day_of_week=5 time=10\nEnd: "
+      "day_of_week=1 time=30\n",
+      BoxedValue(new WeeklyTimeIntervalVector(intervals)).ToString());
+  intervals.emplace_back(WeeklyTime(1, TimeDelta::FromMinutes(5)),
+                         WeeklyTime(6, TimeDelta::FromMinutes(1000)));
+  EXPECT_EQ(
+      "Disallowed intervals:\nStart: day_of_week=5 time=10\nEnd: "
+      "day_of_week=1 time=30\nStart: day_of_week=1 time=5\nEnd: day_of_week=6 "
+      "time=1000\n",
+      BoxedValue(new WeeklyTimeIntervalVector(intervals)).ToString());
 }
 
 }  // namespace chromeos_update_manager

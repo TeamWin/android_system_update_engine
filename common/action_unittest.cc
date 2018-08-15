@@ -16,8 +16,11 @@
 
 #include "update_engine/common/action.h"
 
-#include <gtest/gtest.h>
 #include <string>
+#include <utility>
+
+#include <gtest/gtest.h>
+
 #include "update_engine/common/action_processor.h"
 
 using std::string;
@@ -56,21 +59,19 @@ class ActionTest : public ::testing::Test { };
 // This test creates two simple Actions and sends a message via an ActionPipe
 // from one to the other.
 TEST(ActionTest, SimpleTest) {
-  ActionTestAction action;
-
-  EXPECT_FALSE(action.in_pipe());
-  EXPECT_FALSE(action.out_pipe());
-  EXPECT_FALSE(action.processor());
-  EXPECT_FALSE(action.IsRunning());
+  auto action = std::make_unique<ActionTestAction>();
+  auto action_ptr = action.get();
+  EXPECT_FALSE(action->in_pipe());
+  EXPECT_FALSE(action->out_pipe());
+  EXPECT_FALSE(action->processor());
+  EXPECT_FALSE(action->IsRunning());
 
   ActionProcessor action_processor;
-  action_processor.EnqueueAction(&action);
-  EXPECT_EQ(&action_processor, action.processor());
-
+  action_processor.EnqueueAction(std::move(action));
+  EXPECT_EQ(&action_processor, action_ptr->processor());
   action_processor.StartProcessing();
-  EXPECT_TRUE(action.IsRunning());
-  action.CompleteAction();
-  EXPECT_FALSE(action.IsRunning());
+  EXPECT_TRUE(action_ptr->IsRunning());
+  action_ptr->CompleteAction();
 }
 
 }  // namespace chromeos_update_engine

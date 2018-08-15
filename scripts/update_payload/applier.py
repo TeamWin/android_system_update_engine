@@ -622,46 +622,64 @@ class PayloadApplier(object):
       _VerifySha256(new_part_file, new_part_info.hash,
                     'new ' + part_name, length=new_part_info.size)
 
-  def Run(self, new_kernel_part, new_rootfs_part, old_kernel_part=None,
-          old_rootfs_part=None):
+  def Run(self, new_parts, old_parts=None):
     """Applier entry point, invoking all update operations.
 
     Args:
-      new_kernel_part: name of dest kernel partition file
-      new_rootfs_part: name of dest rootfs partition file
-      old_kernel_part: name of source kernel partition file (optional)
-      old_rootfs_part: name of source rootfs partition file (optional)
+      new_parts: map of partition name to dest partition file
+      old_parts: map of partition name to source partition file (optional)
 
     Raises:
       PayloadError if payload application failed.
     """
+    if old_parts is None:
+      old_parts = {}
+
     self.payload.ResetFile()
 
-    # Make sure the arguments are sane and match the payload.
-    if not (new_kernel_part and new_rootfs_part):
-      raise PayloadError('missing dst {kernel,rootfs} partitions')
+    new_part_info = {}
+    old_part_info = {}
+    install_operations = []
 
-    if not (old_kernel_part or old_rootfs_part):
-      if not self.payload.IsFull():
-        raise PayloadError('trying to apply a non-full update without src '
-                           '{kernel,rootfs} partitions')
-    elif old_kernel_part and old_rootfs_part:
-      if not self.payload.IsDelta():
-        raise PayloadError('trying to apply a non-delta update onto src '
-                           '{kernel,rootfs} partitions')
+    manifest = self.payload.manifest
+    if self.payload.header.version == 1:
+      for real_name, proto_name in common.CROS_PARTITIONS:
+        new_part_info[real_name] = getattr(manifest, 'new_%s_info' % proto_name)
+        old_part_info[real_name] = getattr(manifest, 'old_%s_info' % proto_name)
+
+      install_operations.append((common.ROOTFS, manifest.install_operations))
+      install_operations.append((common.KERNEL,
+                                 manifest.kernel_install_operations))
+    else:
+      for part in manifest.partitions:
+        name = part.partition_name
+        new_part_info[name] = part.new_partition_info
+        old_part_info[name] = part.old_partition_info
+        install_operations.append((name, part.operations))
+
+    part_names = set(new_part_info.keys())  # Equivalently, old_part_info.keys()
+
+    # Make sure the arguments are sane and match the payload.
+    new_part_names = set(new_parts.keys())
+    if new_part_names != part_names:
+      raise PayloadError('missing dst partition(s) %s' %
+                         ', '.join(part_names - new_part_names))
+
+    old_part_names = set(old_parts.keys())
+    if part_names - old_part_names:
+      if self.payload.IsDelta():
+        raise PayloadError('trying to apply a delta update without src '
+                           'partition(s) %s' %
+                           ', '.join(part_names - old_part_names))
+    elif old_part_names == part_names:
+      if self.payload.IsFull():
+        raise PayloadError('trying to apply a full update onto src partitions')
     else:
       raise PayloadError('not all src partitions provided')
 
-    # Apply update to rootfs.
-    self._ApplyToPartition(
-        self.payload.manifest.install_operations, 'rootfs',
-        'install_operations', new_rootfs_part,
-        self.payload.manifest.new_rootfs_info, old_rootfs_part,
-        self.payload.manifest.old_rootfs_info)
+    for name, operations in install_operations:
+      # Apply update to partition.
+      self._ApplyToPartition(
+          operations, name, '%s_install_operations' % name, new_parts[name],
+          new_part_info[name], old_parts.get(name, None), old_part_info[name])
 
-    # Apply update to kernel update.
-    self._ApplyToPartition(
-        self.payload.manifest.kernel_install_operations, 'kernel',
-        'kernel_install_operations', new_kernel_part,
-        self.payload.manifest.new_kernel_info, old_kernel_part,
-        self.payload.manifest.old_kernel_info)

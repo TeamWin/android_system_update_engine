@@ -23,17 +23,24 @@
 
 namespace update_engine {
 
+// ATTENTION: When adding a new enum value here, always append at the end and
+// make sure to make proper adjustments in UpdateAttempter:ActionCompleted(). If
+// any enum memeber is deprecated, the assigned value of other members should
+// not change. See b/62842358.
 enum class UpdateStatus {
   IDLE = 0,
-  CHECKING_FOR_UPDATE,
-  UPDATE_AVAILABLE,
-  DOWNLOADING,
-  VERIFYING,
-  FINALIZING,
-  UPDATED_NEED_REBOOT,
-  REPORTING_ERROR_EVENT,
-  ATTEMPTING_ROLLBACK,
-  DISABLED,
+  CHECKING_FOR_UPDATE = 1,
+  UPDATE_AVAILABLE = 2,
+  DOWNLOADING = 3,
+  VERIFYING = 4,
+  FINALIZING = 5,
+  UPDATED_NEED_REBOOT = 6,
+  REPORTING_ERROR_EVENT = 7,
+  ATTEMPTING_ROLLBACK = 8,
+  DISABLED = 9,
+  // Broadcast this state when an update aborts because user preferences do not
+  // allow updates, e.g. over cellular network.
+  NEED_PERMISSION_TO_UPDATE = 10,
 };
 
 // Enum of bit-wise flags for controlling how updates are attempted.

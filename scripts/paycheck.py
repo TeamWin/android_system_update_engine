@@ -26,6 +26,7 @@ import os
 import sys
 import tempfile
 
+from update_payload import common
 from update_payload import error
 
 lib_dir = os.path.join(os.path.dirname(__file__), 'lib')
@@ -89,12 +90,18 @@ def ParseArguments(argv):
                                 'validation'))
   check_args.add_argument('-m', '--meta-sig', metavar='FILE',
                           help='verify metadata against its signature')
+  check_args.add_argument('-s', '--metadata-size', metavar='NUM', default=0,
+                          help='the metadata size to verify with the one in'
+                          ' payload')
+  # TODO(tbrindus): deprecated in favour of --part_sizes
   check_args.add_argument('-p', '--root-part-size', metavar='NUM',
                           default=0, type=int,
                           help='override rootfs partition size auto-inference')
   check_args.add_argument('-P', '--kern-part-size', metavar='NUM',
                           default=0, type=int,
                           help='override kernel partition size auto-inference')
+  check_args.add_argument('--part_sizes', metavar='NUM', nargs='+', type=int,
+                          help='override partition size auto-inference')
 
   apply_args = parser.add_argument_group('Applying payload')
   # TODO(ahassani): Extent extract-bsdiff to puffdiff too.
@@ -106,41 +113,66 @@ def ParseArguments(argv):
                           help='use the specified bspatch binary')
   apply_args.add_argument('--puffpatch-path', metavar='FILE',
                           help='use the specified puffpatch binary')
+  # TODO(tbrindus): deprecated in favour of --dst_part_paths
   apply_args.add_argument('--dst_kern', metavar='FILE',
                           help='destination kernel partition file')
   apply_args.add_argument('--dst_root', metavar='FILE',
                           help='destination root partition file')
+  # TODO(tbrindus): deprecated in favour of --src_part_paths
   apply_args.add_argument('--src_kern', metavar='FILE',
                           help='source kernel partition file')
   apply_args.add_argument('--src_root', metavar='FILE',
                           help='source root partition file')
+  # TODO(tbrindus): deprecated in favour of --out_dst_part_paths
   apply_args.add_argument('--out_dst_kern', metavar='FILE',
                           help='created destination kernel partition file')
   apply_args.add_argument('--out_dst_root', metavar='FILE',
                           help='created destination root partition file')
 
+  apply_args.add_argument('--src_part_paths', metavar='FILE', nargs='+',
+                          help='source partitition files')
+  apply_args.add_argument('--dst_part_paths', metavar='FILE', nargs='+',
+                          help='destination partition files')
+  apply_args.add_argument('--out_dst_part_paths', metavar='FILE', nargs='+',
+                          help='created destination partition files')
+
   parser.add_argument('payload', metavar='PAYLOAD', help='the payload file')
+  parser.add_argument('--part_names', metavar='NAME', nargs='+',
+                      help='names of partitions')
 
   # Parse command-line arguments.
   args = parser.parse_args(argv)
+
+  # TODO(tbrindus): temporary workaround to keep old-style flags from breaking
+  # without having to handle both types in our code. Remove after flag usage is
+  # removed from calling scripts.
+  args.part_names = args.part_names or [common.KERNEL, common.ROOTFS]
+  args.part_sizes = args.part_sizes or [args.kern_part_size,
+                                        args.root_part_size]
+  args.src_part_paths = args.src_part_paths or [args.src_kern, args.src_root]
+  args.dst_part_paths = args.dst_part_paths or [args.dst_kern, args.dst_root]
+  args.out_dst_part_paths = args.out_dst_part_paths or [args.out_dst_kern,
+                                                        args.out_dst_root]
+
+  # Make sure we don't have new dependencies on old flags by deleting them from
+  # the namespace here.
+  for old in ['kern_part_size', 'root_part_size', 'src_kern', 'src_root',
+              'dst_kern', 'dst_root', 'out_dst_kern', 'out_dst_root']:
+    delattr(args, old)
 
   # There are several options that imply --check.
   args.check = (args.check or args.report or args.assert_type or
                 args.block_size or args.allow_unhashed or
                 args.disabled_tests or args.meta_sig or args.key or
-                args.root_part_size or args.kern_part_size)
+                any(args.part_sizes) or args.metadata_size)
 
-  # Check the arguments, enforce payload type accordingly.
-  if (args.src_kern is None) != (args.src_root is None):
-    parser.error('--src_kern and --src_root should be given together')
-  if (args.dst_kern is None) != (args.dst_root is None):
-    parser.error('--dst_kern and --dst_root should be given together')
-  if (args.out_dst_kern is None) != (args.out_dst_root is None):
-    parser.error('--out_dst_kern and --out_dst_root should be given together')
+  for arg in ['part_sizes', 'src_part_paths', 'dst_part_paths',
+              'out_dst_part_paths']:
+    if len(args.part_names) != len(getattr(args, arg, [])):
+      parser.error('partitions in --%s do not match --part_names' % arg)
 
-  if (args.dst_kern and args.dst_root) or \
-     (args.out_dst_kern and args.out_dst_root):
-    if args.src_kern and args.src_root:
+  if all(args.dst_part_paths) or all(args.out_dst_part_paths):
+    if all(args.src_part_paths):
       if args.assert_type == _TYPE_FULL:
         parser.error('%s payload does not accept source partition arguments'
                      % _TYPE_FULL)
@@ -198,15 +230,16 @@ def main(argv):
               report_file = open(args.report, 'w')
               do_close_report_file = True
 
+          part_sizes = dict(zip(args.part_names, args.part_sizes))
           metadata_sig_file = args.meta_sig and open(args.meta_sig)
           payload.Check(
               pubkey_file_name=args.key,
               metadata_sig_file=metadata_sig_file,
+              metadata_size=int(args.metadata_size),
               report_out_file=report_file,
               assert_type=args.assert_type,
               block_size=int(args.block_size),
-              rootfs_part_size=args.root_part_size,
-              kernel_part_size=args.kern_part_size,
+              part_sizes=part_sizes,
               allow_unhashed=args.allow_unhashed,
               disabled_tests=args.disabled_tests)
         finally:
@@ -216,46 +249,50 @@ def main(argv):
             report_file.close()
 
       # Apply payload.
-      if (args.dst_root and args.dst_kern) or \
-         (args.out_dst_root and args.out_dst_kern):
+      if all(args.dst_part_paths) or all(args.out_dst_part_paths):
         dargs = {'bsdiff_in_place': not args.extract_bsdiff}
         if args.bspatch_path:
           dargs['bspatch_path'] = args.bspatch_path
         if args.puffpatch_path:
           dargs['puffpatch_path'] = args.puffpatch_path
         if args.assert_type == _TYPE_DELTA:
-          dargs['old_kernel_part'] = args.src_kern
-          dargs['old_rootfs_part'] = args.src_root
+          dargs['old_parts'] = dict(zip(args.part_names, args.src_part_paths))
 
-        if args.out_dst_kern and args.out_dst_root:
-          out_dst_kern = open(args.out_dst_kern, 'w+')
-          out_dst_root = open(args.out_dst_root, 'w+')
+        out_dst_parts = {}
+        file_handles = []
+        if all(args.out_dst_part_paths):
+          for name, path in zip(args.part_names, args.out_dst_part_paths):
+            handle = open(path, 'w+')
+            file_handles.append(handle)
+            out_dst_parts[name] = handle.name
         else:
-          out_dst_kern = tempfile.NamedTemporaryFile()
-          out_dst_root = tempfile.NamedTemporaryFile()
+          for name in args.part_names:
+            handle = tempfile.NamedTemporaryFile()
+            file_handles.append(handle)
+            out_dst_parts[name] = handle.name
 
-        payload.Apply(out_dst_kern.name, out_dst_root.name, **dargs)
+        payload.Apply(out_dst_parts, **dargs)
 
         # If destination kernel and rootfs partitions are not given, then this
         # just becomes an apply operation with no check.
-        if args.dst_kern and args.dst_root:
+        if all(args.dst_part_paths):
           # Prior to comparing, add the unused space past the filesystem
           # boundary in the new target partitions to become the same size as
           # the given partitions. This will truncate to larger size.
-          out_dst_kern.truncate(os.path.getsize(args.dst_kern))
-          out_dst_root.truncate(os.path.getsize(args.dst_root))
+          for part_name, out_dst_part, dst_part in zip(args.part_names,
+                                                       file_handles,
+                                                       args.dst_part_paths):
+            out_dst_part.truncate(os.path.getsize(dst_part))
 
-          # Compare resulting partitions with the ones from the target image.
-          if not filecmp.cmp(out_dst_kern.name, args.dst_kern):
-            raise error.PayloadError('Resulting kernel partition corrupted.')
-          if not filecmp.cmp(out_dst_root.name, args.dst_root):
-            raise error.PayloadError('Resulting rootfs partition corrupted.')
+            # Compare resulting partitions with the ones from the target image.
+            if not filecmp.cmp(out_dst_part.name, dst_part):
+              raise error.PayloadError(
+                  'Resulting %s partition corrupted.' % part_name)
 
         # Close the output files. If args.out_dst_* was not given, then these
         # files are created as temp files and will be deleted upon close().
-        out_dst_kern.close()
-        out_dst_root.close()
-
+        for handle in file_handles:
+          handle.close()
     except error.PayloadError, e:
       sys.stderr.write('Error: %s\n' % e)
       return 1

@@ -55,6 +55,7 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
       }
     }
 
+    // By default, result->rollback_allowed is false.
     if (kiosk_app_control_chrome_version) {
       // Get the required platform version from Chrome.
       const string* kiosk_required_platform_version_p =
@@ -68,6 +69,8 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
       result->target_version_prefix = *kiosk_required_platform_version_p;
       LOG(INFO) << "Allow kiosk app to control Chrome version policy is set, "
                 << "target version is " << result->target_version_prefix;
+      // TODO(hunyadym): Add support for allowing rollback using the manifest
+      // (if policy doesn't specify otherwise).
     } else {
       // Determine whether a target version prefix is dictated by policy.
       const string* target_version_prefix_p =
@@ -75,6 +78,36 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
       if (target_version_prefix_p)
         result->target_version_prefix = *target_version_prefix_p;
     }
+
+    // Policy always overwrites whether rollback is allowed by the kiosk app
+    // manifest.
+    const RollbackToTargetVersion* rollback_to_target_version_p =
+        ec->GetValue(dp_provider->var_rollback_to_target_version());
+    if (rollback_to_target_version_p) {
+      switch (*rollback_to_target_version_p) {
+        case RollbackToTargetVersion::kUnspecified:
+          // We leave the default or the one specified by the kiosk app.
+          break;
+        case RollbackToTargetVersion::kDisabled:
+          LOG(INFO) << "Policy disables rollbacks.";
+          result->rollback_allowed = false;
+          break;
+        case RollbackToTargetVersion::kRollbackWithFullPowerwash:
+          LOG(INFO) << "Policy allows rollbacks.";
+          result->rollback_allowed = true;
+          break;
+        case RollbackToTargetVersion::kMaxValue:
+          NOTREACHED();
+          // Don't add a default case to let the compiler warn about newly
+          // added enum values which should be added here.
+      }
+    }
+
+    // Determine allowed milestones for rollback
+    const int* rollback_allowed_milestones_p =
+        ec->GetValue(dp_provider->var_rollback_allowed_milestones());
+    if (rollback_allowed_milestones_p)
+      result->rollback_allowed_milestones = *rollback_allowed_milestones_p;
 
     // Determine whether a target channel is dictated by policy.
     const bool* release_channel_delegated_p =

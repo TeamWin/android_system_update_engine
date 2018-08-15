@@ -47,71 +47,49 @@ void MockHttpFetcher::BeginTransfer(const std::string& url) {
     SendData(true);
 }
 
-// Returns false on one condition: If timeout_id_ was already set
-// and it needs to be deleted by the caller. If timeout_id_ is null
-// when this function is called, this function will always return true.
-bool MockHttpFetcher::SendData(bool skip_delivery) {
-  if (fail_transfer_) {
+void MockHttpFetcher::SendData(bool skip_delivery) {
+  if (fail_transfer_ || sent_size_ == data_.size()) {
     SignalTransferComplete();
-    return timeout_id_ != MessageLoop::kTaskIdNull;
-  }
-
-  CHECK_LT(sent_size_, data_.size());
-  if (!skip_delivery) {
-    const size_t chunk_size = min(kMockHttpFetcherChunkSize,
-                                  data_.size() - sent_size_);
-    CHECK(delegate_);
-    delegate_->ReceivedBytes(this, &data_[sent_size_], chunk_size);
-    // We may get terminated in the callback.
-    if (sent_size_ == data_.size()) {
-      LOG(INFO) << "Terminated in the ReceivedBytes callback.";
-      return timeout_id_ != MessageLoop::kTaskIdNull;
-    }
-    sent_size_ += chunk_size;
-    CHECK_LE(sent_size_, data_.size());
-    if (sent_size_ == data_.size()) {
-      // We've sent all the data. Notify of success.
-      SignalTransferComplete();
-    }
+    return;
   }
 
   if (paused_) {
-    // If we're paused, we should return true if timeout_id_ is set,
-    // since we need the caller to delete it.
-    return timeout_id_ != MessageLoop::kTaskIdNull;
+    // If we're paused, we should return so no callback is scheduled.
+    return;
   }
 
-  if (timeout_id_ != MessageLoop::kTaskIdNull) {
-    // we still need a timeout if there's more data to send
-    return sent_size_ < data_.size();
-  } else if (sent_size_ < data_.size()) {
-    // we don't have a timeout source and we need one
+  // Setup timeout callback even if the transfer is about to be completed in
+  // order to get a call to |TransferComplete|.
+  if (timeout_id_ == MessageLoop::kTaskIdNull) {
     timeout_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&MockHttpFetcher::TimeoutCallback, base::Unretained(this)),
         base::TimeDelta::FromMilliseconds(10));
   }
-  return true;
+
+  if (!skip_delivery) {
+    const size_t chunk_size =
+        min(kMockHttpFetcherChunkSize, data_.size() - sent_size_);
+    sent_size_ += chunk_size;
+    CHECK(delegate_);
+    delegate_->ReceivedBytes(this, &data_[sent_size_ - chunk_size], chunk_size);
+  }
+  // We may get terminated and deleted right after |ReceivedBytes| call, so we
+  // should not access any class member variable after this call.
 }
 
 void MockHttpFetcher::TimeoutCallback() {
   CHECK(!paused_);
-  if (SendData(false)) {
-    // We need to re-schedule the timeout.
-    timeout_id_ = MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&MockHttpFetcher::TimeoutCallback, base::Unretained(this)),
-        base::TimeDelta::FromMilliseconds(10));
-  } else {
-    timeout_id_ = MessageLoop::kTaskIdNull;
-  }
+  timeout_id_ = MessageLoop::kTaskIdNull;
+  CHECK_LE(sent_size_, data_.size());
+  // Same here, we should not access any member variable after this call.
+  SendData(false);
 }
 
 // If the transfer is in progress, aborts the transfer early.
 // The transfer cannot be resumed.
 void MockHttpFetcher::TerminateTransfer() {
   LOG(INFO) << "Terminating transfer.";
-  sent_size_ = data_.size();
   // Kill any timeout, it is ok to call with kTaskIdNull.
   MessageLoop::current()->CancelTask(timeout_id_);
   timeout_id_ = MessageLoop::kTaskIdNull;
@@ -140,9 +118,7 @@ void MockHttpFetcher::Pause() {
 void MockHttpFetcher::Unpause() {
   CHECK(paused_) << "You must pause before unpause.";
   paused_ = false;
-  if (sent_size_ < data_.size()) {
-    SendData(false);
-  }
+  SendData(false);
 }
 
 void MockHttpFetcher::FailTransfer(int http_response_code) {

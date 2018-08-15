@@ -42,6 +42,11 @@ class HardwareAndroid final : public HardwareInterface {
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
+  int GetMinKernelKeyVersion() const override;
+  int GetMinFirmwareKeyVersion() const override;
+  int GetMaxFirmwareKeyRollforward() const override;
+  bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) override;
+  bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override;
   int GetPowerwashCount() const override;
   bool SchedulePowerwash() override;
   bool CancelPowerwash() override;
@@ -49,7 +54,7 @@ class HardwareAndroid final : public HardwareInterface {
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;
   int64_t GetBuildTimestamp() const override;
   bool GetFirstActiveOmahaPingSent() const override;
-  void SetFirstActiveOmahaPingSent() override;
+  bool SetFirstActiveOmahaPingSent() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HardwareAndroid);

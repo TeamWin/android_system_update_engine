@@ -84,4 +84,13 @@ TEST_F(UmRealTimeProviderTest, CurrHourValid) {
                                       provider_->var_curr_hour());
 }
 
+TEST_F(UmRealTimeProviderTest, CurrMinuteValid) {
+  const Time now = CurrTime();
+  Time::Exploded expected;
+  now.LocalExplode(&expected);
+  fake_clock_.SetWallclockTime(now);
+  UmTestUtils::ExpectVariableHasValue(expected.minute,
+                                      provider_->var_curr_minute());
+}
+
 }  // namespace chromeos_update_manager

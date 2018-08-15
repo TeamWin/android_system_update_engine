@@ -50,6 +50,7 @@ class MockOmahaRequestParams : public OmahaRequestParams {
   MOCK_METHOD3(SetTargetChannel, bool(const std::string& channel,
                                       bool is_powerwash_allowed,
                                       std::string* error));
+  MOCK_CONST_METHOD0(target_version_prefix, std::string(void));
   MOCK_METHOD0(UpdateDownloadChannel, void(void));
   MOCK_CONST_METHOD0(IsUpdateUrlOfficial, bool(void));
   MOCK_CONST_METHOD0(ShouldPowerwash, bool(void));

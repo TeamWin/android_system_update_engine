@@ -25,6 +25,7 @@
 #  sign        generate a signed payload
 #  properties  generate a properties file from a payload
 #  verify      verify a payload by recreating a target image.
+#  check       verify a payload using paycheck (static testing)
 #
 #  Generate command arguments:
 #  --payload             generated unsigned payload output file
@@ -67,6 +68,9 @@
 #  --payload             payload input file
 #  --source_image        verify payload to the specified source image.
 #  --target_image        the target image to verify upon.
+#
+#  Check command arguments:
+#     Symmetrical with the verify command.
 
 
 # Exit codes:
@@ -82,7 +86,7 @@ die() {
 }
 
 # Loads shflags. We first look at the default install location; then look for
-# crosutils (chroot); finally check our own directory (au-generator zipfile).
+# crosutils (chroot); finally check our own directory.
 load_shflags() {
   local my_dir="$(dirname "$(readlink -f "$0")")"
   local path
@@ -102,7 +106,9 @@ HELP_HASH="hash: Generate the hashes of the unsigned payload and metadata used \
 for signing."
 HELP_SIGN="sign: Insert the signatures into the unsigned payload."
 HELP_PROPERTIES="properties: Extract payload properties to a file."
-HELP_VERIFY="verify: Verify a (signed) update payload."
+HELP_VERIFY="verify: Verify a (signed) update payload using delta_generator."
+HELP_CHECK="check: Check a (signed) update payload using paycheck (static \
+testing)."
 
 usage() {
   echo "Supported commands:"
@@ -112,13 +118,14 @@ usage() {
   echo "${HELP_SIGN}"
   echo "${HELP_PROPERTIES}"
   echo "${HELP_VERIFY}"
+  echo "${HELP_CHECK}"
   echo
   echo "Use: \"$0 <command> --help\" for more options."
 }
 
 # Check that a command is specified.
 if [[ $# -lt 1 ]]; then
-  echo "Please specify a command [generate|hash|sign|properties]"
+  echo "Please specify a command [generate|hash|sign|properties|verify|check]"
   exit 1
 fi
 
@@ -145,6 +152,10 @@ case "${COMMAND}" in
 
   verify)
     FLAGS_HELP="${HELP_VERIFY}"
+    ;;
+
+  check)
+    FLAGS_HELP="${HELP_CHECK}"
     ;;
 
   *)
@@ -202,7 +213,7 @@ if [[ "${COMMAND}" == "properties" ]]; then
     "Path to output the extracted property files. If '-' is passed stdout will \
 be used."
 fi
-if [[ "${COMMAND}" == "verify" ]]; then
+if [[ "${COMMAND}" == "verify" || "${COMMAND}" == "check" ]]; then
   DEFINE_string payload "" \
     "Path to the input payload file."
   DEFINE_string target_image "" \
@@ -366,18 +377,15 @@ extract_image_cros() {
   # updater supports a newer major version.
   FORCE_MAJOR_VERSION="1"
 
-  # When generating legacy Chrome OS images, we need to use "boot" and "system"
-  # for the partition names to be compatible with updating Brillo devices with
-  # Chrome OS images.
-  eval ${partitions_array}[boot]=\""${kernel}"\"
-  eval ${partitions_array}[system]=\""${root}"\"
+  eval ${partitions_array}[kernel]=\""${kernel}"\"
+  eval ${partitions_array}[root]=\""${root}"\"
 
   if [[ -n "${partitions_order}" ]]; then
-    eval "${partitions_order}=( \"system\" \"boot\" )"
+    eval "${partitions_order}=( \"root\" \"kernel\" )"
   fi
 
   local part varname
-  for part in boot system; do
+  for part in kernel root; do
     varname="${partitions_array}[${part}]"
     printf "md5sum of %s: " "${varname}"
     md5sum "${!varname}"
@@ -514,6 +522,24 @@ Disabling deltas for this source version."
   done
 }
 
+extract_payload_images() {
+  local payload_type=$1
+  echo "Extracting images for ${payload_type} update."
+
+  if [[ "${payload_type}" == "delta" ]]; then
+    extract_image "${FLAGS_source_image}" SRC_PARTITIONS
+  fi
+  extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
+}
+
+get_payload_type() {
+  if [[ -z "${FLAGS_source_image}" ]]; then
+    echo "full"
+  else
+    echo "delta"
+  fi
+}
+
 validate_generate() {
   [[ -n "${FLAGS_payload}" ]] ||
     die "You must specify an output filename with --payload FILENAME"
@@ -537,7 +563,7 @@ cmd_generate() {
 
   echo "Generating ${payload_type} update."
   # Common payload args:
-  GENERATOR_ARGS=( -out_file="${FLAGS_payload}" )
+  GENERATOR_ARGS=( --out_file="${FLAGS_payload}" )
 
   local part old_partitions="" new_partitions="" partition_names=""
   local old_mapfiles="" new_mapfiles=""
@@ -558,16 +584,16 @@ cmd_generate() {
 
   # Target image args:
   GENERATOR_ARGS+=(
-    -partition_names="${partition_names}"
-    -new_partitions="${new_partitions}"
-    -new_mapfiles="${new_mapfiles}"
+    --partition_names="${partition_names}"
+    --new_partitions="${new_partitions}"
+    --new_mapfiles="${new_mapfiles}"
   )
 
   if [[ "${payload_type}" == "delta" ]]; then
     # Source image args:
     GENERATOR_ARGS+=(
-      -old_partitions="${old_partitions}"
-      -old_mapfiles="${old_mapfiles}"
+      --old_partitions="${old_partitions}"
+      --old_mapfiles="${old_mapfiles}"
     )
     if [[ -n "${FORCE_MINOR_VERSION}" ]]; then
       GENERATOR_ARGS+=( --minor_version="${FORCE_MINOR_VERSION}" )
@@ -615,10 +641,10 @@ validate_hash() {
 
 cmd_hash() {
   "${GENERATOR}" \
-      -in_file="${FLAGS_unsigned_payload}" \
-      -signature_size="${FLAGS_signature_size}" \
-      -out_hash_file="${FLAGS_payload_hash_file}" \
-      -out_metadata_hash_file="${FLAGS_metadata_hash_file}"
+      --in_file="${FLAGS_unsigned_payload}" \
+      --signature_size="${FLAGS_signature_size}" \
+      --out_hash_file="${FLAGS_payload_hash_file}" \
+      --out_metadata_hash_file="${FLAGS_metadata_hash_file}"
 
   echo "Done generating hash."
 }
@@ -645,11 +671,11 @@ validate_sign() {
 
 cmd_sign() {
   GENERATOR_ARGS=(
-    -in_file="${FLAGS_unsigned_payload}"
-    -signature_size="${FLAGS_signature_size}"
-    -signature_file="${FLAGS_payload_signature_file}"
-    -metadata_signature_file="${FLAGS_metadata_signature_file}"
-    -out_file="${FLAGS_payload}"
+    --in_file="${FLAGS_unsigned_payload}"
+    --signature_size="${FLAGS_signature_size}"
+    --payload_signature_file="${FLAGS_payload_signature_file}"
+    --metadata_signature_file="${FLAGS_metadata_signature_file}"
+    --out_file="${FLAGS_payload}"
   )
 
   if [[ -n "${FLAGS_metadata_size_file}" ]]; then
@@ -670,11 +696,11 @@ validate_properties() {
 
 cmd_properties() {
   "${GENERATOR}" \
-      -in_file="${FLAGS_payload}" \
-      -properties_file="${FLAGS_properties_file}"
+      --in_file="${FLAGS_payload}" \
+      --properties_file="${FLAGS_properties_file}"
 }
 
-validate_verify() {
+validate_verify_and_check() {
   [[ -n "${FLAGS_payload}" ]] ||
     die "Error: you must specify an input filename with --payload FILENAME"
 
@@ -683,17 +709,8 @@ validate_verify() {
 }
 
 cmd_verify() {
-  local payload_type="delta"
-  if [[ -z "${FLAGS_source_image}" ]]; then
-    payload_type="full"
-  fi
-
-  echo "Extracting images for ${payload_type} update."
-
-  if [[ "${payload_type}" == "delta" ]]; then
-    extract_image "${FLAGS_source_image}" SRC_PARTITIONS
-  fi
-  extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
+  local payload_type=$(get_payload_type)
+  extract_payload_images ${payload_type}
 
   declare -A TMP_PARTITIONS
   for part in "${PARTITIONS_ORDER[@]}"; do
@@ -708,7 +725,7 @@ cmd_verify() {
 
   echo "Verifying ${payload_type} update."
   # Common payload args:
-  GENERATOR_ARGS=( -in_file="${FLAGS_payload}" )
+  GENERATOR_ARGS=( --in_file="${FLAGS_payload}" )
 
   local part old_partitions="" new_partitions="" partition_names=""
   for part in "${PARTITIONS_ORDER[@]}"; do
@@ -724,14 +741,14 @@ cmd_verify() {
 
   # Target image args:
   GENERATOR_ARGS+=(
-    -partition_names="${partition_names}"
-    -new_partitions="${new_partitions}"
+    --partition_names="${partition_names}"
+    --new_partitions="${new_partitions}"
   )
 
   if [[ "${payload_type}" == "delta" ]]; then
     # Source image args:
     GENERATOR_ARGS+=(
-      -old_partitions="${old_partitions}"
+      --old_partitions="${old_partitions}"
     )
   fi
 
@@ -759,6 +776,33 @@ ${GENERATOR_ARGS[@]}"
   fi
 }
 
+cmd_check() {
+  local payload_type=$(get_payload_type)
+  extract_payload_images ${payload_type}
+
+  local part dst_partitions="" src_partitions=""
+  for part in "${PARTITIONS_ORDER[@]}"; do
+    if [[ -n "${dst_partitions}" ]]; then
+      dst_partitions+=" "
+      src_partitions+=" "
+    fi
+    dst_partitions+="${DST_PARTITIONS[${part}]}"
+    src_partitions+="${SRC_PARTITIONS[${part}]:-}"
+  done
+
+  # Common payload args:
+  PAYCHECK_ARGS=( "${FLAGS_payload}" --type ${payload_type} \
+    --part_names ${PARTITIONS_ORDER[@]} \
+    --dst_part_paths ${dst_partitions} )
+
+  if [[ ! -z "${SRC_PARTITIONS[@]}" ]]; then
+    PAYCHECK_ARGS+=( --src_part_paths ${src_partitions} )
+  fi
+
+  echo "Checking ${payload_type} update."
+  check_update_payload ${PAYCHECK_ARGS[@]} --check
+}
+
 # Sanity check that the real generator exists:
 GENERATOR="$(which delta_generator || true)"
 [[ -x "${GENERATOR}" ]] || die "can't find delta_generator"
@@ -776,7 +820,10 @@ case "$COMMAND" in
   properties) validate_properties
               cmd_properties
               ;;
-  verify) validate_verify
+  verify) validate_verify_and_check
           cmd_verify
           ;;
+  check) validate_verify_and_check
+         cmd_check
+         ;;
 esac

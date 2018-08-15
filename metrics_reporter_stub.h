@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_METRICS_REPORTER_STUB_H_
 #define UPDATE_ENGINE_METRICS_REPORTER_STUB_H_
 
+#include <string>
+
 #include "update_engine/common/error_code.h"
 #include "update_engine/metrics_constants.h"
 #include "update_engine/metrics_reporter_interface.h"
@@ -32,6 +34,9 @@ class MetricsReporterStub : public MetricsReporterInterface {
   void Initialize() override {}
 
   void ReportRollbackMetrics(metrics::RollbackResult result) override {}
+
+  void ReportEnterpriseRollbackMetrics(
+      bool success, const std::string& rollback_version) override {}
 
   void ReportDailyMetrics(base::TimeDelta os_age) override {}
 
@@ -79,6 +84,12 @@ class MetricsReporterStub : public MetricsReporterInterface {
   void ReportTimeToReboot(int time_to_reboot_minutes) override {}
 
   void ReportInstallDateProvisioningSource(int source, int max) override {}
+
+  void ReportInternalErrorCode(ErrorCode error_code) override {}
+
+  void ReportKeyVersionMetrics(int kernel_min_version,
+                               int kernel_max_rollforward_version,
+                               bool kernel_max_rollforward_success) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MetricsReporterStub);

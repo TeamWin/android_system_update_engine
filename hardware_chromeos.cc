@@ -16,6 +16,8 @@
 
 #include "update_engine/hardware_chromeos.h"
 
+#include <utility>
+
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
@@ -180,6 +182,34 @@ string HardwareChromeOS::GetECVersion() const {
   return utils::ParseECVersion(input_line);
 }
 
+int HardwareChromeOS::GetMinKernelKeyVersion() const {
+  return VbGetSystemPropertyInt("tpm_kernver");
+}
+
+int HardwareChromeOS::GetMaxFirmwareKeyRollforward() const {
+  return VbGetSystemPropertyInt("firmware_max_rollforward");
+}
+
+bool HardwareChromeOS::SetMaxFirmwareKeyRollforward(
+    int firmware_max_rollforward) {
+  // Not all devices have this field yet. So first try to read
+  // it and if there is an error just fail.
+  if (GetMaxFirmwareKeyRollforward() == -1)
+    return false;
+
+  return VbSetSystemPropertyInt("firmware_max_rollforward",
+                                firmware_max_rollforward) == 0;
+}
+
+int HardwareChromeOS::GetMinFirmwareKeyVersion() const {
+  return VbGetSystemPropertyInt("tpm_fwver");
+}
+
+bool HardwareChromeOS::SetMaxKernelKeyRollforward(int kernel_max_rollforward) {
+  return VbSetSystemPropertyInt("kernel_max_rollforward",
+                                kernel_max_rollforward) == 0;
+}
+
 int HardwareChromeOS::GetPowerwashCount() const {
   int powerwash_count;
   base::FilePath marker_path = base::FilePath(kPowerwashSafeDirectory).Append(
@@ -277,7 +307,7 @@ bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
   return static_cast<bool>(active_ping);
 }
 
-void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
+bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
   int exit_code = 0;
   string output;
   vector<string> vpd_set_cmd = {
@@ -287,7 +317,7 @@ void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
     LOG(ERROR) << "Failed to set vpd key for " << kActivePingKey
                << " with exit code: " << exit_code
                << " with error: " << output;
-    return;
+    return false;
   }
 
   vector<string> vpd_dump_cmd = { "dump_vpd_log", "--force" };
@@ -296,7 +326,9 @@ void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
     LOG(ERROR) << "Failed to cache " << kActivePingKey<< " using dump_vpd_log"
                << " with exit code: " << exit_code
                << " with error: " << output;
+    return false;
   }
+  return true;
 }
 
 }  // namespace chromeos_update_engine

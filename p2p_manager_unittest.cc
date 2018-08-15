@@ -340,11 +340,6 @@ static bool CreateP2PFile(string p2p_dir, string file_name,
 
 // Check that sharing a *new* file works.
 TEST_F(P2PManagerTest, ShareFile) {
-  if (!test_utils::IsXAttrSupported(base::FilePath("/tmp"))) {
-    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
-                 << "Please update your system to support this feature.";
-    return;
-  }
   const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
 
   EXPECT_TRUE(manager_->FileShare("foo", kP2PTestFileSize));
@@ -362,11 +357,6 @@ TEST_F(P2PManagerTest, ShareFile) {
 
 // Check that making a shared file visible, does what is expected.
 TEST_F(P2PManagerTest, MakeFileVisible) {
-  if (!test_utils::IsXAttrSupported(base::FilePath("/tmp"))) {
-    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
-                 << "Please update your system to support this feature.";
-    return;
-  }
   const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
 
   // First, check that it's not visible.
@@ -388,12 +378,6 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
 
 // Check that we return the right values for existing files in P2P_DIR.
 TEST_F(P2PManagerTest, ExistingFiles) {
-  if (!test_utils::IsXAttrSupported(base::FilePath("/tmp"))) {
-    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
-                 << "Please update your system to support this feature.";
-    return;
-  }
-
   bool visible;
 
   // Check that errors are returned if the file does not exist

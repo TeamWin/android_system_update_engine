@@ -63,8 +63,8 @@ extern const uint64_t kMaxPayloadHeaderSize;
 // The kernel and rootfs partition names used by the BootControlInterface when
 // handling update payloads with a major version 1. The names of the updated
 // partitions are include in the payload itself for major version 2.
-extern const char kLegacyPartitionNameKernel[];
-extern const char kLegacyPartitionNameRoot[];
+extern const char kPartitionNameKernel[];
+extern const char kPartitionNameRoot[];
 
 extern const char kBspatchPath[];
 extern const char kDeltaMagic[4];
