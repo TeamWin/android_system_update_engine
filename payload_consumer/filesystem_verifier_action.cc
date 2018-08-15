@@ -98,12 +98,24 @@ void FilesystemVerifierAction::StartPartitionHashing() {
       partition_size_ = partition.target_size;
       break;
   }
-  LOG(INFO) << "Hashing partition " << partition_index_ << " ("
-            << partition.name << ") on device " << part_path;
+
   if (part_path.empty()) {
+    if (partition_size_ == 0) {
+      LOG(INFO) << "Skip hashing partition " << partition_index_ << " ("
+                << partition.name << ") because size is 0.";
+      partition_index_++;
+      StartPartitionHashing();
+      return;
+    }
+    LOG(ERROR) << "Cannot hash partition " << partition_index_ << " ("
+               << partition.name
+               << ") because its device path cannot be determined.";
     Cleanup(ErrorCode::kFilesystemVerifierError);
     return;
   }
+
+  LOG(INFO) << "Hashing partition " << partition_index_ << " ("
+            << partition.name << ") on device " << part_path;
 
   brillo::ErrorPtr error;
   src_stream_ = brillo::FileStream::Open(

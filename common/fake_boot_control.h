@@ -74,6 +74,13 @@ class FakeBootControl : public BootControlInterface {
     return true;
   }
 
+  bool InitPartitionMetadata(Slot slot,
+                             const PartitionSizes& partition_sizes) override {
+    return true;
+  }
+
+  void Cleanup() override {}
+
   // Setters
   void SetNumSlots(unsigned int num_slots) {
     num_slots_ = num_slots;

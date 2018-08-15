@@ -103,7 +103,8 @@ bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
       partition.source_path.clear();
     }
 
-    if (target_slot != BootControlInterface::kInvalidSlot) {
+    if (target_slot != BootControlInterface::kInvalidSlot &&
+        partition.target_size > 0) {
       result = boot_control->GetPartitionDevice(
           partition.name, target_slot, &partition.target_path) && result;
     } else {
