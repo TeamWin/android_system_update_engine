@@ -1231,6 +1231,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     return;
   }
 
+  LoadOrPersistUpdateFirstSeenAtPref();
+
   // If Omaha says to disable p2p, respect that
   if (output_object.disable_p2p_for_downloading) {
     LOG(INFO) << "Forcibly disabling use of p2p for downloading as "
@@ -1435,47 +1437,11 @@ bool OmahaRequestAction::ShouldDeferDownload(OmahaResponse* output_object) {
 OmahaRequestAction::WallClockWaitResult
 OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
     OmahaResponse* output_object) {
-  Time update_first_seen_at;
-  int64_t update_first_seen_at_int;
-
-  if (system_state_->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
-    if (system_state_->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
-                                         &update_first_seen_at_int)) {
-      // Note: This timestamp could be that of ANY update we saw in the past
-      // (not necessarily this particular update we're considering to apply)
-      // but never got to apply because of some reason (e.g. stop AU policy,
-      // updates being pulled out from Omaha, changes in target version prefix,
-      // new update being rolled out, etc.). But for the purposes of scattering
-      // it doesn't matter which update the timestamp corresponds to. i.e.
-      // the clock starts ticking the first time we see an update and we're
-      // ready to apply when the random wait period is satisfied relative to
-      // that first seen timestamp.
-      update_first_seen_at = Time::FromInternalValue(update_first_seen_at_int);
-      LOG(INFO) << "Using persisted value of UpdateFirstSeenAt: "
-                << utils::ToString(update_first_seen_at);
-    } else {
-      // This seems like an unexpected error where the persisted value exists
-      // but it's not readable for some reason. Just skip scattering in this
-      // case to be safe.
-     LOG(INFO) << "Not scattering as UpdateFirstSeenAt value cannot be read";
-     return kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
-    }
-  } else {
-    update_first_seen_at = system_state_->clock()->GetWallclockTime();
-    update_first_seen_at_int = update_first_seen_at.ToInternalValue();
-    if (system_state_->prefs()->SetInt64(kPrefsUpdateFirstSeenAt,
-                                         update_first_seen_at_int)) {
-      LOG(INFO) << "Persisted the new value for UpdateFirstSeenAt: "
-                << utils::ToString(update_first_seen_at);
-    } else {
-      // This seems like an unexpected error where the value cannot be
-      // persisted for some reason. Just skip scattering in this
-      // case to be safe.
-      LOG(INFO) << "Not scattering as UpdateFirstSeenAt value "
-                << utils::ToString(update_first_seen_at)
-                << " cannot be persisted";
-     return kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
-    }
+  Time update_first_seen_at = LoadOrPersistUpdateFirstSeenAtPref();
+  if (update_first_seen_at == base::Time()) {
+    LOG(INFO) << "Not scattering as UpdateFirstSeenAt value cannot be read or "
+                 "persisted";
+    return kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
   }
 
   TimeDelta elapsed_time =
@@ -1912,6 +1878,49 @@ void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
   // Report metrics
   system_state_->metrics_reporter()->ReportKeyVersionMetrics(
       min_kernel_version, max_kernel_rollforward, max_rollforward_set);
+}
+
+base::Time OmahaRequestAction::LoadOrPersistUpdateFirstSeenAtPref() const {
+  Time update_first_seen_at;
+  int64_t update_first_seen_at_int;
+  if (system_state_->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
+    if (system_state_->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
+                                         &update_first_seen_at_int)) {
+      // Note: This timestamp could be that of ANY update we saw in the past
+      // (not necessarily this particular update we're considering to apply)
+      // but never got to apply because of some reason (e.g. stop AU policy,
+      // updates being pulled out from Omaha, changes in target version prefix,
+      // new update being rolled out, etc.). But for the purposes of scattering
+      // it doesn't matter which update the timestamp corresponds to. i.e.
+      // the clock starts ticking the first time we see an update and we're
+      // ready to apply when the random wait period is satisfied relative to
+      // that first seen timestamp.
+      update_first_seen_at = Time::FromInternalValue(update_first_seen_at_int);
+      LOG(INFO) << "Using persisted value of UpdateFirstSeenAt: "
+                << utils::ToString(update_first_seen_at);
+    } else {
+      // This seems like an unexpected error where the persisted value exists
+      // but it's not readable for some reason.
+      LOG(INFO) << "UpdateFirstSeenAt value cannot be read";
+      return base::Time();
+    }
+  } else {
+    update_first_seen_at = system_state_->clock()->GetWallclockTime();
+    update_first_seen_at_int = update_first_seen_at.ToInternalValue();
+    if (system_state_->prefs()->SetInt64(kPrefsUpdateFirstSeenAt,
+                                         update_first_seen_at_int)) {
+      LOG(INFO) << "Persisted the new value for UpdateFirstSeenAt: "
+                << utils::ToString(update_first_seen_at);
+    } else {
+      // This seems like an unexpected error where the value cannot be
+      // persisted for some reason.
+      LOG(INFO) << "UpdateFirstSeenAt value "
+                << utils::ToString(update_first_seen_at)
+                << " cannot be persisted";
+      return base::Time();
+    }
+  }
+  return update_first_seen_at;
 }
 
 }  // namespace chromeos_update_engine

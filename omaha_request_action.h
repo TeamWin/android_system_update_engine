@@ -322,6 +322,11 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // enabled.
   void SetMaxKernelKeyVersionForRollback() const;
 
+  // Reads and returns the kPrefsUpdateFirstSeenAt pref if the pref currently
+  // exists. Otherwise saves the current wallclock time to the
+  // kPrefsUpdateFirstSeenAt pref and returns it as a base::Time object.
+  base::Time LoadOrPersistUpdateFirstSeenAtPref() const;
+
   // Global system context.
   SystemState* system_state_;
 

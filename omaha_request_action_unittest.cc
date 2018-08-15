@@ -1164,6 +1164,8 @@ TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(false);
   request_params_.set_waiting_period(TimeDelta::FromDays(2));
 
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+
   ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                                -1,
                                false,  // ping_only
@@ -1239,6 +1241,8 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   request_params_.set_min_update_checks_needed(0);
   request_params_.set_max_update_checks_allowed(0);
 
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+
   ASSERT_TRUE(TestUpdateCheck(
                       fake_update_response_.GetUpdateResponse(),
                       -1,
@@ -1263,6 +1267,8 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(true);
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
+
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_FALSE(TestUpdateCheck(
                       fake_update_response_.GetUpdateResponse(),
@@ -1301,6 +1307,8 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(true);
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
+
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsUpdateCheckCount, 5));
 
@@ -1343,6 +1351,8 @@ TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
   request_params_.set_wall_clock_based_wait_enabled(true);
   request_params_.set_waiting_period(TimeDelta::FromDays(6));
   request_params_.set_update_check_count_wait_enabled(false);
+
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsWallClockStagingWaitPeriod, 6));
   // This should not prevent scattering due to staging.
@@ -3006,6 +3016,53 @@ TEST_F(OmahaRequestActionTest, RollbackResponseValidVersionsParsed) {
   EXPECT_EQ(2, response.rollback_key_version.firmware);
   EXPECT_EQ(3, response.rollback_key_version.kernel_key);
   EXPECT_EQ(4, response.rollback_key_version.kernel);
+}
+
+TEST_F(OmahaRequestActionTest,
+       TestUpdateFirstSeenAtPrefPersistedIfUpdateExists) {
+  FakeClock fake_clock;
+  Time now = Time::Now();
+  fake_clock.SetWallclockTime(now);
+  fake_system_state_.set_clock(&fake_clock);
+
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
+
+  int64_t stored_first_seen_at_time;
+  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt,
+                                   &stored_first_seen_at_time));
+  EXPECT_EQ(now.ToInternalValue(), stored_first_seen_at_time);
+}
+
+TEST_F(OmahaRequestActionTest,
+       TestUpdateFirstSeenAtPrefNotPersistedIfUpdateFails) {
+  FakeClock fake_clock;
+  Time now = Time::Now();
+  fake_clock.SetWallclockTime(now);
+  fake_system_state_.set_clock(&fake_clock);
+
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
 }
 
 }  // namespace chromeos_update_engine

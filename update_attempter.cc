@@ -31,6 +31,7 @@
 #include <base/rand_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <brillo/bind_lambda.h>
 #include <brillo/data_encoding.h>
 #include <brillo/errors/error_codes.h>
@@ -982,6 +983,8 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
   if (code == ErrorCode::kSuccess) {
     WriteUpdateCompletedMarker();
+    ReportTimeToUpdateAppliedMetric();
+
     prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
     prefs_->SetString(kPrefsPreviousVersion,
                       omaha_request_params_->app_version());
@@ -1609,6 +1612,28 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
   LOG(INFO)
       << "Developer features disabled; disallowing custom update sources.";
   return false;
+}
+
+void UpdateAttempter::ReportTimeToUpdateAppliedMetric() {
+  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  if (device_policy && device_policy->IsEnterpriseEnrolled()) {
+    vector<policy::DevicePolicy::WeeklyTimeInterval> parsed_intervals;
+    bool has_time_restrictions =
+        device_policy->GetDisallowedTimeIntervals(&parsed_intervals);
+
+    int64_t update_first_seen_at_int;
+    if (system_state_->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
+      if (system_state_->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
+                                           &update_first_seen_at_int)) {
+        TimeDelta update_delay =
+            system_state_->clock()->GetWallclockTime() -
+            Time::FromInternalValue(update_first_seen_at_int);
+        system_state_->metrics_reporter()
+            ->ReportEnterpriseUpdateSeenToDownloadDays(has_time_restrictions,
+                                                       update_delay.InDays());
+      }
+    }
+  }
 }
 
 }  // namespace chromeos_update_engine

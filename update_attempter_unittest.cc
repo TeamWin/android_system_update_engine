@@ -1422,4 +1422,84 @@ TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackFailure) {
   attempter_.ProcessingDone(nullptr, ErrorCode::kRollbackNotPossible);
 }
 
+TEST_F(UpdateAttempterTest, TimeToUpdateAppliedMetricFailure) {
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(_, _))
+      .Times(0);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kOmahaUpdateDeferredPerPolicy);
+}
+
+TEST_F(UpdateAttempterTest, TimeToUpdateAppliedOnNonEnterprise) {
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
+  fake_system_state_.set_device_policy(device_policy.get());
+  // Make device policy return that this is not enterprise enrolled
+  EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(false));
+
+  // Ensure that the metric is not recorded.
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(_, _))
+      .Times(0);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest,
+       TimeToUpdateAppliedWithTimeRestrictionMetricSuccess) {
+  constexpr int kDaysToUpdate = 15;
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
+  fake_system_state_.set_device_policy(device_policy.get());
+  // Make device policy return that this is enterprise enrolled
+  EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(true));
+  // Pretend that there's a time restriction policy in place
+  EXPECT_CALL(*device_policy, GetDisallowedTimeIntervals(_))
+      .WillOnce(Return(true));
+
+  FakePrefs fake_prefs;
+  Time update_first_seen_at = Time::Now();
+  fake_prefs.SetInt64(kPrefsUpdateFirstSeenAt,
+                      update_first_seen_at.ToInternalValue());
+
+  FakeClock fake_clock;
+  Time update_finished_at =
+      update_first_seen_at + TimeDelta::FromDays(kDaysToUpdate);
+  fake_clock.SetWallclockTime(update_finished_at);
+
+  fake_system_state_.set_clock(&fake_clock);
+  fake_system_state_.set_prefs(&fake_prefs);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(true, kDaysToUpdate))
+      .Times(1);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest,
+       TimeToUpdateAppliedWithoutTimeRestrictionMetricSuccess) {
+  constexpr int kDaysToUpdate = 15;
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
+  fake_system_state_.set_device_policy(device_policy.get());
+  // Make device policy return that this is enterprise enrolled
+  EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(true));
+  // Pretend that there's no time restriction policy in place
+  EXPECT_CALL(*device_policy, GetDisallowedTimeIntervals(_))
+      .WillOnce(Return(false));
+
+  FakePrefs fake_prefs;
+  Time update_first_seen_at = Time::Now();
+  fake_prefs.SetInt64(kPrefsUpdateFirstSeenAt,
+                      update_first_seen_at.ToInternalValue());
+
+  FakeClock fake_clock;
+  Time update_finished_at =
+      update_first_seen_at + TimeDelta::FromDays(kDaysToUpdate);
+  fake_clock.SetWallclockTime(update_finished_at);
+
+  fake_system_state_.set_clock(&fake_clock);
+  fake_system_state_.set_prefs(&fake_prefs);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(false, kDaysToUpdate))
+      .Times(1);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
 }  // namespace chromeos_update_engine

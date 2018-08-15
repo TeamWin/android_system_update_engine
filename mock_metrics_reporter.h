@@ -89,6 +89,9 @@ class MockMetricsReporter : public MetricsReporterInterface {
                void(int kernel_min_version,
                     int kernel_max_rollforward_version,
                     bool kernel_max_rollforward_success));
+
+  MOCK_METHOD2(ReportEnterpriseUpdateSeenToDownloadDays,
+               void(bool has_time_restriction_policy, int time_to_update_days));
 };
 
 }  // namespace chromeos_update_engine

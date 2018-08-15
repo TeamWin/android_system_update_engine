@@ -413,6 +413,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   void CalculateStagingParams(bool interactive);
 
+  // Reports a metric that tracks the time from when the update was first seen
+  // to the time when the update was finally downloaded and applied. This metric
+  // will only be reported for enterprise enrolled devices.
+  void ReportTimeToUpdateAppliedMetric();
+
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.
