@@ -41,7 +41,7 @@ constexpr char kMetricsUpdateEngineAttemptNumber[] =
 constexpr char kMetricsUpdateEngineAttemptResult[] =
     "ota_update_engine_attempt_result";
 constexpr char kMetricsUpdateEngineAttemptDurationInMinutes[] =
-    "ota_update_engine_attempt_duration_boottime_in_minutes";
+    "ota_update_engine_attempt_fixed_duration_boottime_in_minutes";
 constexpr char kMetricsUpdateEngineAttemptDurationUptimeInMinutes[] =
     "ota_update_engine_attempt_duration_monotonic_in_minutes";
 constexpr char kMetricsUpdateEngineAttemptErrorCode[] =
@@ -51,12 +51,12 @@ constexpr char kMetricsUpdateEngineAttemptPayloadSizeMiB[] =
 constexpr char kMetricsUpdateEngineAttemptPayloadType[] =
     "ota_update_engine_attempt_payload_type";
 constexpr char kMetricsUpdateEngineAttemptCurrentBytesDownloadedMiB[] =
-    "ota_update_engine_attempt_current_bytes_downloaded_mib";
+    "ota_update_engine_attempt_fixed_current_bytes_downloaded_mib";
 
 constexpr char kMetricsUpdateEngineSuccessfulUpdateAttemptCount[] =
     "ota_update_engine_successful_update_attempt_count";
 constexpr char kMetricsUpdateEngineSuccessfulUpdateTotalDurationInMinutes[] =
-    "ota_update_engine_successful_update_total_duration_in_minutes";
+    "ota_update_engine_successful_update_fixed_total_duration_in_minutes";
 constexpr char kMetricsUpdateEngineSuccessfulUpdatePayloadSizeMiB[] =
     "ota_update_engine_successful_update_payload_size_mib";
 constexpr char kMetricsUpdateEngineSuccessfulUpdatePayloadType[] =
@@ -109,7 +109,7 @@ void MetricsReporterAndroid::ReportUpdateAttemptDownloadMetrics(
     metrics::DownloadErrorCode /* payload_download_error_code */,
     metrics::ConnectionType /* connection_type */) {
   LogHistogram(metrics::kMetricsUpdateEngineAttemptCurrentBytesDownloadedMiB,
-               payload_bytes_downloaded);
+               payload_bytes_downloaded / kNumBytesInOneMiB);
 }
 
 void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
