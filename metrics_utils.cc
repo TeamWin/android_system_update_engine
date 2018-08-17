@@ -366,8 +366,17 @@ void SetUpdateTimestampStart(const Time& update_start_time,
   CHECK(prefs);
   prefs->SetInt64(kPrefsUpdateTimestampStart,
                   update_start_time.ToInternalValue());
-  LOG(INFO) << "Update Timestamp Start = "
+  LOG(INFO) << "Update Monotonic Timestamp Start = "
             << utils::ToString(update_start_time);
+}
+
+void SetUpdateBootTimestampStart(const base::Time& update_start_boot_time,
+                                 PrefsInterface* prefs) {
+  CHECK(prefs);
+  prefs->SetInt64(kPrefsUpdateBootTimestampStart,
+                  update_start_boot_time.ToInternalValue());
+  LOG(INFO) << "Update Boot Timestamp Start = "
+            << utils::ToString(update_start_boot_time);
 }
 
 bool LoadAndReportTimeToReboot(MetricsReporterInterface* metrics_reporter,

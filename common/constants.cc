@@ -90,6 +90,7 @@ const char kPrefsUpdateStateSHA256Context[] = "update-state-sha-256-context";
 const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";
 const char kPrefsUpdateStateSignedSHA256Context[] =
     "update-state-signed-sha-256-context";
+const char kPrefsUpdateBootTimestampStart[] = "update-boot-timestamp-start";
 const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
 const char kPrefsUrlSwitchCount[] = "url-switch-count";
 const char kPrefsWallClockScatteringWaitPeriod[] = "wall-clock-wait-period";

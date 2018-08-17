@@ -87,9 +87,15 @@ void SetPayloadAttemptNumber(int64_t payload_attempt_number,
 // Persists the finished time of an update to the |kPrefsSystemUpdatedMarker|.
 void SetSystemUpdatedMarker(ClockInterface* clock, PrefsInterface* prefs);
 
-// Persists the start time of an update to |kPrefsUpdateTimestampStart|.
+// Persists the start monotonic time of an update to
+// |kPrefsUpdateTimestampStart|.
 void SetUpdateTimestampStart(const base::Time& update_start_time,
                              PrefsInterface* prefs);
+
+// Persists the start boot time of an update to
+// |kPrefsUpdateBootTimestampStart|.
+void SetUpdateBootTimestampStart(const base::Time& update_start_boot_time,
+                                 PrefsInterface* prefs);
 
 // Called at program startup if the device booted into a new update.
 // The |time_to_reboot| parameter contains the (monotonic-clock) duration

@@ -669,10 +669,12 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
 
   metrics::AttemptResult attempt_result =
       metrics_utils::GetAttemptResult(error_code);
-  Time attempt_start_time = Time::FromInternalValue(
+  Time boot_time_start = Time::FromInternalValue(
+      metrics_utils::GetPersistedValue(kPrefsUpdateBootTimestampStart, prefs_));
+  Time monotonic_time_start = Time::FromInternalValue(
       metrics_utils::GetPersistedValue(kPrefsUpdateTimestampStart, prefs_));
-  TimeDelta duration = clock_->GetBootTime() - attempt_start_time;
-  TimeDelta duration_uptime = clock_->GetMonotonicTime() - attempt_start_time;
+  TimeDelta duration = clock_->GetBootTime() - boot_time_start;
+  TimeDelta duration_uptime = clock_->GetMonotonicTime() - monotonic_time_start;
 
   metrics_reporter_->ReportUpdateAttemptMetrics(
       nullptr,  // system_state
@@ -791,8 +793,8 @@ void UpdateAttempterAndroid::UpdatePrefsOnUpdateStart(bool is_resume) {
         metrics_utils::GetPersistedValue(kPrefsPayloadAttemptNumber, prefs_);
     metrics_utils::SetPayloadAttemptNumber(attempt_number + 1, prefs_);
   }
-  Time update_start_time = clock_->GetMonotonicTime();
-  metrics_utils::SetUpdateTimestampStart(update_start_time, prefs_);
+  metrics_utils::SetUpdateTimestampStart(clock_->GetMonotonicTime(), prefs_);
+  metrics_utils::SetUpdateBootTimestampStart(clock_->GetBootTime(), prefs_);
 }
 
 void UpdateAttempterAndroid::ClearMetricsPrefs() {
@@ -802,6 +804,7 @@ void UpdateAttempterAndroid::ClearMetricsPrefs() {
   prefs_->Delete(kPrefsPayloadAttemptNumber);
   prefs_->Delete(kPrefsSystemUpdatedMarker);
   prefs_->Delete(kPrefsUpdateTimestampStart);
+  prefs_->Delete(kPrefsUpdateBootTimestampStart);
 }
 
 }  // namespace chromeos_update_engine
