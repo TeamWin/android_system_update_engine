@@ -492,7 +492,6 @@ LOCAL_C_INCLUDES := \
 LOCAL_C_INCLUDES += \
     external/cros/system_api/dbus
 LOCAL_SRC_FILES := \
-    boot_control_recovery.cc \
     hardware_android.cc \
     metrics_reporter_stub.cc \
     metrics_utils.cc \
@@ -507,11 +506,12 @@ LOCAL_SRC_FILES := \
 # will be used and installed.
 LOCAL_SHARED_LIBRARIES := \
     libbase.recovery \
-    libbootloader_message.recovery \
     liblog.recovery \
+    $(filter-out libprotobuf-cpp-lite.recovery libhwbinder.recovery,$(ue_libupdate_engine_boot_control_exported_shared_libraries:=.recovery)) \
     $(filter-out libprotobuf-cpp-lite.recovery,$(ue_libpayload_consumer_exported_shared_libraries:=.recovery))
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
+    libupdate_engine_boot_control \
     update_metadata-protos \
     $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries) \
@@ -527,19 +527,9 @@ LOCAL_STATIC_LIBRARIES += \
     libgtest_prod \
     libprotobuf-cpp-lite
 
-ifeq ($(strip $(PRODUCT_STATIC_BOOT_CONTROL_HAL)),)
-# No static boot_control HAL defined, so no sideload support. We use a fake
-# boot_control HAL to allow compiling update_engine_sideload for test purposes.
-ifeq ($(strip $(AB_OTA_UPDATER)),true)
-$(warning No PRODUCT_STATIC_BOOT_CONTROL_HAL configured but AB_OTA_UPDATER is \
-true, no update sideload support.)
-endif  # AB_OTA_UPDATER == true
-LOCAL_SRC_FILES += \
-    boot_control_recovery_stub.cc
-else  # PRODUCT_STATIC_BOOT_CONTROL_HAL != ""
-LOCAL_STATIC_LIBRARIES += \
-    $(PRODUCT_STATIC_BOOT_CONTROL_HAL)
-endif  # PRODUCT_STATIC_BOOT_CONTROL_HAL != ""
+ifneq ($(strip $(PRODUCT_STATIC_BOOT_CONTROL_HAL)),)
+LOCAL_REQUIRED_MODULES += android.hardware.boot@1.0-impl-wrapper.recovery
+endif
 
 include $(BUILD_EXECUTABLE)
 
