@@ -211,6 +211,7 @@ ue_libupdate_engine_boot_control_exported_static_libraries := \
     $(ue_update_metadata_protos_exported_static_libraries)
 
 ue_libupdate_engine_boot_control_exported_shared_libraries := \
+    libbootloader_message \
     libhwbinder \
     libhidlbase \
     libutils \
@@ -258,7 +259,6 @@ ue_libupdate_engine_exported_shared_libraries := \
     libcurl \
     libcutils \
     libexpat \
-    libfs_mgr \
     liblog \
     libmetrics \
     libssl \
@@ -339,8 +339,7 @@ LOCAL_SRC_FILES := \
     update_manager/update_manager.cc \
     update_manager/update_time_restrictions_policy_impl.cc \
     update_manager/weekly_time.cc \
-    update_status_utils.cc \
-    utils_android.cc
+    update_status_utils.cc
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
@@ -381,7 +380,6 @@ ue_libupdate_engine_android_exported_shared_libraries := \
     libbrillo-binder \
     libcurl \
     libcutils \
-    libfs_mgr \
     liblog \
     libmetricslogger \
     libssl \
@@ -422,8 +420,7 @@ LOCAL_SRC_FILES += \
     proxy_resolver.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
-    update_status_utils.cc \
-    utils_android.cc
+    update_status_utils.cc
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # local_use_omaha == 1
@@ -499,8 +496,7 @@ LOCAL_SRC_FILES := \
     sideload_main.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
-    update_status_utils.cc \
-    utils_android.cc
+    update_status_utils.cc
 # Use commonly used shared libraries. libprotobuf-cpp-lite.so is filtered out,
 # as it doesn't look beneficial to be installed separately due to its size. Note
 # that we explicitly request their recovery variants, so that the expected files
@@ -508,7 +504,6 @@ LOCAL_SRC_FILES := \
 LOCAL_SHARED_LIBRARIES := \
     libbase.recovery \
     libbootloader_message.recovery \
-    libfs_mgr.recovery \
     liblog.recovery \
     $(filter-out libprotobuf-cpp-lite.recovery,$(ue_libpayload_consumer_exported_shared_libraries:=.recovery))
 LOCAL_STATIC_LIBRARIES := \
