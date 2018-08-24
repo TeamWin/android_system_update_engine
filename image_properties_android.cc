@@ -33,7 +33,6 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
-#include "update_engine/utils_android.h"
 
 using android::base::GetProperty;
 using std::string;
@@ -79,18 +78,23 @@ string GetStringWithDefault(const brillo::OsReleaseReader& osrelease,
 
 // Open misc partition for read or write and output the fd in |out_fd|.
 bool OpenMisc(bool write, int* out_fd) {
-  base::FilePath misc_device;
+  string misc_device;
   int flags = write ? O_WRONLY | O_SYNC : O_RDONLY;
   if (root_prefix) {
     // Use a file for unittest and create one if doesn't exist.
-    misc_device = base::FilePath(root_prefix).Append("misc");
+    misc_device = base::FilePath(root_prefix).Append("misc").value();
     if (write)
       flags |= O_CREAT;
-  } else if (!utils::DeviceForMountPoint("/misc", &misc_device)) {
-    return false;
+  } else {
+    string err;
+    misc_device = get_bootloader_message_blk_device(&err);
+    if (misc_device.empty()) {
+      LOG(ERROR) << "Unable to get misc block device: " << err;
+      return false;
+    }
   }
 
-  int fd = HANDLE_EINTR(open(misc_device.value().c_str(), flags, 0600));
+  int fd = HANDLE_EINTR(open(misc_device.c_str(), flags, 0600));
   if (fd < 0) {
     PLOG(ERROR) << "Opening misc failed";
     return false;

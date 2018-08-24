@@ -16,14 +16,16 @@
 
 #include "update_engine/boot_control_android.h"
 
+#include <memory>
+#include <utility>
+
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
-#include <base/strings/string_util.h>
+#include <bootloader_message/bootloader_message.h>
 #include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/common/utils.h"
-#include "update_engine/utils_android.h"
 
 using std::string;
 
@@ -96,12 +98,14 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   // of misc and then finding an entry in /dev matching the sysfs
   // entry.
 
-  base::FilePath misc_device;
-  if (!utils::DeviceForMountPoint("/misc", &misc_device))
+  string err, misc_device = get_bootloader_message_blk_device(&err);
+  if (misc_device.empty()) {
+    LOG(ERROR) << "Unable to get misc block device: " << err;
     return false;
+  }
 
-  if (!utils::IsSymlink(misc_device.value().c_str())) {
-    LOG(ERROR) << "Device file " << misc_device.value() << " for /misc "
+  if (!utils::IsSymlink(misc_device.c_str())) {
+    LOG(ERROR) << "Device file " << misc_device << " for /misc "
                << "is not a symlink.";
     return false;
   }
@@ -118,7 +122,8 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
     return false;
   }
 
-  base::FilePath path = misc_device.DirName().Append(partition_name + suffix);
+  base::FilePath path =
+      base::FilePath(misc_device).DirName().Append(partition_name + suffix);
   if (!base::PathExists(path)) {
     LOG(ERROR) << "Device file " << path.value() << " does not exist.";
     return false;
