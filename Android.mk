@@ -194,11 +194,11 @@ LOCAL_C_INCLUDES := \
 LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
     $(ue_common_static_libraries) \
-    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := $(ue_libpayload_consumer_src_files)
 include $(BUILD_STATIC_LIBRARY)
@@ -211,6 +211,7 @@ ue_libupdate_engine_boot_control_exported_static_libraries := \
     $(ue_update_metadata_protos_exported_static_libraries)
 
 ue_libupdate_engine_boot_control_exported_shared_libraries := \
+    libbootloader_message \
     libhwbinder \
     libhidlbase \
     libutils \
@@ -247,21 +248,19 @@ ue_libupdate_engine_exported_c_includes := \
 ue_libupdate_engine_exported_static_libraries := \
     libpayload_consumer \
     update_metadata-protos \
-    libbootloader_message \
-    libbz \
-    libfs_mgr \
-    libbase \
-    liblog \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries) \
     libupdate_engine_boot_control \
     $(ue_libupdate_engine_boot_control_exported_static_libraries)
 ue_libupdate_engine_exported_shared_libraries := \
-    libmetrics \
-    libexpat \
+    libbase \
+    libbootloader_message \
     libbrillo-policy \
     libcurl \
     libcutils \
+    libexpat \
+    liblog \
+    libmetrics \
     libssl \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries) \
@@ -289,13 +288,13 @@ LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
     $(ue_common_static_libraries) \
-    $(ue_libupdate_engine_exported_static_libraries:-host=) \
-    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libupdate_engine_exported_shared_libraries:-host=) \
-    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     certificate_checker.cc \
@@ -340,8 +339,7 @@ LOCAL_SRC_FILES := \
     update_manager/update_manager.cc \
     update_manager/update_time_restrictions_policy_impl.cc \
     update_manager/weekly_time.cc \
-    update_status_utils.cc \
-    utils_android.cc
+    update_status_utils.cc
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
@@ -368,10 +366,6 @@ endif  # local_use_binder == 1
 # loop to apply payloads provided by the upper layer via a Binder interface.
 ue_libupdate_engine_android_exported_static_libraries := \
     libpayload_consumer \
-    libbootloader_message \
-    libfs_mgr \
-    libbase \
-    liblog \
     $(ue_libpayload_consumer_exported_static_libraries) \
     libupdate_engine_boot_control \
     $(ue_libupdate_engine_boot_control_exported_static_libraries)
@@ -379,11 +373,14 @@ ue_libupdate_engine_android_exported_shared_libraries := \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_libupdate_engine_boot_control_exported_shared_libraries) \
     libandroid_net \
+    libbase \
     libbinder \
     libbinderwrapper \
+    libbootloader_message \
     libbrillo-binder \
-    libcutils \
     libcurl \
+    libcutils \
+    liblog \
     libmetricslogger \
     libssl \
     libutils
@@ -403,10 +400,10 @@ LOCAL_C_INCLUDES += \
     external/cros/system_api/dbus
 LOCAL_STATIC_LIBRARIES := \
     $(ue_common_static_libraries) \
-    $(ue_libupdate_engine_android_exported_static_libraries:-host=)
+    $(ue_libupdate_engine_android_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES += \
     $(ue_common_shared_libraries) \
-    $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
+    $(ue_libupdate_engine_android_exported_shared_libraries)
 LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
     binder_bindings/android/os/IUpdateEngine.aidl \
@@ -423,8 +420,7 @@ LOCAL_SRC_FILES += \
     proxy_resolver.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
-    update_status_utils.cc \
-    utils_android.cc
+    update_status_utils.cc
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # local_use_omaha == 1
@@ -455,15 +451,15 @@ LOCAL_C_INCLUDES += \
     $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
-    $(ue_libupdate_engine_exported_static_libraries:-host=)
+    $(ue_libupdate_engine_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES += \
-    $(ue_libupdate_engine_exported_shared_libraries:-host=)
+    $(ue_libupdate_engine_exported_shared_libraries)
 else  # local_use_omaha == 1
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine_android \
-    $(ue_libupdate_engine_android_exported_static_libraries:-host=)
+    $(ue_libupdate_engine_android_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES += \
-    $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
+    $(ue_libupdate_engine_android_exported_shared_libraries)
 endif  # local_use_omaha == 1
 
 LOCAL_INIT_RC := update_engine.rc
@@ -500,8 +496,7 @@ LOCAL_SRC_FILES := \
     sideload_main.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
-    update_status_utils.cc \
-    utils_android.cc
+    update_status_utils.cc
 # Use commonly used shared libraries. libprotobuf-cpp-lite.so is filtered out,
 # as it doesn't look beneficial to be installed separately due to its size. Note
 # that we explicitly request their recovery variants, so that the expected files
@@ -509,14 +504,13 @@ LOCAL_SRC_FILES := \
 LOCAL_SHARED_LIBRARIES := \
     libbase.recovery \
     libbootloader_message.recovery \
-    libfs_mgr.recovery \
     liblog.recovery \
     $(filter-out libprotobuf-cpp-lite.recovery,$(ue_libpayload_consumer_exported_shared_libraries:=.recovery))
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
     $(ue_common_static_libraries) \
-    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 # We add the static versions of the shared libraries that are not installed to
 # recovery image due to size concerns. Need to include all the static library
@@ -636,7 +630,6 @@ ue_libpayload_generator_exported_static_libraries := \
     liblzma \
     libpayload_consumer \
     libpuffdiff \
-    libz \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
@@ -720,12 +713,12 @@ LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
     liblzma \
     $(ue_common_static_libraries) \
-    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libpayload_generator_exported_shared_libraries:-host=) \
-    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    $(ue_libpayload_generator_exported_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := $(ue_libpayload_generator_src_files)
 include $(BUILD_STATIC_LIBRARY)
@@ -776,12 +769,12 @@ LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     libpayload_generator \
     $(ue_common_static_libraries) \
-    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
-    $(ue_libpayload_generator_exported_static_libraries:-host=)
+    $(ue_libpayload_consumer_exported_static_libraries) \
+    $(ue_libpayload_generator_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
-    $(ue_libpayload_generator_exported_shared_libraries:-host=)
+    $(ue_libpayload_consumer_exported_shared_libraries) \
+    $(ue_libpayload_generator_exported_shared_libraries)
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
 
@@ -916,10 +909,10 @@ LOCAL_STATIC_LIBRARIES := \
     libgmock \
     libchrome_test_helpers \
     $(ue_common_static_libraries) \
-    $(ue_libpayload_generator_exported_static_libraries:-host=)
+    $(ue_libpayload_generator_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libpayload_generator_exported_shared_libraries:-host=)
+    $(ue_libpayload_generator_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     certificate_checker_unittest.cc \
     common/action_pipe_unittest.cc \
@@ -978,9 +971,9 @@ LOCAL_C_INCLUDES += \
     $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
-    $(ue_libupdate_engine_exported_static_libraries:-host=)
+    $(ue_libupdate_engine_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES += \
-    $(ue_libupdate_engine_exported_shared_libraries:-host=)
+    $(ue_libupdate_engine_exported_shared_libraries)
 LOCAL_SRC_FILES += \
     common_service_unittest.cc \
     fake_system_state.cc \
@@ -1022,9 +1015,9 @@ LOCAL_SRC_FILES += \
 else  # local_use_omaha == 1
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine_android \
-    $(ue_libupdate_engine_android_exported_static_libraries:-host=)
+    $(ue_libupdate_engine_android_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES += \
-    $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
+    $(ue_libupdate_engine_android_exported_shared_libraries)
 LOCAL_SRC_FILES += \
     update_attempter_android_unittest.cc
 endif  # local_use_omaha == 1
