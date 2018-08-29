@@ -2506,7 +2506,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                metrics::DownloadErrorCode::kUnset,
                                nullptr,  // response
                                &post_data));
-  // convert post_data to string
+  // Convert post_data to string.
   string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(string::npos, post_str.find(
       "appid=\"{11111111-1111-1111-1111-111111111111}\" "
@@ -3056,6 +3056,30 @@ TEST_F(OmahaRequestActionTest,
                               nullptr));
   EXPECT_FALSE(response.update_exists);
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
+}
+
+TEST_F(OmahaRequestActionTest, InstallTest) {
+  OmahaResponse response;
+  request_params_.set_dlc_ids({"dlc_no_0", "dlc_no_1"});
+  brillo::Blob post_data;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              true,   // is_consumer_device
+                              0,      // rollback_allowed_milestones
+                              false,  // is_policy_loaded
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              &post_data));
+  // Convert post_data to string.
+  string post_str(post_data.begin(), post_data.end());
+  for (const auto& dlc_id : request_params_.dlc_ids()) {
+    EXPECT_NE(string::npos,
+              post_str.find("appid=\"test-app-id_" + dlc_id + "\""));
+  }
 }
 
 }  // namespace chromeos_update_engine

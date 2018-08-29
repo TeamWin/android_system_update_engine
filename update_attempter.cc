@@ -159,9 +159,9 @@ void UpdateAttempter::Init() {
     status_ = UpdateStatus::IDLE;
 }
 
-void UpdateAttempter::ScheduleUpdates() {
+bool UpdateAttempter::ScheduleUpdates() {
   if (IsUpdateRunningOrScheduled())
-    return;
+    return false;
 
   chromeos_update_manager::UpdateManager* const update_manager =
       system_state_->update_manager();
@@ -172,6 +172,7 @@ void UpdateAttempter::ScheduleUpdates() {
   // starvation due to a transient bug.
   update_manager->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   waiting_for_scheduled_check_ = true;
+  return true;
 }
 
 void UpdateAttempter::CertificateChecked(ServerToCheck server_to_check,
@@ -418,6 +419,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     // target channel.
     omaha_request_params_->UpdateDownloadChannel();
   }
+  // Set the DLC ID list.
+  omaha_request_params_->set_dlc_ids(dlc_ids_);
+  omaha_request_params_->set_is_install(is_install_);
 
   LOG(INFO) << "target_version_prefix = "
             << omaha_request_params_->target_version_prefix()
@@ -793,6 +797,8 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
 bool UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      UpdateAttemptFlags flags) {
+  dlc_ids_.clear();
+  is_install_ = false;
   bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
 
   if (interactive && status_ != UpdateStatus::IDLE) {
@@ -840,6 +846,37 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
     forced_update_pending_callback_->Run(true, interactive);
   }
 
+  return true;
+}
+
+bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_ids,
+                                      const string& omaha_url) {
+  dlc_ids_ = dlc_ids;
+  is_install_ = true;
+  forced_omaha_url_.clear();
+
+  // Certain conditions must be met to allow setting custom version and update
+  // server URLs. However, kScheduledAUTestURLRequest and kAUTestURLRequest are
+  // always allowed regardless of device state.
+  if (IsAnyUpdateSourceAllowed()) {
+    forced_omaha_url_ = omaha_url;
+  }
+  if (omaha_url == kScheduledAUTestURLRequest) {
+    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
+  } else if (omaha_url == kAUTestURLRequest) {
+    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
+  }
+
+  if (!ScheduleUpdates()) {
+    if (forced_update_pending_callback_.get()) {
+      // Make sure that a scheduling request is made prior to calling the forced
+      // update pending callback.
+      ScheduleUpdates();
+      forced_update_pending_callback_->Run(true, true);
+      return true;
+    }
+    return false;
+  }
   return true;
 }
 
@@ -982,7 +1019,10 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   attempt_error_code_ = utils::GetBaseErrorCode(code);
 
   if (code == ErrorCode::kSuccess) {
-    WriteUpdateCompletedMarker();
+    // For install operation, we do not mark update complete since we do not
+    // need reboot.
+    if (!is_install_)
+      WriteUpdateCompletedMarker();
     ReportTimeToUpdateAppliedMetric();
 
     prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);

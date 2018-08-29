@@ -402,6 +402,7 @@ string GetRequestXml(const OmahaEvent* event,
       .id = params->GetAppId(),
       .version = params->app_version(),
       .product_components = params->product_components()};
+  // TODO(xiaochu): send update check flag only when operation is update.
   string app_xml = GetAppXml(event,
                              params,
                              product_app,
@@ -417,6 +418,21 @@ string GetRequestXml(const OmahaEvent* event,
     app_xml += GetAppXml(event,
                          params,
                          system_app,
+                         ping_only,
+                         include_ping,
+                         ping_active_days,
+                         ping_roll_call_days,
+                         install_date_in_days,
+                         system_state);
+  }
+  // Create APP ID according to |dlc_id| (sticking the current AppID to the DLC
+  // ID with an underscode).
+  for (const auto& dlc_id : params->dlc_ids()) {
+    OmahaAppData dlc_app = {.id = params->GetAppId() + "_" + dlc_id,
+                            .version = params->app_version()};
+    app_xml += GetAppXml(event,
+                         params,
+                         dlc_app,
                          ping_only,
                          include_ping,
                          ping_active_days,

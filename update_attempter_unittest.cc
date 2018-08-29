@@ -59,6 +59,7 @@ using chromeos_update_manager::UpdateCheckParams;
 using policy::DevicePolicy;
 using std::string;
 using std::unique_ptr;
+using std::vector;
 using testing::_;
 using testing::DoAll;
 using testing::Field;
@@ -90,13 +91,14 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
-  void ScheduleUpdates() override {
+  bool ScheduleUpdates() override {
     schedule_updates_called_ = true;
     if (do_schedule_updates_) {
       UpdateAttempter::ScheduleUpdates();
     } else {
       LOG(INFO) << "[TEST] Update scheduling disabled.";
     }
+    return true;
   }
   void EnableScheduleUpdates() { do_schedule_updates_ = true; }
   void DisableScheduleUpdates() { do_schedule_updates_ = false; }
@@ -1171,6 +1173,19 @@ TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
   fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
   attempter_.CheckForUpdate("", "autest-scheduled", UpdateAttemptFlags::kNone);
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+}
+
+TEST_F(UpdateAttempterTest, CheckForInstallTest) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
+  attempter_.CheckForInstall({}, "autest");
+  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+
+  attempter_.CheckForInstall({}, "autest-scheduled");
+  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+
+  attempter_.CheckForInstall({}, "http://omaha.phishing");
+  EXPECT_EQ("", attempter_.forced_omaha_url());
 }
 
 TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {

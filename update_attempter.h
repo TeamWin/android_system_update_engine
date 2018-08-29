@@ -71,7 +71,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void Init();
 
   // Initiates scheduling of update checks.
-  virtual void ScheduleUpdates();
+  // Returns true if update check is scheduled.
+  virtual bool ScheduleUpdates();
 
   // Checks for update and, if a newer version is available, attempts to update
   // the system. Non-empty |in_app_version| or |in_update_url| prevents
@@ -146,6 +147,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   virtual bool CheckForUpdate(const std::string& app_version,
                               const std::string& omaha_url,
                               UpdateAttemptFlags flags);
+
+  // This is the version of CheckForUpdate called by AttemptInstall API.
+  virtual bool CheckForInstall(const std::vector<std::string>& dlc_ids,
+                               const std::string& omaha_url);
 
   // This is the internal entry point for going through a rollback. This will
   // attempt to run the postinstall on the non-active partition and set it as
@@ -517,6 +522,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // actually scheduled.
   std::string forced_app_version_;
   std::string forced_omaha_url_;
+
+  // A list of DLC IDs.
+  std::vector<std::string> dlc_ids_;
+  // Whether the operation is install (write to the current slot not the
+  // inactive slot).
+  bool is_install_;
 
   // If this is not TimeDelta(), then that means staging is turned on.
   base::TimeDelta staging_wait_time_;

@@ -26,6 +26,11 @@
       'deps': [
         'libbrillo-<(libbase_ver)',
         'libchrome-<(libbase_ver)',
+        # system_api depends on protobuf (or protobuf-lite). It must appear
+        # before protobuf here or the linker flags won't be in the right
+        # order.
+        'system_api',
+        'protobuf-lite',
       ],
       # The -DUSE_* flags are passed from platform2.py. We use sane defaults
       # here when these USE flags are not defined. You can set the default value
@@ -76,17 +81,6 @@
       'variables': {
         'proto_in_dir': '.',
         'proto_out_dir': 'include/update_engine',
-        'exported_deps': [
-          'protobuf-lite',
-        ],
-        'deps': ['<@(exported_deps)'],
-      },
-      'all_dependent_settings': {
-        'variables': {
-          'deps': [
-            '<@(exported_deps)',
-          ],
-        },
       },
       'sources': [
         'update_metadata.proto',
