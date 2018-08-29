@@ -146,6 +146,10 @@ string BoxedValue::ValuePrinter<RollbackToTargetVersion>(const void* value) {
       return "Disabled";
     case RollbackToTargetVersion::kRollbackWithFullPowerwash:
       return "Rollback with full powerwash";
+    case RollbackToTargetVersion::kRollbackAndRestoreIfPossible:
+      return "Rollback and restore if possible";
+    case RollbackToTargetVersion::kRollbackWithRestoreOnly:
+      return "Rollback with restore only";
     case RollbackToTargetVersion::kMaxValue:
       NOTREACHED();
       return "Max value";

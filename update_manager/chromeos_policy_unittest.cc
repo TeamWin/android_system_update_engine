@@ -278,6 +278,18 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAllowed) {
       true, RollbackToTargetVersion::kRollbackWithFullPowerwash));
 }
 
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAndRestoreIfPossible) {
+  // We're doing rollback even if we don't support data save and restore.
+  EXPECT_TRUE(TestRollbackAllowed(
+      true, RollbackToTargetVersion::kRollbackAndRestoreIfPossible));
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackWithRestoreOnly) {
+  // We're not allowed to do rollback until we support data save and restore.
+  EXPECT_FALSE(TestRollbackAllowed(
+      true, RollbackToTargetVersion::kRollbackWithRestoreOnly));
+}
+
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackDisabled) {
   EXPECT_FALSE(TestRollbackAllowed(true, RollbackToTargetVersion::kDisabled));
 }
