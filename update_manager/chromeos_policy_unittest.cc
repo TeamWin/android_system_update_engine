@@ -273,9 +273,9 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   EXPECT_FALSE(result.interactive);
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAllowed) {
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAndPowerwash) {
   EXPECT_TRUE(TestRollbackAllowed(
-      true, RollbackToTargetVersion::kRollbackWithFullPowerwash));
+      true, RollbackToTargetVersion::kRollbackAndPowerwash));
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAndRestoreIfPossible) {
@@ -284,10 +284,10 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAndRestoreIfPossible) {
       true, RollbackToTargetVersion::kRollbackAndRestoreIfPossible));
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackWithRestoreOnly) {
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackOnlyIfRestorePossible) {
   // We're not allowed to do rollback until we support data save and restore.
   EXPECT_FALSE(TestRollbackAllowed(
-      true, RollbackToTargetVersion::kRollbackWithRestoreOnly));
+      true, RollbackToTargetVersion::kRollbackOnlyIfRestorePossible));
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackDisabled) {
@@ -308,7 +308,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackAllowed) {
   SetKioskAppControlsChromeOsVersion();
 
   EXPECT_TRUE(TestRollbackAllowed(
-      true, RollbackToTargetVersion::kRollbackWithFullPowerwash));
+      true, RollbackToTargetVersion::kRollbackAndPowerwash));
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskRollbackDisabled) {

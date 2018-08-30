@@ -203,19 +203,20 @@ TEST(UmBoxedValueTest, RollbackToTargetVersionToString) {
             BoxedValue(
                 new RollbackToTargetVersion(RollbackToTargetVersion::kDisabled))
                 .ToString());
-  EXPECT_EQ("Rollback with full powerwash",
+  EXPECT_EQ("Rollback and powerwash",
             BoxedValue(new RollbackToTargetVersion(
-                           RollbackToTargetVersion::kRollbackWithFullPowerwash))
+                           RollbackToTargetVersion::kRollbackAndPowerwash))
                 .ToString());
   EXPECT_EQ(
       "Rollback and restore if possible",
       BoxedValue(new RollbackToTargetVersion(
                      RollbackToTargetVersion::kRollbackAndRestoreIfPossible))
           .ToString());
-  EXPECT_EQ("Rollback with restore only",
-            BoxedValue(new RollbackToTargetVersion(
-                           RollbackToTargetVersion::kRollbackWithRestoreOnly))
-                .ToString());
+  EXPECT_EQ(
+      "Rollback only if restore is possible",
+      BoxedValue(new RollbackToTargetVersion(
+                     RollbackToTargetVersion::kRollbackOnlyIfRestorePossible))
+          .ToString());
 }
 
 TEST(UmBoxedValueTest, SetConnectionTypeToString) {
