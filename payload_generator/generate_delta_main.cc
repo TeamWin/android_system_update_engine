@@ -589,6 +589,9 @@ int Main(int argc, char** argv) {
 
   payload_config.max_timestamp = FLAGS_max_timestamp;
 
+  if (payload_config.version.minor >= kVerityMinorPayloadVersion)
+    CHECK(payload_config.target.LoadVerityConfig());
+
   LOG(INFO) << "Generating " << (payload_config.is_delta ? "delta" : "full")
             << " update";
 

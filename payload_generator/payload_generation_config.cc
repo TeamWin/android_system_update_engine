@@ -33,6 +33,13 @@ bool PostInstallConfig::IsEmpty() const {
   return !run && path.empty() && filesystem_type.empty() && !optional;
 }
 
+bool VerityConfig::IsEmpty() const {
+  return hash_tree_data_extent.num_blocks() == 0 &&
+         hash_tree_extent.num_blocks() == 0 && hash_tree_algorithm.empty() &&
+         hash_tree_salt.empty() && fec_data_extent.num_blocks() == 0 &&
+         fec_extent.num_blocks() == 0 && fec_roots == 0;
+}
+
 bool PartitionConfig::ValidateExists() const {
   TEST_AND_RETURN_FALSE(!path.empty());
   TEST_AND_RETURN_FALSE(utils::FileExists(path.c_str()));
@@ -136,7 +143,8 @@ bool PayloadVersion::Validate() const {
                         minor == kSourceMinorPayloadVersion ||
                         minor == kOpSrcHashMinorPayloadVersion ||
                         minor == kBrotliBsdiffMinorPayloadVersion ||
-                        minor == kPuffdiffMinorPayloadVersion);
+                        minor == kPuffdiffMinorPayloadVersion ||
+                        minor == kVerityMinorPayloadVersion);
   return true;
 }
 
@@ -199,8 +207,9 @@ bool PayloadGenerationConfig::Validate() const {
         TEST_AND_RETURN_FALSE(part.ValidateExists());
         TEST_AND_RETURN_FALSE(part.size % block_size == 0);
       }
-      // Source partition should not have postinstall.
+      // Source partition should not have postinstall or verity config.
       TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
+      TEST_AND_RETURN_FALSE(part.verity.IsEmpty());
     }
 
     // If new_image_info is present, old_image_info must be present.
@@ -220,6 +229,8 @@ bool PayloadGenerationConfig::Validate() const {
       TEST_AND_RETURN_FALSE(rootfs_partition_size >= part.size);
     if (version.major == kChromeOSMajorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
+    if (version.minor < kVerityMinorPayloadVersion)
+      TEST_AND_RETURN_FALSE(part.verity.IsEmpty());
   }
 
   TEST_AND_RETURN_FALSE(hard_chunk_size == -1 ||

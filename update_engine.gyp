@@ -411,6 +411,7 @@
         'payload_generator/inplace_generator.cc',
         'payload_generator/mapfile_filesystem.cc',
         'payload_generator/payload_file.cc',
+        'payload_generator/payload_generation_config_chromeos.cc',
         'payload_generator/payload_generation_config.cc',
         'payload_generator/payload_signer.cc',
         'payload_generator/raw_filesystem.cc',

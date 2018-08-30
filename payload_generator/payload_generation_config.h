@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <brillo/key_value_store.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/filesystem_interface.h"
@@ -49,6 +50,34 @@ struct PostInstallConfig {
 
   // Whether this postinstall script should be ignored if it fails.
   bool optional = false;
+};
+
+// Data will be written to the payload and used for hash tree and FEC generation
+// at device update time.
+struct VerityConfig {
+  // Whether the verity config is empty.
+  bool IsEmpty() const;
+
+  // The extent for data covered by verity hash tree.
+  Extent hash_tree_data_extent;
+
+  // The extent to store verity hash tree.
+  Extent hash_tree_extent;
+
+  // The hash algorithm used in verity hash tree.
+  std::string hash_tree_algorithm;
+
+  // The salt used for verity hash tree.
+  brillo::Blob hash_tree_salt;
+
+  // The extent for data covered by FEC.
+  Extent fec_data_extent;
+
+  // The extent to store FEC.
+  Extent fec_extent;
+
+  // The number of FEC roots.
+  uint32_t fec_roots = 0;
 };
 
 struct PartitionConfig {
@@ -86,6 +115,7 @@ struct PartitionConfig {
   std::string name;
 
   PostInstallConfig postinstall;
+  VerityConfig verity;
 };
 
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
@@ -103,6 +133,9 @@ struct ImageConfig {
 
   // Load postinstall config from a key value store.
   bool LoadPostInstallConfig(const brillo::KeyValueStore& store);
+
+  // Load verity config by parsing the partition images.
+  bool LoadVerityConfig();
 
   // Returns whether the |image_info| field is empty.
   bool ImageInfoIsEmpty() const;
