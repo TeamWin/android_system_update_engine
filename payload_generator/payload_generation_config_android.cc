@@ -19,6 +19,7 @@
 #include <base/logging.h>
 #include <brillo/secure_blob.h>
 #include <libavb/libavb.h>
+#include <verity/hash_tree_builder.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_ranges.h"
@@ -55,9 +56,38 @@ bool AvbDescriptorCallback(const AvbDescriptor* descriptor, void* user_data) {
 
   TEST_AND_RETURN_FALSE(hashtree.hash_block_size ==
                         part->fs_interface->GetBlockSize());
+
+  // Generate hash tree based on the descriptor and verify that it matches
+  // the hash tree stored in the image.
+  auto hash_function =
+      HashTreeBuilder::HashFunction(part->verity.hash_tree_algorithm);
+  TEST_AND_RETURN_FALSE(hash_function != nullptr);
+  HashTreeBuilder hash_tree_builder(hashtree.data_block_size, hash_function);
+  TEST_AND_RETURN_FALSE(hash_tree_builder.Initialize(
+      hashtree.image_size, part->verity.hash_tree_salt));
+  TEST_AND_RETURN_FALSE(hash_tree_builder.CalculateSize(hashtree.image_size) ==
+                        hashtree.tree_size);
+
+  brillo::Blob buffer;
+  for (uint64_t offset = 0; offset < hashtree.image_size;) {
+    constexpr uint64_t kBufferSize = 1024 * 1024;
+    size_t bytes_to_read = std::min(kBufferSize, hashtree.image_size - offset);
+    TEST_AND_RETURN_FALSE(
+        utils::ReadFileChunk(part->path, offset, bytes_to_read, &buffer));
+    TEST_AND_RETURN_FALSE(
+        hash_tree_builder.Update(buffer.data(), buffer.size()));
+    offset += buffer.size();
+    buffer.clear();
+  }
+  TEST_AND_RETURN_FALSE(hash_tree_builder.BuildHashTree());
+  TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
+      part->path, hashtree.tree_offset, hashtree.tree_size, &buffer));
+  TEST_AND_RETURN_FALSE(hash_tree_builder.CheckHashTree(buffer));
+
   part->verity.hash_tree_extent = ExtentForBytes(
       hashtree.hash_block_size, hashtree.tree_offset, hashtree.tree_size);
 
+  // TODO(senj): Verify FEC data.
   part->verity.fec_data_extent =
       ExtentForBytes(hashtree.data_block_size, 0, hashtree.fec_offset);
   part->verity.fec_extent = ExtentForBytes(
