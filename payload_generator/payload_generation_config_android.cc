@@ -22,6 +22,7 @@
 #include <verity/hash_tree_builder.h>
 
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/verity_writer_android.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 
 namespace chromeos_update_engine {
@@ -87,7 +88,15 @@ bool AvbDescriptorCallback(const AvbDescriptor* descriptor, void* user_data) {
   part->verity.hash_tree_extent = ExtentForBytes(
       hashtree.hash_block_size, hashtree.tree_offset, hashtree.tree_size);
 
-  // TODO(senj): Verify FEC data.
+  TEST_AND_RETURN_FALSE(VerityWriterAndroid::EncodeFEC(part->path,
+                                                       0 /* data_offset */,
+                                                       hashtree.fec_offset,
+                                                       hashtree.fec_offset,
+                                                       hashtree.fec_size,
+                                                       hashtree.fec_num_roots,
+                                                       hashtree.data_block_size,
+                                                       true /* verify_mode */));
+
   part->verity.fec_data_extent =
       ExtentForBytes(hashtree.data_block_size, 0, hashtree.fec_offset);
   part->verity.fec_extent = ExtentForBytes(
