@@ -79,6 +79,7 @@ enum class ErrorCode : int {
   kNoUpdate = 53,
   kRollbackNotPossible = 54,
   kFirstActiveOmahaPingSentPersistenceError = 55,
+  kVerityCalculationError = 56,
 
   // VERY IMPORTANT! When adding new error codes:
   //

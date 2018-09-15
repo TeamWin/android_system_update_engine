@@ -29,6 +29,7 @@
 #include "update_engine/common/action.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/payload_consumer/install_plan.h"
+#include "update_engine/payload_consumer/verity_writer_interface.h"
 
 // This action will hash all the partitions of the target slot involved in the
 // update. The hashes are then verified against the ones in the InstallPlan.
@@ -50,7 +51,9 @@ enum class VerifierStep {
 
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
-  FilesystemVerifierAction() = default;
+  FilesystemVerifierAction()
+      : verity_writer_(verity_writer::CreateVerityWriter()) {}
+  ~FilesystemVerifierAction() override = default;
 
   void PerformAction() override;
   void TerminateProcessing() override;
@@ -95,7 +98,6 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Buffer for storing data we read.
   brillo::Blob buffer_;
 
-  bool read_done_{false};  // true if reached EOF on the input stream.
   bool cancelled_{false};  // true if the action has been cancelled.
 
   // The install plan we're passed in via the input pipe.
@@ -104,10 +106,18 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Calculates the hash of the data.
   std::unique_ptr<HashCalculator> hasher_;
 
-  // Reads and hashes this many bytes from the head of the input stream. This
-  // field is initialized from the corresponding InstallPlan::Partition size,
-  // when the partition starts to be hashed.
-  int64_t remaining_size_{0};
+  // Write verity data of the current partition.
+  std::unique_ptr<VerityWriterInterface> verity_writer_;
+
+  // Reads and hashes this many bytes from the head of the input stream. When
+  // the partition starts to be hashed, this field is initialized from the
+  // corresponding InstallPlan::Partition size which is the total size
+  // update_engine is expected to write, and may be smaller than the size of the
+  // partition in gpt.
+  uint64_t partition_size_{0};
+
+  // The byte offset that we are reading in the current partition.
+  uint64_t offset_{0};
 
   DISALLOW_COPY_AND_ASSIGN(FilesystemVerifierAction);
 };

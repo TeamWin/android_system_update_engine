@@ -101,6 +101,7 @@ struct InstallPlan {
     std::string target_path;
     uint64_t target_size{0};
     brillo::Blob target_hash;
+    uint32_t block_size{0};
 
     // Whether we should run the postinstall script from this partition and the
     // postinstall parameters.
@@ -108,6 +109,21 @@ struct InstallPlan {
     std::string postinstall_path;
     std::string filesystem_type;
     bool postinstall_optional{false};
+
+    // Verity hash tree and FEC config. See update_metadata.proto for details.
+    // All offsets and sizes are in bytes.
+    uint64_t hash_tree_data_offset{0};
+    uint64_t hash_tree_data_size{0};
+    uint64_t hash_tree_offset{0};
+    uint64_t hash_tree_size{0};
+    std::string hash_tree_algorithm;
+    brillo::Blob hash_tree_salt;
+
+    uint64_t fec_data_offset{0};
+    uint64_t fec_data_size{0};
+    uint64_t fec_offset{0};
+    uint64_t fec_size{0};
+    uint32_t fec_roots{0};
   };
   std::vector<Partition> partitions;
 
