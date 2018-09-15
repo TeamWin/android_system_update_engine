@@ -109,8 +109,10 @@ ue_libpayload_consumer_exported_static_libraries := \
     libbspatch \
     libbrotli \
     libpuffpatch \
+    libverity_tree \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
+    libbase \
     libcrypto \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
@@ -148,6 +150,7 @@ ue_libpayload_consumer_src_files := \
     payload_consumer/payload_metadata.cc \
     payload_consumer/payload_verifier.cc \
     payload_consumer/postinstall_runner_action.cc \
+    payload_consumer/verity_writer_android.cc \
     payload_consumer/xz_extent_writer.cc
 
 ifeq ($(local_use_fec),1)
@@ -941,6 +944,7 @@ LOCAL_SRC_FILES := \
     payload_consumer/file_writer_unittest.cc \
     payload_consumer/filesystem_verifier_action_unittest.cc \
     payload_consumer/postinstall_runner_action_unittest.cc \
+    payload_consumer/verity_writer_android_unittest.cc \
     payload_consumer/xz_extent_writer_unittest.cc \
     payload_generator/ab_generator_unittest.cc \
     payload_generator/blob_file_writer_unittest.cc \
