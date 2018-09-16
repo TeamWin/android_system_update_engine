@@ -248,6 +248,29 @@ message PartitionUpdate {
   // Whether a failure in the postinstall step for this partition should be
   // ignored.
   optional bool postinstall_optional = 9;
+
+  // On minor version 6 or newer, these fields are supported:
+
+  // The extent for data covered by verity hash tree.
+  optional Extent hash_tree_data_extent = 10;
+
+  // The extent to store verity hash tree.
+  optional Extent hash_tree_extent = 11;
+
+  // The hash algorithm used in verity hash tree.
+  optional string hash_tree_algorithm = 12;
+
+  // The salt used for verity hash tree.
+  optional bytes hash_tree_salt = 13;
+
+  // The extent for data covered by FEC.
+  optional Extent fec_data_extent = 14;
+
+  // The extent to store FEC.
+  optional Extent fec_extent = 15;
+
+  // The number of FEC roots.
+  optional uint32 fec_roots = 16 [default = 2];
 }
 
 message DeltaArchiveManifest {
