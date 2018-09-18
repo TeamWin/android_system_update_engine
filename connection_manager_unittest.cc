@@ -75,6 +75,9 @@ class ConnectionManagerTest : public ::testing::Test {
       const char* service_type,
       const char* physical_technology,
       ConnectionType expected_type);
+
+  void TestWithServiceDisconnected(ConnectionType expected_type);
+
   void TestWithServiceTethering(
       const char* service_tethering,
       ConnectionTethering expected_tethering);
@@ -170,6 +173,18 @@ void ConnectionManagerTest::TestWithServiceTethering(
       fake_shill_proxy_->GetManagerProxy());
 }
 
+void ConnectionManagerTest::TestWithServiceDisconnected(
+    ConnectionType expected_type) {
+  SetManagerReply("/", true);
+
+  ConnectionType type;
+  ConnectionTethering tethering;
+  EXPECT_TRUE(cmut_.GetConnectionProperties(&type, &tethering));
+  EXPECT_EQ(expected_type, type);
+  testing::Mock::VerifyAndClearExpectations(
+      fake_shill_proxy_->GetManagerProxy());
+}
+
 TEST_F(ConnectionManagerTest, SimpleTest) {
   TestWithServiceType(shill::kTypeEthernet, nullptr, ConnectionType::kEthernet);
   TestWithServiceType(shill::kTypeWifi, nullptr, ConnectionType::kWifi);
@@ -201,6 +216,10 @@ TEST_F(ConnectionManagerTest, TetheringTest) {
 
 TEST_F(ConnectionManagerTest, UnknownTest) {
   TestWithServiceType("foo", nullptr, ConnectionType::kUnknown);
+}
+
+TEST_F(ConnectionManagerTest, DisconnectTest) {
+  TestWithServiceDisconnected(ConnectionType::kDisconnected);
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverEthernetTest) {

@@ -161,6 +161,9 @@ TEST(UmBoxedValueTest, TimeDeltaToString) {
 }
 
 TEST(UmBoxedValueTest, ConnectionTypeToString) {
+  EXPECT_EQ(
+      "Disconnected",
+      BoxedValue(new ConnectionType(ConnectionType::kDisconnected)).ToString());
   EXPECT_EQ("ethernet",
             BoxedValue(new ConnectionType(ConnectionType::kEthernet))
             .ToString());
