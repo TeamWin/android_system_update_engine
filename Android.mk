@@ -969,6 +969,7 @@ LOCAL_SRC_FILES := \
     payload_generator/inplace_generator_unittest.cc \
     payload_generator/mapfile_filesystem_unittest.cc \
     payload_generator/payload_file_unittest.cc \
+    payload_generator/payload_generation_config_android_unittest.cc \
     payload_generator/payload_generation_config_unittest.cc \
     payload_generator/payload_signer_unittest.cc \
     payload_generator/squashfs_filesystem_unittest.cc \
