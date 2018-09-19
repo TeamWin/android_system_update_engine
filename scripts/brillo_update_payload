@@ -366,12 +366,11 @@ extract_image_cros() {
 
   cros_generate_update_payload --extract \
     --image "${image}" \
-    --kern_path "${kernel}" --root_path "${root}" \
-    --work_dir "${FLAGS_work_dir}" --outside_chroot
+    --kern_path "${kernel}" --root_path "${root}"
 
-  # Chrome OS uses major_version 1 payloads for all versions, even if the
-  # updater supports a newer major version.
-  FORCE_MAJOR_VERSION="1"
+  # Chrome OS now uses major_version 2 payloads for all boards.
+  # See crbug.com/794404 for more information.
+  FORCE_MAJOR_VERSION="2"
 
   eval ${partitions_array}[kernel]=\""${kernel}"\"
   eval ${partitions_array}[root]=\""${root}"\"
