@@ -109,6 +109,13 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
          kDeltaManifestSizeSize);
   manifest_size_ = be64toh(manifest_size_);  // switch big endian to host
 
+  metadata_size_ = manifest_offset + manifest_size_;
+  if (metadata_size_ < manifest_size_) {
+    // Overflow detected.
+    *error = ErrorCode::kDownloadInvalidMetadataSize;
+    return MetadataParseResult::kError;
+  }
+
   if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
     // Parse the metadata signature size.
     static_assert(
@@ -123,8 +130,13 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
            &payload[metadata_signature_size_offset],
            kDeltaMetadataSignatureSizeSize);
     metadata_signature_size_ = be32toh(metadata_signature_size_);
+
+    if (metadata_size_ + metadata_signature_size_ < metadata_size_) {
+      // Overflow detected.
+      *error = ErrorCode::kDownloadInvalidMetadataSize;
+      return MetadataParseResult::kError;
+    }
   }
-  metadata_size_ = manifest_offset + manifest_size_;
   return MetadataParseResult::kSuccess;
 }
 
