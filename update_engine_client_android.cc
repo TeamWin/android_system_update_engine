@@ -124,6 +124,14 @@ int UpdateEngineClientAndroid::OnInit() {
                 "A list of key-value pairs, one element of the list per line. "
                 "Used when --update is passed.");
 
+  DEFINE_bool(verify,
+              false,
+              "Given payload metadata, verify if the payload is applicable.");
+  DEFINE_string(metadata,
+                "/data/ota_package/metadata",
+                "The path to the update payload metadata. "
+                "Used when --verify is passed.");
+
   DEFINE_bool(suspend, false, "Suspend an ongoing update and exit.");
   DEFINE_bool(resume, false, "Resume a suspended update.");
   DEFINE_bool(cancel, false, "Cancel the ongoing update and exit.");
@@ -180,6 +188,15 @@ int UpdateEngineClientAndroid::OnInit() {
 
   if (FLAGS_reset_status) {
     return ExitWhenIdle(service_->resetStatus());
+  }
+
+  if (FLAGS_verify) {
+    bool applicable = false;
+    Status status = service_->verifyPayloadApplicable(
+        android::String16{FLAGS_metadata.data(), FLAGS_metadata.size()},
+        &applicable);
+    LOG(INFO) << "Payload is " << (applicable ? "" : "not ") << "applicable.";
+    return ExitWhenIdle(status);
   }
 
   if (FLAGS_follow) {
