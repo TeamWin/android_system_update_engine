@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# TODO: Rename these files to pass this check.
+# gyplint: disable=GypLintSourceFileNames
 {
   'variables': {
     'USE_chrome_network_proxy': '1',
