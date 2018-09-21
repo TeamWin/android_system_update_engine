@@ -146,19 +146,16 @@ struct FakeUpdateResponse {
                           : "") +
            "</packages>"
            "<actions><action event=\"postinstall\" MetadataSize=\"11" +
-           (multi_package ? ":22" : "") + "\" ChromeOSVersion=\"" + version +
-           "\" MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt +
+           (multi_package ? ":22" : "") + "\" MoreInfo=\"" + more_info_url +
+           "\" Prompt=\"" + prompt +
            "\" "
-           "IsDelta=\"true\" "
            "IsDeltaPayload=\"true" +
            (multi_package ? ":false" : "") +
            "\" "
            "MaxDaysToScatter=\"" +
            max_days_to_scatter +
            "\" "
-           "sha256=\"not-used\" "
-           "needsadmin=\"" +
-           needsadmin + "\" " +
+           "sha256=\"not-used\" " +
            (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
            (disable_p2p_for_downloading ? "DisableP2PForDownloading=\"true\" "
                                         : "") +
@@ -201,7 +198,6 @@ struct FakeUpdateResponse {
   string codebase2 = "http://code/base/2/";
   string filename = "file.signed";
   string hash = "4841534831323334";
-  string needsadmin = "false";
   uint64_t size = 123;
   string deadline = "";
   string max_days_to_scatter = "7";
@@ -1642,12 +1638,9 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
       "<packages><package hash=\"not-used\" name=\"f\" "
       "size=\"587\" hash_sha256=\"lkq34j5345\"/></packages>"
       "<actions><action event=\"postinstall\" "
-      "ChromeOSVersion=\"10.2.3.4\" "
       "Prompt=\"false\" "
-      "IsDelta=\"true\" "
       "IsDeltaPayload=\"false\" "
       "sha256=\"not-used\" "
-      "needsadmin=\"true\" "
       "/></actions></manifest></updatecheck></app></response>";
   LOG(INFO) << "Input Response = " << input_response;
 
