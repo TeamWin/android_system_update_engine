@@ -51,7 +51,9 @@ class UmRealTimeProviderTest : public ::testing::Test {
     now_exp.minute = 5;
     now_exp.second = 33;
     now_exp.millisecond = 675;
-    return Time::FromLocalExploded(now_exp);
+    Time time;
+    ignore_result(Time::FromLocalExploded(now_exp, &time));
+    return time;
   }
 
   FakeClock fake_clock_;
@@ -66,7 +68,8 @@ TEST_F(UmRealTimeProviderTest, CurrDateValid) {
   exploded.minute = 0;
   exploded.second = 0;
   exploded.millisecond = 0;
-  const Time expected = Time::FromLocalExploded(exploded);
+  Time expected;
+  ignore_result(Time::FromLocalExploded(exploded, &expected));
 
   fake_clock_.SetWallclockTime(now);
   UmTestUtils::ExpectVariableHasValue(expected, provider_->var_curr_date());

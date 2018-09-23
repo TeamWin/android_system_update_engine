@@ -57,7 +57,9 @@ class UmUpdateTimeRestrictionsPolicyImplTest : public UmPolicyTestBase {
       fake_state_.device_policy_provider()
           ->var_auto_launched_kiosk_app_id()
           ->reset(new string("myapp"));
-    fake_clock_.SetWallclockTime(Time::FromLocalExploded(exploded));
+    base::Time time;
+    CHECK(Time::FromLocalExploded(exploded, &time));
+    fake_clock_.SetWallclockTime(time);
     SetUpDefaultTimeProvider();
     fake_state_.device_policy_provider()
         ->var_disallowed_time_intervals()

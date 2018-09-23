@@ -43,7 +43,10 @@ class CurrDateVariable : public Variable<Time> {
     Time::Exploded now_exp;
     clock_->GetWallclockTime().LocalExplode(&now_exp);
     now_exp.hour = now_exp.minute = now_exp.second = now_exp.millisecond = 0;
-    return new Time(Time::FromLocalExploded(now_exp));
+    Time* now = new Time();
+    bool success = Time::FromLocalExploded(now_exp, now);
+    DCHECK(success);
+    return now;
   }
 
  private:
