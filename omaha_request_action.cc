@@ -62,38 +62,62 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-// List of custom pair tags that we interpret in the Omaha Response:
-static const char* kTagDeadline = "deadline";
-static const char* kTagDisablePayloadBackoff = "DisablePayloadBackoff";
-static const char* kTagVersion = "version";
+// List of custom attributes that we interpret in the Omaha response:
+constexpr char kAttrDeadline[] = "deadline";
+constexpr char kAttrDisableP2PForDownloading[] = "DisableP2PForDownloading";
+constexpr char kAttrDisableP2PForSharing[] = "DisableP2PForSharing";
+constexpr char kAttrDisablePayloadBackoff[] = "DisablePayloadBackoff";
+constexpr char kAttrVersion[] = "version";
 // Deprecated: "IsDelta"
-static const char* kTagIsDeltaPayload = "IsDeltaPayload";
-static const char* kTagMaxFailureCountPerUrl = "MaxFailureCountPerUrl";
-static const char* kTagMaxDaysToScatter = "MaxDaysToScatter";
+constexpr char kAttrIsDeltaPayload[] = "IsDeltaPayload";
+constexpr char kAttrMaxFailureCountPerUrl[] = "MaxFailureCountPerUrl";
+constexpr char kAttrMaxDaysToScatter[] = "MaxDaysToScatter";
 // Deprecated: "ManifestSignatureRsa"
 // Deprecated: "ManifestSize"
-static const char* kTagMetadataSignatureRsa = "MetadataSignatureRsa";
-static const char* kTagMetadataSize = "MetadataSize";
-static const char* kTagMoreInfo = "MoreInfo";
+constexpr char kAttrMetadataSignatureRsa[] = "MetadataSignatureRsa";
+constexpr char kAttrMetadataSize[] = "MetadataSize";
+constexpr char kAttrMoreInfo[] = "MoreInfo";
+constexpr char kAttrNoUpdate[] = "noupdate";
 // Deprecated: "NeedsAdmin"
-static const char* kTagPrompt = "Prompt";
-static const char* kTagDisableP2PForDownloading = "DisableP2PForDownloading";
-static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
-static const char* kTagPublicKeyRsa = "PublicKeyRsa";
-static const char* kTagPowerwash = "Powerwash";
+constexpr char kAttrPollInterval[] = "PollInterval";
+constexpr char kAttrPowerwash[] = "Powerwash";
+constexpr char kAttrPrompt[] = "Prompt";
+constexpr char kAttrPublicKeyRsa[] = "PublicKeyRsa";
 
-static const char* kOmahaUpdaterVersion = "0.1.0.0";
+// List of attributes that we interpret in the Omaha response:
+constexpr char kAttrAppId[] = "appid";
+constexpr char kAttrCodeBase[] = "codebase";
+constexpr char kAttrCohort[] = "cohort";
+constexpr char kAttrCohortHint[] = "cohorthint";
+constexpr char kAttrCohortName[] = "cohortname";
+constexpr char kAttrElapsedDays[] = "elapsed_days";
+constexpr char kAttrElapsedSeconds[] = "elapsed_seconds";
+constexpr char kAttrEvent[] = "event";
+constexpr char kAttrHashSha256[] = "hash_sha256";
+// Deprecated: "hash"; Although we still need to pass it from the server for
+// backward compatibility.
+constexpr char kAttrName[] = "name";
+// Deprecated: "sha256"; Although we still need to pass it from the server for
+// backward compatibility.
+constexpr char kAttrSize[] = "size";
+constexpr char kAttrStatus[] = "status";
+
+// List of values that we interpret in the Omaha response:
+constexpr char kValPostInstall[] = "postinstall";
+constexpr char kValNoUpdate[] = "noupdate";
+
+constexpr char kOmahaUpdaterVersion[] = "0.1.0.0";
 
 // X-Goog-Update headers.
-static const char* kXGoogleUpdateInteractivity = "X-Goog-Update-Interactivity";
-static const char* kXGoogleUpdateAppId = "X-Goog-Update-AppId";
-static const char* kXGoogleUpdateUpdater = "X-Goog-Update-Updater";
+constexpr char kXGoogleUpdateInteractivity[] = "X-Goog-Update-Interactivity";
+constexpr char kXGoogleUpdateAppId[] = "X-Goog-Update-AppId";
+constexpr char kXGoogleUpdateUpdater[] = "X-Goog-Update-Updater";
 
 // updatecheck attributes (without the underscore prefix).
-static const char* kEolAttr = "eol";
-static const char* kRollback = "rollback";
-static const char* kFirmwareVersion = "firmware_version";
-static const char* kKernelVersion = "kernel_version";
+constexpr char kAttrEol[] = "eol";
+constexpr char kAttrRollback[] = "rollback";
+constexpr char kAttrFirmwareVersion[] = "firmware_version";
+constexpr char kAttrKernelVersion[] = "kernel_version";
 
 namespace {
 
@@ -488,27 +512,27 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
 
   if (data->current_path == "/response/app") {
     OmahaParserData::App app;
-    if (attrs.find("appid") != attrs.end()) {
-      app.id = attrs["appid"];
+    if (attrs.find(kAttrAppId) != attrs.end()) {
+      app.id = attrs[kAttrAppId];
     }
-    if (attrs.find("cohort") != attrs.end()) {
+    if (attrs.find(kAttrCohort) != attrs.end()) {
       app.cohort_set = true;
-      app.cohort = attrs["cohort"];
+      app.cohort = attrs[kAttrCohort];
     }
-    if (attrs.find("cohorthint") != attrs.end()) {
+    if (attrs.find(kAttrCohortHint) != attrs.end()) {
       app.cohorthint_set = true;
-      app.cohorthint = attrs["cohorthint"];
+      app.cohorthint = attrs[kAttrCohortHint];
     }
-    if (attrs.find("cohortname") != attrs.end()) {
+    if (attrs.find(kAttrCohortName) != attrs.end()) {
       app.cohortname_set = true;
-      app.cohortname = attrs["cohortname"];
+      app.cohortname = attrs[kAttrCohortName];
     }
     data->apps.push_back(std::move(app));
   } else if (data->current_path == "/response/app/updatecheck") {
     if (!data->apps.empty())
-      data->apps.back().updatecheck_status = attrs["status"];
+      data->apps.back().updatecheck_status = attrs[kAttrStatus];
     if (data->updatecheck_poll_interval.empty())
-      data->updatecheck_poll_interval = attrs["PollInterval"];
+      data->updatecheck_poll_interval = attrs[kAttrPollInterval];
     // Omaha sends arbitrary key-value pairs as extra attributes starting with
     // an underscore.
     for (const auto& attr : attrs) {
@@ -517,27 +541,27 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
     }
   } else if (data->current_path == "/response/daystart") {
     // Get the install-date.
-    data->daystart_elapsed_days = attrs["elapsed_days"];
-    data->daystart_elapsed_seconds = attrs["elapsed_seconds"];
+    data->daystart_elapsed_days = attrs[kAttrElapsedDays];
+    data->daystart_elapsed_seconds = attrs[kAttrElapsedSeconds];
   } else if (data->current_path == "/response/app/updatecheck/urls/url") {
     // Look at all <url> elements.
     if (!data->apps.empty())
-      data->apps.back().url_codebase.push_back(attrs["codebase"]);
+      data->apps.back().url_codebase.push_back(attrs[kAttrCodeBase]);
   } else if (data->current_path ==
              "/response/app/updatecheck/manifest/packages/package") {
     // Look at all <package> elements.
     if (!data->apps.empty())
-      data->apps.back().packages.push_back({.name = attrs["name"],
-                                            .size = attrs["size"],
-                                            .hash = attrs["hash_sha256"]});
+      data->apps.back().packages.push_back({.name = attrs[kAttrName],
+                                            .size = attrs[kAttrSize],
+                                            .hash = attrs[kAttrHashSha256]});
   } else if (data->current_path == "/response/app/updatecheck/manifest") {
     // Get the version.
     if (!data->apps.empty())
-      data->apps.back().manifest_version = attrs[kTagVersion];
+      data->apps.back().manifest_version = attrs[kAttrVersion];
   } else if (data->current_path ==
              "/response/app/updatecheck/manifest/actions/action") {
     // We only care about the postinstall action.
-    if (attrs["event"] == "postinstall" && !data->apps.empty()) {
+    if (attrs[kAttrEvent] == kValPostInstall && !data->apps.empty()) {
       data->apps.back().action_postinstall_attrs = std::move(attrs);
     }
   }
@@ -852,7 +876,7 @@ bool UpdateLastPingDays(OmahaParserData *parser_data, PrefsInterface* prefs) {
 bool ParsePackage(OmahaParserData::App* app,
                   OmahaResponse* output_object,
                   ScopedActionCompleter* completer) {
-  if (app->updatecheck_status == "noupdate") {
+  if (app->updatecheck_status == kValNoUpdate) {
     if (!app->packages.empty()) {
       LOG(ERROR) << "No update in this <app> but <package> is not empty.";
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -872,17 +896,17 @@ bool ParsePackage(OmahaParserData::App* app,
   }
   LOG(INFO) << "Found " << app->url_codebase.size() << " url(s)";
   vector<string> metadata_sizes =
-      base::SplitString(app->action_postinstall_attrs[kTagMetadataSize],
+      base::SplitString(app->action_postinstall_attrs[kAttrMetadataSize],
                         ":",
                         base::TRIM_WHITESPACE,
                         base::SPLIT_WANT_ALL);
-  vector<string> metadata_signatures =
-      base::SplitString(app->action_postinstall_attrs[kTagMetadataSignatureRsa],
-                        ":",
-                        base::TRIM_WHITESPACE,
-                        base::SPLIT_WANT_ALL);
+  vector<string> metadata_signatures = base::SplitString(
+      app->action_postinstall_attrs[kAttrMetadataSignatureRsa],
+      ":",
+      base::TRIM_WHITESPACE,
+      base::SPLIT_WANT_ALL);
   vector<string> is_delta_payloads =
-      base::SplitString(app->action_postinstall_attrs[kTagIsDeltaPayload],
+      base::SplitString(app->action_postinstall_attrs[kAttrIsDeltaPayload],
                         ":",
                         base::TRIM_WHITESPACE,
                         base::SPLIT_WANT_ALL);
@@ -946,11 +970,11 @@ bool ParsePackage(OmahaParserData::App* app,
 void ParseRollbackVersions(OmahaParserData* parser_data,
                            OmahaResponse* output_object) {
   utils::ParseRollbackKeyVersion(
-      parser_data->updatecheck_attrs[kFirmwareVersion],
+      parser_data->updatecheck_attrs[kAttrFirmwareVersion],
       &output_object->rollback_key_version.firmware_key,
       &output_object->rollback_key_version.firmware);
   utils::ParseRollbackKeyVersion(
-      parser_data->updatecheck_attrs[kKernelVersion],
+      parser_data->updatecheck_attrs[kAttrKernelVersion],
       &output_object->rollback_key_version.kernel_key,
       &output_object->rollback_key_version.kernel);
 }
@@ -1020,7 +1044,7 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   // Rollback-related updatecheck attributes.
   // Defaults to false if attribute is not present.
   output_object->is_rollback =
-      ParseBool(parser_data->updatecheck_attrs[kRollback]);
+      ParseBool(parser_data->updatecheck_attrs[kAttrRollback]);
 
   // Parses the rollback versions of the current image. If the fields do not
   // exist they default to 0xffff for the 4 key versions.
@@ -1047,13 +1071,14 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
   output_object->update_exists = false;
   for (size_t i = 0; i < parser_data->apps.size(); i++) {
     const string& status = parser_data->apps[i].updatecheck_status;
-    if (status == "noupdate") {
+    if (status == kValNoUpdate) {
       // Don't update if any app has status="noupdate".
       LOG(INFO) << "No update for <app> " << i;
       output_object->update_exists = false;
       break;
     } else if (status == "ok") {
-      if (parser_data->apps[i].action_postinstall_attrs["noupdate"] == "true") {
+      if (parser_data->apps[i].action_postinstall_attrs[kAttrNoUpdate] ==
+          "true") {
         // noupdate="true" in postinstall attributes means it's an update to
         // self, only update if there's at least one app really have update.
         LOG(INFO) << "Update to self for <app> " << i;
@@ -1109,23 +1134,23 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
   }
 
   // Get the optional properties one by one.
-  output_object->more_info_url = attrs[kTagMoreInfo];
-  output_object->prompt = ParseBool(attrs[kTagPrompt]);
-  output_object->deadline = attrs[kTagDeadline];
-  output_object->max_days_to_scatter = ParseInt(attrs[kTagMaxDaysToScatter]);
+  output_object->more_info_url = attrs[kAttrMoreInfo];
+  output_object->prompt = ParseBool(attrs[kAttrPrompt]);
+  output_object->deadline = attrs[kAttrDeadline];
+  output_object->max_days_to_scatter = ParseInt(attrs[kAttrMaxDaysToScatter]);
   output_object->disable_p2p_for_downloading =
-      ParseBool(attrs[kTagDisableP2PForDownloading]);
+      ParseBool(attrs[kAttrDisableP2PForDownloading]);
   output_object->disable_p2p_for_sharing =
-      ParseBool(attrs[kTagDisableP2PForSharing]);
-  output_object->public_key_rsa = attrs[kTagPublicKeyRsa];
+      ParseBool(attrs[kAttrDisableP2PForSharing]);
+  output_object->public_key_rsa = attrs[kAttrPublicKeyRsa];
 
-  string max = attrs[kTagMaxFailureCountPerUrl];
+  string max = attrs[kAttrMaxFailureCountPerUrl];
   if (!base::StringToUint(max, &output_object->max_failure_count_per_url))
     output_object->max_failure_count_per_url = kDefaultMaxFailureCountPerUrl;
 
   output_object->disable_payload_backoff =
-      ParseBool(attrs[kTagDisablePayloadBackoff]);
-  output_object->powerwash_required = ParseBool(attrs[kTagPowerwash]);
+      ParseBool(attrs[kAttrDisablePayloadBackoff]);
+  output_object->powerwash_required = ParseBool(attrs[kAttrPowerwash]);
 
   return true;
 }
@@ -1620,7 +1645,7 @@ bool OmahaRequestAction::PersistCohortData(
 }
 
 bool OmahaRequestAction::PersistEolStatus(const map<string, string>& attrs) {
-  auto eol_attr = attrs.find(kEolAttr);
+  auto eol_attr = attrs.find(kAttrEol);
   if (eol_attr != attrs.end()) {
     return system_state_->prefs()->SetString(kPrefsOmahaEolStatus,
                                              eol_attr->second);
