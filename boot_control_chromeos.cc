@@ -16,7 +16,9 @@
 
 #include "update_engine/boot_control_chromeos.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 
 #include <base/bind.h>
 #include <base/files/file_path.h>
