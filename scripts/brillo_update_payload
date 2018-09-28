@@ -758,21 +758,24 @@ cmd_verify() {
 
   echo "Running delta_generator to verify ${payload_type} payload with args: \
 ${GENERATOR_ARGS[@]}"
-  "${GENERATOR}" "${GENERATOR_ARGS[@]}"
+  "${GENERATOR}" "${GENERATOR_ARGS[@]}" || true
 
-  if [[ $? -eq 0 ]]; then
-    echo "Done applying ${payload_type} update."
-    echo "Checking the newly generated partitions against the target partitions"
-    for part in "${PARTITIONS_ORDER[@]}"; do
-      cmp "${TMP_PARTITIONS[${part}]}" "${DST_PARTITIONS[${part}]}"
-      local not_str=""
-      if [[ $? -ne 0 ]]; then
-        not_str="in"
-      fi
-      echo "The new partition (${part}) is ${not_str}valid."
-    done
-  else
-    echo "Failed to apply ${payload_type} update."
+  echo "Done applying ${payload_type} update."
+  echo "Checking the newly generated partitions against the target partitions"
+  local need_pause=false
+  for part in "${PARTITIONS_ORDER[@]}"; do
+    local not_str=""
+    if ! cmp "${TMP_PARTITIONS[${part}]}" "${DST_PARTITIONS[${part}]}"; then
+      not_str="in"
+      need_pause=true
+    fi
+    echo "The new partition (${part}) is ${not_str}valid."
+  done
+  # All images will be cleaned up when script exits, pause here to give a chance
+  # to inspect the images.
+  if [[ "$need_pause" == true ]]; then
+    read -n1 -r -s -p "Paused to investigate invalid partitions, \
+press any key to exit."
   fi
 }
 
