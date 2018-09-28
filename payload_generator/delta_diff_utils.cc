@@ -299,6 +299,17 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
   ExtentRanges old_visited_blocks;
   ExtentRanges new_visited_blocks;
 
+  // If verity is enabled, mark those blocks as visited to skip generating
+  // operations for them.
+  if (version.minor >= kVerityMinorPayloadVersion &&
+      !new_part.verity.IsEmpty()) {
+    LOG(INFO) << "Skipping verity hash tree blocks: "
+              << ExtentsToString({new_part.verity.hash_tree_extent});
+    new_visited_blocks.AddExtent(new_part.verity.hash_tree_extent);
+    // TODO(senj): Enable this when we have FEC support.
+    // new_visited_blocks.AddExtent(new_part.verity.fec_extent);
+  }
+
   TEST_AND_RETURN_FALSE(DeltaMovedAndZeroBlocks(
       aops,
       old_part.path,

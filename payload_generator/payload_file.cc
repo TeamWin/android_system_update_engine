@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <map>
+#include <utility>
 
 #include <base/strings/stringprintf.h>
 
@@ -91,6 +92,7 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
   part.name = new_conf.name;
   part.aops = aops;
   part.postinstall = new_conf.postinstall;
+  part.verity = new_conf.verity;
   // Initialize the PartitionInfo objects if present.
   if (!old_conf.path.empty())
     TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(old_conf,
@@ -143,6 +145,22 @@ bool PayloadFile::WritePayload(const string& payload_file,
         if (!part.postinstall.filesystem_type.empty())
           partition->set_filesystem_type(part.postinstall.filesystem_type);
         partition->set_postinstall_optional(part.postinstall.optional);
+      }
+      if (!part.verity.IsEmpty()) {
+        if (part.verity.hash_tree_extent.num_blocks() != 0) {
+          *partition->mutable_hash_tree_data_extent() =
+              part.verity.hash_tree_data_extent;
+          *partition->mutable_hash_tree_extent() = part.verity.hash_tree_extent;
+          partition->set_hash_tree_algorithm(part.verity.hash_tree_algorithm);
+          if (!part.verity.hash_tree_salt.empty())
+            partition->set_hash_tree_salt(part.verity.hash_tree_salt.data(),
+                                          part.verity.hash_tree_salt.size());
+        }
+        if (part.verity.fec_extent.num_blocks() != 0) {
+          *partition->mutable_fec_data_extent() = part.verity.fec_data_extent;
+          *partition->mutable_fec_extent() = part.verity.fec_extent;
+          partition->set_fec_roots(part.verity.fec_roots);
+        }
       }
       for (const AnnotatedOperation& aop : part.aops) {
         *partition->add_operations() = aop.op;

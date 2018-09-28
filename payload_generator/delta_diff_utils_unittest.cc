@@ -161,6 +161,28 @@ class DeltaDiffUtilsTest : public ::testing::Test {
   ExtentRanges new_visited_blocks_;
 };
 
+TEST_F(DeltaDiffUtilsTest, SkipVerityExtentsTest) {
+  new_part_.verity.hash_tree_extent = ExtentForRange(20, 30);
+
+  BlobFileWriter blob_file(blob_fd_, &blob_size_);
+  EXPECT_TRUE(diff_utils::DeltaReadPartition(
+      &aops_,
+      old_part_,
+      new_part_,
+      -1,
+      -1,
+      PayloadVersion(kMaxSupportedMajorPayloadVersion,
+                     kVerityMinorPayloadVersion),
+      &blob_file));
+  for (const auto& aop : aops_) {
+    new_visited_blocks_.AddRepeatedExtents(aop.op.dst_extents());
+  }
+  for (const auto& extent : new_visited_blocks_.extent_set()) {
+    EXPECT_FALSE(ExtentRanges::ExtentsOverlap(
+        extent, new_part_.verity.hash_tree_extent));
+  }
+}
+
 TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
   brillo::Blob data_blob(block_size_);
   test_utils::FillWithData(&data_blob);
