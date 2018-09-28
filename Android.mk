@@ -216,8 +216,10 @@ ue_libupdate_engine_boot_control_exported_static_libraries := \
 
 ue_libupdate_engine_boot_control_exported_shared_libraries := \
     libbootloader_message \
+    libfs_mgr \
     libhwbinder \
     libhidlbase \
+    liblp \
     libutils \
     android.hardware.boot@1.0 \
     $(ue_update_metadata_protos_exported_shared_libraries)
@@ -238,7 +240,8 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libupdate_engine_boot_control_exported_shared_libraries)
 LOCAL_SRC_FILES := \
-    boot_control_android.cc
+    boot_control_android.cc \
+    dynamic_partition_control_android.cc
 include $(BUILD_STATIC_LIBRARY)
 
 ifeq ($(local_use_omaha),1)
@@ -919,6 +922,7 @@ LOCAL_STATIC_LIBRARIES := \
     $(ue_common_static_libraries) \
     $(ue_libpayload_generator_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
+    libhidltransport \
     $(ue_common_shared_libraries) \
     $(ue_libpayload_generator_exported_shared_libraries)
 LOCAL_SRC_FILES := \
@@ -1029,6 +1033,7 @@ LOCAL_STATIC_LIBRARIES += \
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries)
 LOCAL_SRC_FILES += \
+    boot_control_android_unittest.cc \
     update_attempter_android_unittest.cc
 endif  # local_use_omaha == 1
 include $(BUILD_NATIVE_TEST)

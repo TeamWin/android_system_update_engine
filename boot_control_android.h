@@ -17,11 +17,16 @@
 #ifndef UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
 #define UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
 
+#include <map>
+#include <memory>
 #include <string>
 
 #include <android/hardware/boot/1.0/IBootControl.h>
+#include <base/files/file_util.h>
+#include <liblp/builder.h>
 
 #include "update_engine/common/boot_control.h"
+#include "update_engine/dynamic_partition_control_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -46,9 +51,18 @@ class BootControlAndroid : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
+  bool InitPartitionMetadata(Slot slot,
+                             const PartitionSizes& partition_sizes) override;
+  void Cleanup() override;
 
  private:
   ::android::sp<::android::hardware::boot::V1_0::IBootControl> module_;
+  std::unique_ptr<DynamicPartitionControlInterface> dynamic_control_;
+
+  friend class BootControlAndroidTest;
+
+  // Wrapper method of IBootControl::getSuffix().
+  bool GetSuffix(Slot slot, std::string* out) const;
 
   DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);
 };

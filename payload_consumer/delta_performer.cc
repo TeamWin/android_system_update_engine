@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -639,9 +640,11 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       return false;
     }
 
-    if (!OpenCurrentPartition()) {
-      *error = ErrorCode::kInstallDeviceOpenError;
-      return false;
+    if (next_operation_num_ < acc_num_operations_[current_partition_]) {
+      if (!OpenCurrentPartition()) {
+        *error = ErrorCode::kInstallDeviceOpenError;
+        return false;
+      }
     }
 
     if (next_operation_num_ > 0)
@@ -658,9 +661,12 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
 
     // We know there are more operations to perform because we didn't reach the
     // |num_total_operations_| limit yet.
-    while (next_operation_num_ >= acc_num_operations_[current_partition_]) {
+    if (next_operation_num_ >= acc_num_operations_[current_partition_]) {
       CloseCurrentPartition();
-      current_partition_++;
+      // Skip until there are operations for current_partition_.
+      while (next_operation_num_ >= acc_num_operations_[current_partition_]) {
+        current_partition_++;
+      }
       if (!OpenCurrentPartition()) {
         *error = ErrorCode::kInstallDeviceOpenError;
         return false;
@@ -910,6 +916,20 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     }
 
     install_plan_->partitions.push_back(install_part);
+  }
+
+  if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
+    BootControlInterface::PartitionSizes partition_sizes;
+    for (const InstallPlan::Partition& partition : install_plan_->partitions) {
+      partition_sizes.emplace(partition.name, partition.target_size);
+    }
+    if (!boot_control_->InitPartitionMetadata(install_plan_->target_slot,
+                                              partition_sizes)) {
+      LOG(ERROR) << "Unable to initialize partition metadata for slot "
+                 << BootControlInterface::SlotName(install_plan_->target_slot);
+      *error = ErrorCode::kInstallDeviceOpenError;
+      return false;
+    }
   }
 
   if (!install_plan_->LoadPartitionsFromSlots(boot_control_)) {
