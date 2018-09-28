@@ -626,10 +626,11 @@ include $(BUILD_EXECUTABLE)
 # server-side code. This is used for delta_generator and unittests but not
 # for any client code.
 ue_libpayload_generator_exported_static_libraries := \
+    libavb \
+    libbrotli \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
-    libbrotli \
     liblzma \
     libpayload_consumer \
     libpuffdiff \
@@ -661,6 +662,7 @@ ue_libpayload_generator_src_files := \
     payload_generator/inplace_generator.cc \
     payload_generator/mapfile_filesystem.cc \
     payload_generator/payload_file.cc \
+    payload_generator/payload_generation_config_android.cc \
     payload_generator/payload_generation_config.cc \
     payload_generator/payload_signer.cc \
     payload_generator/raw_filesystem.cc \
@@ -680,6 +682,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libavb \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
@@ -709,6 +712,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libavb \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
@@ -743,6 +747,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libavb_host_sysdeps \
     libpayload_consumer \
     libpayload_generator \
     $(ue_common_static_libraries) \

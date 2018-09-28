@@ -30,6 +30,7 @@ const uint32_t kSourceMinorPayloadVersion = 2;
 const uint32_t kOpSrcHashMinorPayloadVersion = 3;
 const uint32_t kBrotliBsdiffMinorPayloadVersion = 4;
 const uint32_t kPuffdiffMinorPayloadVersion = 5;
+const uint32_t kVerityMinorPayloadVersion = 6;
 
 const uint64_t kMinSupportedMajorPayloadVersion = 1;
 const uint64_t kMaxSupportedMajorPayloadVersion = 2;
