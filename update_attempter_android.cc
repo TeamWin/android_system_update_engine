@@ -558,6 +558,8 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
     return;
   }
 
+  boot_control_->Cleanup();
+
   download_progress_ = 0;
   UpdateStatus new_status =
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
