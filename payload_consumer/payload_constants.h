@@ -53,6 +53,9 @@ extern const uint32_t kBrotliBsdiffMinorPayloadVersion;
 // The minor version that allows PUFFDIFF operation.
 extern const uint32_t kPuffdiffMinorPayloadVersion;
 
+// The minor version that allows Verity hash tree and FEC generation.
+extern const uint32_t kVerityMinorPayloadVersion;
+
 // The minimum and maximum supported minor version.
 extern const uint32_t kMinSupportedMinorPayloadVersion;
 extern const uint32_t kMaxSupportedMinorPayloadVersion;
