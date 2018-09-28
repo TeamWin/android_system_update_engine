@@ -634,10 +634,12 @@ ue_libpayload_generator_exported_static_libraries := \
     liblzma \
     libpayload_consumer \
     libpuffdiff \
+    libverity_tree \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_generator_exported_shared_libraries := \
+    libbase \
     libext2fs \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
