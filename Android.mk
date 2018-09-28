@@ -131,6 +131,7 @@ ue_libpayload_consumer_src_files := \
     common/multi_range_http_fetcher.cc \
     common/platform_constants_android.cc \
     common/prefs.cc \
+    common/proxy_resolver.cc \
     common/subprocess.cc \
     common/terminator.cc \
     common/utils.cc \
@@ -317,7 +318,6 @@ LOCAL_SRC_FILES := \
     p2p_manager.cc \
     payload_state.cc \
     power_manager_android.cc \
-    proxy_resolver.cc \
     real_system_state.cc \
     update_attempter.cc \
     update_boot_flags_action.cc \
@@ -420,7 +420,6 @@ LOCAL_SRC_FILES += \
     metrics_reporter_android.cc \
     metrics_utils.cc \
     network_selector_android.cc \
-    proxy_resolver.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
     update_status_utils.cc
@@ -495,7 +494,6 @@ LOCAL_SRC_FILES := \
     metrics_reporter_stub.cc \
     metrics_utils.cc \
     network_selector_stub.cc \
-    proxy_resolver.cc \
     sideload_main.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
@@ -936,6 +934,7 @@ LOCAL_SRC_FILES := \
     common/hwid_override_unittest.cc \
     common/mock_http_fetcher.cc \
     common/prefs_unittest.cc \
+    common/proxy_resolver_unittest.cc \
     common/subprocess_unittest.cc \
     common/terminator_unittest.cc \
     common/test_utils.cc \
@@ -976,7 +975,6 @@ LOCAL_SRC_FILES := \
     payload_generator/tarjan_unittest.cc \
     payload_generator/topological_sort_unittest.cc \
     payload_generator/zip_unittest.cc \
-    proxy_resolver_unittest.cc \
     testrunner.cc
 ifeq ($(local_use_omaha),1)
 LOCAL_C_INCLUDES += \
