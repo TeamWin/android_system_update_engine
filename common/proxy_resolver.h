@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_PROXY_RESOLVER_H_
-#define UPDATE_ENGINE_PROXY_RESOLVER_H_
+#ifndef UPDATE_ENGINE_COMMON_PROXY_RESOLVER_H_
+#define UPDATE_ENGINE_COMMON_PROXY_RESOLVER_H_
 
 #include <deque>
 #include <string>
@@ -95,4 +95,4 @@ class DirectProxyResolver : public ProxyResolver {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_PROXY_RESOLVER_H_
+#endif  // UPDATE_ENGINE_COMMON_PROXY_RESOLVER_H_

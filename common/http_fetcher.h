@@ -28,7 +28,7 @@
 #include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/common/http_common.h"
-#include "update_engine/proxy_resolver.h"
+#include "update_engine/common/proxy_resolver.h"
 
 // This class is a simple wrapper around an HTTP library (libcurl). We can
 // easily mock out this interface for testing.
