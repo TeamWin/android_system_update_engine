@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_COMMON_BOOT_CONTROL_INTERFACE_H_
 
 #include <climits>
+#include <map>
 #include <string>
 
 #include <base/callback.h>
@@ -32,6 +33,7 @@ namespace chromeos_update_engine {
 class BootControlInterface {
  public:
   using Slot = unsigned int;
+  using PartitionSizes = std::map<std::string, uint64_t>;
 
   static const Slot kInvalidSlot = UINT_MAX;
 
@@ -76,6 +78,17 @@ class BootControlInterface {
   // operation, otherwise, returns true and calls the |callback| with the result
   // of the operation.
   virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
+
+  // Initialize metadata of underlying partitions for a given |slot|.
+  // Ensure that partitions at the specified |slot| has a given size, as
+  // specified by |partition_sizes|. |partition_sizes| has the format:
+  // {"vendor": 524288000, "system": 2097152000, ...}; values must be
+  // aligned to the logical block size of the super partition.
+  virtual bool InitPartitionMetadata(Slot slot,
+                                     const PartitionSizes& partition_sizes) = 0;
+
+  // Do necessary clean-up operations after the whole update.
+  virtual void Cleanup() = 0;
 
   // Return a human-readable slot name used for logging.
   static std::string SlotName(Slot slot) {

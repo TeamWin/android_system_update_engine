@@ -183,4 +183,18 @@ bool BootControlRecovery::MarkBootSuccessfulAsync(
          brillo::MessageLoop::kTaskIdNull;
 }
 
+// TODO(b/78598708): Remove BootControlRecovery, so don't bother resizing
+// partitions here.
+bool BootControlRecovery::InitPartitionMetadata(
+    Slot slot, const PartitionSizes& partition_sizes) {
+  LOG(ERROR) << __FUNCTION__
+             << " is not implemented. BootControlRecovery will be removed.";
+  return true;
+}
+
+void BootControlRecovery::Cleanup() {
+  LOG(ERROR) << __FUNCTION__
+             << " is not implemented. BootControlRecovery will be removed.";
+}
+
 }  // namespace chromeos_update_engine

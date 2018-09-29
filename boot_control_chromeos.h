@@ -50,6 +50,9 @@ class BootControlChromeOS : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
+  bool InitPartitionMetadata(Slot slot,
+                             const PartitionSizes& partition_sizes) override;
+  void Cleanup() override;
 
  private:
   friend class BootControlChromeOSTest;
