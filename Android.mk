@@ -131,6 +131,7 @@ ue_libpayload_consumer_src_files := \
     common/multi_range_http_fetcher.cc \
     common/platform_constants_android.cc \
     common/prefs.cc \
+    common/proxy_resolver.cc \
     common/subprocess.cc \
     common/terminator.cc \
     common/utils.cc \
@@ -215,8 +216,10 @@ ue_libupdate_engine_boot_control_exported_static_libraries := \
 
 ue_libupdate_engine_boot_control_exported_shared_libraries := \
     libbootloader_message \
+    libfs_mgr \
     libhwbinder \
     libhidlbase \
+    liblp \
     libutils \
     android.hardware.boot@1.0 \
     $(ue_update_metadata_protos_exported_shared_libraries)
@@ -237,7 +240,8 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libupdate_engine_boot_control_exported_shared_libraries)
 LOCAL_SRC_FILES := \
-    boot_control_android.cc
+    boot_control_android.cc \
+    dynamic_partition_control_android.cc
 include $(BUILD_STATIC_LIBRARY)
 
 ifeq ($(local_use_omaha),1)
@@ -317,7 +321,6 @@ LOCAL_SRC_FILES := \
     p2p_manager.cc \
     payload_state.cc \
     power_manager_android.cc \
-    proxy_resolver.cc \
     real_system_state.cc \
     update_attempter.cc \
     update_boot_flags_action.cc \
@@ -420,7 +423,6 @@ LOCAL_SRC_FILES += \
     metrics_reporter_android.cc \
     metrics_utils.cc \
     network_selector_android.cc \
-    proxy_resolver.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
     update_status_utils.cc
@@ -495,7 +497,6 @@ LOCAL_SRC_FILES := \
     metrics_reporter_stub.cc \
     metrics_utils.cc \
     network_selector_stub.cc \
-    proxy_resolver.cc \
     sideload_main.cc \
     update_attempter_android.cc \
     update_boot_flags_action.cc \
@@ -626,17 +627,20 @@ include $(BUILD_EXECUTABLE)
 # server-side code. This is used for delta_generator and unittests but not
 # for any client code.
 ue_libpayload_generator_exported_static_libraries := \
+    libavb \
+    libbrotli \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
-    libbrotli \
     liblzma \
     libpayload_consumer \
     libpuffdiff \
+    libverity_tree \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_generator_exported_shared_libraries := \
+    libbase \
     libext2fs \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
@@ -661,6 +665,7 @@ ue_libpayload_generator_src_files := \
     payload_generator/inplace_generator.cc \
     payload_generator/mapfile_filesystem.cc \
     payload_generator/payload_file.cc \
+    payload_generator/payload_generation_config_android.cc \
     payload_generator/payload_generation_config.cc \
     payload_generator/payload_signer.cc \
     payload_generator/raw_filesystem.cc \
@@ -680,6 +685,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libavb \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
@@ -709,6 +715,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libavb \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
@@ -743,6 +750,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libavb_host_sysdeps \
     libpayload_consumer \
     libpayload_generator \
     $(ue_common_static_libraries) \
@@ -914,6 +922,7 @@ LOCAL_STATIC_LIBRARIES := \
     $(ue_common_static_libraries) \
     $(ue_libpayload_generator_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
+    libhidltransport \
     $(ue_common_shared_libraries) \
     $(ue_libpayload_generator_exported_shared_libraries)
 LOCAL_SRC_FILES := \
@@ -929,6 +938,7 @@ LOCAL_SRC_FILES := \
     common/hwid_override_unittest.cc \
     common/mock_http_fetcher.cc \
     common/prefs_unittest.cc \
+    common/proxy_resolver_unittest.cc \
     common/subprocess_unittest.cc \
     common/terminator_unittest.cc \
     common/test_utils.cc \
@@ -962,13 +972,13 @@ LOCAL_SRC_FILES := \
     payload_generator/inplace_generator_unittest.cc \
     payload_generator/mapfile_filesystem_unittest.cc \
     payload_generator/payload_file_unittest.cc \
+    payload_generator/payload_generation_config_android_unittest.cc \
     payload_generator/payload_generation_config_unittest.cc \
     payload_generator/payload_signer_unittest.cc \
     payload_generator/squashfs_filesystem_unittest.cc \
     payload_generator/tarjan_unittest.cc \
     payload_generator/topological_sort_unittest.cc \
     payload_generator/zip_unittest.cc \
-    proxy_resolver_unittest.cc \
     testrunner.cc
 ifeq ($(local_use_omaha),1)
 LOCAL_C_INCLUDES += \
@@ -1023,6 +1033,7 @@ LOCAL_STATIC_LIBRARIES += \
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries)
 LOCAL_SRC_FILES += \
+    boot_control_android_unittest.cc \
     update_attempter_android_unittest.cc
 endif  # local_use_omaha == 1
 include $(BUILD_NATIVE_TEST)

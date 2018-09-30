@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/proxy_resolver.h"
+#include "update_engine/common/proxy_resolver.h"
 
 #include <deque>
 #include <string>

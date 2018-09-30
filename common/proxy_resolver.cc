@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/proxy_resolver.h"
+#include "update_engine/common/proxy_resolver.h"
 
 #include <base/bind.h>
 #include <base/location.h>
@@ -62,6 +62,5 @@ void DirectProxyResolver::ReturnCallback(const ProxiesResolvedFn& callback) {
 
   callback.Run(proxies);
 }
-
 
 }  // namespace chromeos_update_engine

@@ -392,6 +392,64 @@ extract_image_cros() {
   done
 }
 
+# extract_partition_brillo <target_files.zip> <partitions_array> <partition>
+#     <part_file> <part_map_file>
+#
+# Extract the <partition> from target_files zip file into <part_file> and its
+# map file into <part_map_file>.
+extract_partition_brillo() {
+  local image="$1"
+  local partitions_array="$2"
+  local part="$3"
+  local part_file="$4"
+  local part_map_file="$5"
+
+  # For each partition, we in turn look for its image file under IMAGES/ and
+  # RADIO/ in the given target_files zip file.
+  local path path_in_zip
+  for path in IMAGES RADIO; do
+    if unzip -l "${image}" "${path}/${part}.img" >/dev/null; then
+      path_in_zip="${path}"
+      break
+    fi
+  done
+  [[ -n "${path_in_zip}" ]] || die "Failed to find ${part}.img"
+  unzip -p "${image}" "${path_in_zip}/${part}.img" >"${part_file}"
+
+  # If the partition is stored as an Android sparse image file, we need to
+  # convert them to a raw image for the update.
+  local magic=$(head --bytes=4 "${part_file}" | hexdump -e '1/1 "%.2x"')
+  if [[ "${magic}" == "3aff26ed" ]]; then
+    local temp_sparse=$(create_tempfile "${part}.sparse.XXXXXX")
+    echo "Converting Android sparse image ${part}.img to RAW."
+    mv "${part_file}" "${temp_sparse}"
+    simg2img "${temp_sparse}" "${part_file}"
+    rm -f "${temp_sparse}"
+  fi
+
+  # Extract the .map file (if one is available).
+  unzip -p "${image}" "${path_in_zip}/${part}.map" >"${part_map_file}" \
+    2>/dev/null || true
+
+  # delta_generator only supports images multiple of 4 KiB. For target images
+  # we pad the data with zeros if needed, but for source images we truncate
+  # down the data since the last block of the old image could be padded on
+  # disk with unknown data.
+  local filesize=$(stat -c%s "${part_file}")
+  if [[ $(( filesize % 4096 )) -ne 0 ]]; then
+    if [[ "${partitions_array}" == "SRC_PARTITIONS" ]]; then
+      echo "Rounding DOWN partition ${part}.img to a multiple of 4 KiB."
+      : $(( filesize = filesize & -4096 ))
+    else
+      echo "Rounding UP partition ${part}.img to a multiple of 4 KiB."
+      : $(( filesize = (filesize + 4095) & -4096 ))
+    fi
+    truncate_file "${part_file}" "${filesize}"
+  fi
+
+  echo "Extracted ${partitions_array}[${part}]: ${filesize} bytes"
+}
+
 # extract_image_brillo <target_files.zip> <partitions_array> [partitions_order]
 #
 # Extract the A/B updated partitions from a Brillo target_files zip file into
@@ -417,7 +475,7 @@ extract_image_brillo() {
   else
     warn "No ab_partitions.txt found. Using default."
   fi
-  echo "List of A/B partitions: ${partitions[@]}"
+  echo "List of A/B partitions for ${partitions_array}: ${partitions[@]}"
 
   if [[ -n "${partitions_order}" ]]; then
     eval "${partitions_order}=(${partitions[@]})"
@@ -458,67 +516,32 @@ Disabling deltas for this source version."
     fi
   fi
 
-  local part part_file temp_raw filesize
+  local part
   for part in "${partitions[@]}"; do
-    part_file=$(create_tempfile "${part}.img.XXXXXX")
-    CLEANUP_FILES+=("${part_file}")
-
-    # For each partition, we in turn look for its image file under IMAGES/ and
-    # RADIO/ in the given target_files zip file.
-    local path path_in_zip
-    for path in IMAGES RADIO; do
-      if unzip -l "${image}" "${path}/${part}.img" >/dev/null; then
-        path_in_zip="${path}"
-        break
-      fi
-    done
-    [[ -n "${path_in_zip}" ]] || die "Failed to find ${part}.img"
-    unzip -p "${image}" "${path_in_zip}/${part}.img" >"${part_file}"
-
-    # If the partition is stored as an Android sparse image file, we need to
-    # convert them to a raw image for the update.
-    local magic=$(head --bytes=4 "${part_file}" | hexdump -e '1/1 "%.2x"')
-    if [[ "${magic}" == "3aff26ed" ]]; then
-      temp_raw=$(create_tempfile "${part}.raw.XXXXXX")
-      CLEANUP_FILES+=("${temp_raw}")
-      echo "Converting Android sparse image ${part}.img to RAW."
-      simg2img "${part_file}" "${temp_raw}"
-      # At this point, we can drop the contents of the old part_file file, but
-      # we can't delete the file because it will be deleted in cleanup.
-      true >"${part_file}"
-      part_file="${temp_raw}"
-    fi
-
-    # Extract the .map file (if one is available).
-    part_map_file=$(create_tempfile "${part}.map.XXXXXX")
-    CLEANUP_FILES+=("${part_map_file}")
-    unzip -p "${image}" "${path_in_zip}/${part}.map" >"${part_map_file}" || \
-      part_map_file=""
-
-    # delta_generator only supports images multiple of 4 KiB. For target images
-    # we pad the data with zeros if needed, but for source images we truncate
-    # down the data since the last block of the old image could be padded on
-    # disk with unknown data.
-    filesize=$(stat -c%s "${part_file}")
-    if [[ $(( filesize % 4096 )) -ne 0 ]]; then
-      if [[ "${partitions_array}" == "SRC_PARTITIONS" ]]; then
-        echo "Rounding DOWN partition ${part}.img to a multiple of 4 KiB."
-        : $(( filesize = filesize & -4096 ))
-        if [[ ${filesize} == 0 ]]; then
-          echo "Source partition ${part}.img is empty after rounding down," \
-            "skipping."
-          continue
-        fi
-      else
-        echo "Rounding UP partition ${part}.img to a multiple of 4 KiB."
-        : $(( filesize = (filesize + 4095) & -4096 ))
-      fi
-      truncate_file "${part_file}" "${filesize}"
-    fi
-
+    local part_file=$(create_tempfile "${part}.img.XXXXXX")
+    local part_map_file=$(create_tempfile "${part}.map.XXXXXX")
+    CLEANUP_FILES+=("${part_file}" "${part_map_file}")
+    # Extract partitions in background.
+    extract_partition_brillo "${image}" "${partitions_array}" "${part}" \
+        "${part_file}" "${part_map_file}" &
     eval "${partitions_array}[\"${part}\"]=\"${part_file}\""
     eval "${partitions_array}_MAP[\"${part}\"]=\"${part_map_file}\""
-    echo "Extracted ${partitions_array}[${part}]: ${filesize} bytes"
+  done
+}
+
+# cleanup_partition_array <partitions_array>
+#
+# Remove all empty files in <partitions_array>.
+cleanup_partition_array() {
+  local partitions_array="$1"
+  # Have to use eval to iterate over associative array keys with variable array
+  # names, we should change it to use nameref once bash 4.3 is available
+  # everywhere.
+  for part in $(eval "echo \${!${partitions_array}[@]}"); do
+    local path="${partitions_array}[$part]"
+    if [[ ! -s "${!path}" ]]; then
+      eval "unset ${partitions_array}[${part}]"
+    fi
   done
 }
 
@@ -530,6 +553,12 @@ extract_payload_images() {
     extract_image "${FLAGS_source_image}" SRC_PARTITIONS
   fi
   extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
+  # Wait for all subprocesses.
+  wait
+  cleanup_partition_array SRC_PARTITIONS
+  cleanup_partition_array SRC_PARTITIONS_MAP
+  cleanup_partition_array DST_PARTITIONS
+  cleanup_partition_array DST_PARTITIONS_MAP
 }
 
 get_payload_type() {
@@ -549,17 +578,8 @@ validate_generate() {
 }
 
 cmd_generate() {
-  local payload_type="delta"
-  if [[ -z "${FLAGS_source_image}" ]]; then
-    payload_type="full"
-  fi
-
-  echo "Extracting images for ${payload_type} update."
-
-  extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
-  if [[ "${payload_type}" == "delta" ]]; then
-    extract_image "${FLAGS_source_image}" SRC_PARTITIONS
-  fi
+  local payload_type=$(get_payload_type)
+  extract_payload_images ${payload_type}
 
   echo "Generating ${payload_type} update."
   # Common payload args:
@@ -758,21 +778,24 @@ cmd_verify() {
 
   echo "Running delta_generator to verify ${payload_type} payload with args: \
 ${GENERATOR_ARGS[@]}"
-  "${GENERATOR}" "${GENERATOR_ARGS[@]}"
+  "${GENERATOR}" "${GENERATOR_ARGS[@]}" || true
 
-  if [[ $? -eq 0 ]]; then
-    echo "Done applying ${payload_type} update."
-    echo "Checking the newly generated partitions against the target partitions"
-    for part in "${PARTITIONS_ORDER[@]}"; do
-      cmp "${TMP_PARTITIONS[${part}]}" "${DST_PARTITIONS[${part}]}"
-      local not_str=""
-      if [[ $? -ne 0 ]]; then
-        not_str="in"
-      fi
-      echo "The new partition (${part}) is ${not_str}valid."
-    done
-  else
-    echo "Failed to apply ${payload_type} update."
+  echo "Done applying ${payload_type} update."
+  echo "Checking the newly generated partitions against the target partitions"
+  local need_pause=false
+  for part in "${PARTITIONS_ORDER[@]}"; do
+    local not_str=""
+    if ! cmp "${TMP_PARTITIONS[${part}]}" "${DST_PARTITIONS[${part}]}"; then
+      not_str="in"
+      need_pause=true
+    fi
+    echo "The new partition (${part}) is ${not_str}valid."
+  done
+  # All images will be cleaned up when script exits, pause here to give a chance
+  # to inspect the images.
+  if [[ "$need_pause" == true ]]; then
+    read -n1 -r -s -p "Paused to investigate invalid partitions, \
+press any key to exit."
   fi
 }
 

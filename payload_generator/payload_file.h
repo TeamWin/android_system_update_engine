@@ -95,6 +95,7 @@ class PayloadFile {
     PartitionInfo new_info;
 
     PostInstallConfig postinstall;
+    VerityConfig verity;
   };
 
   std::vector<Partition> part_vec_;

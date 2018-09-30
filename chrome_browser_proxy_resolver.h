@@ -24,7 +24,7 @@
 
 #include <base/memory/weak_ptr.h>
 
-#include "update_engine/proxy_resolver.h"
+#include "update_engine/common/proxy_resolver.h"
 
 namespace chromeos_update_engine {
 

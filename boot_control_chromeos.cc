@@ -302,4 +302,11 @@ int BootControlChromeOS::GetPartitionNumber(
   return -1;
 }
 
+bool BootControlChromeOS::InitPartitionMetadata(
+    Slot slot, const PartitionSizes& partition_sizes) {
+  return true;
+}
+
+void BootControlChromeOS::Cleanup() {}
+
 }  // namespace chromeos_update_engine
