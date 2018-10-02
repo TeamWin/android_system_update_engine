@@ -70,7 +70,7 @@ class BoxedValue {
   // move constructor explicitly preventing it from accidental references,
   // like in:
   //   BoxedValue new_box(std::move(other_box));
-  BoxedValue(BoxedValue&& other) noexcept  // NOLINT(build/c++11)
+  BoxedValue(BoxedValue&& other) noexcept
       : value_(other.value_),
         deleter_(other.deleter_),
         printer_(other.printer_) {
