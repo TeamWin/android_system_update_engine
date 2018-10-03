@@ -108,12 +108,14 @@ ue_libpayload_consumer_exported_static_libraries := \
     libbz \
     libbspatch \
     libbrotli \
+    libfec_rs \
     libpuffpatch \
     libverity_tree \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libbase \
     libcrypto \
+    libfec \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
 ue_libpayload_consumer_src_files := \
@@ -157,8 +159,6 @@ ue_libpayload_consumer_src_files := \
 ifeq ($(local_use_fec),1)
 ue_libpayload_consumer_src_files += \
     payload_consumer/fec_file_descriptor.cc
-ue_libpayload_consumer_exported_shared_libraries += \
-    libfec
 endif  # local_use_fec == 1
 
 ifeq ($(HOST_OS),linux)

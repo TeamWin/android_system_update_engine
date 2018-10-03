@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_VERITY_WRITER_ANDROID_H_
 
 #include <memory>
+#include <string>
 
 #include <verity/hash_tree_builder.h>
 
@@ -32,6 +33,21 @@ class VerityWriterAndroid : public VerityWriterInterface {
 
   bool Init(const InstallPlan::Partition& partition) override;
   bool Update(uint64_t offset, const uint8_t* buffer, size_t size) override;
+
+  // Read [data_offset : data_offset + data_size) from |path| and encode FEC
+  // data, if |verify_mode|, then compare the encoded FEC with the one in
+  // |path|, otherwise write the encoded FEC to |path|. We can't encode as we go
+  // in each Update() like hash tree, because for every rs block, its data are
+  // spreaded across entire |data_size|, unless we can cache all data in
+  // memory, we have to re-read them from disk.
+  static bool EncodeFEC(const std::string& path,
+                        uint64_t data_offset,
+                        uint64_t data_size,
+                        uint64_t fec_offset,
+                        uint64_t fec_size,
+                        uint32_t fec_roots,
+                        uint32_t block_size,
+                        bool verify_mode);
 
  private:
   const InstallPlan::Partition* partition_ = nullptr;
