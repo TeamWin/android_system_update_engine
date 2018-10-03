@@ -306,8 +306,9 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
     LOG(INFO) << "Skipping verity hash tree blocks: "
               << ExtentsToString({new_part.verity.hash_tree_extent});
     new_visited_blocks.AddExtent(new_part.verity.hash_tree_extent);
-    // TODO(senj): Enable this when we have FEC support.
-    // new_visited_blocks.AddExtent(new_part.verity.fec_extent);
+    LOG(INFO) << "Skipping verity FEC blocks: "
+              << ExtentsToString({new_part.verity.fec_extent});
+    new_visited_blocks.AddExtent(new_part.verity.fec_extent);
   }
 
   TEST_AND_RETURN_FALSE(DeltaMovedAndZeroBlocks(
