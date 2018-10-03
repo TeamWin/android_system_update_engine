@@ -34,6 +34,7 @@ class VerityWriterAndroidTest : public ::testing::Test {
     partition_.hash_tree_offset = 4096;
     partition_.hash_tree_size = 4096;
     partition_.hash_tree_algorithm = "sha1";
+    partition_.fec_roots = 2;
   }
 
   VerityWriterAndroid verity_writer_;
@@ -94,6 +95,25 @@ TEST_F(VerityWriterAndroidTest, SHA256Test) {
                        0x4f, 0x58, 0x05, 0xff, 0x7c, 0xb4, 0x7c, 0x7a,
                        0x85, 0xda, 0xbd, 0x8b, 0x48, 0x89, 0x2c, 0xa7};
   memcpy(part_data.data() + 4096, hash.data(), hash.size());
+  EXPECT_EQ(part_data, actual_part);
+}
+
+TEST_F(VerityWriterAndroidTest, FECTest) {
+  partition_.fec_data_offset = 0;
+  partition_.fec_data_size = 4096;
+  partition_.fec_offset = 4096;
+  partition_.fec_size = 2 * 4096;
+  brillo::Blob part_data(3 * 4096, 0x1);
+  test_utils::WriteFileVector(partition_.target_path, part_data);
+  ASSERT_TRUE(verity_writer_.Init(partition_));
+  EXPECT_TRUE(verity_writer_.Update(0, part_data.data(), part_data.size()));
+  brillo::Blob actual_part;
+  utils::ReadFile(partition_.target_path, &actual_part);
+  // Write FEC data.
+  for (size_t i = 4096; i < part_data.size(); i += 2) {
+    part_data[i] = 0x8e;
+    part_data[i + 1] = 0x8f;
+  }
   EXPECT_EQ(part_data, actual_part);
 }
 

@@ -163,6 +163,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
 
 TEST_F(DeltaDiffUtilsTest, SkipVerityExtentsTest) {
   new_part_.verity.hash_tree_extent = ExtentForRange(20, 30);
+  new_part_.verity.fec_extent = ExtentForRange(40, 50);
 
   BlobFileWriter blob_file(blob_fd_, &blob_size_);
   EXPECT_TRUE(diff_utils::DeltaReadPartition(
@@ -180,6 +181,8 @@ TEST_F(DeltaDiffUtilsTest, SkipVerityExtentsTest) {
   for (const auto& extent : new_visited_blocks_.extent_set()) {
     EXPECT_FALSE(ExtentRanges::ExtentsOverlap(
         extent, new_part_.verity.hash_tree_extent));
+    EXPECT_FALSE(
+        ExtentRanges::ExtentsOverlap(extent, new_part_.verity.fec_extent));
   }
 }
 

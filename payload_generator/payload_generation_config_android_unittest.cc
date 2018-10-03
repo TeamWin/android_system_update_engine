@@ -170,6 +170,15 @@ TEST_F(PayloadGenerationConfigAndroidTest,
   EXPECT_FALSE(image_config_.LoadVerityConfig());
 }
 
+TEST_F(PayloadGenerationConfigAndroidTest, LoadVerityConfigInvalidFECTest) {
+  brillo::Blob part = GetAVBPartition();
+  part[kFECOffset] ^= 1;  // flip one bit
+  test_utils::WriteFileVector(temp_file_.path(), part);
+  EXPECT_TRUE(image_config_.LoadImageSize());
+  EXPECT_TRUE(image_config_.partitions[0].OpenFilesystem());
+  EXPECT_FALSE(image_config_.LoadVerityConfig());
+}
+
 TEST_F(PayloadGenerationConfigAndroidTest, LoadVerityConfigEmptyImageTest) {
   brillo::Blob part(kImageSize);
   test_utils::WriteFileVector(temp_file_.path(), part);
