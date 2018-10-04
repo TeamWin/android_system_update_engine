@@ -23,6 +23,7 @@
 #include <base/logging.h>
 #include <bootloader_message/bootloader_message.h>
 #include <brillo/message_loops/message_loop.h>
+#include <fs_mgr.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/dynamic_partition_control_android.h"
@@ -394,7 +395,8 @@ bool BootControlAndroid::InitPartitionMetadata(
     return false;
   }
   base::FilePath device_dir(device_dir_str);
-  string super_device = device_dir.Append(LP_METADATA_PARTITION_NAME).value();
+  string super_device =
+      device_dir.Append(fs_mgr_get_super_partition_name()).value();
 
   Slot current_slot = GetCurrentSlot();
   if (target_slot == current_slot) {
