@@ -277,7 +277,7 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
 }
 
 #ifdef __ANDROID__
-TEST_F(FilesystemVerifierActionTest, VerityHashTreeTest) {
+TEST_F(FilesystemVerifierActionTest, WriteVerityTest) {
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
 
@@ -302,16 +302,21 @@ TEST_F(FilesystemVerifierActionTest, VerityHashTreeTest) {
   part.hash_tree_data_size = filesystem_size;
   part.hash_tree_offset = filesystem_size;
   part.hash_tree_size = 3 * 4096;
+  part.fec_data_offset = 0;
+  part.fec_data_size = filesystem_size + part.hash_tree_size;
+  part.fec_offset = part.fec_data_size;
+  part.fec_size = 2 * 4096;
+  part.fec_roots = 2;
   // for i in {1..$((200 * 4096))}; do echo -n -e '\x1' >> part; done
   // avbtool add_hashtree_footer --image part --partition_size $((256 * 4096))
-  //     --partition_name part --do_not_generate_fec
-  //     --do_not_append_vbmeta_image --output_vbmeta_image vbmeta
+  //     --partition_name part --do_not_append_vbmeta_image
+  //     --output_vbmeta_image vbmeta
   // truncate -s $((256 * 4096)) part
   // sha256sum part | xxd -r -p | hexdump -v -e '/1 "0x%02x, "'
-  part.target_hash = {0xf0, 0x2c, 0x81, 0xf5, 0xec, 0x30, 0xa6, 0x99,
-                      0x1b, 0x41, 0x72, 0x16, 0x38, 0x48, 0xe5, 0x68,
-                      0x06, 0x7c, 0x3b, 0x88, 0xb5, 0x97, 0xa9, 0x29,
-                      0xa5, 0x7d, 0xdd, 0xa5, 0x9f, 0x5c, 0x15, 0x84};
+  part.target_hash = {0x28, 0xd4, 0x96, 0x75, 0x4c, 0xf5, 0x8a, 0x3e,
+                      0x31, 0x85, 0x08, 0x92, 0x85, 0x62, 0xf0, 0x37,
+                      0xbc, 0x8d, 0x7e, 0xa4, 0xcb, 0x24, 0x18, 0x7b,
+                      0xf3, 0xeb, 0xb5, 0x8d, 0x6f, 0xc8, 0xd8, 0x1a};
   // avbtool info_image --image vbmeta | grep Salt | cut -d':' -f 2 |
   //     xxd -r -p | hexdump -v -e '/1 "0x%02x, "'
   part.hash_tree_salt = {0x9e, 0xcb, 0xf8, 0xd5, 0x0b, 0xb4, 0x43,
