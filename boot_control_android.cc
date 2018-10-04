@@ -44,8 +44,6 @@ using PartitionSizes =
 
 namespace {
 
-constexpr char kZeroGuid[] = "00000000-0000-0000-0000-000000000000";
-
 auto StoreResultCallback(CommandResult* dest) {
   return [dest](const CommandResult& result) { *dest = result; };
 }
@@ -273,7 +271,6 @@ bool ResizePartitions(DynamicPartitionControlInterface* dynamic_control,
                 << BootControlInterface::SlotName(target_slot) << " in "
                 << super_device;
       if (builder->AddPartition(target_partition_name,
-                                kZeroGuid,
                                 LP_PARTITION_ATTR_READONLY) == nullptr) {
         LOG(ERROR) << "Cannot add partition " << target_partition_name;
         return false;
