@@ -19,6 +19,7 @@
 #include <set>
 
 #include <android-base/strings.h>
+#include <fs_mgr.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -78,7 +79,7 @@ inline std::string GetDevice(const std::string& name) {
   return kFakeDevicePath + name;
 }
 inline std::string GetSuperDevice() {
-  return GetDevice(LP_METADATA_PARTITION_NAME);
+  return GetDevice(fs_mgr_get_super_partition_name());
 }
 
 struct TestParam {
