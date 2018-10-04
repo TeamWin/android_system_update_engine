@@ -48,7 +48,6 @@ constexpr const char* kSlotSuffixes[kMaxNumSlots] = {"_a", "_b"};
 constexpr const char* kFakeDevicePath = "/fake/dev/path/";
 constexpr const char* kFakeMappedPath = "/fake/mapped/path/";
 constexpr const uint32_t kFakeMetadataSize = 65536;
-constexpr const char* kZeroGuid = "00000000-0000-0000-0000-000000000000";
 
 // A map describing the size of each partition.
 using PartitionSizes = std::map<std::string, uint64_t>;
@@ -97,7 +96,7 @@ std::unique_ptr<MetadataBuilder> NewFakeMetadata(const PartitionSizes& sizes) {
   if (builder == nullptr)
     return nullptr;
   for (const auto& pair : sizes) {
-    auto p = builder->AddPartition(pair.first, kZeroGuid, 0 /* attr */);
+    auto p = builder->AddPartition(pair.first, 0 /* attr */);
     EXPECT_TRUE(p && builder->ResizePartition(p, pair.second));
   }
   return builder;
