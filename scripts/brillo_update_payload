@@ -279,14 +279,12 @@ read_option_uint() {
 
 # truncate_file <file_path> <file_size>
 #
-# Truncate the given |file_path| to |file_size| using perl.
+# Truncate the given |file_path| to |file_size| using python.
 # The truncate binary might not be available.
 truncate_file() {
   local file_path="$1"
   local file_size="$2"
-  perl -e "open(FILE, \"+<\", \$ARGV[0]); \
-           truncate(FILE, ${file_size}); \
-           close(FILE);" "${file_path}"
+  python -c "open(\"${file_path}\", 'a').truncate(${file_size})"
 }
 
 # Create a temporary file in the work_dir with an optional pattern name.
