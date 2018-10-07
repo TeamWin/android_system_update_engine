@@ -23,6 +23,7 @@
 #include <base/logging.h>
 #include <bootloader_message/bootloader_message.h>
 #include <brillo/message_loops/message_loop.h>
+#include <fs_mgr.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/dynamic_partition_control_android.h"
@@ -43,8 +44,6 @@ using PartitionSizes =
     chromeos_update_engine::BootControlInterface::PartitionSizes;
 
 namespace {
-
-constexpr char kZeroGuid[] = "00000000-0000-0000-0000-000000000000";
 
 auto StoreResultCallback(CommandResult* dest) {
   return [dest](const CommandResult& result) { *dest = result; };
@@ -273,7 +272,6 @@ bool ResizePartitions(DynamicPartitionControlInterface* dynamic_control,
                 << BootControlInterface::SlotName(target_slot) << " in "
                 << super_device;
       if (builder->AddPartition(target_partition_name,
-                                kZeroGuid,
                                 LP_PARTITION_ATTR_READONLY) == nullptr) {
         LOG(ERROR) << "Cannot add partition " << target_partition_name;
         return false;
@@ -397,7 +395,8 @@ bool BootControlAndroid::InitPartitionMetadata(
     return false;
   }
   base::FilePath device_dir(device_dir_str);
-  string super_device = device_dir.Append(LP_METADATA_PARTITION_NAME).value();
+  string super_device =
+      device_dir.Append(fs_mgr_get_super_partition_name()).value();
 
   Slot current_slot = GetCurrentSlot();
   if (target_slot == current_slot) {
