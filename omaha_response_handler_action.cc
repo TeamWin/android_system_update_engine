@@ -21,7 +21,6 @@
 
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
-#include <base/strings/string_util.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/common/constants.h"
@@ -236,37 +235,8 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
     }
   }
 
-  // If we're using p2p, |install_plan_.download_url| may contain a
-  // HTTP URL even if |response.payload_urls| contain only HTTPS URLs.
-  if (!base::StartsWith(install_plan_.download_url, "https://",
-                        base::CompareCase::INSENSITIVE_ASCII)) {
-    LOG(INFO) << "Mandating hash checks since download_url is not HTTPS.";
-    return true;
-  }
-
-  // TODO(jaysri): VALIDATION: For official builds, we currently waive hash
-  // checks for HTTPS until we have rolled out at least once and are confident
-  // nothing breaks. chromium-os:37082 tracks turning this on for HTTPS
-  // eventually.
-
-  // Even if there's a single non-HTTPS URL, make the hash checks as
-  // mandatory because we could be downloading the payload from any URL later
-  // on. It's really hard to do book-keeping based on each byte being
-  // downloaded to see whether we only used HTTPS throughout.
-  for (const auto& package : response.packages) {
-    for (const string& payload_url : package.payload_urls) {
-      if (!base::StartsWith(
-              payload_url, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
-        LOG(INFO) << "Mandating payload hash checks since Omaha response "
-                  << "contains non-HTTPS URL(s)";
-        return true;
-      }
-    }
-  }
-
-  LOG(INFO) << "Waiving payload hash checks since Omaha response "
-            << "only has HTTPS URL(s)";
-  return false;
+  LOG(INFO) << "Mandating hash checks for official URL on official build.";
+  return true;
 }
 
 }  // namespace chromeos_update_engine

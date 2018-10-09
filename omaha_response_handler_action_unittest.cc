@@ -386,7 +386,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
-  EXPECT_FALSE(install_plan.hash_checks_mandatory);
+  EXPECT_TRUE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
 
