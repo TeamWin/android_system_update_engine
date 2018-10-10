@@ -93,14 +93,6 @@ class UpdateAttempterAndroid
  private:
   friend class UpdateAttempterAndroidTest;
 
-  // Asynchronously marks the current slot as successful if needed. If already
-  // marked as good, CompleteUpdateBootFlags() is called starting the action
-  // processor.
-  void UpdateBootFlags();
-
-  // Called when the boot flags have been updated.
-  void CompleteUpdateBootFlags(bool success);
-
   // Schedules an event loop callback to start the action processor. This is
   // scheduled asynchronously to unblock the event loop.
   void ScheduleProcessingStart();
