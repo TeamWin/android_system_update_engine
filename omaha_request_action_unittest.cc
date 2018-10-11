@@ -78,8 +78,10 @@ static_assert(kRollforwardInfinity == 0xfffffffe,
               "Don't change the value of kRollforward infinity unless its "
               "size has been changed in firmware.");
 
+const char kCurrentVersion[] = "0.1.0.0";
 const char kTestAppId[] = "test-app-id";
 const char kTestAppId2[] = "test-app2-id";
+const char kTestAppIdSkipUpdatecheck[] = "test-app-id-skip-updatecheck";
 
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
@@ -180,6 +182,9 @@ struct FakeUpdateResponse {
            (multi_app_no_update
                 ? "<app><updatecheck status=\"noupdate\"/></app>"
                 : "") +
+           (multi_app_skip_updatecheck
+                ? "<app appid=\"" + app_id_skip_updatecheck + "\"></app>"
+                : "") +
            "</response>";
   }
 
@@ -190,6 +195,8 @@ struct FakeUpdateResponse {
 
   string app_id = kTestAppId;
   string app_id2 = kTestAppId2;
+  string app_id_skip_updatecheck = kTestAppIdSkipUpdatecheck;
+  string current_version = kCurrentVersion;
   string version = "1.2.3.4";
   string version2 = "2.3.4.5";
   string more_info_url = "http://more/info";
@@ -224,6 +231,8 @@ struct FakeUpdateResponse {
   bool multi_app_self_update = false;
   // Whether to include an additional app with status="noupdate".
   bool multi_app_no_update = false;
+  // Whether to include an additional app with no updatecheck tag.
+  bool multi_app_skip_updatecheck = false;
   // Whether to include more than one package in an app.
   bool multi_package = false;
 
@@ -294,7 +303,7 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_os_sp("service_pack");
     request_params_.set_os_board("x86-generic");
     request_params_.set_app_id(kTestAppId);
-    request_params_.set_app_version("0.1.0.0");
+    request_params_.set_app_version(kCurrentVersion);
     request_params_.set_app_lang("en-US");
     request_params_.set_current_channel("unittest");
     request_params_.set_target_channel("unittest");
@@ -307,6 +316,8 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_target_version_prefix("");
     request_params_.set_rollback_allowed(false);
     request_params_.set_is_powerwash_allowed(false);
+    request_params_.set_is_install(false);
+    request_params_.set_dlc_ids({});
 
     fake_system_state_.set_request_params(&request_params_);
     fake_system_state_.set_prefs(&fake_prefs_);
@@ -3091,6 +3102,7 @@ TEST_F(OmahaRequestActionTest,
 
 TEST_F(OmahaRequestActionTest, InstallTest) {
   OmahaResponse response;
+  request_params_.set_is_install(true);
   request_params_.set_dlc_ids({"dlc_no_0", "dlc_no_1"});
   brillo::Blob post_data;
   ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
@@ -3109,8 +3121,40 @@ TEST_F(OmahaRequestActionTest, InstallTest) {
   string post_str(post_data.begin(), post_data.end());
   for (const auto& dlc_id : request_params_.dlc_ids()) {
     EXPECT_NE(string::npos,
-              post_str.find("appid=\"test-app-id_" + dlc_id + "\""));
+              post_str.find("appid=\"" + fake_update_response_.app_id + "_" +
+                            dlc_id + "\""));
   }
+  EXPECT_NE(string::npos,
+            post_str.find("appid=\"" + fake_update_response_.app_id + "\""));
+
+  // Count number of updatecheck tag in response.
+  int updatecheck_count = 0;
+  size_t pos = 0;
+  while ((pos = post_str.find("<updatecheck", pos)) != string::npos) {
+    updatecheck_count++;
+    pos++;
+  }
+  EXPECT_EQ(request_params_.dlc_ids().size(), updatecheck_count);
+}
+
+TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
+  fake_update_response_.multi_app_skip_updatecheck = true;
+  fake_update_response_.multi_app_no_update = false;
+  request_params_.set_is_install(true);
+  request_params_.set_dlc_ids({"dlc_no_0", "dlc_no_1"});
+  request_params_.set_app_id(fake_update_response_.app_id_skip_updatecheck);
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.current_version, response.version);
 }
 
 }  // namespace chromeos_update_engine

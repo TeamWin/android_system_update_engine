@@ -149,6 +149,7 @@ string GetAppBody(const OmahaEvent* event,
                   OmahaRequestParams* params,
                   bool ping_only,
                   bool include_ping,
+                  bool skip_updatecheck,
                   int ping_active_days,
                   int ping_roll_call_days,
                   PrefsInterface* prefs) {
@@ -157,17 +158,20 @@ string GetAppBody(const OmahaEvent* event,
     if (include_ping)
         app_body = GetPingXml(ping_active_days, ping_roll_call_days);
     if (!ping_only) {
-      app_body += "        <updatecheck";
-      if (!params->target_version_prefix().empty()) {
-        app_body += base::StringPrintf(
-            " targetversionprefix=\"%s\"",
-            XmlEncodeWithDefault(params->target_version_prefix(), "").c_str());
-        // Rollback requires target_version_prefix set.
-        if (params->rollback_allowed()) {
-          app_body += " rollback_allowed=\"true\"";
+      if (!skip_updatecheck) {
+        app_body += "        <updatecheck";
+        if (!params->target_version_prefix().empty()) {
+          app_body += base::StringPrintf(
+              " targetversionprefix=\"%s\"",
+              XmlEncodeWithDefault(params->target_version_prefix(), "")
+                  .c_str());
+          // Rollback requires target_version_prefix set.
+          if (params->rollback_allowed()) {
+            app_body += " rollback_allowed=\"true\"";
+          }
         }
+        app_body += "></updatecheck>\n";
       }
-      app_body += "></updatecheck>\n";
 
       // If this is the first update check after a reboot following a previous
       // update, generate an event containing the previous version number. If
@@ -266,12 +270,18 @@ string GetAppXml(const OmahaEvent* event,
                  const OmahaAppData& app_data,
                  bool ping_only,
                  bool include_ping,
+                 bool skip_updatecheck,
                  int ping_active_days,
                  int ping_roll_call_days,
                  int install_date_in_days,
                  SystemState* system_state) {
-  string app_body = GetAppBody(event, params, ping_only, include_ping,
-                               ping_active_days, ping_roll_call_days,
+  string app_body = GetAppBody(event,
+                               params,
+                               ping_only,
+                               include_ping,
+                               skip_updatecheck,
+                               ping_active_days,
+                               ping_roll_call_days,
                                system_state->prefs());
   string app_versions;
 
@@ -402,12 +412,13 @@ string GetRequestXml(const OmahaEvent* event,
       .id = params->GetAppId(),
       .version = params->app_version(),
       .product_components = params->product_components()};
-  // TODO(xiaochu): send update check flag only when operation is update.
+  // Skips updatecheck for platform app in case of an install operation.
   string app_xml = GetAppXml(event,
                              params,
                              product_app,
                              ping_only,
                              include_ping,
+                             params->is_install(), /* skip_updatecheck */
                              ping_active_days,
                              ping_roll_call_days,
                              install_date_in_days,
@@ -420,6 +431,7 @@ string GetRequestXml(const OmahaEvent* event,
                          system_app,
                          ping_only,
                          include_ping,
+                         false, /* skip_updatecheck */
                          ping_active_days,
                          ping_roll_call_days,
                          install_date_in_days,
@@ -435,6 +447,7 @@ string GetRequestXml(const OmahaEvent* event,
                          dlc_app,
                          ping_only,
                          include_ping,
+                         false, /* skip_updatecheck */
                          ping_active_days,
                          ping_roll_call_days,
                          install_date_in_days,
@@ -892,7 +905,8 @@ bool UpdateLastPingDays(OmahaParserData *parser_data, PrefsInterface* prefs) {
 bool ParsePackage(OmahaParserData::App* app,
                   OmahaResponse* output_object,
                   ScopedActionCompleter* completer) {
-  if (app->updatecheck_status == kValNoUpdate) {
+  if (app->updatecheck_status.empty() ||
+      app->updatecheck_status == kValNoUpdate) {
     if (!app->packages.empty()) {
       LOG(ERROR) << "No update in this <app> but <package> is not empty.";
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -1085,23 +1099,29 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
   output_object->update_exists = false;
-  for (size_t i = 0; i < parser_data->apps.size(); i++) {
-    const string& status = parser_data->apps[i].updatecheck_status;
+  for (const auto& app : parser_data->apps) {
+    const string& status = app.updatecheck_status;
     if (status == kValNoUpdate) {
       // Don't update if any app has status="noupdate".
-      LOG(INFO) << "No update for <app> " << i;
+      LOG(INFO) << "No update for <app> " << app.id;
       output_object->update_exists = false;
       break;
     } else if (status == "ok") {
-      if (parser_data->apps[i].action_postinstall_attrs[kAttrNoUpdate] ==
-          "true") {
+      auto const& attr_no_update =
+          app.action_postinstall_attrs.find(kAttrNoUpdate);
+      if (attr_no_update != app.action_postinstall_attrs.end() &&
+          attr_no_update->second == "true") {
         // noupdate="true" in postinstall attributes means it's an update to
         // self, only update if there's at least one app really have update.
-        LOG(INFO) << "Update to self for <app> " << i;
+        LOG(INFO) << "Update to self for <app> " << app.id;
       } else {
-        LOG(INFO) << "Update for <app> " << i;
+        LOG(INFO) << "Update for <app> " << app.id;
         output_object->update_exists = true;
       }
+    } else if (status.empty() && params_->is_install() &&
+               params_->GetAppId() == app.id) {
+      // Skips the platform app for install operation.
+      LOG(INFO) << "No payload (and ignore) for <app> " << app.id;
     } else {
       LOG(ERROR) << "Unknown Omaha response status: " << status;
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -1129,10 +1149,19 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
       // this is the system app (this check is intentionally skipped if there is
       // no system_app_id set)
       output_object->system_version = app.manifest_version;
+    } else if (params_->is_install() &&
+               app.manifest_version != params_->app_version()) {
+      LOG(WARNING) << "An app has a different version (" << app.manifest_version
+                   << ") that is different than platform app version ("
+                   << params_->app_version() << ")";
     }
     if (!app.action_postinstall_attrs.empty() && attrs.empty()) {
       attrs = app.action_postinstall_attrs;
     }
+  }
+  if (params_->is_install()) {
+    LOG(INFO) << "Use request version for Install operation.";
+    output_object->version = params_->app_version();
   }
   if (output_object->version.empty()) {
     LOG(ERROR) << "Omaha Response does not have version in manifest!";
