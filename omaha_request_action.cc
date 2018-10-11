@@ -1264,15 +1264,16 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   output_object.update_exists = true;
   SetOutputObject(output_object);
 
+  LoadOrPersistUpdateFirstSeenAtPref();
+
   ErrorCode error = ErrorCode::kSuccess;
-  if (ShouldIgnoreUpdate(&error, output_object)) {
+  if (ShouldIgnoreUpdate(output_object, &error)) {
     // No need to change output_object.update_exists here, since the value
     // has been output to the pipe.
     completer.set_code(error);
     return;
   }
 
-  LoadOrPersistUpdateFirstSeenAtPref();
 
   // If Omaha says to disable p2p, respect that
   if (output_object.disable_p2p_for_downloading) {
@@ -1325,17 +1326,6 @@ void OmahaRequestAction::CompleteProcessing() {
   ScopedActionCompleter completer(processor_, this);
   OmahaResponse& output_object = const_cast<OmahaResponse&>(GetOutputObject());
   PayloadStateInterface* payload_state = system_state_->payload_state();
-
-  if (system_state_->hardware()->IsOOBEEnabled() &&
-      !system_state_->hardware()->IsOOBEComplete(nullptr) &&
-      (output_object.deadline.empty() ||
-       payload_state->GetRollbackHappened()) &&
-      params_->app_version() != "ForcedUpdate") {
-    output_object.update_exists = false;
-    LOG(INFO) << "Ignoring non-critical Omaha updates until OOBE is done.";
-    completer.set_code(ErrorCode::kNonCriticalUpdateInOOBE);
-    return;
-  }
 
   if (ShouldDeferDownload(&output_object)) {
     output_object.update_exists = false;
@@ -1734,8 +1724,8 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
       system_state_, result, reaction, download_error_code);
 }
 
-bool OmahaRequestAction::ShouldIgnoreUpdate(
-    ErrorCode* error, const OmahaResponse& response) const {
+bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
+                                            ErrorCode* error) const {
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       system_state_->payload_state()->GetRollbackVersion();
@@ -1746,6 +1736,16 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
       *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
       return true;
     }
+  }
+
+  if (system_state_->hardware()->IsOOBEEnabled() &&
+      !system_state_->hardware()->IsOOBEComplete(nullptr) &&
+      (response.deadline.empty() ||
+       system_state_->payload_state()->GetRollbackHappened()) &&
+      params_->app_version() != "ForcedUpdate") {
+    LOG(INFO) << "Ignoring a non-critical Omaha update before OOBE completion.";
+    *error = ErrorCode::kNonCriticalUpdateInOOBE;
+    return true;
   }
 
   if (!IsUpdateAllowedOverCurrentConnection(error, response)) {

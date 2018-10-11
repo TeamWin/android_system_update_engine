@@ -303,8 +303,8 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   void OnLookupPayloadViaP2PCompleted(const std::string& url);
 
   // Returns true if the current update should be ignored.
-  bool ShouldIgnoreUpdate(ErrorCode* error,
-                          const OmahaResponse& response) const;
+  bool ShouldIgnoreUpdate(const OmahaResponse& response,
+                          ErrorCode* error) const;
 
   // Return true if updates are allowed by user preferences.
   bool IsUpdateAllowedOverCellularByPrefs(const OmahaResponse& response) const;

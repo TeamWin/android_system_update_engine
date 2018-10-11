@@ -1154,6 +1154,37 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBERollback) {
   EXPECT_FALSE(response.update_exists);
 }
 
+// Verify that non-critical updates are skipped by reporting the
+// kNonCriticalUpdateInOOBE error code when attempted over cellular network -
+// i.e. when the update would need user permission. Note that reporting
+// kOmahaUpdateIgnoredOverCellular error in this case  might cause undesired UX
+// in OOBE (warning the user about an update that will be skipped).
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesInOOBEOverCellular) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+
+  MockConnectionManager mock_cm;
+  fake_system_state_.set_connection_manager(&mock_cm);
+
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
+  EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
+      .WillRepeatedly(Return(false));
+
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kNonCriticalUpdateInOOBE,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
 TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   OmahaResponse response;
   request_params_.set_wall_clock_based_wait_enabled(true);
