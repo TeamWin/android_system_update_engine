@@ -90,7 +90,7 @@ die() {
 load_shflags() {
   local my_dir="$(dirname "$(readlink -f "$0")")"
   local path
-  for path in /usr/share/misc {/usr/lib/crosutils,"${my_dir}"}/lib/shflags; do
+  for path in /usr/share/misc "${my_dir}"/lib/shflags; do
     if [[ -r "${path}/shflags" ]]; then
       . "${path}/shflags" || die "Could not load ${path}/shflags."
       return
