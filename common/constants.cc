@@ -93,6 +93,7 @@ const char kPrefsUpdateStateSignedSHA256Context[] =
 const char kPrefsUpdateBootTimestampStart[] = "update-boot-timestamp-start";
 const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
 const char kPrefsUrlSwitchCount[] = "url-switch-count";
+const char kPrefsVerityWritten[] = "verity-written";
 const char kPrefsWallClockScatteringWaitPeriod[] = "wall-clock-wait-period";
 const char kPrefsWallClockStagingWaitPeriod[] =
     "wall-clock-staging-wait-period";

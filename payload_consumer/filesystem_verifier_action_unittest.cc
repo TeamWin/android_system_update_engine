@@ -49,6 +49,8 @@ class FilesystemVerifierActionTest : public ::testing::Test {
   // Returns true iff test has completed successfully.
   bool DoTest(bool terminate_early, bool hash_fail);
 
+  void BuildActions(const InstallPlan& install_plan);
+
   brillo::FakeMessageLoop loop_{nullptr};
   ActionProcessor processor_;
 };
@@ -136,20 +138,10 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   }
   install_plan.partitions = {part};
 
-  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
-  feeder_action->set_obj(install_plan);
-  auto copier_action = std::make_unique<FilesystemVerifierAction>();
-  auto collector_action =
-      std::make_unique<ObjectCollectorAction<InstallPlan>>();
-
-  BondActions(feeder_action.get(), copier_action.get());
-  BondActions(copier_action.get(), collector_action.get());
+  BuildActions(install_plan);
 
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
-  processor_.EnqueueAction(std::move(feeder_action));
-  processor_.EnqueueAction(std::move(copier_action));
-  processor_.EnqueueAction(std::move(collector_action));
 
   loop_.PostTask(FROM_HERE,
                  base::Bind(
@@ -195,6 +187,23 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   return success;
 }
 
+void FilesystemVerifierActionTest::BuildActions(
+    const InstallPlan& install_plan) {
+  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
+  auto verifier_action = std::make_unique<FilesystemVerifierAction>();
+  auto collector_action =
+      std::make_unique<ObjectCollectorAction<InstallPlan>>();
+
+  feeder_action->set_obj(install_plan);
+
+  BondActions(feeder_action.get(), verifier_action.get());
+  BondActions(verifier_action.get(), collector_action.get());
+
+  processor_.EnqueueAction(std::move(feeder_action));
+  processor_.EnqueueAction(std::move(verifier_action));
+  processor_.EnqueueAction(std::move(collector_action));
+}
+
 class FilesystemVerifierActionTest2Delegate : public ActionProcessorDelegate {
  public:
   void ActionCompleted(ActionProcessor* processor,
@@ -210,10 +219,6 @@ class FilesystemVerifierActionTest2Delegate : public ActionProcessorDelegate {
 };
 
 TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
-  FilesystemVerifierActionTest2Delegate delegate;
-
-  processor_.set_delegate(&delegate);
-
   auto copier_action = std::make_unique<FilesystemVerifierAction>();
   auto collector_action =
       std::make_unique<ObjectCollectorAction<InstallPlan>>();
@@ -222,6 +227,10 @@ TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
 
   processor_.EnqueueAction(std::move(copier_action));
   processor_.EnqueueAction(std::move(collector_action));
+
+  FilesystemVerifierActionTest2Delegate delegate;
+  processor_.set_delegate(&delegate);
+
   processor_.StartProcessing();
   EXPECT_FALSE(processor_.IsRunning());
   EXPECT_TRUE(delegate.ran_);
@@ -229,10 +238,6 @@ TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
 }
 
 TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
-  FilesystemVerifierActionTest2Delegate delegate;
-
-  processor_.set_delegate(&delegate);
-
   InstallPlan install_plan;
   InstallPlan::Partition part;
   part.name = "nope";
@@ -240,19 +245,11 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
   part.target_path = "/no/such/file";
   install_plan.partitions = {part};
 
-  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
-  auto verifier_action = std::make_unique<FilesystemVerifierAction>();
-  auto collector_action =
-      std::make_unique<ObjectCollectorAction<InstallPlan>>();
+  BuildActions(install_plan);
 
-  feeder_action->set_obj(install_plan);
+  FilesystemVerifierActionTest2Delegate delegate;
+  processor_.set_delegate(&delegate);
 
-  BondActions(feeder_action.get(), verifier_action.get());
-  BondActions(verifier_action.get(), collector_action.get());
-
-  processor_.EnqueueAction(std::move(feeder_action));
-  processor_.EnqueueAction(std::move(verifier_action));
-  processor_.EnqueueAction(std::move(collector_action));
   processor_.StartProcessing();
   EXPECT_FALSE(processor_.IsRunning());
   EXPECT_TRUE(delegate.ran_);
@@ -278,9 +275,6 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
 
 #ifdef __ANDROID__
 TEST_F(FilesystemVerifierActionTest, WriteVerityTest) {
-  FilesystemVerifierActionTestDelegate delegate;
-  processor_.set_delegate(&delegate);
-
   test_utils::ScopedTempFile part_file("part_file.XXXXXX");
   constexpr size_t filesystem_size = 200 * 4096;
   constexpr size_t part_size = 256 * 4096;
@@ -324,19 +318,10 @@ TEST_F(FilesystemVerifierActionTest, WriteVerityTest) {
                          0x70, 0xba, 0xed, 0x27, 0xe2, 0xae};
   install_plan.partitions = {part};
 
-  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
-  auto verifier_action = std::make_unique<FilesystemVerifierAction>();
-  auto collector_action =
-      std::make_unique<ObjectCollectorAction<InstallPlan>>();
+  BuildActions(install_plan);
 
-  feeder_action->set_obj(install_plan);
-
-  BondActions(feeder_action.get(), verifier_action.get());
-  BondActions(verifier_action.get(), collector_action.get());
-
-  processor_.EnqueueAction(std::move(feeder_action));
-  processor_.EnqueueAction(std::move(verifier_action));
-  processor_.EnqueueAction(std::move(collector_action));
+  FilesystemVerifierActionTestDelegate delegate;
+  processor_.set_delegate(&delegate);
 
   loop_.PostTask(
       FROM_HERE,
@@ -351,4 +336,49 @@ TEST_F(FilesystemVerifierActionTest, WriteVerityTest) {
 }
 #endif  // __ANDROID__
 
+TEST_F(FilesystemVerifierActionTest, SkipWriteVerityTest) {
+  test_utils::ScopedTempFile part_file("part_file.XXXXXX");
+  constexpr size_t filesystem_size = 200 * 4096;
+  constexpr size_t part_size = 256 * 4096;
+  brillo::Blob part_data(part_size);
+  test_utils::FillWithData(&part_data);
+  ASSERT_TRUE(test_utils::WriteFileVector(part_file.path(), part_data));
+  string target_path;
+  test_utils::ScopedLoopbackDeviceBinder target_device(
+      part_file.path(), true, &target_path);
+
+  InstallPlan install_plan;
+  install_plan.write_verity = false;
+  InstallPlan::Partition part;
+  part.name = "part";
+  part.target_path = target_path;
+  part.target_size = part_size;
+  part.block_size = 4096;
+  part.hash_tree_data_offset = 0;
+  part.hash_tree_data_size = filesystem_size;
+  part.hash_tree_offset = filesystem_size;
+  part.hash_tree_size = 3 * 4096;
+  part.fec_data_offset = 0;
+  part.fec_data_size = filesystem_size + part.hash_tree_size;
+  part.fec_offset = part.fec_data_size;
+  part.fec_size = 2 * 4096;
+  EXPECT_TRUE(HashCalculator::RawHashOfData(part_data, &part.target_hash));
+  install_plan.partitions = {part};
+
+  BuildActions(install_plan);
+
+  FilesystemVerifierActionTestDelegate delegate;
+  processor_.set_delegate(&delegate);
+
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(
+          [](ActionProcessor* processor) { processor->StartProcessing(); },
+          base::Unretained(&processor_)));
+  loop_.Run();
+
+  EXPECT_FALSE(processor_.IsRunning());
+  EXPECT_TRUE(delegate.ran());
+  EXPECT_EQ(ErrorCode::kSuccess, delegate.code());
+}
 }  // namespace chromeos_update_engine
