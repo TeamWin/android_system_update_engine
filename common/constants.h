@@ -91,6 +91,7 @@ extern const char kPrefsUpdateStateSignedSHA256Context[];
 extern const char kPrefsUpdateBootTimestampStart[];
 extern const char kPrefsUpdateTimestampStart[];
 extern const char kPrefsUrlSwitchCount[];
+extern const char kPrefsVerityWritten[];
 extern const char kPrefsWallClockScatteringWaitPeriod[];
 extern const char kPrefsWallClockStagingWaitPeriod[];
 
