@@ -80,7 +80,7 @@ const char* const kGenericError = "generic_error";
 
 // Log and set the error on the passed ErrorPtr.
 bool LogAndSetError(brillo::ErrorPtr* error,
-                    const tracked_objects::Location& location,
+                    const base::Location& location,
                     const string& reason) {
   brillo::Error::AddTo(error, location, kErrorDomain, kGenericError, reason);
   LOG(ERROR) << "Replying with failure: " << location.ToString() << ": "
