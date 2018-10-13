@@ -90,7 +90,9 @@ void InstallPlan::Dump() const {
             << ", powerwash_required: " << utils::ToString(powerwash_required)
             << ", switch_slot_on_reboot: "
             << utils::ToString(switch_slot_on_reboot)
-            << ", run_post_install: " << utils::ToString(run_post_install);
+            << ", run_post_install: " << utils::ToString(run_post_install)
+            << ", is_rollback: " << utils::ToString(is_rollback)
+            << ", write_verity: " << utils::ToString(write_verity);
 }
 
 bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
