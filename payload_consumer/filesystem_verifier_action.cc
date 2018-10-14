@@ -134,7 +134,8 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   hasher_ = std::make_unique<HashCalculator>();
 
   offset_ = 0;
-  if (verifier_step_ == VerifierStep::kVerifyTargetHash) {
+  if (verifier_step_ == VerifierStep::kVerifyTargetHash &&
+      install_plan_.write_verity) {
     if (!verity_writer_->Init(partition)) {
       Cleanup(ErrorCode::kVerityCalculationError);
       return;
@@ -201,7 +202,8 @@ void FilesystemVerifierAction::OnReadDoneCallback(size_t bytes_read) {
     return;
   }
 
-  if (verifier_step_ == VerifierStep::kVerifyTargetHash) {
+  if (verifier_step_ == VerifierStep::kVerifyTargetHash &&
+      install_plan_.write_verity) {
     if (!verity_writer_->Update(offset_, buffer_.data(), bytes_read)) {
       Cleanup(ErrorCode::kVerityCalculationError);
       return;

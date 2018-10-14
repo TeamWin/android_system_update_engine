@@ -80,7 +80,7 @@ const char* const kGenericError = "generic_error";
 
 // Log and set the error on the passed ErrorPtr.
 bool LogAndSetError(brillo::ErrorPtr* error,
-                    const tracked_objects::Location& location,
+                    const base::Location& location,
                     const string& reason) {
   brillo::Error::AddTo(error, location, kErrorDomain, kGenericError, reason);
   LOG(ERROR) << "Replying with failure: " << location.ToString() << ": "
@@ -220,10 +220,21 @@ bool UpdateAttempterAndroid::ApplyPayload(
   // c) RUN_POST_INSTALL is set to 0.
   if (install_plan_.is_resume && prefs_->Exists(kPrefsPostInstallSucceeded)) {
     bool post_install_succeeded = false;
-    prefs_->GetBoolean(kPrefsPostInstallSucceeded, &post_install_succeeded);
-    if (post_install_succeeded) {
+    if (prefs_->GetBoolean(kPrefsPostInstallSucceeded,
+                           &post_install_succeeded) &&
+        post_install_succeeded) {
       install_plan_.run_post_install =
           GetHeaderAsBool(headers[kPayloadPropertyRunPostInstall], true);
+    }
+  }
+
+  // Skip writing verity if we're resuming and verity has already been written.
+  install_plan_.write_verity = true;
+  if (install_plan_.is_resume && prefs_->Exists(kPrefsVerityWritten)) {
+    bool verity_written = false;
+    if (prefs_->GetBoolean(kPrefsVerityWritten, &verity_written) &&
+        verity_written) {
+      install_plan_.write_verity = false;
     }
   }
 
@@ -498,6 +509,8 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
   }
   if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
+  } else if (type == FilesystemVerifierAction::StaticType()) {
+    prefs_->SetBoolean(kPrefsVerityWritten, true);
   }
 }
 
