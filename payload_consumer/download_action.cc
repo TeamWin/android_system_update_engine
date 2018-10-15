@@ -56,7 +56,6 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       delegate_(nullptr),
       p2p_sharing_fd_(-1),
       p2p_visible_(true) {
-  base::StatisticsRecorder::Initialize();
 }
 
 DownloadAction::~DownloadAction() {}

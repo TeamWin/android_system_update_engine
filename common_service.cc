@@ -49,7 +49,7 @@ namespace chromeos_update_engine {
 namespace {
 // Log and set the error on the passed ErrorPtr.
 void LogAndSetError(ErrorPtr* error,
-                    const tracked_objects::Location& location,
+                    const base::Location& location,
                     const string& reason) {
   brillo::Error::AddTo(error,
                        location,
