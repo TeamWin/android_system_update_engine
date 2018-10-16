@@ -919,12 +919,12 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   }
 
   if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
-    BootControlInterface::PartitionSizes partition_sizes;
+    BootControlInterface::PartitionMetadata partition_metadata;
     for (const InstallPlan::Partition& partition : install_plan_->partitions) {
-      partition_sizes.emplace(partition.name, partition.target_size);
+      partition_metadata.emplace(partition.name, partition.target_size);
     }
     if (!boot_control_->InitPartitionMetadata(install_plan_->target_slot,
-                                              partition_sizes)) {
+                                              partition_metadata)) {
       LOG(ERROR) << "Unable to initialize partition metadata for slot "
                  << BootControlInterface::SlotName(install_plan_->target_slot);
       *error = ErrorCode::kInstallDeviceOpenError;

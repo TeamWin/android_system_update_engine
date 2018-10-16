@@ -40,8 +40,8 @@ using android::hardware::boot::V1_0::BoolResult;
 using android::hardware::boot::V1_0::CommandResult;
 using android::hardware::boot::V1_0::IBootControl;
 using Slot = chromeos_update_engine::BootControlInterface::Slot;
-using PartitionSizes =
-    chromeos_update_engine::BootControlInterface::PartitionSizes;
+using PartitionMetadata =
+    chromeos_update_engine::BootControlInterface::PartitionMetadata;
 
 namespace {
 
@@ -260,7 +260,7 @@ bool ResizePartitions(DynamicPartitionControlInterface* dynamic_control,
                       const string& super_device,
                       Slot target_slot,
                       const string& target_suffix,
-                      const PartitionSizes& logical_sizes,
+                      const PartitionMetadata& logical_sizes,
                       MetadataBuilder* builder) {
   // Delete all extents to ensure that each partition has enough space to
   // grow.
@@ -317,12 +317,12 @@ bool IsDynamicPartition(DynamicPartitionControlInterface* dynamic_control,
 
 bool FilterPartitionSizes(DynamicPartitionControlInterface* dynamic_control,
                           const base::FilePath& device_dir,
-                          const PartitionSizes& partition_sizes,
+                          const PartitionMetadata& partition_metadata,
                           MetadataBuilder* source_metadata,
                           const string& source_suffix,
                           const string& target_suffix,
-                          PartitionSizes* logical_sizes) {
-  for (const auto& pair : partition_sizes) {
+                          PartitionMetadata* logical_sizes) {
+  for (const auto& pair : partition_metadata) {
     if (!IsDynamicPartition(dynamic_control,
                             device_dir,
                             source_metadata,
@@ -347,7 +347,7 @@ bool NeedResizePartitions(DynamicPartitionControlInterface* dynamic_control,
                           const string& super_device,
                           Slot target_slot,
                           const string& suffix,
-                          const PartitionSizes& logical_sizes) {
+                          const PartitionMetadata& logical_sizes) {
   auto target_metadata =
       dynamic_control->LoadMetadataBuilder(super_device, target_slot);
   if (target_metadata == nullptr) {
@@ -385,7 +385,7 @@ bool NeedResizePartitions(DynamicPartitionControlInterface* dynamic_control,
 }  // namespace
 
 bool BootControlAndroid::InitPartitionMetadata(
-    Slot target_slot, const PartitionSizes& partition_sizes) {
+    Slot target_slot, const PartitionMetadata& partition_metadata) {
   if (!dynamic_control_->IsDynamicPartitionsEnabled()) {
     return true;
   }
@@ -423,10 +423,10 @@ bool BootControlAndroid::InitPartitionMetadata(
   // Read metadata from current slot to determine which partitions are logical
   // and may be resized. Do not read from target slot because metadata at
   // target slot may be corrupted.
-  PartitionSizes logical_sizes;
+  PartitionMetadata logical_sizes;
   if (!FilterPartitionSizes(dynamic_control_.get(),
                             device_dir,
-                            partition_sizes,
+                            partition_metadata,
                             builder.get() /* source metadata */,
                             current_suffix,
                             target_suffix,
