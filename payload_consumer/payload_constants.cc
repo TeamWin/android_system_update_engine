@@ -22,7 +22,7 @@ const uint64_t kChromeOSMajorPayloadVersion = 1;
 const uint64_t kBrilloMajorPayloadVersion = 2;
 
 const uint32_t kMinSupportedMinorPayloadVersion = 1;
-const uint32_t kMaxSupportedMinorPayloadVersion = 5;
+const uint32_t kMaxSupportedMinorPayloadVersion = 6;
 
 const uint32_t kFullPayloadMinorVersion = 0;
 const uint32_t kInPlaceMinorPayloadVersion = 1;
