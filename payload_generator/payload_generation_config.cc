@@ -16,7 +16,13 @@
 
 #include "update_engine/payload_generator/payload_generation_config.h"
 
+#include <algorithm>
+#include <map>
+#include <utility>
+
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
+#include <brillo/strings/string_utils.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/delta_performer.h"
@@ -26,6 +32,8 @@
 #include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/mapfile_filesystem.h"
 #include "update_engine/payload_generator/raw_filesystem.h"
+
+using std::string;
 
 namespace chromeos_update_engine {
 
@@ -117,6 +125,74 @@ bool ImageConfig::LoadPostInstallConfig(const brillo::KeyValueStore& store) {
   if (!found_postinstall) {
     LOG(ERROR) << "No valid postinstall config found.";
     return false;
+  }
+  return true;
+}
+
+bool ImageConfig::LoadDynamicPartitionMetadata(
+    const brillo::KeyValueStore& store) {
+  auto metadata = std::make_unique<DynamicPartitionMetadata>();
+  string buf;
+  if (!store.GetString("super_partition_groups", &buf)) {
+    LOG(ERROR) << "Dynamic partition info missing super_partition_groups.";
+    return false;
+  }
+  auto group_names = brillo::string_utils::Split(buf, " ");
+  for (const auto& group_name : group_names) {
+    DynamicPartitionGroup* group = metadata->add_groups();
+    group->set_name(group_name);
+    if (!store.GetString(group_name + "_size", &buf)) {
+      LOG(ERROR) << "Missing " << group_name + "_size.";
+      return false;
+    }
+
+    uint64_t max_size;
+    if (!base::StringToUint64(buf, &max_size)) {
+      LOG(ERROR) << group_name << "_size=" << buf << " is not an integer.";
+      return false;
+    }
+    group->set_size(max_size);
+
+    if (store.GetString(group_name + "_partition_list", &buf)) {
+      auto partition_names = brillo::string_utils::Split(buf, " ");
+      for (const auto& partition_name : partition_names) {
+        group->add_partition_names()->assign(partition_name);
+      }
+    }
+  }
+  dynamic_partition_metadata = std::move(metadata);
+  return true;
+}
+
+bool ImageConfig::ValidateDynamicPartitionMetadata() const {
+  if (dynamic_partition_metadata == nullptr) {
+    LOG(ERROR) << "dynamic_partition_metadata is not loaded.";
+    return false;
+  }
+
+  for (const auto& group : dynamic_partition_metadata->groups()) {
+    uint64_t sum_size = 0;
+    for (const auto& partition_name : group.partition_names()) {
+      auto partition_config = std::find_if(partitions.begin(),
+                                           partitions.end(),
+                                           [&partition_name](const auto& e) {
+                                             return e.name == partition_name;
+                                           });
+
+      if (partition_config == partitions.end()) {
+        LOG(ERROR) << "Cannot find partition " << partition_name
+                   << " which is in " << group.name() << "_partition_list";
+        return false;
+      }
+      sum_size += partition_config->size;
+    }
+
+    if (sum_size > group.size()) {
+      LOG(ERROR) << "Sum of sizes in " << group.name() << "_partition_list is "
+                 << sum_size << ", which is greater than " << group.name()
+                 << "_size (" << group.size() << ")";
+      return false;
+    }
   }
   return true;
 }
