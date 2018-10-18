@@ -24,7 +24,6 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
-#include <brillo/update_engine/utils.h>
 #include <rootdev/rootdev.h>
 
 extern "C" {
@@ -43,6 +42,12 @@ const char* kChromeOSPartitionNameKernel = "kernel";
 const char* kChromeOSPartitionNameRoot = "root";
 const char* kAndroidPartitionNameKernel = "boot";
 const char* kAndroidPartitionNameRoot = "system";
+
+const char kDlcInstallRootDirectoryEncrypted[] = "/home/chronos/dlc";
+const char kPartitionNamePrefixDlc[] = "dlc_";
+const char kPartitionNameDlcA[] = "dlc_a";
+const char kPartitionNameDlcB[] = "dlc_b";
+const char kPartitionNameDlcImage[] = "dlc.img";
 
 // Returns the currently booted rootfs partition. "/dev/sda3", for example.
 string GetBootDevice() {
@@ -146,26 +151,21 @@ bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
                                              string* device) const {
   // Partition name prefixed with |kPartitionNamePrefixDlc| is a DLC.
   if (base::StartsWith(partition_name,
-                       brillo::chromeos_update_engine::kPartitionNamePrefixDlc,
+                       kPartitionNamePrefixDlc,
                        base::CompareCase::SENSITIVE)) {
     // Extract DLC ID from partition_name (DLC ID is the string after
     // |kPartitionNamePrefixDlc| in partition_name).
-    const auto dlc_id = partition_name.substr(
-        strlen(brillo::chromeos_update_engine::kPartitionNamePrefixDlc));
+    const auto dlc_id = partition_name.substr(strlen(kPartitionNamePrefixDlc));
     if (dlc_id.empty()) {
       LOG(ERROR) << " partition name does not contain dlc id:"
                  << partition_name;
       return false;
     }
-    *device =
-        base::FilePath(
-            brillo::chromeos_update_engine::kDlcInstallRootDirectoryEncrypted)
-            .Append(dlc_id)
-            .Append(slot == 0
-                        ? brillo::chromeos_update_engine::kPartitionNameDlcA
-                        : brillo::chromeos_update_engine::kPartitionNameDlcB)
-            .Append(brillo::chromeos_update_engine::kPartitionNameDlcImage)
-            .value();
+    *device = base::FilePath(kDlcInstallRootDirectoryEncrypted)
+                  .Append(dlc_id)
+                  .Append(slot == 0 ? kPartitionNameDlcA : kPartitionNameDlcB)
+                  .Append(kPartitionNameDlcImage)
+                  .value();
     return true;
   }
   int partition_num = GetPartitionNumber(partition_name, slot);
