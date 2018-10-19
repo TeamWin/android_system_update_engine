@@ -37,6 +37,8 @@ const char kPrefsCurrentUrlIndex[] = "current-url-index";
 const char kPrefsDailyMetricsLastReportedAt[] =
     "daily-metrics-last-reported-at";
 const char kPrefsDeltaUpdateFailures[] = "delta-update-failures";
+const char kPrefsDynamicPartitionMetadataInitialized[] =
+    "dynamic-partition-metadata-initialized";
 const char kPrefsFullPayloadAttemptNumber[] = "full-payload-attempt-number";
 const char kPrefsInstallDateDays[] = "install-date-days";
 const char kPrefsLastActivePingDay[] = "last-active-ping-day";
