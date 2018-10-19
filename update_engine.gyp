@@ -128,6 +128,7 @@
         'exported_deps': [
           'libcrypto',
           'xz-embedded',
+          'libbspatch',
           'libpuffpatch',
         ],
         'deps': ['<@(exported_deps)'],
@@ -146,7 +147,6 @@
           ],
         },
         'libraries': [
-          '-lbspatch',
           '-lbz2',
           '-lrt',
         ],
@@ -365,6 +365,7 @@
       'variables': {
         'exported_deps': [
           'ext2fs',
+          'libbsdiff',
           'libpuffdiff',
           'liblzma',
         ],
@@ -383,9 +384,6 @@
             '<@(exported_deps)',
           ],
         },
-        'libraries': [
-          '-lbsdiff',
-        ],
       },
       'sources': [
         'payload_generator/ab_generator.cc',
