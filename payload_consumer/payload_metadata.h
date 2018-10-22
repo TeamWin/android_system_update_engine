@@ -55,6 +55,8 @@ class PayloadMetadata {
   // the payload.
   MetadataParseResult ParsePayloadHeader(const brillo::Blob& payload,
                                          ErrorCode* error);
+  // Simpler version of the above, returns true on success.
+  bool ParsePayloadHeader(const brillo::Blob& payload);
 
   // Given the |payload|, verifies that the signed hash of its metadata matches
   // |metadata_signature| (if present) or the metadata signature in payload
