@@ -39,6 +39,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/mock_download_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/payload_signer.h"
@@ -581,16 +582,14 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                            uint32_t minor_version) {
   // Check the metadata.
   {
-    DeltaArchiveManifest manifest;
-    EXPECT_TRUE(PayloadSigner::LoadPayloadMetadata(state->delta_path,
-                                                   nullptr,
-                                                   &manifest,
-                                                   nullptr,
-                                                   &state->metadata_size,
-                                                   nullptr));
-    LOG(INFO) << "Metadata size: " << state->metadata_size;
     EXPECT_TRUE(utils::ReadFile(state->delta_path, &state->delta));
+    PayloadMetadata payload_metadata;
+    EXPECT_TRUE(payload_metadata.ParsePayloadHeader(state->delta));
+    state->metadata_size = payload_metadata.GetMetadataSize();
+    LOG(INFO) << "Metadata size: " << state->metadata_size;
 
+    DeltaArchiveManifest manifest;
+    EXPECT_TRUE(payload_metadata.GetManifest(state->delta, &manifest));
     if (signature_test == kSignatureNone) {
       EXPECT_FALSE(manifest.has_signatures_offset());
       EXPECT_FALSE(manifest.has_signatures_size());

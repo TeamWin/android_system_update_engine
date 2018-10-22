@@ -124,41 +124,8 @@ class PayloadSignerTest : public ::testing::Test {
     PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash_data_);
   }
 
-  void DoWriteAndLoadPayloadTest(const PayloadGenerationConfig& config) {
-    PayloadFile payload;
-    payload.Init(config);
-    test_utils::ScopedTempFile payload_file("payload.XXXXXX");
-    uint64_t metadata_size;
-    EXPECT_TRUE(payload.WritePayload(
-        payload_file.path(), "/dev/null", "", &metadata_size));
-    brillo::Blob payload_metadata_blob;
-    DeltaArchiveManifest manifest;
-    uint64_t load_metadata_size, load_major_version;
-    EXPECT_TRUE(PayloadSigner::LoadPayloadMetadata(payload_file.path(),
-                                                   &payload_metadata_blob,
-                                                   &manifest,
-                                                   &load_major_version,
-                                                   &load_metadata_size,
-                                                   nullptr));
-    EXPECT_EQ(metadata_size, payload_metadata_blob.size());
-    EXPECT_EQ(config.version.major, load_major_version);
-    EXPECT_EQ(metadata_size, load_metadata_size);
-  }
-
   brillo::Blob padded_hash_data_{std::begin(kDataHash), std::end(kDataHash)};
 };
-
-TEST_F(PayloadSignerTest, LoadPayloadV1Test) {
-  PayloadGenerationConfig config;
-  config.version.major = kChromeOSMajorPayloadVersion;
-  DoWriteAndLoadPayloadTest(config);
-}
-
-TEST_F(PayloadSignerTest, LoadPayloadV2Test) {
-  PayloadGenerationConfig config;
-  config.version.major = kBrilloMajorPayloadVersion;
-  DoWriteAndLoadPayloadTest(config);
-}
 
 TEST_F(PayloadSignerTest, SignSimpleTextTest) {
   brillo::Blob signature_blob;
