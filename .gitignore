@@ -4,7 +4,6 @@
 /delta_generator
 /html/
 /test_http_server
-/update_engine
 /update_engine.dbusclient.h
 /update_engine.dbusserver.h
 /update_engine_client
