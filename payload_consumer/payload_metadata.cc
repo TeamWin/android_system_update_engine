@@ -138,6 +138,11 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
   return MetadataParseResult::kSuccess;
 }
 
+bool PayloadMetadata::ParsePayloadHeader(const brillo::Blob& payload) {
+  ErrorCode error;
+  return ParsePayloadHeader(payload, &error) == MetadataParseResult::kSuccess;
+}
+
 bool PayloadMetadata::GetManifest(const brillo::Blob& payload,
                                   DeltaArchiveManifest* out_manifest) const {
   uint64_t manifest_offset;
