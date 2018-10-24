@@ -368,8 +368,12 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
     // time, it will be easy (non-complex) to have many operations read
     // from the same source blocks. At that time, this code can die. -adlr
     auto old_file = old_files_map[new_file.name];
-    vector<Extent> old_file_extents =
-        FilterExtentRanges(old_file.extents, old_visited_blocks);
+    vector<Extent> old_file_extents;
+    if (version.InplaceUpdate())
+      old_file_extents =
+          FilterExtentRanges(old_file.extents, old_visited_blocks);
+    else
+      old_file_extents = old_file.extents;
     old_visited_blocks.AddExtents(old_file_extents);
 
     file_delta_processors.emplace_back(old_part.path,
