@@ -919,14 +919,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   }
 
   if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
-    BootControlInterface::PartitionMetadata partition_metadata;
-    for (const InstallPlan::Partition& partition : install_plan_->partitions) {
-      partition_metadata.emplace(partition.name, partition.target_size);
-    }
-    if (!boot_control_->InitPartitionMetadata(install_plan_->target_slot,
-                                              partition_metadata)) {
-      LOG(ERROR) << "Unable to initialize partition metadata for slot "
-                 << BootControlInterface::SlotName(install_plan_->target_slot);
+    if (!InitPartitionMetadata()) {
       *error = ErrorCode::kInstallDeviceOpenError;
       return false;
     }
@@ -938,6 +931,33 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     return false;
   }
   LogPartitionInfo(partitions_);
+  return true;
+}
+
+bool DeltaPerformer::InitPartitionMetadata() {
+  bool metadata_initialized;
+  if (prefs_->GetBoolean(kPrefsDynamicPartitionMetadataInitialized,
+                         &metadata_initialized) &&
+      metadata_initialized) {
+    LOG(INFO) << "Skipping InitPartitionMetadata.";
+    return true;
+  }
+
+  BootControlInterface::PartitionMetadata partition_metadata;
+  for (const InstallPlan::Partition& partition : install_plan_->partitions) {
+    partition_metadata.emplace(partition.name, partition.target_size);
+  }
+
+  if (!boot_control_->InitPartitionMetadata(install_plan_->target_slot,
+                                            partition_metadata)) {
+    LOG(ERROR) << "Unable to initialize partition metadata for slot "
+               << BootControlInterface::SlotName(install_plan_->target_slot);
+    return false;
+  }
+  TEST_AND_RETURN_FALSE(
+      prefs_->SetBoolean(kPrefsDynamicPartitionMetadataInitialized, true));
+  LOG(INFO) << "InitPartitionMetadata done.";
+
   return true;
 }
 
@@ -1861,6 +1881,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
     prefs->Delete(kPrefsPostInstallSucceeded);
     prefs->Delete(kPrefsVerityWritten);
+    prefs->Delete(kPrefsDynamicPartitionMetadataInitialized);
   }
   return true;
 }
