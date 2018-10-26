@@ -404,6 +404,10 @@ int Main(int argc, char** argv) {
   DEFINE_string(new_postinstall_config_file, "",
                 "A config file specifying postinstall related metadata. "
                 "Only allowed in major version 2 or newer.");
+  DEFINE_string(dynamic_partition_info_file,
+                "",
+                "An info file specifying dynamic partition metadata. "
+                "Only allowed in major version 2 or newer.");
 
   brillo::FlagHelper::Init(argc, argv,
       "Generates a payload to provide to ChromeOS' update_engine.\n\n"
@@ -552,6 +556,16 @@ int Main(int argc, char** argv) {
     CHECK(payload_config.source.LoadImageSize());
   }
   CHECK(payload_config.target.LoadImageSize());
+
+  if (!FLAGS_dynamic_partition_info_file.empty()) {
+    LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
+        << "Dynamic partition info is only allowed in major version 2 or "
+           "newer.";
+    brillo::KeyValueStore store;
+    CHECK(store.Load(base::FilePath(FLAGS_dynamic_partition_info_file)));
+    CHECK(payload_config.target.LoadDynamicPartitionMetadata(store));
+    CHECK(payload_config.target.ValidateDynamicPartitionMetadata());
+  }
 
   CHECK(!FLAGS_out_file.empty());
 

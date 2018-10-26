@@ -75,6 +75,13 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
 
   manifest_.set_block_size(config.block_size);
   manifest_.set_max_timestamp(config.max_timestamp);
+
+  if (major_version_ == kBrilloMajorPayloadVersion) {
+    if (config.target.dynamic_partition_metadata != nullptr)
+      *(manifest_.mutable_dynamic_partition_metadata()) =
+          *(config.target.dynamic_partition_metadata);
+  }
+
   return true;
 }
 
