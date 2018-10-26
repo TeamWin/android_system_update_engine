@@ -245,6 +245,17 @@ class BootControlAndroidTest : public ::testing::Test {
     }
   }
 
+  void ExpectStoreMetadata(const PartitionSizes& partition_sizes) {
+    ExpectStoreMetadataMatch(MetadataMatches(partition_sizes));
+  }
+
+  virtual void ExpectStoreMetadataMatch(
+      const Matcher<MetadataBuilder*>& matcher) {
+    EXPECT_CALL(dynamicControl(),
+                StoreMetadata(GetSuperDevice(), matcher, target()))
+        .WillOnce(Return(true));
+  }
+
   uint32_t source() { return slots_.source; }
 
   uint32_t target() { return slots_.target; }
@@ -400,14 +411,10 @@ TEST_P(BootControlAndroidTestP, NeedGrowIfSizeNotMatchWhenResizing) {
                          {T("vendor"), 1_GiB}};
   SetMetadata(source(), initial);
   SetMetadata(target(), initial);
-  EXPECT_CALL(dynamicControl(),
-              StoreMetadata(GetSuperDevice(),
-                            MetadataMatches({{S("system"), 2_GiB},
-                                             {S("vendor"), 1_GiB},
-                                             {T("system"), 3_GiB},
-                                             {T("vendor"), 1_GiB}}),
-                            target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata({{S("system"), 2_GiB},
+                       {S("vendor"), 1_GiB},
+                       {T("system"), 3_GiB},
+                       {T("vendor"), 1_GiB}});
   ExpectRemap({T("system"), T("vendor")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
@@ -424,14 +431,10 @@ TEST_P(BootControlAndroidTestP, NeedShrinkIfSizeNotMatchWhenResizing) {
                          {T("vendor"), 1_GiB}};
   SetMetadata(source(), initial);
   SetMetadata(target(), initial);
-  EXPECT_CALL(dynamicControl(),
-              StoreMetadata(GetSuperDevice(),
-                            MetadataMatches({{S("system"), 2_GiB},
-                                             {S("vendor"), 1_GiB},
-                                             {T("system"), 2_GiB},
-                                             {T("vendor"), 150_MiB}}),
-                            target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata({{S("system"), 2_GiB},
+                       {S("vendor"), 1_GiB},
+                       {T("system"), 2_GiB},
+                       {T("vendor"), 150_MiB}});
   ExpectRemap({T("system"), T("vendor")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
@@ -443,12 +446,7 @@ TEST_P(BootControlAndroidTestP, NeedShrinkIfSizeNotMatchWhenResizing) {
 TEST_P(BootControlAndroidTestP, AddPartitionToEmptyMetadata) {
   SetMetadata(source(), {});
   SetMetadata(target(), {});
-  EXPECT_CALL(dynamicControl(),
-              StoreMetadata(
-                  GetSuperDevice(),
-                  MetadataMatches({{T("system"), 2_GiB}, {T("vendor"), 1_GiB}}),
-                  target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata({{T("system"), 2_GiB}, {T("vendor"), 1_GiB}});
   ExpectRemap({T("system"), T("vendor")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
@@ -460,13 +458,8 @@ TEST_P(BootControlAndroidTestP, AddPartitionToEmptyMetadata) {
 TEST_P(BootControlAndroidTestP, AddAdditionalPartition) {
   SetMetadata(source(), {{S("system"), 2_GiB}, {T("system"), 2_GiB}});
   SetMetadata(target(), {{S("system"), 2_GiB}, {T("system"), 2_GiB}});
-  EXPECT_CALL(dynamicControl(),
-              StoreMetadata(GetSuperDevice(),
-                            MetadataMatches({{S("system"), 2_GiB},
-                                             {T("system"), 2_GiB},
-                                             {T("vendor"), 1_GiB}}),
-                            target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata(
+      {{S("system"), 2_GiB}, {T("system"), 2_GiB}, {T("vendor"), 1_GiB}});
   ExpectRemap({T("system"), T("vendor")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
@@ -482,14 +475,10 @@ TEST_P(BootControlAndroidTestP, DeletePartition) {
                          {T("vendor"), 1_GiB}};
   SetMetadata(source(), initial);
   SetMetadata(target(), initial);
-  EXPECT_CALL(dynamicControl(),
-              StoreMetadata(GetSuperDevice(),
-                            MetadataMatches({{S("system"), 2_GiB},
-                                             {S("vendor"), 1_GiB},
-                                             {T("system"), 2_GiB},
-                                             {T("vendor"), 0}}),
-                            target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata({{S("system"), 2_GiB},
+                       {S("vendor"), 1_GiB},
+                       {T("system"), 2_GiB},
+                       {T("vendor"), 0}});
   ExpectUnmap({T("system"), T("vendor")});
   ExpectMap({T("system")});
 
@@ -506,14 +495,10 @@ TEST_P(BootControlAndroidTestP, DeleteAll) {
                          {T("vendor"), 1_GiB}};
   SetMetadata(source(), initial);
   SetMetadata(target(), initial);
-  EXPECT_CALL(dynamicControl(),
-              StoreMetadata(GetSuperDevice(),
-                            MetadataMatches({{S("system"), 2_GiB},
-                                             {S("vendor"), 1_GiB},
-                                             {T("system"), 0},
-                                             {T("vendor"), 0}}),
-                            target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata({{S("system"), 2_GiB},
+                       {S("vendor"), 1_GiB},
+                       {T("system"), 0},
+                       {T("vendor"), 0}});
   ExpectUnmap({T("system"), T("vendor")});
   ExpectMap({});
 
@@ -542,14 +527,10 @@ TEST_P(BootControlAndroidTestP, CorruptedTargetMetadata) {
                {T("vendor"), 0}});
   EXPECT_CALL(dynamicControl(), LoadMetadataBuilder(GetSuperDevice(), target()))
       .WillOnce(Invoke([](auto, auto) { return nullptr; }));
-  EXPECT_CALL(dynamicControl(),
-              StoreMetadata(GetSuperDevice(),
-                            MetadataMatches({{S("system"), 2_GiB},
-                                             {S("vendor"), 1_GiB},
-                                             {T("system"), 3_GiB},
-                                             {T("vendor"), 150_MiB}}),
-                            target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata({{S("system"), 2_GiB},
+                       {S("vendor"), 1_GiB},
+                       {T("system"), 3_GiB},
+                       {T("vendor"), 150_MiB}});
   ExpectRemap({T("system"), T("vendor")});
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(), {{"system", 3_GiB}, {"vendor", 150_MiB}}));
@@ -619,11 +600,7 @@ TEST_F(BootControlAndroidTest, SimulatedFirstUpdate) {
 
   SetMetadata(source(), update_sizes_0());
   SetMetadata(target(), update_sizes_0());
-  EXPECT_CALL(
-      dynamicControl(),
-      StoreMetadata(
-          GetSuperDevice(), MetadataMatches(update_sizes_1()), target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata(update_sizes_1());
   ExpectUnmap({"grown_b", "shrunk_b", "same_b", "added_b", "deleted_b"});
   ExpectMap({"grown_b", "shrunk_b", "same_b", "added_b"});
 
@@ -644,11 +621,7 @@ TEST_F(BootControlAndroidTest, SimulatedSecondUpdate) {
   SetMetadata(source(), update_sizes_1());
   SetMetadata(target(), update_sizes_0());
 
-  EXPECT_CALL(
-      dynamicControl(),
-      StoreMetadata(
-          GetSuperDevice(), MetadataMatches(update_sizes_2()), target()))
-      .WillOnce(Return(true));
+  ExpectStoreMetadata(update_sizes_2());
   ExpectUnmap({"grown_a", "shrunk_a", "same_a", "added_a", "deleted_a"});
   ExpectMap({"grown_a", "shrunk_a", "same_a", "deleted_a"});
 
