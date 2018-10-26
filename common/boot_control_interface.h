@@ -33,7 +33,7 @@ namespace chromeos_update_engine {
 class BootControlInterface {
  public:
   using Slot = unsigned int;
-  using PartitionSizes = std::map<std::string, uint64_t>;
+  using PartitionMetadata = std::map<std::string, uint64_t>;
 
   static const Slot kInvalidSlot = UINT_MAX;
 
@@ -81,11 +81,11 @@ class BootControlInterface {
 
   // Initialize metadata of underlying partitions for a given |slot|.
   // Ensure that partitions at the specified |slot| has a given size, as
-  // specified by |partition_sizes|. |partition_sizes| has the format:
+  // specified by |partition_metadata|. |partition_metadata| has the format:
   // {"vendor": 524288000, "system": 2097152000, ...}; values must be
   // aligned to the logical block size of the super partition.
-  virtual bool InitPartitionMetadata(Slot slot,
-                                     const PartitionSizes& partition_sizes) = 0;
+  virtual bool InitPartitionMetadata(
+      Slot slot, const PartitionMetadata& partition_metadata) = 0;
 
   // Do necessary clean-up operations after the whole update.
   virtual void Cleanup() = 0;
