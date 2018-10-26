@@ -340,48 +340,6 @@ bool FilterPartitionSizes(DynamicPartitionControlInterface* dynamic_control,
   return true;
 }
 
-// Return false if partition sizes are all correct in metadata slot
-// |target_slot|. If so, no need to resize. |logical_sizes| have format like
-// {vendor: size, ...}, and fail if a partition is not found.
-bool NeedResizePartitions(DynamicPartitionControlInterface* dynamic_control,
-                          const string& super_device,
-                          Slot target_slot,
-                          const string& suffix,
-                          const PartitionMetadata& logical_sizes) {
-  auto target_metadata =
-      dynamic_control->LoadMetadataBuilder(super_device, target_slot);
-  if (target_metadata == nullptr) {
-    LOG(INFO) << "Metadata slot " << BootControlInterface::SlotName(target_slot)
-              << " in " << super_device
-              << " is corrupted; attempt to recover from source slot.";
-    return true;
-  }
-
-  for (const auto& pair : logical_sizes) {
-    Partition* partition = target_metadata->FindPartition(pair.first + suffix);
-    if (partition == nullptr) {
-      LOG(INFO) << "Cannot find " << pair.first << suffix << " at slot "
-                << BootControlInterface::SlotName(target_slot) << " in "
-                << super_device << ". Need to resize.";
-      return true;
-    }
-    if (partition->size() != pair.second) {
-      LOG(INFO) << super_device << ":"
-                << BootControlInterface::SlotName(target_slot) << ":"
-                << pair.first << suffix << ": size == " << partition->size()
-                << " but requested " << pair.second << ". Need to resize.";
-      return true;
-    }
-    LOG(INFO) << super_device << ":"
-              << BootControlInterface::SlotName(target_slot) << ":"
-              << pair.first << suffix << ": size == " << partition->size()
-              << " as requested.";
-  }
-  LOG(INFO) << "No need to resize at metadata slot "
-            << BootControlInterface::SlotName(target_slot) << " in "
-            << super_device;
-  return false;
-}
 }  // namespace
 
 bool BootControlAndroid::InitPartitionMetadata(
@@ -434,21 +392,13 @@ bool BootControlAndroid::InitPartitionMetadata(
     return false;
   }
 
-  // Read metadata from target slot to determine if the sizes are correct. Only
-  // test logical partitions.
-  if (NeedResizePartitions(dynamic_control_.get(),
-                           super_device,
-                           target_slot,
-                           target_suffix,
-                           logical_sizes)) {
-    if (!ResizePartitions(dynamic_control_.get(),
-                          super_device,
-                          target_slot,
-                          target_suffix,
-                          logical_sizes,
-                          builder.get())) {
-      return false;
-    }
+  if (!ResizePartitions(dynamic_control_.get(),
+                        super_device,
+                        target_slot,
+                        target_suffix,
+                        logical_sizes,
+                        builder.get())) {
+    return false;
   }
 
   // Unmap all partitions, and remap partitions if size is non-zero.
