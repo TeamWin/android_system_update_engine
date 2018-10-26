@@ -137,6 +137,12 @@ struct ImageConfig {
   // Load verity config by parsing the partition images.
   bool LoadVerityConfig();
 
+  // Load dynamic partition info from a key value store.
+  bool LoadDynamicPartitionMetadata(const brillo::KeyValueStore& store);
+
+  // Validate |dynamic_partition_metadata| against |partitions|.
+  bool ValidateDynamicPartitionMetadata() const;
+
   // Returns whether the |image_info| field is empty.
   bool ImageInfoIsEmpty() const;
 
@@ -146,6 +152,9 @@ struct ImageConfig {
 
   // The updated partitions.
   std::vector<PartitionConfig> partitions;
+
+  // The super partition metadata.
+  std::unique_ptr<DynamicPartitionMetadata> dynamic_partition_metadata;
 };
 
 struct PayloadVersion {
