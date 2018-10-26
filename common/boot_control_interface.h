@@ -20,6 +20,7 @@
 #include <climits>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <base/callback.h>
 #include <base/macros.h>
@@ -33,7 +34,19 @@ namespace chromeos_update_engine {
 class BootControlInterface {
  public:
   using Slot = unsigned int;
-  using PartitionMetadata = std::map<std::string, uint64_t>;
+
+  struct PartitionMetadata {
+    struct Partition {
+      std::string name;
+      uint64_t size;
+    };
+    struct Group {
+      std::string name;
+      uint64_t size;
+      std::vector<Partition> partitions;
+    };
+    std::vector<Group> groups;
+  };
 
   static const Slot kInvalidSlot = UINT_MAX;
 
@@ -80,10 +93,11 @@ class BootControlInterface {
   virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
 
   // Initialize metadata of underlying partitions for a given |slot|.
-  // Ensure that partitions at the specified |slot| has a given size, as
-  // specified by |partition_metadata|. |partition_metadata| has the format:
-  // {"vendor": 524288000, "system": 2097152000, ...}; values must be
-  // aligned to the logical block size of the super partition.
+  // Ensure that all updateable groups with the suffix GetSuffix(|slot|) exactly
+  // matches the layout specified in |partition_metadata|. Ensure that
+  // partitions at the specified |slot| has a given size and updateable group,
+  // as specified by |partition_metadata|. Sizes must be aligned to the logical
+  // block size of the super partition.
   virtual bool InitPartitionMetadata(
       Slot slot, const PartitionMetadata& partition_metadata) = 0;
 

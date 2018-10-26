@@ -944,8 +944,30 @@ bool DeltaPerformer::InitPartitionMetadata() {
   }
 
   BootControlInterface::PartitionMetadata partition_metadata;
-  for (const InstallPlan::Partition& partition : install_plan_->partitions) {
-    partition_metadata.emplace(partition.name, partition.target_size);
+  if (manifest_.has_dynamic_partition_metadata()) {
+    std::map<string, uint64_t> partition_sizes;
+    for (const InstallPlan::Partition& partition : install_plan_->partitions) {
+      partition_sizes.emplace(partition.name, partition.target_size);
+    }
+    for (const auto& group : manifest_.dynamic_partition_metadata().groups()) {
+      BootControlInterface::PartitionMetadata::Group e;
+      e.name = group.name();
+      e.size = group.size();
+      for (const auto& partition_name : group.partition_names()) {
+        auto it = partition_sizes.find(partition_name);
+        if (it == partition_sizes.end()) {
+          // TODO(tbao): Support auto-filling partition info for framework-only
+          // OTA.
+          LOG(ERROR) << "dynamic_partition_metadata contains partition "
+                     << partition_name
+                     << " but it is not part of the manifest. "
+                     << "This is not supported.";
+          return false;
+        }
+        e.partitions.push_back({partition_name, it->second});
+      }
+      partition_metadata.groups.push_back(std::move(e));
+    }
   }
 
   if (!boot_control_->InitPartitionMetadata(install_plan_->target_slot,
@@ -1674,6 +1696,16 @@ ErrorCode DeltaPerformer::ValidateManifest() {
                << ") is newer than the maximum timestamp in the manifest ("
                << manifest_.max_timestamp() << ")";
     return ErrorCode::kPayloadTimestampError;
+  }
+
+  if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
+    if (manifest_.has_dynamic_partition_metadata()) {
+      LOG(ERROR)
+          << "Should not contain dynamic_partition_metadata for major version "
+          << kChromeOSMajorPayloadVersion
+          << ". Please use major version 2 or above.";
+      return ErrorCode::kPayloadMismatchedType;
+    }
   }
 
   // TODO(garnold) we should be adding more and more manifest checks, such as
