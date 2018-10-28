@@ -45,8 +45,8 @@ class BootControlStub : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
-  bool InitPartitionMetadata(Slot slot,
-                             const PartitionSizes& partition_sizes) override;
+  bool InitPartitionMetadata(
+      Slot slot, const PartitionMetadata& partition_metadata) override;
   void Cleanup() override;
 
  private:

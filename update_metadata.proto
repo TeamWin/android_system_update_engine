@@ -273,6 +273,29 @@ message PartitionUpdate {
   optional uint32 fec_roots = 16 [default = 2];
 }
 
+message DynamicPartitionGroup {
+  // Name of the group.
+  required string name = 1;
+
+  // Maximum size of the group. The sum of sizes of all partitions in the group
+  // must not exceed the maximum size of the group.
+  optional uint64 size = 2;
+
+  // A list of partitions that belong to the group.
+  repeated string partition_names = 3;
+}
+
+// Metadata related to all dynamic partitions.
+message DynamicPartitionMetadata {
+  // All updateable groups present in |partitions| of this DeltaArchiveManifest.
+  // - If an updatable group is on the device but not in the manifest, it is
+  //   not updated. Hence, the group will not be resized, and partitions cannot
+  //   be added to or removed from the group.
+  // - If an updatable group is in the manifest but not on the device, the group
+  //   is added to the device.
+  repeated DynamicPartitionGroup groups = 1;
+}
+
 message DeltaArchiveManifest {
   // Only present in major version = 1. List of install operations for the
   // kernel and rootfs partitions. For major version = 2 see the |partitions|
@@ -317,4 +340,7 @@ message DeltaArchiveManifest {
   // The maximum timestamp of the OS allowed to apply this payload.
   // Can be used to prevent downgrading the OS.
   optional int64 max_timestamp = 14;
+
+  // Metadata related to all dynamic partitions.
+  optional DynamicPartitionMetadata dynamic_partition_metadata = 15;
 }

@@ -919,14 +919,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   }
 
   if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
-    BootControlInterface::PartitionSizes partition_sizes;
-    for (const InstallPlan::Partition& partition : install_plan_->partitions) {
-      partition_sizes.emplace(partition.name, partition.target_size);
-    }
-    if (!boot_control_->InitPartitionMetadata(install_plan_->target_slot,
-                                              partition_sizes)) {
-      LOG(ERROR) << "Unable to initialize partition metadata for slot "
-                 << BootControlInterface::SlotName(install_plan_->target_slot);
+    if (!InitPartitionMetadata()) {
       *error = ErrorCode::kInstallDeviceOpenError;
       return false;
     }
@@ -938,6 +931,55 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     return false;
   }
   LogPartitionInfo(partitions_);
+  return true;
+}
+
+bool DeltaPerformer::InitPartitionMetadata() {
+  bool metadata_initialized;
+  if (prefs_->GetBoolean(kPrefsDynamicPartitionMetadataInitialized,
+                         &metadata_initialized) &&
+      metadata_initialized) {
+    LOG(INFO) << "Skipping InitPartitionMetadata.";
+    return true;
+  }
+
+  BootControlInterface::PartitionMetadata partition_metadata;
+  if (manifest_.has_dynamic_partition_metadata()) {
+    std::map<string, uint64_t> partition_sizes;
+    for (const InstallPlan::Partition& partition : install_plan_->partitions) {
+      partition_sizes.emplace(partition.name, partition.target_size);
+    }
+    for (const auto& group : manifest_.dynamic_partition_metadata().groups()) {
+      BootControlInterface::PartitionMetadata::Group e;
+      e.name = group.name();
+      e.size = group.size();
+      for (const auto& partition_name : group.partition_names()) {
+        auto it = partition_sizes.find(partition_name);
+        if (it == partition_sizes.end()) {
+          // TODO(tbao): Support auto-filling partition info for framework-only
+          // OTA.
+          LOG(ERROR) << "dynamic_partition_metadata contains partition "
+                     << partition_name
+                     << " but it is not part of the manifest. "
+                     << "This is not supported.";
+          return false;
+        }
+        e.partitions.push_back({partition_name, it->second});
+      }
+      partition_metadata.groups.push_back(std::move(e));
+    }
+  }
+
+  if (!boot_control_->InitPartitionMetadata(install_plan_->target_slot,
+                                            partition_metadata)) {
+    LOG(ERROR) << "Unable to initialize partition metadata for slot "
+               << BootControlInterface::SlotName(install_plan_->target_slot);
+    return false;
+  }
+  TEST_AND_RETURN_FALSE(
+      prefs_->SetBoolean(kPrefsDynamicPartitionMetadataInitialized, true));
+  LOG(INFO) << "InitPartitionMetadata done.";
+
   return true;
 }
 
@@ -1656,6 +1698,16 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     return ErrorCode::kPayloadTimestampError;
   }
 
+  if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
+    if (manifest_.has_dynamic_partition_metadata()) {
+      LOG(ERROR)
+          << "Should not contain dynamic_partition_metadata for major version "
+          << kChromeOSMajorPayloadVersion
+          << ". Please use major version 2 or above.";
+      return ErrorCode::kPayloadMismatchedType;
+    }
+  }
+
   // TODO(garnold) we should be adding more and more manifest checks, such as
   // partition boundaries etc (see chromium-os:37661).
 
@@ -1861,6 +1913,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
     prefs->Delete(kPrefsPostInstallSucceeded);
     prefs->Delete(kPrefsVerityWritten);
+    prefs->Delete(kPrefsDynamicPartitionMetadataInitialized);
   }
   return true;
 }

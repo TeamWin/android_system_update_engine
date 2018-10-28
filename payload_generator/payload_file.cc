@@ -75,6 +75,13 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
 
   manifest_.set_block_size(config.block_size);
   manifest_.set_max_timestamp(config.max_timestamp);
+
+  if (major_version_ == kBrilloMajorPayloadVersion) {
+    if (config.target.dynamic_partition_metadata != nullptr)
+      *(manifest_.mutable_dynamic_partition_metadata()) =
+          *(config.target.dynamic_partition_metadata);
+  }
+
   return true;
 }
 
@@ -345,8 +352,10 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
   off_t total_size = 0;
 
   for (const auto& part : part_vec_) {
+    string part_prefix = "<" + part.name + ">:";
     for (const AnnotatedOperation& aop : part.aops) {
-      DeltaObject delta(aop.name, aop.op.type(), aop.op.data_length());
+      DeltaObject delta(
+          part_prefix + aop.name, aop.op.type(), aop.op.data_length());
       object_counts[delta]++;
       total_size += aop.op.data_length();
     }
@@ -355,25 +364,22 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
   object_counts[DeltaObject("<manifest-metadata>", -1, metadata_size)] = 1;
   total_size += metadata_size;
 
-  static const char kFormatString[] = "%6.2f%% %10jd %-13s %s %d";
+  constexpr char kFormatString[] = "%6.2f%% %10jd %-13s %s %d\n";
   for (const auto& object_count : object_counts) {
     const DeltaObject& object = object_count.first;
-    LOG(INFO) << base::StringPrintf(
+    // Use printf() instead of LOG(INFO) because timestamp makes it difficult to
+    // compare two reports.
+    printf(
         kFormatString,
         object.size * 100.0 / total_size,
-        static_cast<intmax_t>(object.size),
+        object.size,
         (object.type >= 0 ? InstallOperationTypeName(
                                 static_cast<InstallOperation_Type>(object.type))
                           : "-"),
         object.name.c_str(),
         object_count.second);
   }
-  LOG(INFO) << base::StringPrintf(kFormatString,
-                                  100.0,
-                                  static_cast<intmax_t>(total_size),
-                                  "",
-                                  "<total>",
-                                  1);
+  printf(kFormatString, 100.0, total_size, "", "<total>", 1);
 }
 
 }  // namespace chromeos_update_engine
