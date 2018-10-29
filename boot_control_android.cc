@@ -105,6 +105,72 @@ bool BootControlAndroid::GetSuffix(Slot slot, string* suffix) const {
   return true;
 }
 
+namespace {
+
+enum class DynamicPartitionDeviceStatus {
+  SUCCESS,
+  ERROR,
+  TRY_STATIC,
+};
+
+DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
+    DynamicPartitionControlInterface* dynamic_control,
+    const string& super_device,
+    const string& partition_name_suffix,
+    Slot slot,
+    string* device) {
+  auto builder = dynamic_control->LoadMetadataBuilder(super_device, slot);
+
+  if (builder == nullptr) {
+    if (!dynamic_control->IsDynamicPartitionsEnabled()) {
+      return DynamicPartitionDeviceStatus::TRY_STATIC;
+    }
+    LOG(ERROR) << "No metadata in slot "
+               << BootControlInterface::SlotName(slot);
+    return DynamicPartitionDeviceStatus::ERROR;
+  }
+
+  if (builder->FindPartition(partition_name_suffix) == nullptr) {
+    LOG(INFO) << partition_name_suffix
+              << " is not in super partition metadata.";
+    return DynamicPartitionDeviceStatus::TRY_STATIC;
+  }
+
+  DmDeviceState state = dynamic_control->GetState(partition_name_suffix);
+
+  if (state == DmDeviceState::ACTIVE) {
+    if (dynamic_control->GetDmDevicePathByName(partition_name_suffix, device)) {
+      LOG(INFO) << partition_name_suffix
+                << " is mapped on device mapper: " << *device;
+      return DynamicPartitionDeviceStatus::SUCCESS;
+    }
+    LOG(ERROR) << partition_name_suffix << " is mapped but path is unknown.";
+    return DynamicPartitionDeviceStatus::ERROR;
+  }
+
+  // DeltaPerformer calls InitPartitionMetadata before calling
+  // InstallPlan::LoadPartitionsFromSlots. After InitPartitionMetadata,
+  // the target partition must be re-mapped with force_writable == true.
+  // Hence, if it is not mapped, we assume it is a source partition and
+  // map it without force_writable.
+  if (state == DmDeviceState::INVALID) {
+    if (dynamic_control->MapPartitionOnDeviceMapper(super_device,
+                                                    partition_name_suffix,
+                                                    slot,
+                                                    false /* force_writable */,
+                                                    device)) {
+      return DynamicPartitionDeviceStatus::SUCCESS;
+    }
+    return DynamicPartitionDeviceStatus::ERROR;
+  }
+
+  LOG(ERROR) << partition_name_suffix
+             << " is mapped on device mapper but state is unknown: "
+             << static_cast<std::underlying_type_t<DmDeviceState>>(state);
+  return DynamicPartitionDeviceStatus::ERROR;
+}
+}  // namespace
+
 bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
                                             Slot slot,
                                             string* device) const {
@@ -112,45 +178,31 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   if (!GetSuffix(slot, &suffix)) {
     return false;
   }
-
-  const string target_partition_name = partition_name + suffix;
-
-  // DeltaPerformer calls InitPartitionMetadata before calling
-  // InstallPlan::LoadPartitionsFromSlots. After InitPartitionMetadata,
-  // the partition must be re-mapped with force_writable == true. Hence,
-  // we only need to check device mapper.
-  if (dynamic_control_->IsDynamicPartitionsEnabled()) {
-    switch (dynamic_control_->GetState(target_partition_name)) {
-      case DmDeviceState::ACTIVE:
-        if (dynamic_control_->GetDmDevicePathByName(target_partition_name,
-                                                    device)) {
-          LOG(INFO) << target_partition_name
-                    << " is mapped on device mapper: " << *device;
-          return true;
-        }
-        LOG(ERROR) << target_partition_name
-                   << " is mapped but path is unknown.";
-        return false;
-
-      case DmDeviceState::INVALID:
-        // Try static partitions.
-        break;
-
-      case DmDeviceState::SUSPENDED:  // fallthrough
-      default:
-        LOG(ERROR) << target_partition_name
-                   << " is mapped on device mapper but state is unknown";
-        return false;
-    }
-  }
+  const string partition_name_suffix = partition_name + suffix;
 
   string device_dir_str;
   if (!dynamic_control_->GetDeviceDir(&device_dir_str)) {
     return false;
   }
+  base::FilePath device_dir(device_dir_str);
 
-  base::FilePath path =
-      base::FilePath(device_dir_str).Append(target_partition_name);
+  string super_device =
+      device_dir.Append(fs_mgr_get_super_partition_name()).value();
+  switch (GetDynamicPartitionDevice(dynamic_control_.get(),
+                                    super_device,
+                                    partition_name_suffix,
+                                    slot,
+                                    device)) {
+    case DynamicPartitionDeviceStatus::SUCCESS:
+      return true;
+    case DynamicPartitionDeviceStatus::TRY_STATIC:
+      break;
+    case DynamicPartitionDeviceStatus::ERROR:  // fallthrough
+    default:
+      return false;
+  }
+
+  base::FilePath path = device_dir.Append(partition_name_suffix);
   if (!dynamic_control_->DeviceExists(path.value())) {
     LOG(ERROR) << "Device file " << path.value() << " does not exist.";
     return false;
