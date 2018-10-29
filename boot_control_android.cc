@@ -298,7 +298,7 @@ bool InitPartitionMetadataInternal(
       super_device, builder.get(), target_slot);
 }
 
-// Unmap all partitions, and remap partitions.
+// Unmap all partitions, and remap partitions as writable.
 bool Remap(DynamicPartitionControlInterface* dynamic_control,
            const string& super_device,
            Slot target_slot,
@@ -318,6 +318,7 @@ bool Remap(DynamicPartitionControlInterface* dynamic_control,
               super_device,
               partition.name + target_suffix,
               target_slot,
+              true /* force writable */,
               &map_path)) {
         return false;
       }
