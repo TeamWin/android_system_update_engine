@@ -46,6 +46,7 @@ class DynamicPartitionControlInterface {
       const std::string& super_device,
       const std::string& target_partition_name,
       uint32_t slot,
+      bool force_writable,
       std::string* path) = 0;
 
   // Unmap logical partition on device mapper. This is the reverse operation
