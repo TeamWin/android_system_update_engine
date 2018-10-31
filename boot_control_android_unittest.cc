@@ -306,16 +306,17 @@ class BootControlAndroidTest : public ::testing::Test {
 
   // Expect that MapPartitionOnDeviceMapper is called on target() metadata slot
   // with each partition in |partitions|.
-  void ExpectMap(const std::set<std::string>& partitions) {
+  void ExpectMap(const std::set<std::string>& partitions,
+                 bool force_writable = true) {
     // Error when MapPartitionOnDeviceMapper is called on unknown arguments.
-    ON_CALL(dynamicControl(), MapPartitionOnDeviceMapper(_, _, _, _))
+    ON_CALL(dynamicControl(), MapPartitionOnDeviceMapper(_, _, _, _, _))
         .WillByDefault(Return(false));
 
     for (const auto& partition : partitions) {
-      EXPECT_CALL(
-          dynamicControl(),
-          MapPartitionOnDeviceMapper(GetSuperDevice(), partition, target(), _))
-          .WillOnce(Invoke([this](auto, auto partition, auto, auto path) {
+      EXPECT_CALL(dynamicControl(),
+                  MapPartitionOnDeviceMapper(
+                      GetSuperDevice(), partition, target(), force_writable, _))
+          .WillOnce(Invoke([this](auto, auto partition, auto, auto, auto path) {
             auto it = mapped_devices_.find(partition);
             if (it != mapped_devices_.end()) {
               *path = it->second;

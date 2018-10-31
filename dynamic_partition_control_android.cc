@@ -55,11 +55,12 @@ bool DynamicPartitionControlAndroid::MapPartitionOnDeviceMapper(
     const std::string& super_device,
     const std::string& target_partition_name,
     uint32_t slot,
+    bool force_writable,
     std::string* path) {
   if (!CreateLogicalPartition(super_device.c_str(),
                               slot,
                               target_partition_name,
-                              true /* force_writable */,
+                              force_writable,
                               std::chrono::milliseconds(kMapTimeoutMillis),
                               path)) {
     LOG(ERROR) << "Cannot map " << target_partition_name << " in "
@@ -67,7 +68,8 @@ bool DynamicPartitionControlAndroid::MapPartitionOnDeviceMapper(
     return false;
   }
   LOG(INFO) << "Succesfully mapped " << target_partition_name
-            << " to device mapper; device path at " << *path;
+            << " to device mapper (force_writable = " << force_writable
+            << "); device path at " << *path;
   mapped_devices_.insert(target_partition_name);
   return true;
 }
