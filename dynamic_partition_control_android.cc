@@ -126,6 +126,7 @@ DynamicPartitionControlAndroid::LoadMetadataBuilder(
     LOG(WARNING) << "No metadata slot "
                  << BootControlInterface::SlotName(source_slot) << " in "
                  << super_device;
+    return nullptr;
   }
   LOG(INFO) << "Loaded metadata from slot "
             << BootControlInterface::SlotName(source_slot) << " in "
