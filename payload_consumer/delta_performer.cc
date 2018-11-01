@@ -1019,8 +1019,7 @@ bool DeltaPerformer::PerformReplaceOperation(
   }
 
   // Setup the ExtentWriter stack based on the operation type.
-  std::unique_ptr<ExtentWriter> writer = std::make_unique<ZeroPadExtentWriter>(
-      std::make_unique<DirectExtentWriter>());
+  std::unique_ptr<ExtentWriter> writer = std::make_unique<DirectExtentWriter>();
 
   if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));
@@ -1031,7 +1030,6 @@ bool DeltaPerformer::PerformReplaceOperation(
   TEST_AND_RETURN_FALSE(
       writer->Init(target_fd_, operation.dst_extents(), block_size_));
   TEST_AND_RETURN_FALSE(writer->Write(buffer_.data(), operation.data_length()));
-  TEST_AND_RETURN_FALSE(writer->End());
 
   // Update buffer
   DiscardBuffer(true, buffer_.size());
@@ -1391,12 +1389,7 @@ class BsdiffExtentFile : public bsdiff::FileInterface {
     return true;
   }
 
-  bool Close() override {
-    if (writer_ != nullptr) {
-      TEST_AND_RETURN_FALSE(writer_->End());
-    }
-    return true;
-  }
+  bool Close() override { return true; }
 
   bool GetSize(uint64_t* size) override {
     *size = size_;
@@ -1510,12 +1503,7 @@ class PuffinExtentStream : public puffin::StreamInterface {
     return true;
   }
 
-  bool Close() override {
-    if (!is_read_) {
-      TEST_AND_RETURN_FALSE(writer_->End());
-    }
-    return true;
-  }
+  bool Close() override { return true; }
 
  private:
   PuffinExtentStream(std::unique_ptr<ExtentReader> reader,

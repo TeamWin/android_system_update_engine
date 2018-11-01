@@ -88,7 +88,6 @@ bool CopyAndHashExtents(FileDescriptorPtr source,
                         utils::BlocksInExtents(tgt_extents));
   TEST_AND_RETURN_FALSE(
       CommonHashExtents(source, src_extents, &writer, block_size, hash_out));
-  TEST_AND_RETURN_FALSE(writer.End());
   return true;
 }
 

@@ -62,7 +62,6 @@ class MemoryExtentWriter : public ExtentWriter {
                   static_cast<const uint8_t*>(bytes) + count);
     return true;
   }
-  bool EndImpl() override { return true; }
 
  private:
   brillo::Blob* data_;
@@ -75,8 +74,6 @@ bool DecompressWithWriter(const brillo::Blob& in, brillo::Blob* out) {
   // Init() parameters are ignored by the testing MemoryExtentWriter.
   bool ok = writer->Init(nullptr, {}, 1);
   ok = writer->Write(in.data(), in.size()) && ok;
-  // Call End() even if the Write failed.
-  ok = writer->End() && ok;
   return ok;
 }
 

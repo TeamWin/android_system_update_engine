@@ -89,10 +89,8 @@ class XzExtentWriterTest : public ::testing::Test {
   void WriteAll(const brillo::Blob& compressed) {
     EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
     EXPECT_TRUE(xz_writer_->Write(compressed.data(), compressed.size()));
-    EXPECT_TRUE(xz_writer_->End());
 
     EXPECT_TRUE(fake_extent_writer_->InitCalled());
-    EXPECT_TRUE(fake_extent_writer_->EndCalled());
   }
 
   // Owned by |xz_writer_|. This object is invalidated after |xz_writer_| is
@@ -109,7 +107,6 @@ class XzExtentWriterTest : public ::testing::Test {
 TEST_F(XzExtentWriterTest, CreateAndDestroy) {
   // Test that no Init() or End() called doesn't crash the program.
   EXPECT_FALSE(fake_extent_writer_->InitCalled());
-  EXPECT_FALSE(fake_extent_writer_->EndCalled());
 }
 
 TEST_F(XzExtentWriterTest, CompressedSampleData) {
@@ -137,9 +134,6 @@ TEST_F(XzExtentWriterTest, GarbageDataRejected) {
   EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
   // The sample_data_ is an uncompressed string.
   EXPECT_FALSE(xz_writer_->Write(sample_data_.data(), sample_data_.size()));
-  EXPECT_TRUE(xz_writer_->End());
-
-  EXPECT_TRUE(fake_extent_writer_->EndCalled());
 }
 
 TEST_F(XzExtentWriterTest, PartialDataIsKept) {
@@ -149,7 +143,6 @@ TEST_F(XzExtentWriterTest, PartialDataIsKept) {
   for (uint8_t byte : compressed) {
     EXPECT_TRUE(xz_writer_->Write(&byte, 1));
   }
-  EXPECT_TRUE(xz_writer_->End());
 
   // The sample_data_ is an uncompressed string.
   brillo::Blob expected_data(30 * 1024, 'a');
