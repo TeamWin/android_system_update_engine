@@ -27,9 +27,12 @@ namespace chromeos_update_engine {
 
 class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
  public:
-  MOCK_METHOD4(
-      MapPartitionOnDeviceMapper,
-      bool(const std::string&, const std::string&, uint32_t, std::string*));
+  MOCK_METHOD5(MapPartitionOnDeviceMapper,
+               bool(const std::string&,
+                    const std::string&,
+                    uint32_t,
+                    bool,
+                    std::string*));
   MOCK_METHOD2(UnmapPartitionOnDeviceMapper, bool(const std::string&, bool));
   MOCK_METHOD0(Cleanup, void());
   MOCK_METHOD1(DeviceExists, bool(const std::string&));
