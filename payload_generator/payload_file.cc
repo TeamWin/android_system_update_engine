@@ -350,6 +350,7 @@ bool PayloadFile::AddOperationHash(InstallOperation* op,
 void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
   std::map<DeltaObject, int> object_counts;
   off_t total_size = 0;
+  int total_op = 0;
 
   for (const auto& part : part_vec_) {
     string part_prefix = "<" + part.name + ">:";
@@ -359,6 +360,7 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
       object_counts[delta]++;
       total_size += aop.op.data_length();
     }
+    total_op += part.aops.size();
   }
 
   object_counts[DeltaObject("<manifest-metadata>", -1, metadata_size)] = 1;
@@ -379,7 +381,8 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
         object.name.c_str(),
         object_count.second);
   }
-  printf(kFormatString, 100.0, total_size, "", "<total>", 1);
+  printf(kFormatString, 100.0, total_size, "", "<total>", total_op);
+  fflush(stdout);
 }
 
 }  // namespace chromeos_update_engine
