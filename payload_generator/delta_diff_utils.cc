@@ -177,6 +177,34 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
   return removed_bytes;
 }
 
+// Storing a diff operation has more overhead over replace operation in the
+// manifest, we need to store an additional src_sha256_hash which is 32 bytes
+// and not compressible, and also src_extents which could use anywhere from a
+// few bytes to hundreds of bytes depending on the number of extents.
+// This function evaluates the overhead tradeoff and determines if it's worth to
+// use a diff operation with data blob of |diff_size| and |num_src_extents|
+// extents over an existing |op| with data blob of |old_blob_size|.
+bool IsDiffOperationBetter(const InstallOperation& op,
+                           size_t old_blob_size,
+                           size_t diff_size,
+                           size_t num_src_extents) {
+  if (!diff_utils::IsAReplaceOperation(op.type()))
+    return diff_size < old_blob_size;
+
+  // Reference: https://developers.google.com/protocol-buffers/docs/encoding
+  // For |src_sha256_hash| we need 1 byte field number/type, 1 byte size and 32
+  // bytes data, for |src_extents| we need 1 byte field number/type and 1 byte
+  // size.
+  constexpr size_t kDiffOverhead = 1 + 1 + 32 + 1 + 1;
+  // Each extent has two variable length encoded uint64, here we use a rough
+  // estimate of 6 bytes overhead per extent, since |num_blocks| is usually
+  // very small.
+  constexpr size_t kDiffOverheadPerExtent = 6;
+
+  return diff_size + kDiffOverhead + num_src_extents * kDiffOverheadPerExtent <
+         old_blob_size;
+}
+
 }  // namespace
 
 namespace diff_utils {
@@ -800,7 +828,10 @@ bool ReadExtentsToDiff(const string& old_part,
                              ? InstallOperation::SOURCE_COPY
                              : InstallOperation::MOVE);
       data_blob = brillo::Blob();
-    } else {
+    } else if (IsDiffOperationBetter(
+                   operation, data_blob.size(), 0, src_extents.size())) {
+      // No point in trying diff if zero blob size diff operation is
+      // still worse than replace.
       if (bsdiff_allowed) {
         base::FilePath patch;
         TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&patch));
@@ -831,7 +862,10 @@ bool ReadExtentsToDiff(const string& old_part,
 
         TEST_AND_RETURN_FALSE(utils::ReadFile(patch.value(), &bsdiff_delta));
         CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
-        if (bsdiff_delta.size() < data_blob.size()) {
+        if (IsDiffOperationBetter(operation,
+                                  data_blob.size(),
+                                  bsdiff_delta.size(),
+                                  src_extents.size())) {
           operation.set_type(operation_type);
           data_blob = std::move(bsdiff_delta);
         }
@@ -867,7 +901,10 @@ bool ReadExtentsToDiff(const string& old_part,
                                                  temp_file_path,
                                                  &puffdiff_delta));
           TEST_AND_RETURN_FALSE(puffdiff_delta.size() > 0);
-          if (puffdiff_delta.size() < data_blob.size()) {
+          if (IsDiffOperationBetter(operation,
+                                    data_blob.size(),
+                                    puffdiff_delta.size(),
+                                    src_extents.size())) {
             operation.set_type(InstallOperation::PUFFDIFF);
             data_blob = std::move(puffdiff_delta);
           }
