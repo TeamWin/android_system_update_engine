@@ -59,7 +59,6 @@ class ExtentWriterTest : public ::testing::Test {
   // resultant file should look like and ensure that the extent writer
   // wrote the file correctly.
   void WriteAlignedExtents(size_t chunk_size, size_t first_chunk_size);
-  void TestZeroPad(bool aligned_size);
 
   FileDescriptorPtr fd_;
   test_utils::ScopedTempFile temp_file_{"ExtentWriterTest-file.XXXXXX"};
@@ -72,7 +71,6 @@ TEST_F(ExtentWriterTest, SimpleTest) {
   EXPECT_TRUE(
       direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(bytes.data(), bytes.size()));
-  EXPECT_TRUE(direct_writer.End());
 
   EXPECT_EQ(static_cast<off_t>(kBlockSize + bytes.size()),
             utils::FileSize(temp_file_.path()));
@@ -92,7 +90,6 @@ TEST_F(ExtentWriterTest, ZeroLengthTest) {
   EXPECT_TRUE(
       direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(nullptr, 0));
-  EXPECT_TRUE(direct_writer.End());
 }
 
 TEST_F(ExtentWriterTest, OverflowExtentTest) {
@@ -127,7 +124,6 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
     EXPECT_TRUE(direct_writer.Write(&data[bytes_written], bytes_to_write));
     bytes_written += bytes_to_write;
   }
-  EXPECT_TRUE(direct_writer.End());
 
   EXPECT_EQ(static_cast<off_t>(data.size()),
             utils::FileSize(temp_file_.path()));
@@ -143,50 +139,6 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
                        data.begin(), data.begin() + kBlockSize);
   expected_file.insert(expected_file.end(),
                        data.begin() + kBlockSize * 2, data.end());
-  ExpectVectorsEq(expected_file, result_file);
-}
-
-TEST_F(ExtentWriterTest, ZeroPadNullTest) {
-  TestZeroPad(true);
-}
-
-TEST_F(ExtentWriterTest, ZeroPadFillTest) {
-  TestZeroPad(false);
-}
-
-void ExtentWriterTest::TestZeroPad(bool aligned_size) {
-  vector<Extent> extents = {ExtentForRange(1, 1), ExtentForRange(0, 1)};
-  brillo::Blob data(kBlockSize * 2);
-  test_utils::FillWithData(&data);
-
-  ZeroPadExtentWriter zero_pad_writer(std::make_unique<DirectExtentWriter>());
-
-  EXPECT_TRUE(
-      zero_pad_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
-  size_t bytes_to_write = data.size();
-  const size_t missing_bytes = (aligned_size ? 0 : 9);
-  bytes_to_write -= missing_bytes;
-  fd_->Seek(kBlockSize - missing_bytes, SEEK_SET);
-  EXPECT_EQ(3, fd_->Write("xxx", 3));
-  ASSERT_TRUE(zero_pad_writer.Write(data.data(), bytes_to_write));
-  EXPECT_TRUE(zero_pad_writer.End());
-
-  EXPECT_EQ(static_cast<off_t>(data.size()),
-            utils::FileSize(temp_file_.path()));
-
-  brillo::Blob result_file;
-  EXPECT_TRUE(utils::ReadFile(temp_file_.path(), &result_file));
-
-  brillo::Blob expected_file;
-  expected_file.insert(expected_file.end(),
-                       data.begin() + kBlockSize,
-                       data.begin() + kBlockSize * 2);
-  expected_file.insert(expected_file.end(),
-                       data.begin(), data.begin() + kBlockSize);
-  if (missing_bytes) {
-    memset(&expected_file[kBlockSize - missing_bytes], 0, missing_bytes);
-  }
-
   ExpectVectorsEq(expected_file, result_file);
 }
 
@@ -211,7 +163,6 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
     EXPECT_TRUE(direct_writer.Write(data.data(), bytes_to_write));
     bytes_written += bytes_to_write;
   }
-  EXPECT_TRUE(direct_writer.End());
 
   // check file size, then data inside
   ASSERT_EQ(static_cast<off_t>(2 * kBlockSize),

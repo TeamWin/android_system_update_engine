@@ -52,6 +52,7 @@ const char* XzErrorString(enum xz_ret error) {
 
 XzExtentWriter::~XzExtentWriter() {
   xz_dec_end(stream_);
+  TEST_AND_RETURN(input_buffer_.empty());
 }
 
 bool XzExtentWriter::Init(FileDescriptorPtr fd,
@@ -108,11 +109,6 @@ bool XzExtentWriter::Write(const void* bytes, size_t count) {
                                 request.in + request.in_size);
   input_buffer_ = std::move(new_input_buffer);
   return true;
-}
-
-bool XzExtentWriter::EndImpl() {
-  TEST_AND_RETURN_FALSE(input_buffer_.empty());
-  return underlying_writer_->End();
 }
 
 }  // namespace chromeos_update_engine

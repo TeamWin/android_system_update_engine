@@ -43,7 +43,6 @@ class XzExtentWriter : public ExtentWriter {
             const google::protobuf::RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override;
   bool Write(const void* bytes, size_t count) override;
-  bool EndImpl() override;
 
  private:
   // The underlying ExtentWriter.
