@@ -468,6 +468,37 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
   EXPECT_EQ(InstallOperation::SOURCE_BSDIFF, op.type());
 }
 
+TEST_F(DeltaDiffUtilsTest, PreferReplaceTest) {
+  brillo::Blob data_blob(kBlockSize);
+  vector<Extent> extents = {ExtentForRange(1, 1)};
+
+  // Write something in the first 50 bytes so that REPLACE_BZ will be slightly
+  // larger than BROTLI_BSDIFF.
+  std::iota(data_blob.begin(), data_blob.begin() + 50, 0);
+  EXPECT_TRUE(WriteExtents(old_part_.path, extents, kBlockSize, data_blob));
+  // Shift the first 50 bytes in the new file by one.
+  std::iota(data_blob.begin(), data_blob.begin() + 50, 1);
+  EXPECT_TRUE(WriteExtents(new_part_.path, extents, kBlockSize, data_blob));
+
+  brillo::Blob data;
+  InstallOperation op;
+  EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
+      old_part_.path,
+      new_part_.path,
+      extents,
+      extents,
+      {},  // old_deflates
+      {},  // new_deflates
+      PayloadVersion(kMaxSupportedMajorPayloadVersion,
+                     kMaxSupportedMinorPayloadVersion),
+      &data,
+      &op));
+
+  EXPECT_FALSE(data.empty());
+  EXPECT_TRUE(op.has_type());
+  EXPECT_EQ(InstallOperation::REPLACE_BZ, op.type());
+}
+
 TEST_F(DeltaDiffUtilsTest, IsNoopOperationTest) {
   InstallOperation op;
   op.set_type(InstallOperation::REPLACE_BZ);
