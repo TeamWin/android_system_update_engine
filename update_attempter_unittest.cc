@@ -31,6 +31,7 @@
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
 
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action.h"
@@ -79,6 +80,15 @@ using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
 
+namespace {
+
+class MockDlcService : public DlcServiceInterface {
+ public:
+  MOCK_METHOD1(GetInstalled, bool(vector<string>*));
+};
+
+}  // namespace
+
 const char kRollbackVersion[] = "10575.39.2";
 
 // Test a subclass rather than the main class directly so that we can mock out
@@ -122,10 +132,13 @@ class UpdateAttempterTest : public ::testing::Test {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
+    fake_system_state_.set_dlcservice(&mock_dlcservice_);
     loop_.SetAsCurrent();
 
     certificate_checker_.Init();
 
+    attempter_.set_forced_update_pending_callback(
+        new base::Callback<void(bool, bool)>(base::Bind([](bool, bool) {})));
     // Finish initializing the attempter.
     attempter_.Init();
   }
@@ -200,6 +213,7 @@ class UpdateAttempterTest : public ::testing::Test {
   UpdateAttempterUnderTest attempter_{&fake_system_state_};
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
+  MockDlcService mock_dlcservice_;
 
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
@@ -1159,6 +1173,21 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateAUDlcTest) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
+
+  const string dlc_module_id = "a_dlc_module_id";
+  vector<string> dlc_module_ids = {dlc_module_id};
+  ON_CALL(mock_dlcservice_, GetInstalled(testing::_))
+      .WillByDefault(DoAll(testing::SetArgPointee<0>(dlc_module_ids),
+                           testing::Return(true)));
+
+  attempter_.CheckForUpdate("", "autest", UpdateAttemptFlags::kNone);
+  EXPECT_EQ(attempter_.dlc_ids_.size(), 1);
+  EXPECT_EQ(attempter_.dlc_ids_[0], dlc_module_id);
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {

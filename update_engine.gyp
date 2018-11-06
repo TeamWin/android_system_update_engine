@@ -223,6 +223,13 @@
           'libupdate_engine-client',
           'vboot_host',
         ],
+        'conditions':[
+          ['USE_dlc == 1', {
+            'exported_deps' : [
+              'libdlcservice-client',
+            ],
+          }],
+        ],
         'deps': ['<@(exported_deps)'],
       },
       'all_dependent_settings': {
@@ -306,6 +313,16 @@
         ['USE_chrome_kiosk_app == 1', {
           'dependencies': [
             'update_engine-dbus-kiosk-app-client',
+          ],
+        }],
+        ['USE_dlc == 1', {
+          'sources': [
+            'dlcservice_chromeos.cc',
+          ],
+        }],
+        ['USE_dlc == 0', {
+          'sources': [
+            'common/dlcservice_stub.cc',
           ],
         }],
       ],

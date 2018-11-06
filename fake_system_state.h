@@ -100,6 +100,8 @@ class FakeSystemState : public SystemState {
     return power_manager_;
   }
 
+  inline DlcServiceInterface* dlcservice() override { return dlcservice_; }
+
   inline bool system_rebooted() override { return fake_system_rebooted_; }
 
   // Setters for the various members, can be used for overriding the default
@@ -163,6 +165,10 @@ class FakeSystemState : public SystemState {
 
   inline void set_system_rebooted(bool system_rebooted) {
     fake_system_rebooted_ = system_rebooted;
+  }
+
+  inline void set_dlcservice(DlcServiceInterface* dlcservice) {
+    dlcservice_ = dlcservice;
   }
 
   // Getters for the built-in default implementations. These return the actual
@@ -261,6 +267,7 @@ class FakeSystemState : public SystemState {
   P2PManager* p2p_manager_;
   chromeos_update_manager::UpdateManager* update_manager_;
   PowerManagerInterface* power_manager_{&mock_power_manager_};
+  DlcServiceInterface* dlcservice_;
 
   // Other object pointers (not preinitialized).
   const policy::DevicePolicy* device_policy_;

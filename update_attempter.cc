@@ -44,6 +44,7 @@
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
@@ -840,6 +841,9 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
   }
 
   if (forced_update_pending_callback_.get()) {
+    if (!system_state_->dlcservice()->GetInstalled(&dlc_ids_)) {
+      dlc_ids_.clear();
+    }
     // Make sure that a scheduling request is made prior to calling the forced
     // update pending callback.
     ScheduleUpdates();
