@@ -119,7 +119,8 @@ DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
     const string& partition_name_suffix,
     Slot slot,
     string* device) {
-  auto builder = dynamic_control->LoadMetadataBuilder(super_device, slot);
+  auto builder = dynamic_control->LoadMetadataBuilder(
+      super_device, slot, BootControlInterface::kInvalidSlot);
 
   if (builder == nullptr) {
     if (!dynamic_control->IsDynamicPartitionsEnabled()) {
@@ -284,8 +285,8 @@ bool InitPartitionMetadataInternal(
     Slot target_slot,
     const string& target_suffix,
     const PartitionMetadata& partition_metadata) {
-  auto builder =
-      dynamic_control->LoadMetadataBuilder(super_device, source_slot);
+  auto builder = dynamic_control->LoadMetadataBuilder(
+      super_device, source_slot, target_slot);
   if (builder == nullptr) {
     // TODO(elsk): allow reconstructing metadata from partition_metadata
     // in recovery sideload.
