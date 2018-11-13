@@ -175,11 +175,14 @@ message InstallOperation {
     PUFFDIFF = 9;  // The data is in puffdiff format.
   }
   required Type type = 1;
+
+  // Only minor version 6 or newer support 64 bits |data_offset| and
+  // |data_length|, older client will read them as uint32.
   // The offset into the delta file (after the protobuf)
   // where the data (if any) is stored
-  optional uint32 data_offset = 2;
+  optional uint64 data_offset = 2;
   // The length of the data in the delta file
-  optional uint32 data_length = 3;
+  optional uint64 data_length = 3;
 
   // Ordered list of extents that are read from (if any) and written to.
   repeated Extent src_extents = 4;
