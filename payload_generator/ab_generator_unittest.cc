@@ -191,7 +191,8 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   // Check relative layout of data blobs.
   EXPECT_EQ(first_op.data_offset() + first_op.data_length(),
             second_op.data_offset());
-  EXPECT_EQ(second_op.data_offset() + second_op.data_length(), data_file_size);
+  EXPECT_EQ(second_op.data_offset() + second_op.data_length(),
+            static_cast<uint64_t>(data_file_size));
   // If we split a REPLACE into multiple ones, ensure reuse of preexisting blob.
   if (!compressible && orig_type == InstallOperation::REPLACE) {
     EXPECT_EQ(0U, first_op.data_offset());
