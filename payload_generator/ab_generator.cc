@@ -167,13 +167,13 @@ bool ABGenerator::SplitAReplaceOp(const PayloadVersion& version,
   TEST_AND_RETURN_FALSE(IsAReplaceOperation(original_op.type()));
   const bool is_replace = original_op.type() == InstallOperation::REPLACE;
 
-  uint32_t data_offset = original_op.data_offset();
+  uint64_t data_offset = original_op.data_offset();
   for (int i = 0; i < original_op.dst_extents_size(); i++) {
     const Extent& dst_ext = original_op.dst_extents(i);
     // Make a new operation with only one dst extent.
     InstallOperation new_op;
     *(new_op.add_dst_extents()) = dst_ext;
-    uint32_t data_size = dst_ext.num_blocks() * kBlockSize;
+    uint64_t data_size = dst_ext.num_blocks() * kBlockSize;
     // If this is a REPLACE, attempt to reuse portions of the existing blob.
     if (is_replace) {
       new_op.set_type(InstallOperation::REPLACE);
