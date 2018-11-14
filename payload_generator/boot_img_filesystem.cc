@@ -70,15 +70,10 @@ FilesystemInterface::File BootImgFilesystem::GetFile(const string& name,
     // Check GZip header magic.
     if (data.size() > kGZipHeaderSize && data[0] == 0x1F && data[1] == 0x8B) {
       if (!puffin::LocateDeflatesInGzip(data, &file.deflates)) {
-        // We still use the deflates found even if LocateDeflatesInGzip() fails,
-        // if any deflates are returned, they should be correct, it's possible
-        // something went wrong later but it shouldn't stop us from using the
-        // previous deflates. Another common case is if there's more data after
-        // the gzip, the function will try to parse that as another gzip and
-        // will fail, but we still want the deflates from the first gzip.
-        LOG(WARNING) << "Error occurred parsing gzip " << name << " at offset "
-                     << offset << " of " << filename_ << ", found "
-                     << file.deflates.size() << " deflates.";
+        LOG(ERROR) << "Error occurred parsing gzip " << name << " at offset "
+                   << offset << " of " << filename_ << ", found "
+                   << file.deflates.size() << " deflates.";
+        return file;
       }
       for (auto& deflate : file.deflates) {
         deflate.offset += offset * 8;
