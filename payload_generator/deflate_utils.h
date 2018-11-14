@@ -29,6 +29,7 @@ namespace deflate_utils {
 // Gets the files from the partition and processes all its files. Processing
 // includes:
 //  - splitting large Squashfs containers into its smaller files.
+//  - extracting deflates in zip and gzip files.
 bool PreprocessParitionFiles(const PartitionConfig& part,
                              std::vector<FilesystemInterface::File>* result,
                              bool extract_deflates);
