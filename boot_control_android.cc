@@ -119,13 +119,14 @@ DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
     const string& partition_name_suffix,
     Slot slot,
     string* device) {
+  if (!dynamic_control->IsDynamicPartitionsEnabled()) {
+    return DynamicPartitionDeviceStatus::TRY_STATIC;
+  }
+
   auto builder = dynamic_control->LoadMetadataBuilder(
       super_device, slot, BootControlInterface::kInvalidSlot);
 
   if (builder == nullptr) {
-    if (!dynamic_control->IsDynamicPartitionsEnabled()) {
-      return DynamicPartitionDeviceStatus::TRY_STATIC;
-    }
     LOG(ERROR) << "No metadata in slot "
                << BootControlInterface::SlotName(slot);
     return DynamicPartitionDeviceStatus::ERROR;
