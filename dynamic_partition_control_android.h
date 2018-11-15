@@ -43,7 +43,9 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   bool GetDmDevicePathByName(const std::string& name,
                              std::string* path) override;
   std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
-      const std::string& super_device, uint32_t source_slot) override;
+      const std::string& super_device,
+      uint32_t source_slot,
+      uint32_t target_slot) override;
   bool StoreMetadata(const std::string& super_device,
                      android::fs_mgr::MetadataBuilder* builder,
                      uint32_t target_slot) override;

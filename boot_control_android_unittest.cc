@@ -298,10 +298,12 @@ class BootControlAndroidTest : public ::testing::Test {
   }
 
   void SetMetadata(uint32_t slot, const PartitionMetadata& metadata) {
-    EXPECT_CALL(dynamicControl(), LoadMetadataBuilder(GetSuperDevice(), slot))
+    EXPECT_CALL(dynamicControl(),
+                LoadMetadataBuilder(GetSuperDevice(), slot, _))
         .Times(AnyNumber())
-        .WillRepeatedly(Invoke(
-            [metadata](auto, auto) { return NewFakeMetadata(metadata); }));
+        .WillRepeatedly(Invoke([metadata](auto, auto, auto) {
+          return NewFakeMetadata(metadata);
+        }));
   }
 
   // Expect that MapPartitionOnDeviceMapper is called on target() metadata slot
@@ -394,7 +396,7 @@ class BootControlAndroidTest : public ::testing::Test {
         .Times(0);
     // Should not load metadata from target slot.
     EXPECT_CALL(dynamicControl(),
-                LoadMetadataBuilder(GetSuperDevice(), target()))
+                LoadMetadataBuilder(GetSuperDevice(), target(), _))
         .Times(0);
   }
 
@@ -512,8 +514,9 @@ TEST_P(BootControlAndroidTestP, DeleteAll) {
 
 // Test corrupt source metadata case.
 TEST_P(BootControlAndroidTestP, CorruptedSourceMetadata) {
-  EXPECT_CALL(dynamicControl(), LoadMetadataBuilder(GetSuperDevice(), source()))
-      .WillOnce(Invoke([](auto, auto) { return nullptr; }));
+  EXPECT_CALL(dynamicControl(),
+              LoadMetadataBuilder(GetSuperDevice(), source(), _))
+      .WillOnce(Invoke([](auto, auto, auto) { return nullptr; }));
   EXPECT_FALSE(InitPartitionMetadata(target(), {{"system", 1_GiB}}))
       << "Should not be able to continue with corrupt source metadata";
 }
