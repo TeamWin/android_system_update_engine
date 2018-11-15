@@ -74,8 +74,12 @@ class DynamicPartitionControlInterface {
                                      std::string* path) = 0;
 
   // Retrieve metadata from |super_device| at slot |source_slot|.
+  // On retrofit devices, if |target_slot| != kInvalidSlot, the returned
+  // metadata automatically includes block devices at |target_slot|.
   virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
-      const std::string& super_device, uint32_t source_slot) = 0;
+      const std::string& super_device,
+      uint32_t source_slot,
+      uint32_t target_slot) = 0;
 
   // Write metadata |builder| to |super_device| at slot |target_slot|.
   virtual bool StoreMetadata(const std::string& super_device,

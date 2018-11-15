@@ -38,9 +38,9 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
   MOCK_METHOD1(DeviceExists, bool(const std::string&));
   MOCK_METHOD1(GetState, ::android::dm::DmDeviceState(const std::string&));
   MOCK_METHOD2(GetDmDevicePathByName, bool(const std::string&, std::string*));
-  MOCK_METHOD2(LoadMetadataBuilder,
+  MOCK_METHOD3(LoadMetadataBuilder,
                std::unique_ptr<::android::fs_mgr::MetadataBuilder>(
-                   const std::string&, uint32_t));
+                   const std::string&, uint32_t, uint32_t));
   MOCK_METHOD3(StoreMetadata,
                bool(const std::string&,
                     android::fs_mgr::MetadataBuilder*,
