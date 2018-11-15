@@ -13,7 +13,7 @@ from google.protobuf import descriptor_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='update_metadata.proto',
   package='chromeos_update_engine',
-  serialized_pb='\n\x15update_metadata.proto\x12\x16\x63hromeos_update_engine\"1\n\x06\x45xtent\x12\x13\n\x0bstart_block\x18\x01 \x01(\x04\x12\x12\n\nnum_blocks\x18\x02 \x01(\x04\"z\n\nSignatures\x12@\n\nsignatures\x18\x01 \x03(\x0b\x32,.chromeos_update_engine.Signatures.Signature\x1a*\n\tSignature\x12\x0f\n\x07version\x18\x01 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"+\n\rPartitionInfo\x12\x0c\n\x04size\x18\x01 \x01(\x04\x12\x0c\n\x04hash\x18\x02 \x01(\x0c\"w\n\tImageInfo\x12\r\n\x05\x62oard\x18\x01 \x01(\t\x12\x0b\n\x03key\x18\x02 \x01(\t\x12\x0f\n\x07\x63hannel\x18\x03 \x01(\t\x12\x0f\n\x07version\x18\x04 \x01(\t\x12\x15\n\rbuild_channel\x18\x05 \x01(\t\x12\x15\n\rbuild_version\x18\x06 \x01(\t\"\xe6\x03\n\x10InstallOperation\x12;\n\x04type\x18\x01 \x02(\x0e\x32-.chromeos_update_engine.InstallOperation.Type\x12\x13\n\x0b\x64\x61ta_offset\x18\x02 \x01(\r\x12\x13\n\x0b\x64\x61ta_length\x18\x03 \x01(\r\x12\x33\n\x0bsrc_extents\x18\x04 \x03(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x12\n\nsrc_length\x18\x05 \x01(\x04\x12\x33\n\x0b\x64st_extents\x18\x06 \x03(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x12\n\ndst_length\x18\x07 \x01(\x04\x12\x18\n\x10\x64\x61ta_sha256_hash\x18\x08 \x01(\x0c\x12\x17\n\x0fsrc_sha256_hash\x18\t \x01(\x0c\"\xa5\x01\n\x04Type\x12\x0b\n\x07REPLACE\x10\x00\x12\x0e\n\nREPLACE_BZ\x10\x01\x12\x08\n\x04MOVE\x10\x02\x12\n\n\x06\x42SDIFF\x10\x03\x12\x0f\n\x0bSOURCE_COPY\x10\x04\x12\x11\n\rSOURCE_BSDIFF\x10\x05\x12\x08\n\x04ZERO\x10\x06\x12\x0b\n\x07\x44ISCARD\x10\x07\x12\x0e\n\nREPLACE_XZ\x10\x08\x12\x0c\n\x08PUFFDIFF\x10\t\x12\x11\n\rBROTLI_BSDIFF\x10\n\"\xa6\x03\n\x0fPartitionUpdate\x12\x16\n\x0epartition_name\x18\x01 \x02(\t\x12\x17\n\x0frun_postinstall\x18\x02 \x01(\x08\x12\x18\n\x10postinstall_path\x18\x03 \x01(\t\x12\x17\n\x0f\x66ilesystem_type\x18\x04 \x01(\t\x12M\n\x17new_partition_signature\x18\x05 \x03(\x0b\x32,.chromeos_update_engine.Signatures.Signature\x12\x41\n\x12old_partition_info\x18\x06 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12\x41\n\x12new_partition_info\x18\x07 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12<\n\noperations\x18\x08 \x03(\x0b\x32(.chromeos_update_engine.InstallOperation\x12\x1c\n\x14postinstall_optional\x18\t \x01(\x08\"\xc4\x05\n\x14\x44\x65ltaArchiveManifest\x12\x44\n\x12install_operations\x18\x01 \x03(\x0b\x32(.chromeos_update_engine.InstallOperation\x12K\n\x19kernel_install_operations\x18\x02 \x03(\x0b\x32(.chromeos_update_engine.InstallOperation\x12\x18\n\nblock_size\x18\x03 \x01(\r:\x04\x34\x30\x39\x36\x12\x19\n\x11signatures_offset\x18\x04 \x01(\x04\x12\x17\n\x0fsignatures_size\x18\x05 \x01(\x04\x12>\n\x0fold_kernel_info\x18\x06 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12>\n\x0fnew_kernel_info\x18\x07 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12>\n\x0fold_rootfs_info\x18\x08 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12>\n\x0fnew_rootfs_info\x18\t \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12\x39\n\x0eold_image_info\x18\n \x01(\x0b\x32!.chromeos_update_engine.ImageInfo\x12\x39\n\x0enew_image_info\x18\x0b \x01(\x0b\x32!.chromeos_update_engine.ImageInfo\x12\x18\n\rminor_version\x18\x0c \x01(\r:\x01\x30\x12;\n\npartitions\x18\r \x03(\x0b\x32\'.chromeos_update_engine.PartitionUpdateB\x02H\x03')
+  serialized_pb='\n\x15update_metadata.proto\x12\x16\x63hromeos_update_engine\"1\n\x06\x45xtent\x12\x13\n\x0bstart_block\x18\x01 \x01(\x04\x12\x12\n\nnum_blocks\x18\x02 \x01(\x04\"z\n\nSignatures\x12@\n\nsignatures\x18\x01 \x03(\x0b\x32,.chromeos_update_engine.Signatures.Signature\x1a*\n\tSignature\x12\x0f\n\x07version\x18\x01 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"+\n\rPartitionInfo\x12\x0c\n\x04size\x18\x01 \x01(\x04\x12\x0c\n\x04hash\x18\x02 \x01(\x0c\"w\n\tImageInfo\x12\r\n\x05\x62oard\x18\x01 \x01(\t\x12\x0b\n\x03key\x18\x02 \x01(\t\x12\x0f\n\x07\x63hannel\x18\x03 \x01(\t\x12\x0f\n\x07version\x18\x04 \x01(\t\x12\x15\n\rbuild_channel\x18\x05 \x01(\t\x12\x15\n\rbuild_version\x18\x06 \x01(\t\"\xe6\x03\n\x10InstallOperation\x12;\n\x04type\x18\x01 \x02(\x0e\x32-.chromeos_update_engine.InstallOperation.Type\x12\x13\n\x0b\x64\x61ta_offset\x18\x02 \x01(\x04\x12\x13\n\x0b\x64\x61ta_length\x18\x03 \x01(\x04\x12\x33\n\x0bsrc_extents\x18\x04 \x03(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x12\n\nsrc_length\x18\x05 \x01(\x04\x12\x33\n\x0b\x64st_extents\x18\x06 \x03(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x12\n\ndst_length\x18\x07 \x01(\x04\x12\x18\n\x10\x64\x61ta_sha256_hash\x18\x08 \x01(\x0c\x12\x17\n\x0fsrc_sha256_hash\x18\t \x01(\x0c\"\xa5\x01\n\x04Type\x12\x0b\n\x07REPLACE\x10\x00\x12\x0e\n\nREPLACE_BZ\x10\x01\x12\x08\n\x04MOVE\x10\x02\x12\n\n\x06\x42SDIFF\x10\x03\x12\x0f\n\x0bSOURCE_COPY\x10\x04\x12\x11\n\rSOURCE_BSDIFF\x10\x05\x12\x0e\n\nREPLACE_XZ\x10\x08\x12\x08\n\x04ZERO\x10\x06\x12\x0b\n\x07\x44ISCARD\x10\x07\x12\x11\n\rBROTLI_BSDIFF\x10\n\x12\x0c\n\x08PUFFDIFF\x10\t\"\xd7\x05\n\x0fPartitionUpdate\x12\x16\n\x0epartition_name\x18\x01 \x02(\t\x12\x17\n\x0frun_postinstall\x18\x02 \x01(\x08\x12\x18\n\x10postinstall_path\x18\x03 \x01(\t\x12\x17\n\x0f\x66ilesystem_type\x18\x04 \x01(\t\x12M\n\x17new_partition_signature\x18\x05 \x03(\x0b\x32,.chromeos_update_engine.Signatures.Signature\x12\x41\n\x12old_partition_info\x18\x06 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12\x41\n\x12new_partition_info\x18\x07 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12<\n\noperations\x18\x08 \x03(\x0b\x32(.chromeos_update_engine.InstallOperation\x12\x1c\n\x14postinstall_optional\x18\t \x01(\x08\x12=\n\x15hash_tree_data_extent\x18\n \x01(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x38\n\x10hash_tree_extent\x18\x0b \x01(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x1b\n\x13hash_tree_algorithm\x18\x0c \x01(\t\x12\x16\n\x0ehash_tree_salt\x18\r \x01(\x0c\x12\x37\n\x0f\x66\x65\x63_data_extent\x18\x0e \x01(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x32\n\nfec_extent\x18\x0f \x01(\x0b\x32\x1e.chromeos_update_engine.Extent\x12\x14\n\tfec_roots\x18\x10 \x01(\r:\x01\x32\"L\n\x15\x44ynamicPartitionGroup\x12\x0c\n\x04name\x18\x01 \x02(\t\x12\x0c\n\x04size\x18\x02 \x01(\x04\x12\x17\n\x0fpartition_names\x18\x03 \x03(\t\"Y\n\x18\x44ynamicPartitionMetadata\x12=\n\x06groups\x18\x01 \x03(\x0b\x32-.chromeos_update_engine.DynamicPartitionGroup\"\xb1\x06\n\x14\x44\x65ltaArchiveManifest\x12\x44\n\x12install_operations\x18\x01 \x03(\x0b\x32(.chromeos_update_engine.InstallOperation\x12K\n\x19kernel_install_operations\x18\x02 \x03(\x0b\x32(.chromeos_update_engine.InstallOperation\x12\x18\n\nblock_size\x18\x03 \x01(\r:\x04\x34\x30\x39\x36\x12\x19\n\x11signatures_offset\x18\x04 \x01(\x04\x12\x17\n\x0fsignatures_size\x18\x05 \x01(\x04\x12>\n\x0fold_kernel_info\x18\x06 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12>\n\x0fnew_kernel_info\x18\x07 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12>\n\x0fold_rootfs_info\x18\x08 \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12>\n\x0fnew_rootfs_info\x18\t \x01(\x0b\x32%.chromeos_update_engine.PartitionInfo\x12\x39\n\x0eold_image_info\x18\n \x01(\x0b\x32!.chromeos_update_engine.ImageInfo\x12\x39\n\x0enew_image_info\x18\x0b \x01(\x0b\x32!.chromeos_update_engine.ImageInfo\x12\x18\n\rminor_version\x18\x0c \x01(\r:\x01\x30\x12;\n\npartitions\x18\r \x03(\x0b\x32\'.chromeos_update_engine.PartitionUpdate\x12\x15\n\rmax_timestamp\x18\x0e \x01(\x03\x12T\n\x1a\x64ynamic_partition_metadata\x18\x0f \x01(\x0b\x32\x30.chromeos_update_engine.DynamicPartitionMetadataB\x02H\x03')
 
 
 
@@ -48,23 +48,23 @@ _INSTALLOPERATION_TYPE = _descriptor.EnumDescriptor(
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='ZERO', index=6, number=6,
+      name='REPLACE_XZ', index=6, number=8,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='DISCARD', index=7, number=7,
+      name='ZERO', index=7, number=6,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='REPLACE_XZ', index=8, number=8,
+      name='DISCARD', index=8, number=7,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='PUFFDIFF', index=9, number=9,
+      name='BROTLI_BSDIFF', index=9, number=10,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='BROTLI_BSDIFF', index=10, number=10,
+      name='PUFFDIFF', index=10, number=9,
       options=None,
       type=None),
   ],
@@ -286,14 +286,14 @@ _INSTALLOPERATION = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='data_offset', full_name='chromeos_update_engine.InstallOperation.data_offset', index=1,
-      number=2, type=13, cpp_type=3, label=1,
+      number=2, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
       name='data_length', full_name='chromeos_update_engine.InstallOperation.data_length', index=2,
-      number=3, type=13, cpp_type=3, label=1,
+      number=3, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -425,6 +425,55 @@ _PARTITIONUPDATE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='hash_tree_data_extent', full_name='chromeos_update_engine.PartitionUpdate.hash_tree_data_extent', index=9,
+      number=10, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='hash_tree_extent', full_name='chromeos_update_engine.PartitionUpdate.hash_tree_extent', index=10,
+      number=11, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='hash_tree_algorithm', full_name='chromeos_update_engine.PartitionUpdate.hash_tree_algorithm', index=11,
+      number=12, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=unicode("", "utf-8"),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='hash_tree_salt', full_name='chromeos_update_engine.PartitionUpdate.hash_tree_salt', index=12,
+      number=13, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value="",
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='fec_data_extent', full_name='chromeos_update_engine.PartitionUpdate.fec_data_extent', index=13,
+      number=14, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='fec_extent', full_name='chromeos_update_engine.PartitionUpdate.fec_extent', index=14,
+      number=15, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='fec_roots', full_name='chromeos_update_engine.PartitionUpdate.fec_roots', index=15,
+      number=16, type=13, cpp_type=3, label=1,
+      has_default_value=True, default_value=2,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -435,7 +484,77 @@ _PARTITIONUPDATE = _descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=880,
-  serialized_end=1302,
+  serialized_end=1607,
+)
+
+
+_DYNAMICPARTITIONGROUP = _descriptor.Descriptor(
+  name='DynamicPartitionGroup',
+  full_name='chromeos_update_engine.DynamicPartitionGroup',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='chromeos_update_engine.DynamicPartitionGroup.name', index=0,
+      number=1, type=9, cpp_type=9, label=2,
+      has_default_value=False, default_value=unicode("", "utf-8"),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='size', full_name='chromeos_update_engine.DynamicPartitionGroup.size', index=1,
+      number=2, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='partition_names', full_name='chromeos_update_engine.DynamicPartitionGroup.partition_names', index=2,
+      number=3, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  serialized_start=1609,
+  serialized_end=1685,
+)
+
+
+_DYNAMICPARTITIONMETADATA = _descriptor.Descriptor(
+  name='DynamicPartitionMetadata',
+  full_name='chromeos_update_engine.DynamicPartitionMetadata',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='groups', full_name='chromeos_update_engine.DynamicPartitionMetadata.groups', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  serialized_start=1687,
+  serialized_end=1776,
 )
 
 
@@ -537,6 +656,20 @@ _DELTAARCHIVEMANIFEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='max_timestamp', full_name='chromeos_update_engine.DeltaArchiveManifest.max_timestamp', index=13,
+      number=14, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='dynamic_partition_metadata', full_name='chromeos_update_engine.DeltaArchiveManifest.dynamic_partition_metadata', index=14,
+      number=15, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -546,8 +679,8 @@ _DELTAARCHIVEMANIFEST = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=1305,
-  serialized_end=2013,
+  serialized_start=1779,
+  serialized_end=2596,
 )
 
 _SIGNATURES_SIGNATURE.containing_type = _SIGNATURES;
@@ -560,6 +693,11 @@ _PARTITIONUPDATE.fields_by_name['new_partition_signature'].message_type = _SIGNA
 _PARTITIONUPDATE.fields_by_name['old_partition_info'].message_type = _PARTITIONINFO
 _PARTITIONUPDATE.fields_by_name['new_partition_info'].message_type = _PARTITIONINFO
 _PARTITIONUPDATE.fields_by_name['operations'].message_type = _INSTALLOPERATION
+_PARTITIONUPDATE.fields_by_name['hash_tree_data_extent'].message_type = _EXTENT
+_PARTITIONUPDATE.fields_by_name['hash_tree_extent'].message_type = _EXTENT
+_PARTITIONUPDATE.fields_by_name['fec_data_extent'].message_type = _EXTENT
+_PARTITIONUPDATE.fields_by_name['fec_extent'].message_type = _EXTENT
+_DYNAMICPARTITIONMETADATA.fields_by_name['groups'].message_type = _DYNAMICPARTITIONGROUP
 _DELTAARCHIVEMANIFEST.fields_by_name['install_operations'].message_type = _INSTALLOPERATION
 _DELTAARCHIVEMANIFEST.fields_by_name['kernel_install_operations'].message_type = _INSTALLOPERATION
 _DELTAARCHIVEMANIFEST.fields_by_name['old_kernel_info'].message_type = _PARTITIONINFO
@@ -569,12 +707,15 @@ _DELTAARCHIVEMANIFEST.fields_by_name['new_rootfs_info'].message_type = _PARTITIO
 _DELTAARCHIVEMANIFEST.fields_by_name['old_image_info'].message_type = _IMAGEINFO
 _DELTAARCHIVEMANIFEST.fields_by_name['new_image_info'].message_type = _IMAGEINFO
 _DELTAARCHIVEMANIFEST.fields_by_name['partitions'].message_type = _PARTITIONUPDATE
+_DELTAARCHIVEMANIFEST.fields_by_name['dynamic_partition_metadata'].message_type = _DYNAMICPARTITIONMETADATA
 DESCRIPTOR.message_types_by_name['Extent'] = _EXTENT
 DESCRIPTOR.message_types_by_name['Signatures'] = _SIGNATURES
 DESCRIPTOR.message_types_by_name['PartitionInfo'] = _PARTITIONINFO
 DESCRIPTOR.message_types_by_name['ImageInfo'] = _IMAGEINFO
 DESCRIPTOR.message_types_by_name['InstallOperation'] = _INSTALLOPERATION
 DESCRIPTOR.message_types_by_name['PartitionUpdate'] = _PARTITIONUPDATE
+DESCRIPTOR.message_types_by_name['DynamicPartitionGroup'] = _DYNAMICPARTITIONGROUP
+DESCRIPTOR.message_types_by_name['DynamicPartitionMetadata'] = _DYNAMICPARTITIONMETADATA
 DESCRIPTOR.message_types_by_name['DeltaArchiveManifest'] = _DELTAARCHIVEMANIFEST
 
 class Extent(_message.Message):
@@ -618,6 +759,18 @@ class PartitionUpdate(_message.Message):
   DESCRIPTOR = _PARTITIONUPDATE
 
   # @@protoc_insertion_point(class_scope:chromeos_update_engine.PartitionUpdate)
+
+class DynamicPartitionGroup(_message.Message):
+  __metaclass__ = _reflection.GeneratedProtocolMessageType
+  DESCRIPTOR = _DYNAMICPARTITIONGROUP
+
+  # @@protoc_insertion_point(class_scope:chromeos_update_engine.DynamicPartitionGroup)
+
+class DynamicPartitionMetadata(_message.Message):
+  __metaclass__ = _reflection.GeneratedProtocolMessageType
+  DESCRIPTOR = _DYNAMICPARTITIONMETADATA
+
+  # @@protoc_insertion_point(class_scope:chromeos_update_engine.DynamicPartitionMetadata)
 
 class DeltaArchiveManifest(_message.Message):
   __metaclass__ = _reflection.GeneratedProtocolMessageType
