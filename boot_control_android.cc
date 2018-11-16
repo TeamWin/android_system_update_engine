@@ -331,20 +331,20 @@ bool InitPartitionMetadataInternal(
               << group.size;
 
     for (const auto& partition : group.partitions) {
-      auto parition_name_suffix = partition.name + target_suffix;
+      auto partition_name_suffix = partition.name + target_suffix;
       Partition* p = builder->AddPartition(
-          parition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
+          partition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
       if (!p) {
-        LOG(ERROR) << "Cannot add partition " << parition_name_suffix
+        LOG(ERROR) << "Cannot add partition " << partition_name_suffix
                    << " to group " << group_name_suffix;
         return false;
       }
       if (!builder->ResizePartition(p, partition.size)) {
-        LOG(ERROR) << "Cannot resize partition " << parition_name_suffix
+        LOG(ERROR) << "Cannot resize partition " << partition_name_suffix
                    << " to size " << partition.size << ". Not enough space?";
         return false;
       }
-      LOG(INFO) << "Added partition " << parition_name_suffix << " to group "
+      LOG(INFO) << "Added partition " << partition_name_suffix << " to group "
                 << group_name_suffix << " with size " << partition.size;
     }
   }
