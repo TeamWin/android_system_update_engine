@@ -779,4 +779,45 @@ TEST_F(DeltaDiffUtilsTest, IsExtFilesystemTest) {
       test_utils::GetBuildArtifactsPath("gen/disk_ext2_4k.img")));
 }
 
+TEST_F(DeltaDiffUtilsTest, GetOldFileEmptyTest) {
+  EXPECT_TRUE(diff_utils::GetOldFile({}, "filename").name.empty());
+}
+
+TEST_F(DeltaDiffUtilsTest, GetOldFileTest) {
+  std::map<string, FilesystemInterface::File> old_files_map;
+  auto file_list = {
+      "filename",
+      "filename.zip",
+      "version1.1",
+      "version2.0",
+      "version",
+      "update_engine",
+      "delta_generator",
+  };
+  for (const auto& name : file_list) {
+    FilesystemInterface::File file;
+    file.name = name;
+    old_files_map.emplace(name, file);
+  }
+
+  // Always return exact match if possible.
+  for (const auto& name : file_list)
+    EXPECT_EQ(diff_utils::GetOldFile(old_files_map, name).name, name);
+
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "file_name").name,
+            "filename");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "filename_new.zip").name,
+            "filename.zip");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "version1.2").name,
+            "version1.1");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "version3.0").name,
+            "version2.0");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "_version").name, "version");
+  EXPECT_EQ(
+      diff_utils::GetOldFile(old_files_map, "update_engine_unittest").name,
+      "update_engine");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "bin/delta_generator").name,
+            "delta_generator");
+}
+
 }  // namespace chromeos_update_engine
