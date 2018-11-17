@@ -144,7 +144,12 @@ bool BootControlRecovery::IsSlotBootable(Slot slot) const {
   if (ret < 0) {
     LOG(ERROR) << "Unable to determine if slot " << SlotName(slot)
                << " is bootable: " << strerror(-ret);
-    return false;
+    // Try without slot suffix
+    path = misc_device.DirName().Append(partition_name);
+    if (!base::PathExists(path)) {
+        LOG(ERROR) << "Device file " << path.value() << " does not exist.";
+        return false;
+    }
   }
   return ret == 1;
 }
