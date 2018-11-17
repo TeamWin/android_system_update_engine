@@ -121,7 +121,12 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   base::FilePath path = misc_device.DirName().Append(partition_name + suffix);
   if (!base::PathExists(path)) {
     LOG(ERROR) << "Device file " << path.value() << " does not exist.";
-    return false;
+    // Try without slot suffix
+    path = misc_device.DirName().Append(partition_name);
+    if (!base::PathExists(path)) {
+        LOG(ERROR) << "Device file " << path.value() << " does not exist.";
+        return false;
+    }
   }
 
   *device = path.value();
