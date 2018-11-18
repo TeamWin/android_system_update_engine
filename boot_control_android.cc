@@ -119,12 +119,14 @@ DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
     const string& partition_name_suffix,
     Slot slot,
     string* device) {
-  auto builder = dynamic_control->LoadMetadataBuilder(super_device, slot);
+  if (!dynamic_control->IsDynamicPartitionsEnabled()) {
+    return DynamicPartitionDeviceStatus::TRY_STATIC;
+  }
+
+  auto builder = dynamic_control->LoadMetadataBuilder(
+      super_device, slot, BootControlInterface::kInvalidSlot);
 
   if (builder == nullptr) {
-    if (!dynamic_control->IsDynamicPartitionsEnabled()) {
-      return DynamicPartitionDeviceStatus::TRY_STATIC;
-    }
     LOG(ERROR) << "No metadata in slot "
                << BootControlInterface::SlotName(slot);
     return DynamicPartitionDeviceStatus::ERROR;
@@ -187,7 +189,7 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   base::FilePath device_dir(device_dir_str);
 
   string super_device =
-      device_dir.Append(fs_mgr_get_super_partition_name()).value();
+      device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
   switch (GetDynamicPartitionDevice(dynamic_control_.get(),
                                     super_device,
                                     partition_name_suffix,
@@ -279,13 +281,14 @@ namespace {
 
 bool InitPartitionMetadataInternal(
     DynamicPartitionControlInterface* dynamic_control,
-    const string& super_device,
+    const string& source_device,
+    const string& target_device,
     Slot source_slot,
     Slot target_slot,
     const string& target_suffix,
     const PartitionMetadata& partition_metadata) {
-  auto builder =
-      dynamic_control->LoadMetadataBuilder(super_device, source_slot);
+  auto builder = dynamic_control->LoadMetadataBuilder(
+      source_device, source_slot, target_slot);
   if (builder == nullptr) {
     // TODO(elsk): allow reconstructing metadata from partition_metadata
     // in recovery sideload.
@@ -328,31 +331,31 @@ bool InitPartitionMetadataInternal(
               << group.size;
 
     for (const auto& partition : group.partitions) {
-      auto parition_name_suffix = partition.name + target_suffix;
+      auto partition_name_suffix = partition.name + target_suffix;
       Partition* p = builder->AddPartition(
-          parition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
+          partition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
       if (!p) {
-        LOG(ERROR) << "Cannot add partition " << parition_name_suffix
+        LOG(ERROR) << "Cannot add partition " << partition_name_suffix
                    << " to group " << group_name_suffix;
         return false;
       }
       if (!builder->ResizePartition(p, partition.size)) {
-        LOG(ERROR) << "Cannot resize partition " << parition_name_suffix
+        LOG(ERROR) << "Cannot resize partition " << partition_name_suffix
                    << " to size " << partition.size << ". Not enough space?";
         return false;
       }
-      LOG(INFO) << "Added partition " << parition_name_suffix << " to group "
+      LOG(INFO) << "Added partition " << partition_name_suffix << " to group "
                 << group_name_suffix << " with size " << partition.size;
     }
   }
 
   return dynamic_control->StoreMetadata(
-      super_device, builder.get(), target_slot);
+      target_device, builder.get(), target_slot);
 }
 
 // Unmap all partitions, and remap partitions as writable.
 bool Remap(DynamicPartitionControlInterface* dynamic_control,
-           const string& super_device,
+           const string& target_device,
            Slot target_slot,
            const string& target_suffix,
            const PartitionMetadata& partition_metadata) {
@@ -367,7 +370,7 @@ bool Remap(DynamicPartitionControlInterface* dynamic_control,
       }
       string map_path;
       if (!dynamic_control->MapPartitionOnDeviceMapper(
-              super_device,
+              target_device,
               partition.name + target_suffix,
               target_slot,
               true /* force writable */,
@@ -392,14 +395,16 @@ bool BootControlAndroid::InitPartitionMetadata(
     return false;
   }
   base::FilePath device_dir(device_dir_str);
-  string super_device =
-      device_dir.Append(fs_mgr_get_super_partition_name()).value();
+  string target_device =
+      device_dir.Append(fs_mgr_get_super_partition_name(target_slot)).value();
 
   Slot current_slot = GetCurrentSlot();
   if (target_slot == current_slot) {
     LOG(ERROR) << "Cannot call InitPartitionMetadata on current slot.";
     return false;
   }
+  string source_device =
+      device_dir.Append(fs_mgr_get_super_partition_name(current_slot)).value();
 
   string target_suffix;
   if (!GetSuffix(target_slot, &target_suffix)) {
@@ -407,7 +412,8 @@ bool BootControlAndroid::InitPartitionMetadata(
   }
 
   if (!InitPartitionMetadataInternal(dynamic_control_.get(),
-                                     super_device,
+                                     source_device,
+                                     target_device,
                                      current_slot,
                                      target_slot,
                                      target_suffix,
@@ -416,7 +422,7 @@ bool BootControlAndroid::InitPartitionMetadata(
   }
 
   if (!Remap(dynamic_control_.get(),
-             super_device,
+             target_device,
              target_slot,
              target_suffix,
              partition_metadata)) {
