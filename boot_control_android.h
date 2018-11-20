@@ -64,6 +64,24 @@ class BootControlAndroid : public BootControlInterface {
   // Wrapper method of IBootControl::getSuffix().
   bool GetSuffix(Slot slot, std::string* out) const;
 
+  enum class DynamicPartitionDeviceStatus {
+    SUCCESS,
+    ERROR,
+    TRY_STATIC,
+  };
+
+  DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
+      const base::FilePath& device_dir,
+      const std::string& partition_name_suffix,
+      Slot slot,
+      std::string* device) const;
+
+  // Return true if |partition_name_suffix| is a block device of
+  // super partition metadata slot |slot|.
+  bool IsSuperBlockDevice(const base::FilePath& device_dir,
+                          Slot slot,
+                          const std::string& partition_name_suffix) const;
+
   DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);
 };
 
