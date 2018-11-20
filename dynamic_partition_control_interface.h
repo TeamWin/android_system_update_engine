@@ -35,6 +35,9 @@ class DynamicPartitionControlInterface {
   // Return true iff dynamic partitions is enabled on this device.
   virtual bool IsDynamicPartitionsEnabled() = 0;
 
+  // Return true iff dynamic partitions is retrofitted on this device.
+  virtual bool IsDynamicPartitionsRetrofit() = 0;
+
   // Map logical partition on device-mapper.
   // |super_device| is the device path of the physical partition ("super").
   // |target_partition_name| is the identifier used in metadata; for example,
