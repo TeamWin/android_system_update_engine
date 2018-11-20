@@ -54,7 +54,7 @@ bool DynamicPartitionControlAndroid::IsDynamicPartitionsEnabled() {
   return GetBoolProperty(kUseDynamicPartitions, false);
 }
 
-static bool IsDynamicPartitionsRetrofit() {
+bool DynamicPartitionControlAndroid::IsDynamicPartitionsRetrofit() {
   return GetBoolProperty(kRetrfoitDynamicPartitions, false);
 }
 
