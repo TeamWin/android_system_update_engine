@@ -447,6 +447,32 @@
         'payload_generator/generate_delta_main.cc',
       ],
     },
+    {
+      'target_name': 'update_engine_test_libs',
+      'type': 'static_library',
+      'variables': {
+        'deps': [
+          'libshill-client-test',
+        ],
+      },
+      'dependencies': [
+        'libupdate_engine',
+      ],
+      'includes': [
+        '../../../platform2/common-mk/common_test.gypi',
+      ],
+      'sources': [
+        'common/fake_prefs.cc',
+        'common/file_fetcher.cc',  # Only required for tests.
+        'common/mock_http_fetcher.cc',
+        'common/test_utils.cc',
+        'fake_shill_proxy.cc',
+        'fake_system_state.cc',
+        'payload_consumer/fake_file_descriptor.cc',
+        'payload_generator/fake_filesystem.cc',
+        'update_manager/umtest_utils.cc',
+      ],
+    },
   ],
   'conditions': [
     ['USE_test == 1', {
@@ -511,8 +537,8 @@
           'dependencies': [
             'libupdate_engine',
             'libpayload_generator',
+            'update_engine_test_libs',
           ],
-          'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'sources': [
             'boot_control_chromeos_unittest.cc',
             'certificate_checker_unittest.cc',
@@ -520,21 +546,15 @@
             'common/action_processor_unittest.cc',
             'common/action_unittest.cc',
             'common/cpu_limiter_unittest.cc',
-            'common/fake_prefs.cc',
-            'common/file_fetcher.cc',  # Only required for tests.
             'common/hash_calculator_unittest.cc',
             'common/http_fetcher_unittest.cc',
             'common/hwid_override_unittest.cc',
-            'common/mock_http_fetcher.cc',
             'common/prefs_unittest.cc',
             'common/subprocess_unittest.cc',
             'common/terminator_unittest.cc',
-            'common/test_utils.cc',
             'common/utils_unittest.cc',
             'common_service_unittest.cc',
             'connection_manager_unittest.cc',
-            'fake_shill_proxy.cc',
-            'fake_system_state.cc',
             'hardware_chromeos_unittest.cc',
             'image_properties_chromeos_unittest.cc',
             'metrics_reporter_omaha_unittest.cc',
@@ -551,7 +571,6 @@
             'payload_consumer/download_action_unittest.cc',
             'payload_consumer/extent_reader_unittest.cc',
             'payload_consumer/extent_writer_unittest.cc',
-            'payload_consumer/fake_file_descriptor.cc',
             'payload_consumer/file_descriptor_utils_unittest.cc',
             'payload_consumer/file_writer_unittest.cc',
             'payload_consumer/filesystem_verifier_action_unittest.cc',
@@ -566,7 +585,6 @@
             'payload_generator/ext2_filesystem_unittest.cc',
             'payload_generator/extent_ranges_unittest.cc',
             'payload_generator/extent_utils_unittest.cc',
-            'payload_generator/fake_filesystem.cc',
             'payload_generator/full_update_generator_unittest.cc',
             'payload_generator/graph_utils_unittest.cc',
             'payload_generator/inplace_generator_unittest.cc',
@@ -595,11 +613,35 @@
             'update_manager/real_time_provider_unittest.cc',
             'update_manager/real_updater_provider_unittest.cc',
             'update_manager/staging_utils_unittest.cc',
-            'update_manager/umtest_utils.cc',
             'update_manager/update_manager_unittest.cc',
             'update_manager/update_time_restrictions_policy_impl_unittest.cc',
             'update_manager/variable_unittest.cc',
             'update_manager/weekly_time_unittest.cc',
+          ],
+        },
+      ],
+    }],
+    # Fuzzer target.
+    ['USE_fuzzer == 1', {
+      'targets': [
+        {
+          'target_name': 'update_engine_omaha_request_action_fuzzer',
+          'type': 'executable',
+          'variables': {
+            'deps': [
+              'libbrillo-test-<(libbase_ver)',
+              'libchrome-test-<(libbase_ver)',
+            ],
+          },
+          'includes': [
+            '../../../platform2/common-mk/common_fuzzer.gypi',
+          ],
+          'dependencies': [
+            'libupdate_engine',
+            'update_engine_test_libs',
+          ],
+          'sources': [
+            'omaha_request_action_fuzzer.cc',
           ],
         },
       ],
