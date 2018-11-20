@@ -273,6 +273,8 @@ class BootControlAndroidTest : public ::testing::Test {
 
     ON_CALL(dynamicControl(), IsDynamicPartitionsEnabled())
         .WillByDefault(Return(true));
+    ON_CALL(dynamicControl(), IsDynamicPartitionsRetrofit())
+        .WillByDefault(Return(false));
     ON_CALL(dynamicControl(), GetDeviceDir(_))
         .WillByDefault(Invoke([](auto path) {
           *path = kFakeDevicePath;

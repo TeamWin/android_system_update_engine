@@ -323,12 +323,17 @@ bool InitPartitionMetadataInternal(
     total_size += group.size;
   }
 
-  if (total_size > (builder->AllocatableSpace() / 2)) {
-    LOG(ERROR)
-        << "The maximum size of all groups with suffix " << target_suffix
-        << " (" << total_size
-        << ") has exceeded half of allocatable space for dynamic partitions "
-        << (builder->AllocatableSpace() / 2) << ".";
+  string expr;
+  uint64_t allocatable_space = builder->AllocatableSpace();
+  if (!dynamic_control->IsDynamicPartitionsRetrofit()) {
+    allocatable_space /= 2;
+    expr = "half of ";
+  }
+  if (total_size > allocatable_space) {
+    LOG(ERROR) << "The maximum size of all groups with suffix " << target_suffix
+               << " (" << total_size << ") has exceeded " << expr
+               << "allocatable space for dynamic partitions "
+               << allocatable_space << ".";
     return false;
   }
 

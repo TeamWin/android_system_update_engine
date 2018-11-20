@@ -47,6 +47,7 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
                     uint32_t));
   MOCK_METHOD1(GetDeviceDir, bool(std::string*));
   MOCK_METHOD0(IsDynamicPartitionsEnabled, bool());
+  MOCK_METHOD0(IsDynamicPartitionsRetrofit, bool());
 };
 
 }  // namespace chromeos_update_engine
