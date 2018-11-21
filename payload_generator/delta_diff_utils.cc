@@ -33,6 +33,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <utility>
 
 #include <base/files/file_util.h>
@@ -205,6 +206,26 @@ bool IsDiffOperationBetter(const InstallOperation& op,
          old_blob_size;
 }
 
+// Returns the levenshtein distance between string |a| and |b|.
+// https://en.wikipedia.org/wiki/Levenshtein_distance
+int LevenshteinDistance(const string& a, const string& b) {
+  vector<int> distances(a.size() + 1);
+  std::iota(distances.begin(), distances.end(), 0);
+
+  for (size_t i = 1; i <= b.size(); i++) {
+    distances[0] = i;
+    int previous_distance = i - 1;
+    for (size_t j = 1; j <= a.size(); j++) {
+      int new_distance =
+          std::min({distances[j] + 1,
+                    distances[j - 1] + 1,
+                    previous_distance + (a[j - 1] == b[i - 1] ? 0 : 1)});
+      previous_distance = distances[j];
+      distances[j] = new_distance;
+    }
+  }
+  return distances.back();
+}
 }  // namespace
 
 namespace diff_utils {
@@ -317,6 +338,33 @@ bool FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {
   return true;
 }
 
+FilesystemInterface::File GetOldFile(
+    const map<string, FilesystemInterface::File>& old_files_map,
+    const string& new_file_name) {
+  if (old_files_map.empty())
+    return {};
+
+  auto old_file_iter = old_files_map.find(new_file_name);
+  if (old_file_iter != old_files_map.end())
+    return old_file_iter->second;
+
+  // No old file match for the new file name, use a similar file with the
+  // shortest levenshtein distance.
+  // This works great if the file has version number in it, but even for
+  // a completely new file, using a similar file can still help.
+  int min_distance = new_file_name.size();
+  const FilesystemInterface::File* old_file;
+  for (const auto& pair : old_files_map) {
+    int distance = LevenshteinDistance(new_file_name, pair.first);
+    if (distance < min_distance) {
+      min_distance = distance;
+      old_file = &pair.second;
+    }
+  }
+  LOG(INFO) << "Using " << old_file->name << " as source for " << new_file_name;
+  return *old_file;
+}
+
 bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
                         const PartitionConfig& old_part,
                         const PartitionConfig& new_part,
@@ -395,7 +443,8 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
     // from using a graph/cycle detection/etc to generate diffs, and at that
     // time, it will be easy (non-complex) to have many operations read
     // from the same source blocks. At that time, this code can die. -adlr
-    auto old_file = old_files_map[new_file.name];
+    FilesystemInterface::File old_file =
+        GetOldFile(old_files_map, new_file.name);
     vector<Extent> old_file_extents;
     if (version.InplaceUpdate())
       old_file_extents =
