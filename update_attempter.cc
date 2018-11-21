@@ -1051,6 +1051,13 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
 
+    if (is_install_) {
+      LOG(INFO) << "DLC successfully installed, no reboot needed.";
+      SetStatusAndNotify(UpdateStatus::IDLE);
+      ScheduleUpdates();
+      return;
+    }
+
     SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
     ScheduleUpdates();
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
