@@ -105,25 +105,31 @@ bool BootControlAndroid::GetSuffix(Slot slot, string* suffix) const {
   return true;
 }
 
-namespace {
+bool BootControlAndroid::IsSuperBlockDevice(
+    const base::FilePath& device_dir,
+    Slot slot,
+    const string& partition_name_suffix) const {
+  string source_device =
+      device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
+  auto source_metadata = dynamic_control_->LoadMetadataBuilder(
+      source_device, slot, BootControlInterface::kInvalidSlot);
+  return source_metadata->HasBlockDevice(partition_name_suffix);
+}
 
-enum class DynamicPartitionDeviceStatus {
-  SUCCESS,
-  ERROR,
-  TRY_STATIC,
-};
-
-DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
-    DynamicPartitionControlInterface* dynamic_control,
-    const string& super_device,
+BootControlAndroid::DynamicPartitionDeviceStatus
+BootControlAndroid::GetDynamicPartitionDevice(
+    const base::FilePath& device_dir,
     const string& partition_name_suffix,
     Slot slot,
-    string* device) {
-  if (!dynamic_control->IsDynamicPartitionsEnabled()) {
+    string* device) const {
+  if (!dynamic_control_->IsDynamicPartitionsEnabled()) {
     return DynamicPartitionDeviceStatus::TRY_STATIC;
   }
 
-  auto builder = dynamic_control->LoadMetadataBuilder(
+  string super_device =
+      device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
+
+  auto builder = dynamic_control_->LoadMetadataBuilder(
       super_device, slot, BootControlInterface::kInvalidSlot);
 
   if (builder == nullptr) {
@@ -135,13 +141,25 @@ DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
   if (builder->FindPartition(partition_name_suffix) == nullptr) {
     LOG(INFO) << partition_name_suffix
               << " is not in super partition metadata.";
+
+    Slot current_slot = GetCurrentSlot();
+    if (IsSuperBlockDevice(device_dir, current_slot, partition_name_suffix)) {
+      LOG(ERROR) << "The static partition " << partition_name_suffix
+                 << " is a block device for current metadata ("
+                 << fs_mgr_get_super_partition_name(current_slot) << ", slot "
+                 << BootControlInterface::SlotName(current_slot)
+                 << "). It cannot be used as a logical partition.";
+      return DynamicPartitionDeviceStatus::ERROR;
+    }
+
     return DynamicPartitionDeviceStatus::TRY_STATIC;
   }
 
-  DmDeviceState state = dynamic_control->GetState(partition_name_suffix);
+  DmDeviceState state = dynamic_control_->GetState(partition_name_suffix);
 
   if (state == DmDeviceState::ACTIVE) {
-    if (dynamic_control->GetDmDevicePathByName(partition_name_suffix, device)) {
+    if (dynamic_control_->GetDmDevicePathByName(partition_name_suffix,
+                                                device)) {
       LOG(INFO) << partition_name_suffix
                 << " is mapped on device mapper: " << *device;
       return DynamicPartitionDeviceStatus::SUCCESS;
@@ -156,11 +174,11 @@ DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
   // Hence, if it is not mapped, we assume it is a source partition and
   // map it without force_writable.
   if (state == DmDeviceState::INVALID) {
-    if (dynamic_control->MapPartitionOnDeviceMapper(super_device,
-                                                    partition_name_suffix,
-                                                    slot,
-                                                    false /* force_writable */,
-                                                    device)) {
+    if (dynamic_control_->MapPartitionOnDeviceMapper(super_device,
+                                                     partition_name_suffix,
+                                                     slot,
+                                                     false /* force_writable */,
+                                                     device)) {
       return DynamicPartitionDeviceStatus::SUCCESS;
     }
     return DynamicPartitionDeviceStatus::ERROR;
@@ -171,7 +189,6 @@ DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
              << static_cast<std::underlying_type_t<DmDeviceState>>(state);
   return DynamicPartitionDeviceStatus::ERROR;
 }
-}  // namespace
 
 bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
                                             Slot slot,
@@ -188,13 +205,8 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   }
   base::FilePath device_dir(device_dir_str);
 
-  string super_device =
-      device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
-  switch (GetDynamicPartitionDevice(dynamic_control_.get(),
-                                    super_device,
-                                    partition_name_suffix,
-                                    slot,
-                                    device)) {
+  switch (GetDynamicPartitionDevice(
+      device_dir, partition_name_suffix, slot, device)) {
     case DynamicPartitionDeviceStatus::SUCCESS:
       return true;
     case DynamicPartitionDeviceStatus::TRY_STATIC:
@@ -311,12 +323,17 @@ bool InitPartitionMetadataInternal(
     total_size += group.size;
   }
 
-  if (total_size > (builder->AllocatableSpace() / 2)) {
-    LOG(ERROR)
-        << "The maximum size of all groups with suffix " << target_suffix
-        << " (" << total_size
-        << ") has exceeded half of allocatable space for dynamic partitions "
-        << (builder->AllocatableSpace() / 2) << ".";
+  string expr;
+  uint64_t allocatable_space = builder->AllocatableSpace();
+  if (!dynamic_control->IsDynamicPartitionsRetrofit()) {
+    allocatable_space /= 2;
+    expr = "half of ";
+  }
+  if (total_size > allocatable_space) {
+    LOG(ERROR) << "The maximum size of all groups with suffix " << target_suffix
+               << " (" << total_size << ") has exceeded " << expr
+               << "allocatable space for dynamic partitions "
+               << allocatable_space << ".";
     return false;
   }
 

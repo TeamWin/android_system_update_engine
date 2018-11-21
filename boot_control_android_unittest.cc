@@ -124,8 +124,10 @@ std::ostream& operator<<(std::ostream& os, const PartitionMetadata& m) {
 inline std::string GetDevice(const std::string& name) {
   return kFakeDevicePath + name;
 }
-inline std::string GetSuperDevice() {
-  return GetDevice(fs_mgr_get_super_partition_name());
+
+// TODO(elsk): fs_mgr_get_super_partition_name should be mocked.
+inline std::string GetSuperDevice(uint32_t slot) {
+  return GetDevice(fs_mgr_get_super_partition_name(slot));
 }
 
 struct TestParam {
@@ -273,6 +275,8 @@ class BootControlAndroidTest : public ::testing::Test {
 
     ON_CALL(dynamicControl(), IsDynamicPartitionsEnabled())
         .WillByDefault(Return(true));
+    ON_CALL(dynamicControl(), IsDynamicPartitionsRetrofit())
+        .WillByDefault(Return(false));
     ON_CALL(dynamicControl(), GetDeviceDir(_))
         .WillByDefault(Invoke([](auto path) {
           *path = kFakeDevicePath;
@@ -299,7 +303,7 @@ class BootControlAndroidTest : public ::testing::Test {
 
   void SetMetadata(uint32_t slot, const PartitionMetadata& metadata) {
     EXPECT_CALL(dynamicControl(),
-                LoadMetadataBuilder(GetSuperDevice(), slot, _))
+                LoadMetadataBuilder(GetSuperDevice(slot), slot, _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([metadata](auto, auto, auto) {
           return NewFakeMetadata(metadata);
@@ -315,9 +319,10 @@ class BootControlAndroidTest : public ::testing::Test {
         .WillByDefault(Return(false));
 
     for (const auto& partition : partitions) {
-      EXPECT_CALL(dynamicControl(),
-                  MapPartitionOnDeviceMapper(
-                      GetSuperDevice(), partition, target(), force_writable, _))
+      EXPECT_CALL(
+          dynamicControl(),
+          MapPartitionOnDeviceMapper(
+              GetSuperDevice(target()), partition, target(), force_writable, _))
           .WillOnce(Invoke([this](auto, auto partition, auto, auto, auto path) {
             auto it = mapped_devices_.find(partition);
             if (it != mapped_devices_.end()) {
@@ -366,7 +371,7 @@ class BootControlAndroidTest : public ::testing::Test {
   virtual void ExpectStoreMetadataMatch(
       const Matcher<MetadataBuilder*>& matcher) {
     EXPECT_CALL(dynamicControl(),
-                StoreMetadata(GetSuperDevice(), matcher, target()))
+                StoreMetadata(GetSuperDevice(target()), matcher, target()))
         .WillOnce(Return(true));
   }
 
@@ -392,11 +397,12 @@ class BootControlAndroidTest : public ::testing::Test {
       return source();
     }));
     // Should not store metadata to source slot.
-    EXPECT_CALL(dynamicControl(), StoreMetadata(GetSuperDevice(), _, source()))
+    EXPECT_CALL(dynamicControl(),
+                StoreMetadata(GetSuperDevice(source()), _, source()))
         .Times(0);
     // Should not load metadata from target slot.
     EXPECT_CALL(dynamicControl(),
-                LoadMetadataBuilder(GetSuperDevice(), target(), _))
+                LoadMetadataBuilder(GetSuperDevice(target()), target(), _))
         .Times(0);
   }
 
@@ -515,7 +521,7 @@ TEST_P(BootControlAndroidTestP, DeleteAll) {
 // Test corrupt source metadata case.
 TEST_P(BootControlAndroidTestP, CorruptedSourceMetadata) {
   EXPECT_CALL(dynamicControl(),
-              LoadMetadataBuilder(GetSuperDevice(), source(), _))
+              LoadMetadataBuilder(GetSuperDevice(source()), source(), _))
       .WillOnce(Invoke([](auto, auto, auto) { return nullptr; }));
   EXPECT_FALSE(InitPartitionMetadata(target(), {{"system", 1_GiB}}))
       << "Should not be able to continue with corrupt source metadata";
