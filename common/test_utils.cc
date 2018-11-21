@@ -35,19 +35,25 @@
 #include <vector>
 
 #include <base/files/file_util.h>
-#include <base/format_macros.h>
 #include <base/logging.h>
-#include <base/strings/string_util.h>
-#include <base/strings/stringprintf.h>
 
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/file_writer.h"
 
-using base::StringPrintf;
 using std::set;
 using std::string;
 using std::vector;
+
+namespace {
+
+#ifdef __ANDROID__
+#define kLoopDevicePrefix "/dev/block/loop"
+#else
+#define kLoopDevicePrefix "/dev/loop"
+#endif  // __ANDROID__
+
+}  // namespace
 
 namespace chromeos_update_engine {
 
@@ -129,7 +135,7 @@ bool BindToUnusedLoopDevice(const string& filename,
   TEST_AND_RETURN_FALSE_ERRNO(control_fd >= 0);
   int loop_number = ioctl(control_fd, LOOP_CTL_GET_FREE);
   IGNORE_EINTR(close(control_fd));
-  *out_lo_dev_name = StringPrintf("/dev/loop%d", loop_number);
+  *out_lo_dev_name = kLoopDevicePrefix + std::to_string(loop_number);
 
   // Double check that the loop exists and is free.
   int loop_device_fd =
