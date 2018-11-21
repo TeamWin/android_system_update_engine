@@ -1216,6 +1216,17 @@ TEST_F(UpdateAttempterTest, CheckForInstallTest) {
   EXPECT_EQ("", attempter_.forced_omaha_url());
 }
 
+TEST_F(UpdateAttempterTest, InstallSetsStatusIdle) {
+  attempter_.CheckForInstall({}, "http://foo.bar");
+  attempter_.status_ = UpdateStatus::DOWNLOADING;
+  EXPECT_TRUE(attempter_.is_install_);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  // Should set status to idle after an install operation.
+  EXPECT_EQ(UpdateStatus::IDLE, status.status);
+}
+
 TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
   attempter_.CalculateUpdateParams("", "", "", "1234", false, false, false);
   EXPECT_EQ("1234",
