@@ -53,7 +53,7 @@ class MockUpdateAttempter : public UpdateAttempter {
                     UpdateAttemptFlags flags));
 
   MOCK_METHOD2(CheckForInstall,
-               bool(const std::vector<std::string>& dlc_ids,
+               bool(const std::vector<std::string>& dlc_module_ids,
                     const std::string& omaha_url));
 
   MOCK_METHOD0(RefreshDevicePolicy, void(void));

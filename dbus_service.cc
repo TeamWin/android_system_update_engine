@@ -73,16 +73,17 @@ bool DBusUpdateEngineService::AttemptInstall(ErrorPtr* error,
     return false;
   }
   // Extract fields from the protobuf.
-  vector<string> dlc_ids;
+  vector<string> dlc_module_ids;
   for (const auto& dlc_info : dlc_parameters.dlc_infos()) {
     if (dlc_info.dlc_id().empty()) {
       *error = brillo::Error::Create(
           FROM_HERE, "update_engine", "INTERNAL", "parameters are invalid.");
       return false;
     }
-    dlc_ids.push_back(dlc_info.dlc_id());
+    dlc_module_ids.push_back(dlc_info.dlc_id());
   }
-  return common_->AttemptInstall(error, dlc_parameters.omaha_url(), dlc_ids);
+  return common_->AttemptInstall(
+      error, dlc_parameters.omaha_url(), dlc_module_ids);
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,

@@ -419,8 +419,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     // target channel.
     omaha_request_params_->UpdateDownloadChannel();
   }
-  // Set the DLC ID list.
-  omaha_request_params_->set_dlc_ids(dlc_ids_);
+  // Set the DLC module ID list.
+  omaha_request_params_->set_dlc_module_ids(dlc_module_ids_);
   omaha_request_params_->set_is_install(is_install_);
 
   LOG(INFO) << "target_version_prefix = "
@@ -797,7 +797,7 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
 bool UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      UpdateAttemptFlags flags) {
-  dlc_ids_.clear();
+  dlc_module_ids_.clear();
   is_install_ = false;
   bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
 
@@ -840,8 +840,8 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
   }
 
   if (forced_update_pending_callback_.get()) {
-    if (!system_state_->dlcservice()->GetInstalled(&dlc_ids_)) {
-      dlc_ids_.clear();
+    if (!system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
+      dlc_module_ids_.clear();
     }
     // Make sure that a scheduling request is made prior to calling the forced
     // update pending callback.
@@ -852,9 +852,9 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
   return true;
 }
 
-bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_ids,
+bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
                                       const string& omaha_url) {
-  dlc_ids_ = dlc_ids;
+  dlc_module_ids_ = dlc_module_ids;
   is_install_ = true;
   forced_omaha_url_.clear();
 

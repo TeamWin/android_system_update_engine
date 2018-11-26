@@ -106,8 +106,9 @@ bool UpdateEngineService::AttemptUpdate(ErrorPtr* /* error */,
 
 bool UpdateEngineService::AttemptInstall(brillo::ErrorPtr* error,
                                          const string& omaha_url,
-                                         const vector<string>& dlc_ids) {
-  if (!system_state_->update_attempter()->CheckForInstall(dlc_ids, omaha_url)) {
+                                         const vector<string>& dlc_module_ids) {
+  if (!system_state_->update_attempter()->CheckForInstall(dlc_module_ids,
+                                                          omaha_url)) {
     // TODO(xiaochu): support more detailed error messages.
     LogAndSetError(error, FROM_HERE, "Could not schedule install operation.");
     return false;

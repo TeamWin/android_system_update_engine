@@ -165,10 +165,13 @@ class OmahaRequestParams {
   inline int64_t max_update_checks_allowed() const {
     return max_update_checks_allowed_;
   }
-  inline void set_dlc_ids(const std::vector<std::string>& dlc_ids) {
-    dlc_ids_ = dlc_ids;
+  inline void set_dlc_module_ids(
+      const std::vector<std::string>& dlc_module_ids) {
+    dlc_module_ids_ = dlc_module_ids;
   }
-  inline std::vector<std::string> dlc_ids() const { return dlc_ids_; }
+  inline std::vector<std::string> dlc_module_ids() const {
+    return dlc_module_ids_;
+  }
   inline void set_is_install(bool is_install) { is_install_ = is_install; }
   inline bool is_install() const { return is_install_; }
 
@@ -336,12 +339,12 @@ class OmahaRequestParams {
   // When reading files, prepend root_ to the paths. Useful for testing.
   std::string root_;
 
-  // A list of DLC ID to install.
-  std::vector<std::string> dlc_ids_;
+  // A list of DLC module IDs to install.
+  std::vector<std::string> dlc_module_ids_;
 
   // This variable defines whether the payload is being installed in the current
-  // partition. At the moment, his is used for installing DLCs on the current
-  // active partition instead of the inactive partition.
+  // partition. At the moment, this is used for installing DLC modules on the
+  // current active partition instead of the inactive partition.
   bool is_install_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestParams);

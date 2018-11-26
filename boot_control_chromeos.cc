@@ -149,20 +149,21 @@ BootControlInterface::Slot BootControlChromeOS::GetCurrentSlot() const {
 bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
                                              unsigned int slot,
                                              string* device) const {
-  // Partition name prefixed with |kPartitionNamePrefixDlc| is a DLC.
+  // Partition name prefixed with |kPartitionNamePrefixDlc| is a DLC module.
   if (base::StartsWith(partition_name,
                        kPartitionNamePrefixDlc,
                        base::CompareCase::SENSITIVE)) {
-    // Extract DLC ID from partition_name (DLC ID is the string after
-    // |kPartitionNamePrefixDlc| in partition_name).
-    const auto dlc_id = partition_name.substr(strlen(kPartitionNamePrefixDlc));
-    if (dlc_id.empty()) {
-      LOG(ERROR) << " partition name does not contain dlc id:"
+    // Extract DLC module ID from partition_name (DLC module ID is the string
+    // after |kPartitionNamePrefixDlc| in partition_name).
+    const auto dlc_module_id =
+        partition_name.substr(strlen(kPartitionNamePrefixDlc));
+    if (dlc_module_id.empty()) {
+      LOG(ERROR) << " partition name does not contain DLC module ID:"
                  << partition_name;
       return false;
     }
     *device = base::FilePath(kDlcInstallRootDirectoryEncrypted)
-                  .Append(dlc_id)
+                  .Append(dlc_module_id)
                   .Append(slot == 0 ? kPartitionNameDlcA : kPartitionNameDlcB)
                   .Append(kPartitionNameDlcImage)
                   .value();

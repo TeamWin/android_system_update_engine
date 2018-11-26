@@ -317,7 +317,7 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_rollback_allowed(false);
     request_params_.set_is_powerwash_allowed(false);
     request_params_.set_is_install(false);
-    request_params_.set_dlc_ids({});
+    request_params_.set_dlc_module_ids({});
 
     fake_system_state_.set_request_params(&request_params_);
     fake_system_state_.set_prefs(&fake_prefs_);
@@ -3103,7 +3103,7 @@ TEST_F(OmahaRequestActionTest,
 TEST_F(OmahaRequestActionTest, InstallTest) {
   OmahaResponse response;
   request_params_.set_is_install(true);
-  request_params_.set_dlc_ids({"dlc_no_0", "dlc_no_1"});
+  request_params_.set_dlc_module_ids({"dlc_no_0", "dlc_no_1"});
   brillo::Blob post_data;
   ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                               -1,
@@ -3119,10 +3119,10 @@ TEST_F(OmahaRequestActionTest, InstallTest) {
                               &post_data));
   // Convert post_data to string.
   string post_str(post_data.begin(), post_data.end());
-  for (const auto& dlc_id : request_params_.dlc_ids()) {
+  for (const auto& dlc_module_id : request_params_.dlc_module_ids()) {
     EXPECT_NE(string::npos,
               post_str.find("appid=\"" + fake_update_response_.app_id + "_" +
-                            dlc_id + "\""));
+                            dlc_module_id + "\""));
   }
   EXPECT_NE(string::npos,
             post_str.find("appid=\"" + fake_update_response_.app_id + "\""));
@@ -3134,14 +3134,14 @@ TEST_F(OmahaRequestActionTest, InstallTest) {
     updatecheck_count++;
     pos++;
   }
-  EXPECT_EQ(request_params_.dlc_ids().size(), updatecheck_count);
+  EXPECT_EQ(request_params_.dlc_module_ids().size(), updatecheck_count);
 }
 
 TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
   fake_update_response_.multi_app_skip_updatecheck = true;
   fake_update_response_.multi_app_no_update = false;
   request_params_.set_is_install(true);
-  request_params_.set_dlc_ids({"dlc_no_0", "dlc_no_1"});
+  request_params_.set_dlc_module_ids({"dlc_no_0", "dlc_no_1"});
   request_params_.set_app_id(fake_update_response_.app_id_skip_updatecheck);
   OmahaResponse response;
   ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),

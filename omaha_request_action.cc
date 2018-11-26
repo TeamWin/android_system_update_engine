@@ -437,14 +437,15 @@ string GetRequestXml(const OmahaEvent* event,
                          install_date_in_days,
                          system_state);
   }
-  // Create APP ID according to |dlc_id| (sticking the current AppID to the DLC
-  // ID with an underscode).
-  for (const auto& dlc_id : params->dlc_ids()) {
-    OmahaAppData dlc_app = {.id = params->GetAppId() + "_" + dlc_id,
-                            .version = params->app_version()};
+  // Create APP ID according to |dlc_module_id| (sticking the current AppID to
+  // the DLC module ID with an underscode).
+  for (const auto& dlc_module_id : params->dlc_module_ids()) {
+    OmahaAppData dlc_module_app = {
+        .id = params->GetAppId() + "_" + dlc_module_id,
+        .version = params->app_version()};
     app_xml += GetAppXml(event,
                          params,
-                         dlc_app,
+                         dlc_module_app,
                          ping_only,
                          include_ping,
                          false, /* skip_updatecheck */

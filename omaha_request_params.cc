@@ -123,7 +123,7 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   // Set the interactive flag accordingly.
   interactive_ = in_interactive;
 
-  dlc_ids_.clear();
+  dlc_module_ids_.clear();
   // Set false so it will do update by default.
   is_install_ = false;
   return true;

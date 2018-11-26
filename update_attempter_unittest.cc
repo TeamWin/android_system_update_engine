@@ -1185,8 +1185,8 @@ TEST_F(UpdateAttempterTest, CheckForUpdateAUDlcTest) {
                            testing::Return(true)));
 
   attempter_.CheckForUpdate("", "autest", UpdateAttemptFlags::kNone);
-  EXPECT_EQ(attempter_.dlc_ids_.size(), 1);
-  EXPECT_EQ(attempter_.dlc_ids_[0], dlc_module_id);
+  EXPECT_EQ(attempter_.dlc_module_ids_.size(), 1);
+  EXPECT_EQ(attempter_.dlc_module_ids_[0], dlc_module_id);
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {

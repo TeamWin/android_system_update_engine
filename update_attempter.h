@@ -149,7 +149,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                               UpdateAttemptFlags flags);
 
   // This is the version of CheckForUpdate called by AttemptInstall API.
-  virtual bool CheckForInstall(const std::vector<std::string>& dlc_ids,
+  virtual bool CheckForInstall(const std::vector<std::string>& dlc_module_ids,
                                const std::string& omaha_url);
 
   // This is the internal entry point for going through a rollback. This will
@@ -524,8 +524,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   std::string forced_app_version_;
   std::string forced_omaha_url_;
 
-  // A list of DLC IDs.
-  std::vector<std::string> dlc_ids_;
+  // A list of DLC module IDs.
+  std::vector<std::string> dlc_module_ids_;
   // Whether the operation is install (write to the current slot not the
   // inactive slot).
   bool is_install_;

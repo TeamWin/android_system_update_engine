@@ -57,14 +57,14 @@ bool DBusUpdateEngineClient::AttemptUpdate(const string& in_app_version,
       nullptr);
 }
 
-bool DBusUpdateEngineClient::AttemptInstall(const string& omaha_url,
-                                            const vector<string>& dlc_ids) {
+bool DBusUpdateEngineClient::AttemptInstall(
+    const string& omaha_url, const vector<string>& dlc_module_ids) {
   // Convert parameters into protobuf.
   chromeos_update_engine::DlcParameters dlc_parameters;
   dlc_parameters.set_omaha_url(omaha_url);
-  for (const auto& dlc_id : dlc_ids) {
+  for (const auto& dlc_module_id : dlc_module_ids) {
     chromeos_update_engine::DlcInfo* dlc_info = dlc_parameters.add_dlc_infos();
-    dlc_info->set_dlc_id(dlc_id);
+    dlc_info->set_dlc_id(dlc_module_id);
   }
   string dlc_request;
   if (dlc_parameters.SerializeToString(&dlc_request)) {
