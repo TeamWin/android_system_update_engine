@@ -336,7 +336,7 @@ extract_image() {
 
   # Brillo images are zip files. We detect the 4-byte magic header of the zip
   # file.
-  local magic=$(head --bytes=4 "${image}" | hexdump -e '1/1 "%.2x"')
+  local magic=$(xxd -p -l4 "${image}")
   if [[ "${magic}" == "504b0304" ]]; then
     echo "Detected .zip file, extracting Brillo image."
     extract_image_brillo "$@"
