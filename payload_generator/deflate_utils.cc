@@ -256,9 +256,9 @@ bool FindAndCompactDeflates(const vector<Extent>& extents,
   return true;
 }
 
-bool PreprocessParitionFiles(const PartitionConfig& part,
-                             vector<FilesystemInterface::File>* result_files,
-                             bool extract_deflates) {
+bool PreprocessPartitionFiles(const PartitionConfig& part,
+                              vector<FilesystemInterface::File>* result_files,
+                              bool extract_deflates) {
   // Get the file system files.
   vector<FilesystemInterface::File> tmp_files;
   part.fs_interface->GetFiles(&tmp_files);

@@ -403,7 +403,7 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
   map<string, FilesystemInterface::File> old_files_map;
   if (old_part.fs_interface) {
     vector<FilesystemInterface::File> old_files;
-    TEST_AND_RETURN_FALSE(deflate_utils::PreprocessParitionFiles(
+    TEST_AND_RETURN_FALSE(deflate_utils::PreprocessPartitionFiles(
         old_part, &old_files, puffdiff_allowed));
     for (const FilesystemInterface::File& file : old_files)
       old_files_map[file.name] = file;
@@ -411,7 +411,7 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
 
   TEST_AND_RETURN_FALSE(new_part.fs_interface);
   vector<FilesystemInterface::File> new_files;
-  TEST_AND_RETURN_FALSE(deflate_utils::PreprocessParitionFiles(
+  TEST_AND_RETURN_FALSE(deflate_utils::PreprocessPartitionFiles(
       new_part, &new_files, puffdiff_allowed));
 
   list<FileDeltaProcessor> file_delta_processors;
