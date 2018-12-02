@@ -30,9 +30,9 @@ namespace deflate_utils {
 // includes:
 //  - splitting large Squashfs containers into its smaller files.
 //  - extracting deflates in zip and gzip files.
-bool PreprocessParitionFiles(const PartitionConfig& part,
-                             std::vector<FilesystemInterface::File>* result,
-                             bool extract_deflates);
+bool PreprocessPartitionFiles(const PartitionConfig& part,
+                              std::vector<FilesystemInterface::File>* result,
+                              bool extract_deflates);
 
 // Spreads all extents in |over_extents| over |base_extents|. Here we assume the
 // |over_extents| are non-overlapping and sorted by their offset.
