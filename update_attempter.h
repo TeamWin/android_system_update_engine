@@ -275,6 +275,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, RollbackNotAllowed);
+  FRIEND_TEST(UpdateAttempterTest, RollbackAfterInstall);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowed);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowedSetAndReset);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackFailure);
@@ -286,6 +287,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, UpdateAfterInstall);
   FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);

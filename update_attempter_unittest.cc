@@ -1216,6 +1216,18 @@ TEST_F(UpdateAttempterTest, CheckForInstallTest) {
   EXPECT_EQ("", attempter_.forced_omaha_url());
 }
 
+TEST_F(UpdateAttempterTest, RollbackAfterInstall) {
+  attempter_.is_install_ = true;
+  attempter_.Rollback(false);
+  EXPECT_FALSE(attempter_.is_install_);
+}
+
+TEST_F(UpdateAttempterTest, UpdateAfterInstall) {
+  attempter_.is_install_ = true;
+  attempter_.CheckForUpdate("", "", UpdateAttemptFlags::kNone);
+  EXPECT_FALSE(attempter_.is_install_);
+}
+
 TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
   attempter_.CalculateUpdateParams("", "", "", "1234", false, false, false);
   EXPECT_EQ("1234",

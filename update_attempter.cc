@@ -130,7 +130,8 @@ UpdateAttempter::UpdateAttempter(SystemState* system_state,
                                  CertificateChecker* cert_checker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-      cert_checker_(cert_checker) {}
+      cert_checker_(cert_checker),
+      is_install_(false) {}
 
 UpdateAttempter::~UpdateAttempter() {
   // CertificateChecker might not be initialized in unittests.
@@ -703,6 +704,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
 }
 
 bool UpdateAttempter::Rollback(bool powerwash) {
+  is_install_ = false;
   if (!CanRollback()) {
     return false;
   }
