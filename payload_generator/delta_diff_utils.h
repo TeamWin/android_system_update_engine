@@ -70,7 +70,8 @@ bool DeltaMovedAndZeroBlocks(std::vector<AnnotatedOperation>* aops,
                              const PayloadVersion& version,
                              BlobFileWriter* blob_file,
                              ExtentRanges* old_visited_blocks,
-                             ExtentRanges* new_visited_blocks);
+                             ExtentRanges* new_visited_blocks,
+                             ExtentRanges* old_zero_blocks);
 
 // For a given file |name| append operations to |aops| to produce it in the
 // |new_part|. The file will be split in chunks of |chunk_blocks| blocks each
