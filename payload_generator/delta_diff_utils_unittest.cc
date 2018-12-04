@@ -131,6 +131,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
                                   uint32_t minor_version) {
     BlobFileWriter blob_file(blob_fd_, &blob_size_);
     PayloadVersion version(kChromeOSMajorPayloadVersion, minor_version);
+    ExtentRanges old_zero_blocks;
     return diff_utils::DeltaMovedAndZeroBlocks(&aops_,
                                                old_part_.path,
                                                new_part_.path,
@@ -140,7 +141,8 @@ class DeltaDiffUtilsTest : public ::testing::Test {
                                                version,
                                                &blob_file,
                                                &old_visited_blocks_,
-                                               &new_visited_blocks_);
+                                               &new_visited_blocks_,
+                                               &old_zero_blocks);
   }
 
   // Old and new temporary partitions used in the tests. These are initialized
