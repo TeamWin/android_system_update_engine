@@ -359,14 +359,17 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
                           "Failed to parse payload header: " +
                               utils::ErrorCodeToString(errorcode));
   }
-  metadata.resize(payload_metadata.GetMetadataSize() +
-                  payload_metadata.GetMetadataSignatureSize());
-  if (metadata.size() < kMaxPayloadHeaderSize) {
+  uint64_t metadata_size = payload_metadata.GetMetadataSize() +
+                           payload_metadata.GetMetadataSignatureSize();
+  if (metadata_size < kMaxPayloadHeaderSize ||
+      metadata_size >
+          static_cast<uint64_t>(utils::FileSize(metadata_filename))) {
     return LogAndSetError(
         error,
         FROM_HERE,
-        "Metadata size too small: " + std::to_string(metadata.size()));
+        "Invalid metadata size: " + std::to_string(metadata_size));
   }
+  metadata.resize(metadata_size);
   if (!fd->Read(metadata.data() + kMaxPayloadHeaderSize,
                 metadata.size() - kMaxPayloadHeaderSize)) {
     return LogAndSetError(
