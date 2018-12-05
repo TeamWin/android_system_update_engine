@@ -41,7 +41,6 @@ extern const char kPrefsCurrentUrlFailureCount[];
 extern const char kPrefsCurrentUrlIndex[];
 extern const char kPrefsDailyMetricsLastReportedAt[];
 extern const char kPrefsDeltaUpdateFailures[];
-extern const char kPrefsDynamicPartitionMetadataInitialized[];
 extern const char kPrefsFullPayloadAttemptNumber[];
 extern const char kPrefsInstallDateDays[];
 extern const char kPrefsLastActivePingDay[];
