@@ -157,6 +157,8 @@ BootControlAndroid::GetDynamicPartitionDevice(
 
   DmDeviceState state = dynamic_control_->GetState(partition_name_suffix);
 
+  // Device is mapped in the previous GetPartitionDevice() call. Just return
+  // the path.
   if (state == DmDeviceState::ACTIVE) {
     if (dynamic_control_->GetDmDevicePathByName(partition_name_suffix,
                                                 device)) {
@@ -168,16 +170,12 @@ BootControlAndroid::GetDynamicPartitionDevice(
     return DynamicPartitionDeviceStatus::ERROR;
   }
 
-  // DeltaPerformer calls InitPartitionMetadata before calling
-  // InstallPlan::LoadPartitionsFromSlots. After InitPartitionMetadata,
-  // the target partition must be re-mapped with force_writable == true.
-  // Hence, if it is not mapped, we assume it is a source partition and
-  // map it without force_writable.
   if (state == DmDeviceState::INVALID) {
+    bool force_writable = slot != GetCurrentSlot();
     if (dynamic_control_->MapPartitionOnDeviceMapper(super_device,
                                                      partition_name_suffix,
                                                      slot,
-                                                     false /* force_writable */,
+                                                     force_writable,
                                                      device)) {
       return DynamicPartitionDeviceStatus::SUCCESS;
     }
