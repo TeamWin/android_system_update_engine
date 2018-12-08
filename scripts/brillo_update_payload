@@ -419,7 +419,7 @@ extract_partition_brillo() {
 
   # If the partition is stored as an Android sparse image file, we need to
   # convert them to a raw image for the update.
-  local magic=$(head --bytes=4 "${part_file}" | hexdump -e '1/1 "%.2x"')
+  local magic=$(xxd -p -l4 "${part_file}")
   if [[ "${magic}" == "3aff26ed" ]]; then
     local temp_sparse=$(create_tempfile "${part}.sparse.XXXXXX")
     echo "Converting Android sparse image ${part}.img to RAW."
