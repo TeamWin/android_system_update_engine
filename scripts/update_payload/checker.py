@@ -1397,7 +1397,8 @@ class PayloadChecker(object):
       used_payload_size = self.payload.data_offset + total_blob_size
       # Major versions 2 and higher have a signature at the end, so it should be
       # considered in the total size of the image.
-      if self.major_version >= common.BRILLO_MAJOR_PAYLOAD_VERSION:
+      if (self.major_version >= common.BRILLO_MAJOR_PAYLOAD_VERSION and
+          self.sigs_size):
         used_payload_size += self.sigs_size
 
       if used_payload_size != payload_file_size:
