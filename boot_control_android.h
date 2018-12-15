@@ -82,6 +82,10 @@ class BootControlAndroid : public BootControlInterface {
                           Slot slot,
                           const std::string& partition_name_suffix) const;
 
+  // Whether the target partitions should be loaded as dynamic partitions. Set
+  // by InitPartitionMetadata() per each update.
+  bool is_target_dynamic_{false};
+
   DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);
 };
 

@@ -946,7 +946,7 @@ bool DeltaPerformer::InitPartitionMetadata() {
   BootControlInterface::PartitionMetadata partition_metadata;
   if (manifest_.has_dynamic_partition_metadata()) {
     std::map<string, uint64_t> partition_sizes;
-    for (const InstallPlan::Partition& partition : install_plan_->partitions) {
+    for (const auto& partition : install_plan_->partitions) {
       partition_sizes.emplace(partition.name, partition.target_size);
     }
     for (const auto& group : manifest_.dynamic_partition_metadata().groups()) {
