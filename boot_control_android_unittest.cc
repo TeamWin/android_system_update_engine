@@ -24,10 +24,12 @@
 #include <fs_mgr.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <libdm/dm.h>
 
 #include "update_engine/mock_boot_control_hal.h"
 #include "update_engine/mock_dynamic_partition_control.h"
 
+using android::dm::DmDeviceState;
 using android::fs_mgr::MetadataBuilder;
 using android::hardware::Void;
 using testing::_;
@@ -49,7 +51,7 @@ namespace chromeos_update_engine {
 constexpr const uint32_t kMaxNumSlots = 2;
 constexpr const char* kSlotSuffixes[kMaxNumSlots] = {"_a", "_b"};
 constexpr const char* kFakeDevicePath = "/fake/dev/path/";
-constexpr const char* kFakeMappedPath = "/fake/mapped/path/";
+constexpr const char* kFakeDmDevicePath = "/fake/dm/dev/path/";
 constexpr const uint32_t kFakeMetadataSize = 65536;
 constexpr const char* kDefaultGroup = "foo";
 
@@ -123,6 +125,10 @@ std::ostream& operator<<(std::ostream& os, const PartitionMetadata& m) {
 
 inline std::string GetDevice(const std::string& name) {
   return kFakeDevicePath + name;
+}
+
+inline std::string GetDmDevice(const std::string& name) {
+  return kFakeDmDevicePath + name;
 }
 
 // TODO(elsk): fs_mgr_get_super_partition_name should be mocked.
@@ -277,9 +283,15 @@ class BootControlAndroidTest : public ::testing::Test {
         .WillByDefault(Return(true));
     ON_CALL(dynamicControl(), IsDynamicPartitionsRetrofit())
         .WillByDefault(Return(false));
+    ON_CALL(dynamicControl(), DeviceExists(_)).WillByDefault(Return(true));
     ON_CALL(dynamicControl(), GetDeviceDir(_))
         .WillByDefault(Invoke([](auto path) {
           *path = kFakeDevicePath;
+          return true;
+        }));
+    ON_CALL(dynamicControl(), GetDmDevicePathByName(_, _))
+        .WillByDefault(Invoke([](auto partition_name_suffix, auto device) {
+          *device = GetDmDevice(partition_name_suffix);
           return true;
         }));
   }
@@ -310,31 +322,6 @@ class BootControlAndroidTest : public ::testing::Test {
         }));
   }
 
-  // Expect that MapPartitionOnDeviceMapper is called on target() metadata slot
-  // with each partition in |partitions|.
-  void ExpectMap(const std::set<std::string>& partitions,
-                 bool force_writable = true) {
-    // Error when MapPartitionOnDeviceMapper is called on unknown arguments.
-    ON_CALL(dynamicControl(), MapPartitionOnDeviceMapper(_, _, _, _, _))
-        .WillByDefault(Return(false));
-
-    for (const auto& partition : partitions) {
-      EXPECT_CALL(
-          dynamicControl(),
-          MapPartitionOnDeviceMapper(
-              GetSuperDevice(target()), partition, target(), force_writable, _))
-          .WillOnce(Invoke([this](auto, auto partition, auto, auto, auto path) {
-            auto it = mapped_devices_.find(partition);
-            if (it != mapped_devices_.end()) {
-              *path = it->second;
-              return true;
-            }
-            mapped_devices_[partition] = *path = kFakeMappedPath + partition;
-            return true;
-          }));
-    }
-  }
-
   // Expect that UnmapPartitionOnDeviceMapper is called on target() metadata
   // slot with each partition in |partitions|.
   void ExpectUnmap(const std::set<std::string>& partitions) {
@@ -349,11 +336,6 @@ class BootControlAndroidTest : public ::testing::Test {
             return true;
           }));
     }
-  }
-
-  void ExpectRemap(const std::set<std::string>& partitions) {
-    ExpectUnmap(partitions);
-    ExpectMap(partitions);
   }
 
   void ExpectDevicesAreMapped(const std::set<std::string>& partitions) {
@@ -440,11 +422,10 @@ TEST_P(BootControlAndroidTestP, NeedGrowIfSizeNotMatchWhenResizing) {
                        {S("vendor"), 1_GiB},
                        {T("system"), 3_GiB},
                        {T("vendor"), 1_GiB}});
-  ExpectRemap({T("system"), T("vendor")});
+  ExpectUnmap({T("system"), T("vendor")});
 
   EXPECT_TRUE(
       InitPartitionMetadata(target(), {{"system", 3_GiB}, {"vendor", 1_GiB}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor")});
 }
 
 // Test resize case. Shrink if target metadata contains a partition with a size
@@ -459,22 +440,20 @@ TEST_P(BootControlAndroidTestP, NeedShrinkIfSizeNotMatchWhenResizing) {
                        {S("vendor"), 1_GiB},
                        {T("system"), 2_GiB},
                        {T("vendor"), 150_MiB}});
-  ExpectRemap({T("system"), T("vendor")});
+  ExpectUnmap({T("system"), T("vendor")});
 
   EXPECT_TRUE(InitPartitionMetadata(target(),
                                     {{"system", 2_GiB}, {"vendor", 150_MiB}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor")});
 }
 
 // Test adding partitions on the first run.
 TEST_P(BootControlAndroidTestP, AddPartitionToEmptyMetadata) {
   SetMetadata(source(), PartitionSuffixSizes{});
   ExpectStoreMetadata({{T("system"), 2_GiB}, {T("vendor"), 1_GiB}});
-  ExpectRemap({T("system"), T("vendor")});
+  ExpectUnmap({T("system"), T("vendor")});
 
   EXPECT_TRUE(
       InitPartitionMetadata(target(), {{"system", 2_GiB}, {"vendor", 1_GiB}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor")});
 }
 
 // Test subsequent add case.
@@ -482,11 +461,10 @@ TEST_P(BootControlAndroidTestP, AddAdditionalPartition) {
   SetMetadata(source(), {{S("system"), 2_GiB}, {T("system"), 2_GiB}});
   ExpectStoreMetadata(
       {{S("system"), 2_GiB}, {T("system"), 2_GiB}, {T("vendor"), 1_GiB}});
-  ExpectRemap({T("system"), T("vendor")});
+  ExpectUnmap({T("system"), T("vendor")});
 
   EXPECT_TRUE(
       InitPartitionMetadata(target(), {{"system", 2_GiB}, {"vendor", 1_GiB}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor")});
 }
 
 // Test delete one partition.
@@ -499,10 +477,9 @@ TEST_P(BootControlAndroidTestP, DeletePartition) {
   // No T("vendor")
   ExpectStoreMetadata(
       {{S("system"), 2_GiB}, {S("vendor"), 1_GiB}, {T("system"), 2_GiB}});
-  ExpectRemap({T("system")});
+  ExpectUnmap({T("system")});
 
   EXPECT_TRUE(InitPartitionMetadata(target(), {{"system", 2_GiB}}));
-  ExpectDevicesAreMapped({T("system")});
 }
 
 // Test delete all partitions.
@@ -515,7 +492,6 @@ TEST_P(BootControlAndroidTestP, DeleteAll) {
   ExpectStoreMetadata({{S("system"), 2_GiB}, {S("vendor"), 1_GiB}});
 
   EXPECT_TRUE(InitPartitionMetadata(target(), {}));
-  ExpectDevicesAreMapped({});
 }
 
 // Test corrupt source metadata case.
@@ -523,6 +499,8 @@ TEST_P(BootControlAndroidTestP, CorruptedSourceMetadata) {
   EXPECT_CALL(dynamicControl(),
               LoadMetadataBuilder(GetSuperDevice(source()), source(), _))
       .WillOnce(Invoke([](auto, auto, auto) { return nullptr; }));
+  ExpectUnmap({T("system")});
+
   EXPECT_FALSE(InitPartitionMetadata(target(), {{"system", 1_GiB}}))
       << "Should not be able to continue with corrupt source metadata";
 }
@@ -549,6 +527,40 @@ TEST_P(BootControlAndroidTestP, NotEnoughSpaceForSlot) {
   EXPECT_FALSE(
       InitPartitionMetadata(target(), {{"system", 3_GiB}, {"vendor", 3_GiB}}))
       << "Should not be able to grow over size of super / 2";
+}
+
+// Test applying retrofit update on a build with dynamic partitions enabled.
+TEST_P(BootControlAndroidTestP,
+       ApplyRetrofitUpdateOnDynamicPartitionsEnabledBuild) {
+  SetMetadata(source(),
+              {{S("system"), 2_GiB},
+               {S("vendor"), 1_GiB},
+               {T("system"), 2_GiB},
+               {T("vendor"), 1_GiB}});
+  // Should not try to unmap any target partition.
+  EXPECT_CALL(dynamicControl(), UnmapPartitionOnDeviceMapper(_, _)).Times(0);
+  // Should not store metadata to target slot.
+  EXPECT_CALL(dynamicControl(),
+              StoreMetadata(GetSuperDevice(target()), _, target()))
+      .Times(0);
+
+  // Not calling through BootControlAndroidTest::InitPartitionMetadata(), since
+  // we don't want any default group in the PartitionMetadata.
+  EXPECT_TRUE(bootctl_.InitPartitionMetadata(target(), {}));
+
+  // Should use dynamic source partitions.
+  EXPECT_CALL(dynamicControl(), GetState(S("system")))
+      .Times(1)
+      .WillOnce(Return(DmDeviceState::ACTIVE));
+  std::string source_device;
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", source(), &source_device));
+  EXPECT_EQ(GetDmDevice(S("system")), source_device);
+
+  // Should use static target partitions without querying dynamic control.
+  EXPECT_CALL(dynamicControl(), GetState(T("system"))).Times(0);
+  std::string target_device;
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", target(), &target_device));
+  EXPECT_EQ(GetDevice(T("system")), target_device);
 }
 
 INSTANTIATE_TEST_CASE_P(BootControlAndroidTest,
@@ -611,14 +623,13 @@ TEST_F(BootControlAndroidTest, SimulatedFirstUpdate) {
   SetMetadata(source(), update_sizes_0());
   SetMetadata(target(), update_sizes_0());
   ExpectStoreMetadata(update_sizes_1());
-  ExpectRemap({"grown_b", "shrunk_b", "same_b", "added_b"});
+  ExpectUnmap({"grown_b", "shrunk_b", "same_b", "added_b"});
 
   EXPECT_TRUE(InitPartitionMetadata(target(),
                                     {{"grown", 3_GiB},
                                      {"shrunk", 150_MiB},
                                      {"same", 100_MiB},
                                      {"added", 150_MiB}}));
-  ExpectDevicesAreMapped({"grown_b", "shrunk_b", "same_b", "added_b"});
 }
 
 // After first update, test for the second update. In the second update, the
@@ -630,14 +641,13 @@ TEST_F(BootControlAndroidTest, SimulatedSecondUpdate) {
   SetMetadata(target(), update_sizes_0());
 
   ExpectStoreMetadata(update_sizes_2());
-  ExpectRemap({"grown_a", "shrunk_a", "same_a", "deleted_a"});
+  ExpectUnmap({"grown_a", "shrunk_a", "same_a", "deleted_a"});
 
   EXPECT_TRUE(InitPartitionMetadata(target(),
                                     {{"grown", 4_GiB},
                                      {"shrunk", 100_MiB},
                                      {"same", 100_MiB},
                                      {"deleted", 64_MiB}}));
-  ExpectDevicesAreMapped({"grown_a", "shrunk_a", "same_a", "deleted_a"});
 }
 
 TEST_F(BootControlAndroidTest, ApplyingToCurrentSlot) {
@@ -688,14 +698,13 @@ TEST_P(BootControlAndroidGroupTestP, ResizeWithinGroup) {
   ExpectStoreMetadata(PartitionMetadata{
       .groups = {SimpleGroup(T("android"), 3_GiB, T("system"), 3_GiB),
                  SimpleGroup(T("oem"), 2_GiB, T("vendor"), 2_GiB)}});
-  ExpectRemap({T("system"), T("vendor")});
+  ExpectUnmap({T("system"), T("vendor")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{
           .groups = {SimpleGroup("android", 3_GiB, "system", 3_GiB),
                      SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor")});
 }
 
 TEST_P(BootControlAndroidGroupTestP, NotEnoughSpaceForGroup) {
@@ -722,7 +731,7 @@ TEST_P(BootControlAndroidGroupTestP, AddPartitionToGroup) {
            .size = 3_GiB,
            .partitions = {{.name = T("system"), .size = 2_GiB},
                           {.name = T("product_services"), .size = 1_GiB}}}}});
-  ExpectRemap({T("system"), T("vendor"), T("product_services")});
+  ExpectUnmap({T("system"), T("vendor"), T("product_services")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
@@ -733,27 +742,25 @@ TEST_P(BootControlAndroidGroupTestP, AddPartitionToGroup) {
                .partitions = {{.name = "system", .size = 2_GiB},
                               {.name = "product_services", .size = 1_GiB}}},
               SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor"), T("product_services")});
 }
 
 TEST_P(BootControlAndroidGroupTestP, RemovePartitionFromGroup) {
   ExpectStoreMetadata(PartitionMetadata{
       .groups = {{.name = T("android"), .size = 3_GiB, .partitions = {}}}});
-  ExpectRemap({T("vendor")});
+  ExpectUnmap({T("vendor")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{
           .groups = {{.name = "android", .size = 3_GiB, .partitions = {}},
                      SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}}));
-  ExpectDevicesAreMapped({T("vendor")});
 }
 
 TEST_P(BootControlAndroidGroupTestP, AddGroup) {
   ExpectStoreMetadata(PartitionMetadata{
       .groups = {
           SimpleGroup(T("new_group"), 2_GiB, T("new_partition"), 2_GiB)}});
-  ExpectRemap({T("system"), T("vendor"), T("new_partition")});
+  ExpectUnmap({T("system"), T("vendor"), T("new_partition")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
@@ -762,31 +769,28 @@ TEST_P(BootControlAndroidGroupTestP, AddGroup) {
               SimpleGroup("android", 2_GiB, "system", 2_GiB),
               SimpleGroup("oem", 1_GiB, "vendor", 1_GiB),
               SimpleGroup("new_group", 2_GiB, "new_partition", 2_GiB)}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor"), T("new_partition")});
 }
 
 TEST_P(BootControlAndroidGroupTestP, RemoveGroup) {
   ExpectStoreMetadataMatch(Not(HasGroup(T("oem"))));
-  ExpectRemap({T("system")});
+  ExpectUnmap({T("system")});
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{
           .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB)}}));
-  ExpectDevicesAreMapped({T("system")});
 }
 
 TEST_P(BootControlAndroidGroupTestP, ResizeGroup) {
   ExpectStoreMetadata(PartitionMetadata{
       .groups = {SimpleGroup(T("android"), 2_GiB, T("system"), 2_GiB),
                  SimpleGroup(T("oem"), 3_GiB, T("vendor"), 3_GiB)}});
-  ExpectRemap({T("system"), T("vendor")});
+  ExpectUnmap({T("system"), T("vendor")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{
           .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB),
                      SimpleGroup("oem", 3_GiB, "vendor", 3_GiB)}}));
-  ExpectDevicesAreMapped({T("system"), T("vendor")});
 }
 
 INSTANTIATE_TEST_CASE_P(BootControlAndroidTest,
