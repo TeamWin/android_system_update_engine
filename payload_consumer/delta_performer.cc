@@ -935,10 +935,18 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
 }
 
 bool DeltaPerformer::InitPartitionMetadata() {
+  bool metadata_initialized;
+  if (prefs_->GetBoolean(kPrefsDynamicPartitionMetadataInitialized,
+                         &metadata_initialized) &&
+      metadata_initialized) {
+    LOG(INFO) << "Skipping InitPartitionMetadata.";
+    return true;
+  }
+
   BootControlInterface::PartitionMetadata partition_metadata;
   if (manifest_.has_dynamic_partition_metadata()) {
     std::map<string, uint64_t> partition_sizes;
-    for (const InstallPlan::Partition& partition : install_plan_->partitions) {
+    for (const auto& partition : install_plan_->partitions) {
       partition_sizes.emplace(partition.name, partition.target_size);
     }
     for (const auto& group : manifest_.dynamic_partition_metadata().groups()) {
@@ -968,6 +976,8 @@ bool DeltaPerformer::InitPartitionMetadata() {
                << BootControlInterface::SlotName(install_plan_->target_slot);
     return false;
   }
+  TEST_AND_RETURN_FALSE(
+      prefs_->SetBoolean(kPrefsDynamicPartitionMetadataInitialized, true));
   LOG(INFO) << "InitPartitionMetadata done.";
 
   return true;
@@ -1891,6 +1901,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
     prefs->Delete(kPrefsPostInstallSucceeded);
     prefs->Delete(kPrefsVerityWritten);
+    prefs->Delete(kPrefsDynamicPartitionMetadataInitialized);
   }
   return true;
 }

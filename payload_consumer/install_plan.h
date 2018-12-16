@@ -46,7 +46,7 @@ struct InstallPlan {
 
   void Dump() const;
 
-  // Load the |source_path| and |target_path| of all |partitions| based on the
+  // Loads the |source_path| and |target_path| of all |partitions| based on the
   // |source_slot| and |target_slot| if available. Returns whether it succeeded
   // to load all the partitions for the valid slots.
   bool LoadPartitionsFromSlots(BootControlInterface* boot_control);
