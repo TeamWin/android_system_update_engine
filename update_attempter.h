@@ -432,6 +432,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // set back in the middle of an update.
   base::TimeTicks last_notify_time_;
 
+  // Our two proxy resolvers
+  DirectProxyResolver direct_proxy_resolver_;
+#if USE_CHROME_NETWORK_PROXY
+  ChromeBrowserProxyResolver chrome_proxy_resolver_;
+#endif  // USE_CHROME_NETWORK_PROXY
+
   std::unique_ptr<ActionProcessor> processor_;
 
   // External state of the system outside the update_engine process
@@ -490,12 +496,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // If true, this update cycle we are obeying proxies
   bool obeying_proxies_ = true;
-
-  // Our two proxy resolvers
-  DirectProxyResolver direct_proxy_resolver_;
-#if USE_CHROME_NETWORK_PROXY
-  ChromeBrowserProxyResolver chrome_proxy_resolver_;
-#endif  // USE_CHROME_NETWORK_PROXY
 
   // Used for fetching information about the device policy.
   std::unique_ptr<policy::PolicyProvider> policy_provider_;

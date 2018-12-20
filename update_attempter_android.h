@@ -172,6 +172,9 @@ class UpdateAttempterAndroid
   // set back in the middle of an update.
   base::TimeTicks last_notify_time_;
 
+  // Only direct proxy supported.
+  DirectProxyResolver proxy_resolver_;
+
   // The processor for running Actions.
   std::unique_ptr<ActionProcessor> processor_;
 
@@ -189,9 +192,6 @@ class UpdateAttempterAndroid
 
   // The offset in the payload file where the CrAU part starts.
   int64_t base_offset_{0};
-
-  // Only direct proxy supported.
-  DirectProxyResolver proxy_resolver_;
 
   // Helper class to select the network to use during the update.
   std::unique_ptr<NetworkSelectorInterface> network_selector_;
