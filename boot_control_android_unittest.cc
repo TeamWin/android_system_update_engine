@@ -32,6 +32,7 @@
 using android::dm::DmDeviceState;
 using android::fs_mgr::MetadataBuilder;
 using android::hardware::Void;
+using std::string;
 using testing::_;
 using testing::AnyNumber;
 using testing::Contains;
@@ -55,19 +56,12 @@ constexpr const char* kFakeDmDevicePath = "/fake/dm/dev/path/";
 constexpr const uint32_t kFakeMetadataSize = 65536;
 constexpr const char* kDefaultGroup = "foo";
 
-// "vendor"
-struct PartitionName : std::string {
-  using std::string::string;
-};
-
-// "vendor_a"
-struct PartitionNameSuffix : std::string {
-  using std::string::string;
-};
-
 // A map describing the size of each partition.
-using PartitionSizes = std::map<PartitionName, uint64_t>;
-using PartitionSuffixSizes = std::map<PartitionNameSuffix, uint64_t>;
+// "{name, size}"
+using PartitionSizes = std::map<string, uint64_t>;
+
+// "{name_a, size}"
+using PartitionSuffixSizes = std::map<string, uint64_t>;
 
 using PartitionMetadata = BootControlInterface::PartitionMetadata;
 
@@ -123,16 +117,16 @@ std::ostream& operator<<(std::ostream& os, const PartitionMetadata& m) {
   return os << m.groups;
 }
 
-inline std::string GetDevice(const std::string& name) {
+inline string GetDevice(const string& name) {
   return kFakeDevicePath + name;
 }
 
-inline std::string GetDmDevice(const std::string& name) {
+inline string GetDmDevice(const string& name) {
   return kFakeDmDevicePath + name;
 }
 
 // TODO(elsk): fs_mgr_get_super_partition_name should be mocked.
-inline std::string GetSuperDevice(uint32_t slot) {
+inline string GetSuperDevice(uint32_t slot) {
   return GetDevice(fs_mgr_get_super_partition_name(slot));
 }
 
@@ -147,11 +141,12 @@ std::ostream& operator<<(std::ostream& os, const TestParam& param) {
 
 // To support legacy tests, auto-convert {name_a: size} map to
 // PartitionMetadata.
-PartitionMetadata toMetadata(const PartitionSuffixSizes& partition_sizes) {
+PartitionMetadata partitionSuffixSizesToMetadata(
+    const PartitionSuffixSizes& partition_sizes) {
   PartitionMetadata metadata;
   for (const char* suffix : kSlotSuffixes) {
     metadata.groups.push_back(
-        {std::string(kDefaultGroup) + suffix, kDefaultGroupSize, {}});
+        {string(kDefaultGroup) + suffix, kDefaultGroupSize, {}});
   }
   for (const auto& pair : partition_sizes) {
     for (size_t suffix_idx = 0; suffix_idx < kMaxNumSlots; ++suffix_idx) {
@@ -167,10 +162,10 @@ PartitionMetadata toMetadata(const PartitionSuffixSizes& partition_sizes) {
 }
 
 // To support legacy tests, auto-convert {name: size} map to PartitionMetadata.
-PartitionMetadata toMetadata(const PartitionSizes& partition_sizes) {
+PartitionMetadata partitionSizesToMetadata(
+    const PartitionSizes& partition_sizes) {
   PartitionMetadata metadata;
-  metadata.groups.push_back(
-      {std::string{kDefaultGroup}, kDefaultGroupSize, {}});
+  metadata.groups.push_back({string{kDefaultGroup}, kDefaultGroupSize, {}});
   for (const auto& pair : partition_sizes) {
     metadata.groups[0].partitions.push_back({pair.first, pair.second});
   }
@@ -198,7 +193,7 @@ std::unique_ptr<MetadataBuilder> NewFakeMetadata(
 class MetadataMatcher : public MatcherInterface<MetadataBuilder*> {
  public:
   explicit MetadataMatcher(const PartitionSuffixSizes& partition_sizes)
-      : partition_metadata_(toMetadata(partition_sizes)) {}
+      : partition_metadata_(partitionSuffixSizesToMetadata(partition_sizes)) {}
   explicit MetadataMatcher(const PartitionMetadata& partition_metadata)
       : partition_metadata_(partition_metadata) {}
 
@@ -310,7 +305,7 @@ class BootControlAndroidTest : public ::testing::Test {
   // Set the fake metadata to return when LoadMetadataBuilder is called on
   // |slot|.
   void SetMetadata(uint32_t slot, const PartitionSuffixSizes& sizes) {
-    SetMetadata(slot, toMetadata(sizes));
+    SetMetadata(slot, partitionSuffixSizesToMetadata(sizes));
   }
 
   void SetMetadata(uint32_t slot, const PartitionMetadata& metadata) {
@@ -324,7 +319,7 @@ class BootControlAndroidTest : public ::testing::Test {
 
   // Expect that UnmapPartitionOnDeviceMapper is called on target() metadata
   // slot with each partition in |partitions|.
-  void ExpectUnmap(const std::set<std::string>& partitions) {
+  void ExpectUnmap(const std::set<string>& partitions) {
     // Error when UnmapPartitionOnDeviceMapper is called on unknown arguments.
     ON_CALL(dynamicControl(), UnmapPartitionOnDeviceMapper(_, _))
         .WillByDefault(Return(false));
@@ -338,7 +333,7 @@ class BootControlAndroidTest : public ::testing::Test {
     }
   }
 
-  void ExpectDevicesAreMapped(const std::set<std::string>& partitions) {
+  void ExpectDevicesAreMapped(const std::set<string>& partitions) {
     ASSERT_EQ(partitions.size(), mapped_devices_.size());
     for (const auto& partition : partitions) {
       EXPECT_THAT(mapped_devices_, Contains(Key(Eq(partition))))
@@ -362,14 +357,10 @@ class BootControlAndroidTest : public ::testing::Test {
   uint32_t target() { return slots_.target; }
 
   // Return partition names with suffix of source().
-  PartitionNameSuffix S(const std::string& name) {
-    return PartitionNameSuffix(name + std::string(kSlotSuffixes[source()]));
-  }
+  string S(const string& name) { return name + kSlotSuffixes[source()]; }
 
   // Return partition names with suffix of target().
-  PartitionNameSuffix T(const std::string& name) {
-    return PartitionNameSuffix(name + std::string(kSlotSuffixes[target()]));
-  }
+  string T(const string& name) { return name + kSlotSuffixes[target()]; }
 
   // Set source and target slots to use before testing.
   void SetSlots(const TestParam& slots) {
@@ -389,7 +380,7 @@ class BootControlAndroidTest : public ::testing::Test {
   }
 
   bool InitPartitionMetadata(uint32_t slot, PartitionSizes partition_sizes) {
-    auto m = toMetadata(partition_sizes);
+    auto m = partitionSizesToMetadata(partition_sizes);
     LOG(INFO) << m;
     return bootctl_.InitPartitionMetadata(slot, m);
   }
@@ -397,7 +388,7 @@ class BootControlAndroidTest : public ::testing::Test {
   BootControlAndroid bootctl_;  // BootControlAndroid under test.
   TestParam slots_;
   // mapped devices through MapPartitionOnDeviceMapper.
-  std::map<std::string, std::string> mapped_devices_;
+  std::map<string, string> mapped_devices_;
 };
 
 class BootControlAndroidTestP
@@ -552,13 +543,13 @@ TEST_P(BootControlAndroidTestP,
   EXPECT_CALL(dynamicControl(), GetState(S("system")))
       .Times(1)
       .WillOnce(Return(DmDeviceState::ACTIVE));
-  std::string source_device;
+  string source_device;
   EXPECT_TRUE(bootctl_.GetPartitionDevice("system", source(), &source_device));
   EXPECT_EQ(GetDmDevice(S("system")), source_device);
 
   // Should use static target partitions without querying dynamic control.
   EXPECT_CALL(dynamicControl(), GetState(T("system"))).Times(0);
-  std::string target_device;
+  string target_device;
   EXPECT_TRUE(bootctl_.GetPartitionDevice("system", target(), &target_device));
   EXPECT_EQ(GetDevice(T("system")), target_device);
 }
@@ -669,9 +660,9 @@ class BootControlAndroidGroupTestP : public BootControlAndroidTestP {
   }
 
   // Return a simple group with only one partition.
-  PartitionMetadata::Group SimpleGroup(const std::string& group,
+  PartitionMetadata::Group SimpleGroup(const string& group,
                                        uint64_t group_size,
-                                       const std::string& partition,
+                                       const string& partition,
                                        uint64_t partition_size) {
     return {.name = group,
             .size = group_size,
