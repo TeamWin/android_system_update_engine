@@ -544,10 +544,18 @@ size_t LibcurlHttpFetcher::LibcurlWrite(void *ptr, size_t size, size_t nmemb) {
     }
   }
   bytes_downloaded_ += payload_size;
-  in_write_callback_ = true;
-  if (delegate_ && !delegate_->ReceivedBytes(this, ptr, payload_size))
-    return payload_size;
-  in_write_callback_ = false;
+  if (delegate_) {
+    in_write_callback_ = true;
+    auto should_terminate = !delegate_->ReceivedBytes(this, ptr, payload_size);
+    in_write_callback_ = false;
+    if (should_terminate) {
+      LOG(INFO) << "Requesting libcurl to terminate transfer.";
+      // Returning an amount that differs from the received size signals an
+      // error condition to libcurl, which will cause the transfer to be
+      // aborted.
+      return 0;
+    }
+  }
   return payload_size;
 }
 
