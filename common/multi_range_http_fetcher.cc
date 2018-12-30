@@ -111,6 +111,7 @@ bool MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
     pending_transfer_ended_ = true;
     LOG(INFO) << "Terminating transfer.";
     fetcher->TerminateTransfer();
+    return false;
   }
   return true;
 }
