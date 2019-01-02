@@ -17,7 +17,10 @@
 #include "update_engine/payload_generator/payload_generation_config.h"
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_split.h>
 #include <brillo/secure_blob.h>
+#include <fec/io.h>
 #include <libavb/libavb.h>
 #include <verity/hash_tree_builder.h>
 
@@ -57,45 +60,8 @@ bool AvbDescriptorCallback(const AvbDescriptor* descriptor, void* user_data) {
 
   TEST_AND_RETURN_FALSE(hashtree.hash_block_size ==
                         part->fs_interface->GetBlockSize());
-
-  // Generate hash tree based on the descriptor and verify that it matches
-  // the hash tree stored in the image.
-  auto hash_function =
-      HashTreeBuilder::HashFunction(part->verity.hash_tree_algorithm);
-  TEST_AND_RETURN_FALSE(hash_function != nullptr);
-  HashTreeBuilder hash_tree_builder(hashtree.data_block_size, hash_function);
-  TEST_AND_RETURN_FALSE(hash_tree_builder.Initialize(
-      hashtree.image_size, part->verity.hash_tree_salt));
-  TEST_AND_RETURN_FALSE(hash_tree_builder.CalculateSize(hashtree.image_size) ==
-                        hashtree.tree_size);
-
-  brillo::Blob buffer;
-  for (uint64_t offset = 0; offset < hashtree.image_size;) {
-    constexpr uint64_t kBufferSize = 1024 * 1024;
-    size_t bytes_to_read = std::min(kBufferSize, hashtree.image_size - offset);
-    TEST_AND_RETURN_FALSE(
-        utils::ReadFileChunk(part->path, offset, bytes_to_read, &buffer));
-    TEST_AND_RETURN_FALSE(
-        hash_tree_builder.Update(buffer.data(), buffer.size()));
-    offset += buffer.size();
-    buffer.clear();
-  }
-  TEST_AND_RETURN_FALSE(hash_tree_builder.BuildHashTree());
-  TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
-      part->path, hashtree.tree_offset, hashtree.tree_size, &buffer));
-  TEST_AND_RETURN_FALSE(hash_tree_builder.CheckHashTree(buffer));
-
   part->verity.hash_tree_extent = ExtentForBytes(
       hashtree.hash_block_size, hashtree.tree_offset, hashtree.tree_size);
-
-  TEST_AND_RETURN_FALSE(VerityWriterAndroid::EncodeFEC(part->path,
-                                                       0 /* data_offset */,
-                                                       hashtree.fec_offset,
-                                                       hashtree.fec_offset,
-                                                       hashtree.fec_size,
-                                                       hashtree.fec_num_roots,
-                                                       hashtree.data_block_size,
-                                                       true /* verify_mode */));
 
   part->verity.fec_data_extent =
       ExtentForBytes(hashtree.data_block_size, 0, hashtree.fec_offset);
@@ -104,30 +70,154 @@ bool AvbDescriptorCallback(const AvbDescriptor* descriptor, void* user_data) {
   part->verity.fec_roots = hashtree.fec_num_roots;
   return true;
 }
+
+// Generate hash tree and FEC based on the verity config and verify that it
+// matches the hash tree and FEC stored in the image.
+bool VerifyVerityConfig(const PartitionConfig& part) {
+  const size_t block_size = part.fs_interface->GetBlockSize();
+  if (part.verity.hash_tree_extent.num_blocks() != 0) {
+    auto hash_function =
+        HashTreeBuilder::HashFunction(part.verity.hash_tree_algorithm);
+    TEST_AND_RETURN_FALSE(hash_function != nullptr);
+    HashTreeBuilder hash_tree_builder(block_size, hash_function);
+    uint64_t data_size =
+        part.verity.hash_tree_data_extent.num_blocks() * block_size;
+    uint64_t tree_size = hash_tree_builder.CalculateSize(data_size);
+    TEST_AND_RETURN_FALSE(
+        tree_size == part.verity.hash_tree_extent.num_blocks() * block_size);
+    TEST_AND_RETURN_FALSE(
+        hash_tree_builder.Initialize(data_size, part.verity.hash_tree_salt));
+
+    brillo::Blob buffer;
+    for (uint64_t offset = part.verity.hash_tree_data_extent.start_block() *
+                           block_size,
+                  data_end = offset + data_size;
+         offset < data_end;) {
+      constexpr uint64_t kBufferSize = 1024 * 1024;
+      size_t bytes_to_read = std::min(kBufferSize, data_end - offset);
+      TEST_AND_RETURN_FALSE(
+          utils::ReadFileChunk(part.path, offset, bytes_to_read, &buffer));
+      TEST_AND_RETURN_FALSE(
+          hash_tree_builder.Update(buffer.data(), buffer.size()));
+      offset += buffer.size();
+      buffer.clear();
+    }
+    TEST_AND_RETURN_FALSE(hash_tree_builder.BuildHashTree());
+    TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
+        part.path,
+        part.verity.hash_tree_extent.start_block() * block_size,
+        tree_size,
+        &buffer));
+    TEST_AND_RETURN_FALSE(hash_tree_builder.CheckHashTree(buffer));
+  }
+
+  if (part.verity.fec_extent.num_blocks() != 0) {
+    TEST_AND_RETURN_FALSE(VerityWriterAndroid::EncodeFEC(
+        part.path,
+        part.verity.fec_data_extent.start_block() * block_size,
+        part.verity.fec_data_extent.num_blocks() * block_size,
+        part.verity.fec_extent.start_block() * block_size,
+        part.verity.fec_extent.num_blocks() * block_size,
+        part.verity.fec_roots,
+        block_size,
+        true /* verify_mode */));
+  }
+  return true;
+}
 }  // namespace
 
 bool ImageConfig::LoadVerityConfig() {
   for (PartitionConfig& part : partitions) {
-    if (part.size < sizeof(AvbFooter))
-      continue;
-    uint64_t footer_offset = part.size - sizeof(AvbFooter);
-    brillo::Blob buffer;
-    TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
-        part.path, footer_offset, sizeof(AvbFooter), &buffer));
-    if (memcmp(buffer.data(), AVB_FOOTER_MAGIC, AVB_FOOTER_MAGIC_LEN) != 0)
-      continue;
-    LOG(INFO) << "Parsing verity config from AVB footer for " << part.name;
-    AvbFooter footer;
-    TEST_AND_RETURN_FALSE(avb_footer_validate_and_byteswap(
-        reinterpret_cast<const AvbFooter*>(buffer.data()), &footer));
-    buffer.clear();
+    // Parse AVB devices.
+    if (part.size > sizeof(AvbFooter)) {
+      uint64_t footer_offset = part.size - sizeof(AvbFooter);
+      brillo::Blob buffer;
+      TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
+          part.path, footer_offset, sizeof(AvbFooter), &buffer));
+      if (memcmp(buffer.data(), AVB_FOOTER_MAGIC, AVB_FOOTER_MAGIC_LEN) == 0) {
+        LOG(INFO) << "Parsing verity config from AVB footer for " << part.name;
+        AvbFooter footer;
+        TEST_AND_RETURN_FALSE(avb_footer_validate_and_byteswap(
+            reinterpret_cast<const AvbFooter*>(buffer.data()), &footer));
+        buffer.clear();
 
-    TEST_AND_RETURN_FALSE(footer.vbmeta_offset + sizeof(AvbVBMetaImageHeader) <=
-                          part.size);
-    TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
-        part.path, footer.vbmeta_offset, footer.vbmeta_size, &buffer));
-    TEST_AND_RETURN_FALSE(avb_descriptor_foreach(
-        buffer.data(), buffer.size(), AvbDescriptorCallback, &part));
+        TEST_AND_RETURN_FALSE(
+            footer.vbmeta_offset + sizeof(AvbVBMetaImageHeader) <= part.size);
+        TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
+            part.path, footer.vbmeta_offset, footer.vbmeta_size, &buffer));
+        TEST_AND_RETURN_FALSE(avb_descriptor_foreach(
+            buffer.data(), buffer.size(), AvbDescriptorCallback, &part));
+      }
+    }
+
+    // Parse VB1.0 devices with FEC metadata, devices with hash tree without
+    // FEC will be skipped for now.
+    if (part.verity.IsEmpty() && part.size > FEC_BLOCKSIZE) {
+      brillo::Blob fec_metadata;
+      TEST_AND_RETURN_FALSE(utils::ReadFileChunk(part.path,
+                                                 part.size - FEC_BLOCKSIZE,
+                                                 sizeof(fec_header),
+                                                 &fec_metadata));
+      const fec_header* header =
+          reinterpret_cast<const fec_header*>(fec_metadata.data());
+      if (header->magic == FEC_MAGIC) {
+        LOG(INFO)
+            << "Parsing verity config from Verified Boot 1.0 metadata for "
+            << part.name;
+        const size_t block_size = part.fs_interface->GetBlockSize();
+        // FEC_VERITY_DISABLE skips verifying verity hash tree, because we will
+        // verify it ourselves later.
+        fec::io fh(part.path, O_RDONLY, FEC_VERITY_DISABLE);
+        TEST_AND_RETURN_FALSE(fh);
+        fec_verity_metadata verity_data;
+        if (fh.get_verity_metadata(verity_data)) {
+          auto verity_table = base::SplitString(verity_data.table,
+                                                " ",
+                                                base::KEEP_WHITESPACE,
+                                                base::SPLIT_WANT_ALL);
+          TEST_AND_RETURN_FALSE(verity_table.size() == 10);
+          size_t data_block_size = 0;
+          TEST_AND_RETURN_FALSE(
+              base::StringToSizeT(verity_table[3], &data_block_size));
+          TEST_AND_RETURN_FALSE(block_size == data_block_size);
+          size_t hash_block_size = 0;
+          TEST_AND_RETURN_FALSE(
+              base::StringToSizeT(verity_table[4], &hash_block_size));
+          TEST_AND_RETURN_FALSE(block_size == hash_block_size);
+          uint64_t num_data_blocks = 0;
+          TEST_AND_RETURN_FALSE(
+              base::StringToUint64(verity_table[5], &num_data_blocks));
+          part.verity.hash_tree_data_extent =
+              ExtentForRange(0, num_data_blocks);
+          uint64_t hash_start_block = 0;
+          TEST_AND_RETURN_FALSE(
+              base::StringToUint64(verity_table[6], &hash_start_block));
+          part.verity.hash_tree_algorithm = verity_table[7];
+          TEST_AND_RETURN_FALSE(base::HexStringToBytes(
+              verity_table[9], &part.verity.hash_tree_salt));
+          auto hash_function =
+              HashTreeBuilder::HashFunction(part.verity.hash_tree_algorithm);
+          TEST_AND_RETURN_FALSE(hash_function != nullptr);
+          HashTreeBuilder hash_tree_builder(block_size, hash_function);
+          uint64_t tree_size =
+              hash_tree_builder.CalculateSize(num_data_blocks * block_size);
+          part.verity.hash_tree_extent =
+              ExtentForRange(hash_start_block, tree_size / block_size);
+        }
+        fec_ecc_metadata ecc_data;
+        if (fh.get_ecc_metadata(ecc_data) && ecc_data.valid) {
+          TEST_AND_RETURN_FALSE(block_size == FEC_BLOCKSIZE);
+          part.verity.fec_data_extent = ExtentForRange(0, ecc_data.blocks);
+          part.verity.fec_extent =
+              ExtentForBytes(block_size, ecc_data.start, header->fec_size);
+          part.verity.fec_roots = ecc_data.roots;
+        }
+      }
+    }
+
+    if (!part.verity.IsEmpty()) {
+      TEST_AND_RETURN_FALSE(VerifyVerityConfig(part));
+    }
   }
   return true;
 }
