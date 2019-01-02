@@ -31,7 +31,6 @@ cc_defaults {
         "-DUSE_BINDER=1",
         "-DUSE_CHROME_NETWORK_PROXY=0",
         "-DUSE_CHROME_KIOSK_APP=0",
-        "-DUSE_FEC=1",
         "-DUSE_HWID_OVERRIDE=0",
         "-DUSE_MTD=0",
         "-DUSE_OMAHA=0",
@@ -69,6 +68,16 @@ cc_defaults {
     },
 
     target: {
+        android: {
+            cflags: [
+                "-DUSE_FEC=1",
+            ],
+        },
+        host: {
+            cflags: [
+                "-DUSE_FEC=0",
+            ],
+        },
         darwin: {
             enabled: false,
         },
@@ -120,13 +129,8 @@ cc_defaults {
     shared_libs: [
         "libbase",
         "libcrypto",
+        "libfec",
     ],
-
-    target: {
-        android: {
-            shared_libs: ["libfec"],
-        },
-    },
 }
 
 cc_library_static {
@@ -177,16 +181,6 @@ cc_library_static {
         "payload_consumer/xz_extent_writer.cc",
         "payload_consumer/fec_file_descriptor.cc",
     ],
-
-    target: {
-        host: {
-            cflags: [
-                "-UUSE_FEC",
-                "-DUSE_FEC=0",
-            ],
-            shared_libs: ["libfec"],
-        },
-    },
 }
 
 // libupdate_engine_boot_control (type: static_library)
