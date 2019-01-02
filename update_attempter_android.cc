@@ -827,6 +827,11 @@ void UpdateAttempterAndroid::UpdatePrefsAndReportUpdateMetricsOnReboot() {
   metrics_utils::LoadAndReportTimeToReboot(
       metrics_reporter_.get(), prefs_, clock_.get());
   ClearMetricsPrefs();
+
+  // Also reset the update progress if the build version has changed.
+  if (!DeltaPerformer::ResetUpdateProgress(prefs_, false)) {
+    LOG(WARNING) << "Unable to reset the update progress.";
+  }
 }
 
 // Save the update start time. Reset the reboot count and attempt number if the
