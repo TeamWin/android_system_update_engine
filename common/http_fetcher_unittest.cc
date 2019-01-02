@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -218,6 +219,7 @@ class AnyHttpFetcherTest {
   virtual bool IsMock() const = 0;
   virtual bool IsMulti() const = 0;
   virtual bool IsHttpSupported() const = 0;
+  virtual bool IsFileFetcher() const = 0;
 
   virtual void IgnoreServerAborting(HttpServer* server) const {}
 
@@ -251,6 +253,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
   bool IsMock() const override { return true; }
   bool IsMulti() const override { return false; }
   bool IsHttpSupported() const override { return true; }
+  bool IsFileFetcher() const override { return false; }
 
   HttpServer* CreateServer() override {
     return new NullHttpServer;
@@ -292,6 +295,7 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
   bool IsMock() const override { return false; }
   bool IsMulti() const override { return false; }
   bool IsHttpSupported() const override { return true; }
+  bool IsFileFetcher() const override { return false; }
 
   void IgnoreServerAborting(HttpServer* server) const override {
     // Nothing to do.
@@ -342,6 +346,17 @@ class FileFetcherTest : public AnyHttpFetcherTest {
   }
 
   string BigUrl(in_port_t port) const override {
+    static string big_contents = []() {
+      string buf;
+      buf.reserve(kBigLength);
+      constexpr const char* kBigUrlContent = "abcdefghij";
+      for (size_t i = 0; i < kBigLength; i += strlen(kBigUrlContent)) {
+        buf.append(kBigUrlContent,
+                   std::min(kBigLength - i, strlen(kBigUrlContent)));
+      }
+      return buf;
+    }();
+    test_utils::WriteFileString(temp_file_.path(), big_contents);
     return "file://" + temp_file_.path();
   }
   string SmallUrl(in_port_t port) const override {
@@ -355,6 +370,7 @@ class FileFetcherTest : public AnyHttpFetcherTest {
   bool IsMock() const override { return false; }
   bool IsMulti() const override { return false; }
   bool IsHttpSupported() const override { return false; }
+  bool IsFileFetcher() const override { return true; }
 
   void IgnoreServerAborting(HttpServer* server) const override {}
 
@@ -362,6 +378,31 @@ class FileFetcherTest : public AnyHttpFetcherTest {
 
  private:
   test_utils::ScopedTempFile temp_file_{"ue_file_fetcher.XXXXXX"};
+};
+
+class MultiRangeHttpFetcherOverFileFetcherTest : public FileFetcherTest {
+ public:
+  // Necessary to unhide the definition in the base class.
+  using AnyHttpFetcherTest::NewLargeFetcher;
+  HttpFetcher* NewLargeFetcher(ProxyResolver* /* proxy_resolver */) override {
+    MultiRangeHttpFetcher* ret = new MultiRangeHttpFetcher(new FileFetcher());
+    ret->ClearRanges();
+    // FileFetcher doesn't support range with unspecified length.
+    ret->AddRange(0, 1);
+    // Speed up test execution.
+    ret->set_idle_seconds(1);
+    ret->set_retry_seconds(1);
+    fake_hardware_.SetIsOfficialBuild(false);
+    return ret;
+  }
+
+  // Necessary to unhide the definition in the base class.
+  using AnyHttpFetcherTest::NewSmallFetcher;
+  HttpFetcher* NewSmallFetcher(ProxyResolver* proxy_resolver) override {
+    return NewLargeFetcher(proxy_resolver);
+  }
+
+  bool IsMulti() const override { return true; }
 };
 
 //
@@ -401,7 +442,8 @@ class HttpFetcherTest : public ::testing::Test {
 typedef ::testing::Types<LibcurlHttpFetcherTest,
                          MockHttpFetcherTest,
                          MultiRangeHttpFetcherTest,
-                         FileFetcherTest>
+                         FileFetcherTest,
+                         MultiRangeHttpFetcherOverFileFetcherTest>
     HttpFetcherTestTypes;
 TYPED_TEST_CASE(HttpFetcherTest, HttpFetcherTestTypes);
 
@@ -1160,6 +1202,26 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherSimpleTest) {
 
   vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(0, 25));
+  ranges.push_back(make_pair(99, 17));
+  MultiTest(this->test_.NewLargeFetcher(),
+            this->test_.fake_hardware(),
+            this->test_.BigUrl(server->GetPort()),
+            ranges,
+            "abcdefghijabcdefghijabcdejabcdefghijabcdef",
+            25 + 17,
+            this->test_.IsFileFetcher() ? kHttpResponseOk
+                                        : kHttpResponsePartialContent);
+}
+
+TYPED_TEST(HttpFetcherTest, MultiHttpFetcherUnspecifiedEndTest) {
+  if (!this->test_.IsMulti() || this->test_.IsFileFetcher())
+    return;
+
+  unique_ptr<HttpServer> server(this->test_.CreateServer());
+  ASSERT_TRUE(server->started_);
+
+  vector<pair<off_t, off_t>> ranges;
+  ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(),
             this->test_.fake_hardware(),
@@ -1185,11 +1247,12 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherLengthLimitTest) {
             ranges,
             "abcdefghijabcdefghijabcd",
             24,
-            kHttpResponsePartialContent);
+            this->test_.IsFileFetcher() ? kHttpResponseOk
+                                        : kHttpResponsePartialContent);
 }
 
 TYPED_TEST(HttpFetcherTest, MultiHttpFetcherMultiEndTest) {
-  if (!this->test_.IsMulti())
+  if (!this->test_.IsMulti() || this->test_.IsFileFetcher())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -1235,7 +1298,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherInsufficientTest) {
 // (1) successful recovery: The offset fetch will fail twice but succeed with
 // the third proxy.
 TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetRecoverableTest) {
-  if (!this->test_.IsMulti())
+  if (!this->test_.IsMulti() || this->test_.IsFileFetcher())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -1258,7 +1321,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetRecoverableTest) {
 // (2) unsuccessful recovery: The offset fetch will fail repeatedly.  The
 // fetcher will signal a (failed) completed transfer to the delegate.
 TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetUnrecoverableTest) {
-  if (!this->test_.IsMulti())
+  if (!this->test_.IsMulti() || this->test_.IsFileFetcher())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -1290,15 +1353,17 @@ class MultiHttpFetcherTerminateTestDelegate : public HttpFetcherDelegate {
                      size_t length) override {
     LOG(INFO) << "ReceivedBytes, " << length << " bytes.";
     EXPECT_EQ(fetcher, fetcher_.get());
+    bool should_terminate = false;
     if (bytes_downloaded_ < terminate_trigger_bytes_ &&
         bytes_downloaded_ + length >= terminate_trigger_bytes_) {
       MessageLoop::current()->PostTask(
           FROM_HERE,
           base::Bind(&HttpFetcher::TerminateTransfer,
                      base::Unretained(fetcher_.get())));
+      should_terminate = true;
     }
     bytes_downloaded_ += length;
-    return true;
+    return !should_terminate;
   }
 
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
