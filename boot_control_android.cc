@@ -26,6 +26,7 @@
 #include <bootloader_message/bootloader_message.h>
 #include <brillo/message_loops/message_loop.h>
 #include <fs_mgr.h>
+#include <fs_mgr_overlayfs.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/dynamic_partition_control_android.h"
@@ -396,6 +397,13 @@ bool UnmapTargetPartitions(DynamicPartitionControlInterface* dynamic_control,
 
 bool BootControlAndroid::InitPartitionMetadata(
     Slot target_slot, const PartitionMetadata& partition_metadata) {
+  if (fs_mgr_overlayfs_is_setup()) {
+    // Non DAP devices can use overlayfs as well.
+    LOG(WARNING)
+        << "overlayfs overrides are active and can interfere with our "
+           "resources.\n"
+        << "run adb enable-verity to deactivate if required and try again.";
+  }
   if (!dynamic_control_->IsDynamicPartitionsEnabled()) {
     return true;
   }
