@@ -66,7 +66,9 @@ class BootControlInterface {
   // Determines the block device for the given partition name and slot number.
   // The |slot| number must be between 0 and GetNumSlots() - 1 and the
   // |partition_name| is a platform-specific name that identifies a partition on
-  // every slot. On success, returns true and stores the block device in
+  // every slot. In order to access the dynamic partitions in the target slot,
+  // InitPartitionMetadata() must be called (once per payload) prior to calling
+  // this function. On success, returns true and stores the block device in
   // |device|.
   virtual bool GetPartitionDevice(const std::string& partition_name,
                                   Slot slot,
@@ -92,14 +94,14 @@ class BootControlInterface {
   // of the operation.
   virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
 
-  // Initialize metadata of underlying partitions for a given |slot|.
-  // Ensure that all updateable groups with the suffix GetSuffix(|slot|) exactly
-  // matches the layout specified in |partition_metadata|. Ensure that
-  // partitions at the specified |slot| has a given size and updateable group,
-  // as specified by |partition_metadata|. Sizes must be aligned to the logical
-  // block size of the super partition.
+  // Initializes the metadata of the underlying partitions for a given |slot|
+  // and sets up the states for accessing dynamic partitions.
+  // |partition_metadata| will be written to the specified |slot| if
+  // |update_metadata| is set.
   virtual bool InitPartitionMetadata(
-      Slot slot, const PartitionMetadata& partition_metadata) = 0;
+      Slot slot,
+      const PartitionMetadata& partition_metadata,
+      bool update_metadata) = 0;
 
   // Do necessary clean-up operations after the whole update.
   virtual void Cleanup() = 0;

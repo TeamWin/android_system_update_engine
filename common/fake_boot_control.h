@@ -74,8 +74,9 @@ class FakeBootControl : public BootControlInterface {
     return true;
   }
 
-  bool InitPartitionMetadata(
-      Slot slot, const PartitionMetadata& partition_metadata) override {
+  bool InitPartitionMetadata(Slot slot,
+                             const PartitionMetadata& partition_metadata,
+                             bool update_metadata) override {
     return true;
   }
 

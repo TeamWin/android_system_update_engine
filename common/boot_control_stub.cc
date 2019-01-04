@@ -60,7 +60,9 @@ bool BootControlStub::MarkBootSuccessfulAsync(
 }
 
 bool BootControlStub::InitPartitionMetadata(
-    Slot slot, const PartitionMetadata& partition_metadata) {
+    Slot slot,
+    const PartitionMetadata& partition_metadata,
+    bool update_metadata) {
   LOG(ERROR) << __FUNCTION__ << " should never be called.";
   return false;
 }

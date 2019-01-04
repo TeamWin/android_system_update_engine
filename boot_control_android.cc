@@ -396,7 +396,9 @@ bool UnmapTargetPartitions(DynamicPartitionControlInterface* dynamic_control,
 }  // namespace
 
 bool BootControlAndroid::InitPartitionMetadata(
-    Slot target_slot, const PartitionMetadata& partition_metadata) {
+    Slot target_slot,
+    const PartitionMetadata& partition_metadata,
+    bool update_metadata) {
   if (fs_mgr_overlayfs_is_setup()) {
     // Non DAP devices can use overlayfs as well.
     LOG(WARNING)
@@ -414,17 +416,21 @@ bool BootControlAndroid::InitPartitionMetadata(
     return false;
   }
 
-  string target_suffix;
-  if (!GetSuffix(target_slot, &target_suffix)) {
-    return false;
-  }
-
   // Although the current build supports dynamic partitions, the given payload
   // doesn't use it for target partitions. This could happen when applying a
   // retrofit update. Skip updating the partition metadata for the target slot.
   is_target_dynamic_ = !partition_metadata.groups.empty();
   if (!is_target_dynamic_) {
     return true;
+  }
+
+  if (!update_metadata) {
+    return true;
+  }
+
+  string target_suffix;
+  if (!GetSuffix(target_slot, &target_suffix)) {
+    return false;
   }
 
   // Unmap all the target dynamic partitions because they would become
@@ -434,15 +440,11 @@ bool BootControlAndroid::InitPartitionMetadata(
     return false;
   }
 
-  if (!UpdatePartitionMetadata(dynamic_control_.get(),
-                               source_slot,
-                               target_slot,
-                               target_suffix,
-                               partition_metadata)) {
-    return false;
-  }
-
-  return true;
+  return UpdatePartitionMetadata(dynamic_control_.get(),
+                                 source_slot,
+                                 target_slot,
+                                 target_suffix,
+                                 partition_metadata);
 }
 
 }  // namespace chromeos_update_engine
