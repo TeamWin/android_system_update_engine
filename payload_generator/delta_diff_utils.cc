@@ -937,6 +937,15 @@ bool ReadExtentsToDiff(const string& old_part,
         puffin::RemoveEqualBitExtents(
             old_data, new_data, &src_deflates, &dst_deflates);
 
+        // See crbug.com/915559.
+        if (version.minor <= kPuffdiffMinorPayloadVersion) {
+          TEST_AND_RETURN_FALSE(puffin::RemoveDeflatesWithBadDistanceCaches(
+              old_data, &src_deflates));
+
+          TEST_AND_RETURN_FALSE(puffin::RemoveDeflatesWithBadDistanceCaches(
+              new_data, &dst_deflates));
+        }
+
         // Only Puffdiff if both files have at least one deflate left.
         if (!src_deflates.empty() && !dst_deflates.empty()) {
           brillo::Blob puffdiff_delta;
