@@ -43,6 +43,12 @@ const char* kChromeOSPartitionNameRoot = "root";
 const char* kAndroidPartitionNameKernel = "boot";
 const char* kAndroidPartitionNameRoot = "system";
 
+const char kDlcInstallRootDirectoryEncrypted[] = "/home/chronos/dlc";
+const char kPartitionNamePrefixDlc[] = "dlc_";
+const char kPartitionNameDlcA[] = "dlc_a";
+const char kPartitionNameDlcB[] = "dlc_b";
+const char kPartitionNameDlcImage[] = "dlc.img";
+
 // Returns the currently booted rootfs partition. "/dev/sda3", for example.
 string GetBootDevice() {
   char boot_path[PATH_MAX];
@@ -143,6 +149,26 @@ BootControlInterface::Slot BootControlChromeOS::GetCurrentSlot() const {
 bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
                                              unsigned int slot,
                                              string* device) const {
+  // Partition name prefixed with |kPartitionNamePrefixDlc| is a DLC module.
+  if (base::StartsWith(partition_name,
+                       kPartitionNamePrefixDlc,
+                       base::CompareCase::SENSITIVE)) {
+    // Extract DLC module ID from partition_name (DLC module ID is the string
+    // after |kPartitionNamePrefixDlc| in partition_name).
+    const auto dlc_module_id =
+        partition_name.substr(strlen(kPartitionNamePrefixDlc));
+    if (dlc_module_id.empty()) {
+      LOG(ERROR) << " partition name does not contain DLC module ID:"
+                 << partition_name;
+      return false;
+    }
+    *device = base::FilePath(kDlcInstallRootDirectoryEncrypted)
+                  .Append(dlc_module_id)
+                  .Append(slot == 0 ? kPartitionNameDlcA : kPartitionNameDlcB)
+                  .Append(kPartitionNameDlcImage)
+                  .value();
+    return true;
+  }
   int partition_num = GetPartitionNumber(partition_name, slot);
   if (partition_num < 0)
     return false;

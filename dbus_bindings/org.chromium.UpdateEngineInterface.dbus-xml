@@ -19,6 +19,9 @@
       <!-- See AttemptUpdateFlags enum in update_engine/dbus-constants.h. -->
       <arg type="i" name="flags" direction="in" />
     </method>
+    <method name="AttemptInstall">
+      <arg type="s" name="dlc_request" direction="in" />
+    </method>
     <method name="AttemptRollback">
       <arg type="b" name="powerwash" direction="in" />
     </method>

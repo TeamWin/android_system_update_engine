@@ -69,6 +69,8 @@ extern const char kMetricSuccessfulUpdateAttemptCount[];
 extern const char kMetricSuccessfulUpdateBytesDownloadedMiB[];
 extern const char kMetricSuccessfulUpdateDownloadOverheadPercentage[];
 extern const char kMetricSuccessfulUpdateDownloadSourcesUsed[];
+extern const char kMetricSuccessfulUpdateDurationFromSeenDays[];
+extern const char kMetricSuccessfulUpdateDurationFromSeenTimeRestrictedDays[];
 extern const char kMetricSuccessfulUpdatePayloadType[];
 extern const char kMetricSuccessfulUpdatePayloadSizeMiB[];
 extern const char kMetricSuccessfulUpdateRebootCount[];
@@ -165,6 +167,9 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportKeyVersionMetrics(int kernel_min_version,
                                int kernel_max_rollforward_version,
                                bool kernel_max_rollforward_success) override;
+
+  void ReportEnterpriseUpdateSeenToDownloadDays(
+      bool has_time_restriction_policy, int time_to_update_days) override;
 
  private:
   friend class MetricsReporterOmahaTest;

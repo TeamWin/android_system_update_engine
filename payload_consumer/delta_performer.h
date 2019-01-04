@@ -60,6 +60,7 @@ class DeltaPerformer : public FileWriter {
   // operations. They must add up to one hundred (100).
   static const unsigned kProgressDownloadWeight;
   static const unsigned kProgressOperationsWeight;
+  static const uint64_t kCheckpointFrequencySeconds;
 
   DeltaPerformer(PrefsInterface* prefs,
                  BootControlInterface* boot_control,
@@ -399,6 +400,12 @@ class DeltaPerformer : public FileWriter {
   const base::TimeDelta forced_progress_log_wait_{
       base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)};
   base::Time forced_progress_log_time_;
+
+  // The frequency that we should write an update checkpoint (constant), and
+  // the point in time at which the next checkpoint should be written.
+  const base::TimeDelta update_checkpoint_wait_{
+      base::TimeDelta::FromSeconds(kCheckpointFrequencySeconds)};
+  base::Time update_checkpoint_time_;
 
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };

@@ -627,7 +627,7 @@ class PayloadChecker(object):
     self._CheckPresentIff(self.sigs_offset, self.sigs_size,
                           'signatures_offset', 'signatures_size', 'manifest')
 
-    if self.major_version == 1:
+    if self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION:
       for real_name, proto_name in common.CROS_PARTITIONS:
         self.old_part_info[real_name] = self._CheckOptionalSubMsg(
             manifest, 'old_%s_info' % proto_name, report)
@@ -1069,8 +1069,9 @@ class PayloadChecker(object):
     # Type-specific checks.
     if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
-    elif op.type == common.OpType.REPLACE_XZ and (self.minor_version >= 3 or
-                                                  self.major_version >= 2):
+    elif (op.type == common.OpType.REPLACE_XZ and
+          (self.minor_version >= 3 or
+           self.major_version >= common.BRILLO_MAJOR_PAYLOAD_VERSION)):
       self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.MOVE and self.minor_version == 1:
       self._CheckMoveOperation(op, data_offset, total_src_blocks,
@@ -1251,16 +1252,19 @@ class PayloadChecker(object):
 
     last_ops_section = (self.payload.manifest.kernel_install_operations or
                         self.payload.manifest.install_operations)
-    fake_sig_op = last_ops_section[-1]
-    # Check: signatures_{offset,size} must match the last (fake) operation.
-    if not (fake_sig_op.type == common.OpType.REPLACE and
-            self.sigs_offset == fake_sig_op.data_offset and
-            self.sigs_size == fake_sig_op.data_length):
-      raise error.PayloadError(
-          'Signatures_{offset,size} (%d+%d) does not match last operation '
-          '(%d+%d).' %
-          (self.sigs_offset, self.sigs_size, fake_sig_op.data_offset,
-           fake_sig_op.data_length))
+
+    # Only major version 1 has the fake signature OP at the end.
+    if self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION:
+      fake_sig_op = last_ops_section[-1]
+      # Check: signatures_{offset,size} must match the last (fake) operation.
+      if not (fake_sig_op.type == common.OpType.REPLACE and
+              self.sigs_offset == fake_sig_op.data_offset and
+              self.sigs_size == fake_sig_op.data_length):
+        raise error.PayloadError('Signatures_{offset,size} (%d+%d) does not'
+                                 ' match last operation (%d+%d).' %
+                                 (self.sigs_offset, self.sigs_size,
+                                  fake_sig_op.data_offset,
+                                  fake_sig_op.data_length))
 
     # Compute the checksum of all data up to signature blob.
     # TODO(garnold) we're re-reading the whole data section into a string
@@ -1314,9 +1318,9 @@ class PayloadChecker(object):
 
     try:
       # Check metadata_size (if provided).
-      if metadata_size and self.payload.data_offset != metadata_size:
+      if metadata_size and self.payload.metadata_size != metadata_size:
         raise error.PayloadError('Invalid payload metadata size in payload(%d) '
-                                 'vs given(%d)' % (self.payload.data_offset,
+                                 'vs given(%d)' % (self.payload.metadata_size,
                                                    metadata_size))
 
       # Check metadata signature (if provided).
@@ -1343,7 +1347,7 @@ class PayloadChecker(object):
 
       # Part 3: Examine partition operations.
       install_operations = []
-      if self.major_version == 1:
+      if self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION:
         # partitions field should not ever exist in major version 1 payloads
         self._CheckRepeatedElemNotPresent(manifest, 'partitions', 'manifest')
 
@@ -1386,10 +1390,17 @@ class PayloadChecker(object):
             operations, report, '%s_install_operations' % part,
             self.old_fs_sizes[part], self.new_fs_sizes[part],
             old_fs_usable_size, new_fs_usable_size, total_blob_size,
-            self.major_version == 1 and part == common.KERNEL)
+            (self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION
+             and part == common.KERNEL))
 
       # Check: Operations data reach the end of the payload file.
       used_payload_size = self.payload.data_offset + total_blob_size
+      # Major versions 2 and higher have a signature at the end, so it should be
+      # considered in the total size of the image.
+      if (self.major_version >= common.BRILLO_MAJOR_PAYLOAD_VERSION and
+          self.sigs_size):
+        used_payload_size += self.sigs_size
+
       if used_payload_size != payload_file_size:
         raise error.PayloadError(
             'Used payload size (%d) different from actual file size (%d).' %

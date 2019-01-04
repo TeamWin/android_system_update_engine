@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "update_engine/status_update_handler.h"
 #include "update_engine/update_status.h"
@@ -46,6 +47,18 @@ class UpdateEngineClient {
   virtual bool AttemptUpdate(const std::string& app_version,
                              const std::string& omaha_url,
                              bool at_user_request) = 0;
+
+  // Request the update_engine to install a list of DLC modules.
+  // |omaha_url|
+  //     Force update_engine to look for updates from the given server. Passing
+  //     empty indicates update_engine should use its default value. Note that
+  //     update_engine will ignore this parameter in production mode to avoid
+  //     pulling untrusted updates.
+  // |dlc_module_ids|
+  //     A list of DLC module IDs.
+  virtual bool AttemptInstall(
+      const std::string& omaha_url,
+      const std::vector<std::string>& dlc_module_ids) = 0;
 
   // Returns the current status of the Update Engine.
   //

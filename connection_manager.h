@@ -47,8 +47,8 @@ class ConnectionManager : public ConnectionManagerInterface {
   bool IsAllowedConnectionTypesForUpdateSet() const override;
 
  private:
-  // Returns (via out_path) the default network path, or empty string if
-  // there's no network up. Returns true on success.
+  // Returns (via out_path) the default network path, or "/" if there's no
+  // network up. Returns true on success.
   bool GetDefaultServicePath(dbus::ObjectPath* out_path);
 
   bool GetServicePathProperties(const dbus::ObjectPath& path,

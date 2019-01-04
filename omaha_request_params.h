@@ -20,6 +20,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <vector>
 
 #include <base/macros.h>
 #include <base/time/time.h>
@@ -53,7 +54,8 @@ class OmahaRequestParams {
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
-        max_update_checks_allowed_(kDefaultMaxUpdateChecks) {}
+        max_update_checks_allowed_(kDefaultMaxUpdateChecks),
+        is_install_(false) {}
 
   virtual ~OmahaRequestParams();
 
@@ -163,6 +165,15 @@ class OmahaRequestParams {
   inline int64_t max_update_checks_allowed() const {
     return max_update_checks_allowed_;
   }
+  inline void set_dlc_module_ids(
+      const std::vector<std::string>& dlc_module_ids) {
+    dlc_module_ids_ = dlc_module_ids;
+  }
+  inline std::vector<std::string> dlc_module_ids() const {
+    return dlc_module_ids_;
+  }
+  inline void set_is_install(bool is_install) { is_install_ = is_install; }
+  inline bool is_install() const { return is_install_; }
 
   // Returns the app id corresponding to the current value of the
   // download channel.
@@ -327,6 +338,14 @@ class OmahaRequestParams {
 
   // When reading files, prepend root_ to the paths. Useful for testing.
   std::string root_;
+
+  // A list of DLC module IDs to install.
+  std::vector<std::string> dlc_module_ids_;
+
+  // This variable defines whether the payload is being installed in the current
+  // partition. At the moment, this is used for installing DLC modules on the
+  // current active partition instead of the inactive partition.
+  bool is_install_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestParams);
 };
