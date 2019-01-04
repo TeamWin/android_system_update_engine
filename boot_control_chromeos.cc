@@ -303,7 +303,9 @@ int BootControlChromeOS::GetPartitionNumber(
 }
 
 bool BootControlChromeOS::InitPartitionMetadata(
-    Slot slot, const PartitionMetadata& partition_metadata) {
+    Slot slot,
+    const PartitionMetadata& partition_metadata,
+    bool update_metadata) {
   return true;
 }
 
