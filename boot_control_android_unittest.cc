@@ -379,10 +379,12 @@ class BootControlAndroidTest : public ::testing::Test {
         .Times(0);
   }
 
-  bool InitPartitionMetadata(uint32_t slot, PartitionSizes partition_sizes) {
+  bool InitPartitionMetadata(uint32_t slot,
+                             PartitionSizes partition_sizes,
+                             bool update_metadata = true) {
     auto m = partitionSizesToMetadata(partition_sizes);
     LOG(INFO) << m;
-    return bootctl_.InitPartitionMetadata(slot, m);
+    return bootctl_.InitPartitionMetadata(slot, m, update_metadata);
   }
 
   BootControlAndroid bootctl_;  // BootControlAndroid under test.
@@ -537,21 +539,74 @@ TEST_P(BootControlAndroidTestP,
 
   // Not calling through BootControlAndroidTest::InitPartitionMetadata(), since
   // we don't want any default group in the PartitionMetadata.
-  EXPECT_TRUE(bootctl_.InitPartitionMetadata(target(), {}));
+  EXPECT_TRUE(bootctl_.InitPartitionMetadata(target(), {}, true));
 
   // Should use dynamic source partitions.
   EXPECT_CALL(dynamicControl(), GetState(S("system")))
       .Times(1)
       .WillOnce(Return(DmDeviceState::ACTIVE));
-  string source_device;
-  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", source(), &source_device));
-  EXPECT_EQ(GetDmDevice(S("system")), source_device);
+  string system_device;
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", source(), &system_device));
+  EXPECT_EQ(GetDmDevice(S("system")), system_device);
 
   // Should use static target partitions without querying dynamic control.
   EXPECT_CALL(dynamicControl(), GetState(T("system"))).Times(0);
-  string target_device;
-  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", target(), &target_device));
-  EXPECT_EQ(GetDevice(T("system")), target_device);
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", target(), &system_device));
+  EXPECT_EQ(GetDevice(T("system")), system_device);
+
+  // Static partition "bar".
+  EXPECT_CALL(dynamicControl(), GetState(S("bar"))).Times(0);
+  std::string bar_device;
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("bar", source(), &bar_device));
+  EXPECT_EQ(GetDevice(S("bar")), bar_device);
+
+  EXPECT_CALL(dynamicControl(), GetState(T("bar"))).Times(0);
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("bar", target(), &bar_device));
+  EXPECT_EQ(GetDevice(T("bar")), bar_device);
+}
+
+TEST_P(BootControlAndroidTestP, GetPartitionDeviceWhenResumingUpdate) {
+  // Both of the two slots contain valid partition metadata, since this is
+  // resuming an update.
+  SetMetadata(source(),
+              {{S("system"), 2_GiB},
+               {S("vendor"), 1_GiB},
+               {T("system"), 2_GiB},
+               {T("vendor"), 1_GiB}});
+  SetMetadata(target(),
+              {{S("system"), 2_GiB},
+               {S("vendor"), 1_GiB},
+               {T("system"), 2_GiB},
+               {T("vendor"), 1_GiB}});
+  EXPECT_CALL(dynamicControl(),
+              StoreMetadata(GetSuperDevice(target()), _, target()))
+      .Times(0);
+  EXPECT_TRUE(InitPartitionMetadata(
+      target(), {{"system", 2_GiB}, {"vendor", 1_GiB}}, false));
+
+  // Dynamic partition "system".
+  EXPECT_CALL(dynamicControl(), GetState(S("system")))
+      .Times(1)
+      .WillOnce(Return(DmDeviceState::ACTIVE));
+  string system_device;
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", source(), &system_device));
+  EXPECT_EQ(GetDmDevice(S("system")), system_device);
+
+  EXPECT_CALL(dynamicControl(), GetState(T("system")))
+      .Times(1)
+      .WillOnce(Return(DmDeviceState::ACTIVE));
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("system", target(), &system_device));
+  EXPECT_EQ(GetDmDevice(T("system")), system_device);
+
+  // Static partition "bar".
+  EXPECT_CALL(dynamicControl(), GetState(S("bar"))).Times(0);
+  std::string bar_device;
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("bar", source(), &bar_device));
+  EXPECT_EQ(GetDevice(S("bar")), bar_device);
+
+  EXPECT_CALL(dynamicControl(), GetState(T("bar"))).Times(0);
+  EXPECT_TRUE(bootctl_.GetPartitionDevice("bar", target(), &bar_device));
+  EXPECT_EQ(GetDevice(T("bar")), bar_device);
 }
 
 INSTANTIATE_TEST_CASE_P(BootControlAndroidTest,
@@ -695,7 +750,8 @@ TEST_P(BootControlAndroidGroupTestP, ResizeWithinGroup) {
       target(),
       PartitionMetadata{
           .groups = {SimpleGroup("android", 3_GiB, "system", 3_GiB),
-                     SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}}));
+                     SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}},
+      true));
 }
 
 TEST_P(BootControlAndroidGroupTestP, NotEnoughSpaceForGroup) {
@@ -703,7 +759,8 @@ TEST_P(BootControlAndroidGroupTestP, NotEnoughSpaceForGroup) {
       target(),
       PartitionMetadata{
           .groups = {SimpleGroup("android", 3_GiB, "system", 1_GiB),
-                     SimpleGroup("oem", 2_GiB, "vendor", 3_GiB)}}))
+                     SimpleGroup("oem", 2_GiB, "vendor", 3_GiB)}},
+      true))
       << "Should not be able to grow over maximum size of group";
 }
 
@@ -711,7 +768,8 @@ TEST_P(BootControlAndroidGroupTestP, GroupTooBig) {
   EXPECT_FALSE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{.groups = {{.name = "android", .size = 3_GiB},
-                                   {.name = "oem", .size = 3_GiB}}}))
+                                   {.name = "oem", .size = 3_GiB}}},
+      true))
       << "Should not be able to grow over size of super / 2";
 }
 
@@ -727,12 +785,13 @@ TEST_P(BootControlAndroidGroupTestP, AddPartitionToGroup) {
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{
-          .groups = {
-              {.name = "android",
-               .size = 3_GiB,
-               .partitions = {{.name = "system", .size = 2_GiB},
-                              {.name = "product_services", .size = 1_GiB}}},
-              SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}}));
+          .groups = {{.name = "android",
+                      .size = 3_GiB,
+                      .partitions = {{.name = "system", .size = 2_GiB},
+                                     {.name = "product_services",
+                                      .size = 1_GiB}}},
+                     SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}},
+      true));
 }
 
 TEST_P(BootControlAndroidGroupTestP, RemovePartitionFromGroup) {
@@ -744,7 +803,8 @@ TEST_P(BootControlAndroidGroupTestP, RemovePartitionFromGroup) {
       target(),
       PartitionMetadata{
           .groups = {{.name = "android", .size = 3_GiB, .partitions = {}},
-                     SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}}));
+                     SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}},
+      true));
 }
 
 TEST_P(BootControlAndroidGroupTestP, AddGroup) {
@@ -756,10 +816,10 @@ TEST_P(BootControlAndroidGroupTestP, AddGroup) {
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{
-          .groups = {
-              SimpleGroup("android", 2_GiB, "system", 2_GiB),
-              SimpleGroup("oem", 1_GiB, "vendor", 1_GiB),
-              SimpleGroup("new_group", 2_GiB, "new_partition", 2_GiB)}}));
+          .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB),
+                     SimpleGroup("oem", 1_GiB, "vendor", 1_GiB),
+                     SimpleGroup("new_group", 2_GiB, "new_partition", 2_GiB)}},
+      true));
 }
 
 TEST_P(BootControlAndroidGroupTestP, RemoveGroup) {
@@ -768,7 +828,8 @@ TEST_P(BootControlAndroidGroupTestP, RemoveGroup) {
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
       PartitionMetadata{
-          .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB)}}));
+          .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB)}},
+      true));
 }
 
 TEST_P(BootControlAndroidGroupTestP, ResizeGroup) {
@@ -781,7 +842,8 @@ TEST_P(BootControlAndroidGroupTestP, ResizeGroup) {
       target(),
       PartitionMetadata{
           .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB),
-                     SimpleGroup("oem", 3_GiB, "vendor", 3_GiB)}}));
+                     SimpleGroup("oem", 3_GiB, "vendor", 3_GiB)}},
+      true));
 }
 
 INSTANTIATE_TEST_CASE_P(BootControlAndroidTest,
