@@ -16,7 +16,12 @@
 
 #include "update_engine/dbus_service.h"
 
-#include "update_engine/dbus-constants.h"
+#include <string>
+#include <vector>
+
+#include <update_engine/dbus-constants.h>
+#include <update_engine/proto_bindings/update_engine.pb.h>
+
 #include "update_engine/dbus_connection.h"
 #include "update_engine/update_status_utils.h"
 
@@ -25,6 +30,7 @@ namespace chromeos_update_engine {
 using brillo::ErrorPtr;
 using chromeos_update_engine::UpdateEngineService;
 using std::string;
+using std::vector;
 using update_engine::UpdateEngineStatus;
 
 DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
@@ -55,6 +61,29 @@ bool DBusUpdateEngineService::AttemptUpdateWithFlags(
       in_omaha_url,
       interactive ? 0 : update_engine::UpdateAttemptFlags::kFlagNonInteractive,
       &result);
+}
+
+bool DBusUpdateEngineService::AttemptInstall(ErrorPtr* error,
+                                             const string& dlc_request) {
+  // Parse the raw parameters into protobuf.
+  DlcParameters dlc_parameters;
+  if (!dlc_parameters.ParseFromString(dlc_request)) {
+    *error = brillo::Error::Create(
+        FROM_HERE, "update_engine", "INTERNAL", "parameters are invalid.");
+    return false;
+  }
+  // Extract fields from the protobuf.
+  vector<string> dlc_module_ids;
+  for (const auto& dlc_info : dlc_parameters.dlc_infos()) {
+    if (dlc_info.dlc_id().empty()) {
+      *error = brillo::Error::Create(
+          FROM_HERE, "update_engine", "INTERNAL", "parameters are invalid.");
+      return false;
+    }
+    dlc_module_ids.push_back(dlc_info.dlc_id());
+  }
+  return common_->AttemptInstall(
+      error, dlc_parameters.omaha_url(), dlc_module_ids);
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,

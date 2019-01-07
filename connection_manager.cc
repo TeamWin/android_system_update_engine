@@ -138,8 +138,11 @@ bool ConnectionManager::GetConnectionProperties(
   if (!default_service_path.IsValid())
     return false;
   // Shill uses the "/" service path to indicate that it is not connected.
-  if (default_service_path.value() == "/")
-    return false;
+  if (default_service_path.value() == "/") {
+    *out_type = ConnectionType::kDisconnected;
+    *out_tethering = ConnectionTethering::kUnknown;
+    return true;
+  }
   TEST_AND_RETURN_FALSE(
       GetServicePathProperties(default_service_path, out_type, out_tethering));
   return true;

@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_MOCK_UPDATE_ATTEMPTER_H_
 
 #include <string>
+#include <vector>
 
 #include "update_engine/update_attempter.h"
 
@@ -50,6 +51,10 @@ class MockUpdateAttempter : public UpdateAttempter {
                bool(const std::string& app_version,
                     const std::string& omaha_url,
                     UpdateAttemptFlags flags));
+
+  MOCK_METHOD2(CheckForInstall,
+               bool(const std::vector<std::string>& dlc_module_ids,
+                    const std::string& omaha_url));
 
   MOCK_METHOD0(RefreshDevicePolicy, void(void));
 

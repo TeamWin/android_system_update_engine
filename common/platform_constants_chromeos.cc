@@ -22,7 +22,7 @@ namespace constants {
 const char kOmahaDefaultProductionURL[] =
     "https://tools.google.com/service/update2";
 const char kOmahaDefaultAUTestURL[] =
-    "https://omaha.sandbox.google.com/service/update2";
+    "https://omaha-qa.sandbox.google.com/service/update2";
 const char kOmahaUpdaterID[] = "ChromeOSUpdateEngine";
 const char kOmahaPlatformName[] = "Chrome OS";
 const char kUpdatePayloadPublicKeyPath[] =

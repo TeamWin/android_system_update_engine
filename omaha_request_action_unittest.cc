@@ -77,8 +77,10 @@ static_assert(kRollforwardInfinity == 0xfffffffe,
               "Don't change the value of kRollforward infinity unless its "
               "size has been changed in firmware.");
 
+const char kCurrentVersion[] = "0.1.0.0";
 const char kTestAppId[] = "test-app-id";
 const char kTestAppId2[] = "test-app2-id";
+const char kTestAppIdSkipUpdatecheck[] = "test-app-id-skip-updatecheck";
 
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
@@ -145,19 +147,16 @@ struct FakeUpdateResponse {
                           : "") +
            "</packages>"
            "<actions><action event=\"postinstall\" MetadataSize=\"11" +
-           (multi_package ? ":22" : "") + "\" ChromeOSVersion=\"" + version +
-           "\" MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt +
+           (multi_package ? ":22" : "") + "\" MoreInfo=\"" + more_info_url +
+           "\" Prompt=\"" + prompt +
            "\" "
-           "IsDelta=\"true\" "
            "IsDeltaPayload=\"true" +
            (multi_package ? ":false" : "") +
            "\" "
            "MaxDaysToScatter=\"" +
            max_days_to_scatter +
            "\" "
-           "sha256=\"not-used\" "
-           "needsadmin=\"" +
-           needsadmin + "\" " +
+           "sha256=\"not-used\" " +
            (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
            (disable_p2p_for_downloading ? "DisableP2PForDownloading=\"true\" "
                                         : "") +
@@ -182,6 +181,9 @@ struct FakeUpdateResponse {
            (multi_app_no_update
                 ? "<app><updatecheck status=\"noupdate\"/></app>"
                 : "") +
+           (multi_app_skip_updatecheck
+                ? "<app appid=\"" + app_id_skip_updatecheck + "\"></app>"
+                : "") +
            "</response>";
   }
 
@@ -192,6 +194,8 @@ struct FakeUpdateResponse {
 
   string app_id = kTestAppId;
   string app_id2 = kTestAppId2;
+  string app_id_skip_updatecheck = kTestAppIdSkipUpdatecheck;
+  string current_version = kCurrentVersion;
   string version = "1.2.3.4";
   string version2 = "2.3.4.5";
   string more_info_url = "http://more/info";
@@ -200,7 +204,6 @@ struct FakeUpdateResponse {
   string codebase2 = "http://code/base/2/";
   string filename = "file.signed";
   string hash = "4841534831323334";
-  string needsadmin = "false";
   uint64_t size = 123;
   string deadline = "";
   string max_days_to_scatter = "7";
@@ -227,6 +230,8 @@ struct FakeUpdateResponse {
   bool multi_app_self_update = false;
   // Whether to include an additional app with status="noupdate".
   bool multi_app_no_update = false;
+  // Whether to include an additional app with no updatecheck tag.
+  bool multi_app_skip_updatecheck = false;
   // Whether to include more than one package in an app.
   bool multi_package = false;
 
@@ -297,7 +302,7 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_os_sp("service_pack");
     request_params_.set_os_board("x86-generic");
     request_params_.set_app_id(kTestAppId);
-    request_params_.set_app_version("0.1.0.0");
+    request_params_.set_app_version(kCurrentVersion);
     request_params_.set_app_lang("en-US");
     request_params_.set_current_channel("unittest");
     request_params_.set_target_channel("unittest");
@@ -310,6 +315,8 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_target_version_prefix("");
     request_params_.set_rollback_allowed(false);
     request_params_.set_is_powerwash_allowed(false);
+    request_params_.set_is_install(false);
+    request_params_.set_dlc_module_ids({});
 
     fake_system_state_.set_request_params(&request_params_);
     fake_system_state_.set_prefs(&fake_prefs_);
@@ -1157,11 +1164,44 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBERollback) {
   EXPECT_FALSE(response.update_exists);
 }
 
+// Verify that non-critical updates are skipped by reporting the
+// kNonCriticalUpdateInOOBE error code when attempted over cellular network -
+// i.e. when the update would need user permission. Note that reporting
+// kOmahaUpdateIgnoredOverCellular error in this case  might cause undesired UX
+// in OOBE (warning the user about an update that will be skipped).
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesInOOBEOverCellular) {
+  OmahaResponse response;
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+
+  MockConnectionManager mock_cm;
+  fake_system_state_.set_connection_manager(&mock_cm);
+
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
+  EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
+      .WillRepeatedly(Return(false));
+
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kNonCriticalUpdateInOOBE,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
 TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   OmahaResponse response;
   request_params_.set_wall_clock_based_wait_enabled(true);
   request_params_.set_update_check_count_wait_enabled(false);
   request_params_.set_waiting_period(TimeDelta::FromDays(2));
+
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                                -1,
@@ -1238,6 +1278,8 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   request_params_.set_min_update_checks_needed(0);
   request_params_.set_max_update_checks_allowed(0);
 
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+
   ASSERT_TRUE(TestUpdateCheck(
                       fake_update_response_.GetUpdateResponse(),
                       -1,
@@ -1262,6 +1304,8 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(true);
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
+
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_FALSE(TestUpdateCheck(
                       fake_update_response_.GetUpdateResponse(),
@@ -1300,6 +1344,8 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(true);
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
+
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsUpdateCheckCount, 5));
 
@@ -1342,6 +1388,8 @@ TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
   request_params_.set_wall_clock_based_wait_enabled(true);
   request_params_.set_waiting_period(TimeDelta::FromDays(6));
   request_params_.set_update_check_count_wait_enabled(false);
+
+  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsWallClockStagingWaitPeriod, 6));
   // This should not prevent scattering due to staging.
@@ -1631,12 +1679,9 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
       "<packages><package hash=\"not-used\" name=\"f\" "
       "size=\"587\" hash_sha256=\"lkq34j5345\"/></packages>"
       "<actions><action event=\"postinstall\" "
-      "ChromeOSVersion=\"10.2.3.4\" "
       "Prompt=\"false\" "
-      "IsDelta=\"true\" "
       "IsDeltaPayload=\"false\" "
       "sha256=\"not-used\" "
-      "needsadmin=\"true\" "
       "/></actions></manifest></updatecheck></app></response>";
   LOG(INFO) << "Input Response = " << input_response;
 
@@ -2502,7 +2547,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                metrics::DownloadErrorCode::kUnset,
                                nullptr,  // response
                                &post_data));
-  // convert post_data to string
+  // Convert post_data to string.
   string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(string::npos, post_str.find(
       "appid=\"{11111111-1111-1111-1111-111111111111}\" "
@@ -3005,6 +3050,110 @@ TEST_F(OmahaRequestActionTest, RollbackResponseValidVersionsParsed) {
   EXPECT_EQ(2, response.rollback_key_version.firmware);
   EXPECT_EQ(3, response.rollback_key_version.kernel_key);
   EXPECT_EQ(4, response.rollback_key_version.kernel);
+}
+
+TEST_F(OmahaRequestActionTest,
+       TestUpdateFirstSeenAtPrefPersistedIfUpdateExists) {
+  FakeClock fake_clock;
+  Time now = Time::Now();
+  fake_clock.SetWallclockTime(now);
+  fake_system_state_.set_clock(&fake_clock);
+
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
+
+  int64_t stored_first_seen_at_time;
+  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt,
+                                   &stored_first_seen_at_time));
+  EXPECT_EQ(now.ToInternalValue(), stored_first_seen_at_time);
+}
+
+TEST_F(OmahaRequestActionTest,
+       TestUpdateFirstSeenAtPrefNotPersistedIfUpdateFails) {
+  FakeClock fake_clock;
+  Time now = Time::Now();
+  fake_clock.SetWallclockTime(now);
+  fake_system_state_.set_clock(&fake_clock);
+
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
+}
+
+TEST_F(OmahaRequestActionTest, InstallTest) {
+  OmahaResponse response;
+  request_params_.set_is_install(true);
+  request_params_.set_dlc_module_ids({"dlc_no_0", "dlc_no_1"});
+  brillo::Blob post_data;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              true,   // is_consumer_device
+                              0,      // rollback_allowed_milestones
+                              false,  // is_policy_loaded
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              &post_data));
+  // Convert post_data to string.
+  string post_str(post_data.begin(), post_data.end());
+  for (const auto& dlc_module_id : request_params_.dlc_module_ids()) {
+    EXPECT_NE(string::npos,
+              post_str.find("appid=\"" + fake_update_response_.app_id + "_" +
+                            dlc_module_id + "\""));
+  }
+  EXPECT_NE(string::npos,
+            post_str.find("appid=\"" + fake_update_response_.app_id + "\""));
+
+  // Count number of updatecheck tag in response.
+  int updatecheck_count = 0;
+  size_t pos = 0;
+  while ((pos = post_str.find("<updatecheck", pos)) != string::npos) {
+    updatecheck_count++;
+    pos++;
+  }
+  EXPECT_EQ(request_params_.dlc_module_ids().size(), updatecheck_count);
+}
+
+TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
+  fake_update_response_.multi_app_skip_updatecheck = true;
+  fake_update_response_.multi_app_no_update = false;
+  request_params_.set_is_install(true);
+  request_params_.set_dlc_module_ids({"dlc_no_0", "dlc_no_1"});
+  request_params_.set_app_id(fake_update_response_.app_id_skip_updatecheck);
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.current_version, response.version);
 }
 
 }  // namespace chromeos_update_engine

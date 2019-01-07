@@ -30,6 +30,7 @@
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
 
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action.h"
@@ -58,6 +59,7 @@ using chromeos_update_manager::UpdateCheckParams;
 using policy::DevicePolicy;
 using std::string;
 using std::unique_ptr;
+using std::vector;
 using testing::_;
 using testing::DoAll;
 using testing::Field;
@@ -77,6 +79,15 @@ using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
 
+namespace {
+
+class MockDlcService : public DlcServiceInterface {
+ public:
+  MOCK_METHOD1(GetInstalled, bool(vector<string>*));
+};
+
+}  // namespace
+
 const char kRollbackVersion[] = "10575.39.2";
 
 // Test a subclass rather than the main class directly so that we can mock out
@@ -89,13 +100,14 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
-  void ScheduleUpdates() override {
+  bool ScheduleUpdates() override {
     schedule_updates_called_ = true;
     if (do_schedule_updates_) {
       UpdateAttempter::ScheduleUpdates();
     } else {
       LOG(INFO) << "[TEST] Update scheduling disabled.";
     }
+    return true;
   }
   void EnableScheduleUpdates() { do_schedule_updates_ = true; }
   void DisableScheduleUpdates() { do_schedule_updates_ = false; }
@@ -119,10 +131,13 @@ class UpdateAttempterTest : public ::testing::Test {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
+    fake_system_state_.set_dlcservice(&mock_dlcservice_);
     loop_.SetAsCurrent();
 
     certificate_checker_.Init();
 
+    attempter_.set_forced_update_pending_callback(
+        new base::Callback<void(bool, bool)>(base::Bind([](bool, bool) {})));
     // Finish initializing the attempter.
     attempter_.Init();
   }
@@ -197,6 +212,7 @@ class UpdateAttempterTest : public ::testing::Test {
   UpdateAttempterUnderTest attempter_{&fake_system_state_};
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
+  MockDlcService mock_dlcservice_;
 
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
@@ -1158,6 +1174,21 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
+TEST_F(UpdateAttempterTest, CheckForUpdateAUDlcTest) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
+
+  const string dlc_module_id = "a_dlc_module_id";
+  vector<string> dlc_module_ids = {dlc_module_id};
+  ON_CALL(mock_dlcservice_, GetInstalled(testing::_))
+      .WillByDefault(DoAll(testing::SetArgPointee<0>(dlc_module_ids),
+                           testing::Return(true)));
+
+  attempter_.CheckForUpdate("", "autest", UpdateAttemptFlags::kNone);
+  EXPECT_EQ(attempter_.dlc_module_ids_.size(), 1);
+  EXPECT_EQ(attempter_.dlc_module_ids_[0], dlc_module_id);
+}
+
 TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
@@ -1170,6 +1201,42 @@ TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
   fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
   attempter_.CheckForUpdate("", "autest-scheduled", UpdateAttemptFlags::kNone);
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+}
+
+TEST_F(UpdateAttempterTest, CheckForInstallTest) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
+  attempter_.CheckForInstall({}, "autest");
+  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+
+  attempter_.CheckForInstall({}, "autest-scheduled");
+  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+
+  attempter_.CheckForInstall({}, "http://omaha.phishing");
+  EXPECT_EQ("", attempter_.forced_omaha_url());
+}
+
+TEST_F(UpdateAttempterTest, InstallSetsStatusIdle) {
+  attempter_.CheckForInstall({}, "http://foo.bar");
+  attempter_.status_ = UpdateStatus::DOWNLOADING;
+  EXPECT_TRUE(attempter_.is_install_);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  // Should set status to idle after an install operation.
+  EXPECT_EQ(UpdateStatus::IDLE, status.status);
+}
+
+TEST_F(UpdateAttempterTest, RollbackAfterInstall) {
+  attempter_.is_install_ = true;
+  attempter_.Rollback(false);
+  EXPECT_FALSE(attempter_.is_install_);
+}
+
+TEST_F(UpdateAttempterTest, UpdateAfterInstall) {
+  attempter_.is_install_ = true;
+  attempter_.CheckForUpdate("", "", UpdateAttemptFlags::kNone);
+  EXPECT_FALSE(attempter_.is_install_);
 }
 
 TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
@@ -1419,6 +1486,86 @@ TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackFailure) {
   MockAction action;
   attempter_.CreatePendingErrorEvent(&action, ErrorCode::kRollbackNotPossible);
   attempter_.ProcessingDone(nullptr, ErrorCode::kRollbackNotPossible);
+}
+
+TEST_F(UpdateAttempterTest, TimeToUpdateAppliedMetricFailure) {
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(_, _))
+      .Times(0);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kOmahaUpdateDeferredPerPolicy);
+}
+
+TEST_F(UpdateAttempterTest, TimeToUpdateAppliedOnNonEnterprise) {
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
+  fake_system_state_.set_device_policy(device_policy.get());
+  // Make device policy return that this is not enterprise enrolled
+  EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(false));
+
+  // Ensure that the metric is not recorded.
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(_, _))
+      .Times(0);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest,
+       TimeToUpdateAppliedWithTimeRestrictionMetricSuccess) {
+  constexpr int kDaysToUpdate = 15;
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
+  fake_system_state_.set_device_policy(device_policy.get());
+  // Make device policy return that this is enterprise enrolled
+  EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(true));
+  // Pretend that there's a time restriction policy in place
+  EXPECT_CALL(*device_policy, GetDisallowedTimeIntervals(_))
+      .WillOnce(Return(true));
+
+  FakePrefs fake_prefs;
+  Time update_first_seen_at = Time::Now();
+  fake_prefs.SetInt64(kPrefsUpdateFirstSeenAt,
+                      update_first_seen_at.ToInternalValue());
+
+  FakeClock fake_clock;
+  Time update_finished_at =
+      update_first_seen_at + TimeDelta::FromDays(kDaysToUpdate);
+  fake_clock.SetWallclockTime(update_finished_at);
+
+  fake_system_state_.set_clock(&fake_clock);
+  fake_system_state_.set_prefs(&fake_prefs);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(true, kDaysToUpdate))
+      .Times(1);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest,
+       TimeToUpdateAppliedWithoutTimeRestrictionMetricSuccess) {
+  constexpr int kDaysToUpdate = 15;
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
+  fake_system_state_.set_device_policy(device_policy.get());
+  // Make device policy return that this is enterprise enrolled
+  EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(true));
+  // Pretend that there's no time restriction policy in place
+  EXPECT_CALL(*device_policy, GetDisallowedTimeIntervals(_))
+      .WillOnce(Return(false));
+
+  FakePrefs fake_prefs;
+  Time update_first_seen_at = Time::Now();
+  fake_prefs.SetInt64(kPrefsUpdateFirstSeenAt,
+                      update_first_seen_at.ToInternalValue());
+
+  FakeClock fake_clock;
+  Time update_finished_at =
+      update_first_seen_at + TimeDelta::FromDays(kDaysToUpdate);
+  fake_clock.SetWallclockTime(update_finished_at);
+
+  fake_system_state_.set_clock(&fake_clock);
+  fake_system_state_.set_prefs(&fake_prefs);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportEnterpriseUpdateSeenToDownloadDays(false, kDaysToUpdate))
+      .Times(1);
+  attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
 }
 
 }  // namespace chromeos_update_engine

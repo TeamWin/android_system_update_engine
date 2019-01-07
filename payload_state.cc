@@ -55,6 +55,9 @@ static const int kMaxBackoffDays = 16;
 // We want to randomize retry attempts after the backoff by +/- 6 hours.
 static const uint32_t kMaxBackoffFuzzMinutes = 12 * 60;
 
+// Limit persisting current update duration uptime to once per second
+static const uint64_t kUptimeResolution = 1;
+
 PayloadState::PayloadState()
     : prefs_(nullptr),
       using_p2p_for_downloading_(false),
@@ -1153,9 +1156,12 @@ void PayloadState::SetUpdateDurationUptime(const TimeDelta& value) {
 void PayloadState::CalculateUpdateDurationUptime() {
   Time now = system_state_->clock()->GetMonotonicTime();
   TimeDelta uptime_since_last_update = now - update_duration_uptime_timestamp_;
-  TimeDelta new_uptime = update_duration_uptime_ + uptime_since_last_update;
-  // We're frequently called so avoid logging this write
-  SetUpdateDurationUptimeExtended(new_uptime, now, false);
+
+  if (uptime_since_last_update > TimeDelta::FromSeconds(kUptimeResolution)) {
+    TimeDelta new_uptime = update_duration_uptime_ + uptime_since_last_update;
+    // We're frequently called so avoid logging this write
+    SetUpdateDurationUptimeExtended(new_uptime, now, false);
+  }
 }
 
 string PayloadState::GetPrefsKey(const string& prefix, DownloadSource source) {

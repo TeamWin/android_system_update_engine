@@ -226,6 +226,22 @@ class MetricsReporterInterface {
   virtual void ReportKeyVersionMetrics(int kernel_min_version,
                                        int kernel_max_rollforward_version,
                                        bool kernel_max_rollforward_success) = 0;
+
+  // Helper function to report the duration between an update being seen by the
+  // client to the update being applied. Updates are not always immediately
+  // applied when seen, several enterprise policies can affect when an update
+  // would actually be downloaded and applied.
+  //
+  // This metric should only be reported for enterprise enrolled devices.
+  //
+  // The following metrics are reported from this function:
+  //   If |has_time_restriction_policy| is false:
+  //     |kMetricSuccessfulUpdateDurationFromSeenDays|
+  //   If |has_time_restriction_policy| is true:
+  //     |kMetricSuccessfulUpdateDurationFromSeenTimeRestrictedDays|
+  //
+  virtual void ReportEnterpriseUpdateSeenToDownloadDays(
+      bool has_time_restriction_policy, int time_to_update_days) = 0;
 };
 
 }  // namespace chromeos_update_engine
