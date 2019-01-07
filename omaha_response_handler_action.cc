@@ -121,8 +121,13 @@ void OmahaResponseHandlerAction::PerformAction() {
         << "Unable to save the update check response hash.";
   }
 
-  install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
-  install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
+  if (params->is_install()) {
+    install_plan_.target_slot = system_state_->boot_control()->GetCurrentSlot();
+    install_plan_.source_slot = BootControlInterface::kInvalidSlot;
+  } else {
+    install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
+    install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
+  }
 
   // The Omaha response doesn't include the channel name for this image, so we
   // use the download_channel we used during the request to tag the target slot.

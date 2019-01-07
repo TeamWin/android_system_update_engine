@@ -303,8 +303,8 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   void OnLookupPayloadViaP2PCompleted(const std::string& url);
 
   // Returns true if the current update should be ignored.
-  bool ShouldIgnoreUpdate(ErrorCode* error,
-                          const OmahaResponse& response) const;
+  bool ShouldIgnoreUpdate(const OmahaResponse& response,
+                          ErrorCode* error) const;
 
   // Return true if updates are allowed by user preferences.
   bool IsUpdateAllowedOverCellularByPrefs(const OmahaResponse& response) const;
@@ -321,6 +321,11 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // Sets the appropriate max kernel key version based on whether rollback is
   // enabled.
   void SetMaxKernelKeyVersionForRollback() const;
+
+  // Reads and returns the kPrefsUpdateFirstSeenAt pref if the pref currently
+  // exists. Otherwise saves the current wallclock time to the
+  // kPrefsUpdateFirstSeenAt pref and returns it as a base::Time object.
+  base::Time LoadOrPersistUpdateFirstSeenAtPref() const;
 
   // Global system context.
   SystemState* system_state_;

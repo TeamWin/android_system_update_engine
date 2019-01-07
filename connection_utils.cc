@@ -18,6 +18,12 @@
 
 #include <shill/dbus-constants.h>
 
+namespace {
+// Not defined by shill since we don't use this outside of UE.
+constexpr char kTypeDisconnected[] = "Disconnected";
+constexpr char kTypeUnknown[] = "Unknown";
+}  // namespace
+
 namespace chromeos_update_engine {
 namespace connection_utils {
 
@@ -32,6 +38,8 @@ ConnectionType ParseConnectionType(const std::string& type_str) {
     return ConnectionType::kBluetooth;
   } else if (type_str == shill::kTypeCellular) {
     return ConnectionType::kCellular;
+  } else if (type_str == kTypeDisconnected) {
+    return ConnectionType::kDisconnected;
   }
   return ConnectionType::kUnknown;
 }
@@ -59,10 +67,12 @@ const char* StringForConnectionType(ConnectionType type) {
       return shill::kTypeBluetooth;
     case ConnectionType::kCellular:
       return shill::kTypeCellular;
+    case ConnectionType::kDisconnected:
+      return kTypeDisconnected;
     case ConnectionType::kUnknown:
-      return "Unknown";
+      return kTypeUnknown;
   }
-  return "Unknown";
+  return kTypeUnknown;
 }
 
 }  // namespace connection_utils

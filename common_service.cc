@@ -41,6 +41,7 @@ using base::StringPrintf;
 using brillo::ErrorPtr;
 using brillo::string_utils::ToString;
 using std::string;
+using std::vector;
 using update_engine::UpdateAttemptFlags;
 using update_engine::UpdateEngineStatus;
 
@@ -100,6 +101,18 @@ bool UpdateEngineService::AttemptUpdate(ErrorPtr* /* error */,
 
   *out_result = system_state_->update_attempter()->CheckForUpdate(
       in_app_version, in_omaha_url, flags);
+  return true;
+}
+
+bool UpdateEngineService::AttemptInstall(brillo::ErrorPtr* error,
+                                         const string& omaha_url,
+                                         const vector<string>& dlc_module_ids) {
+  if (!system_state_->update_attempter()->CheckForInstall(dlc_module_ids,
+                                                          omaha_url)) {
+    // TODO(xiaochu): support more detailed error messages.
+    LogAndSetError(error, FROM_HERE, "Could not schedule install operation.");
+    return false;
+  }
   return true;
 }
 

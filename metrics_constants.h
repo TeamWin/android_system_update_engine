@@ -107,14 +107,15 @@ enum class AttemptResult {
 //
 // This is used in the UpdateEngine.Attempt.ConnectionType histogram.
 enum class ConnectionType {
-  kUnknown,           // Unknown.
-  kEthernet,          // Ethernet.
-  kWifi,              // Wireless.
-  kWimax,             // WiMax.
-  kBluetooth,         // Bluetooth.
-  kCellular,          // Cellular.
-  kTetheredEthernet,  // Tethered (Ethernet).
-  kTetheredWifi,      // Tethered (Wifi).
+  kUnknown = 0,           // Unknown.
+  kEthernet = 1,          // Ethernet.
+  kWifi = 2,              // Wireless.
+  kWimax = 3,             // WiMax.
+  kBluetooth = 4,         // Bluetooth.
+  kCellular = 5,          // Cellular.
+  kTetheredEthernet = 6,  // Tethered (Ethernet).
+  kTetheredWifi = 7,      // Tethered (Wifi).
+  kDisconnected = 8,      // Disconnected.
 
   kNumConstants,
   kUnset = -1

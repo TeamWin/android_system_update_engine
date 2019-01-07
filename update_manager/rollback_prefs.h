@@ -29,9 +29,11 @@ constexpr int kRollforwardInfinity = 0xfffffffe;
 enum class RollbackToTargetVersion {
   kUnspecified = 0,
   kDisabled = 1,
-  kRollbackWithFullPowerwash = 2,
+  kRollbackAndPowerwash = 2,
+  kRollbackAndRestoreIfPossible = 3,
+  kRollbackOnlyIfRestorePossible = 4,
   // This value must be the last entry.
-  kMaxValue = 3
+  kMaxValue = 5
 };
 
 }  // namespace chromeos_update_manager
