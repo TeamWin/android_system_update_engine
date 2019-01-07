@@ -18,7 +18,9 @@
 #define UPDATE_ENGINE_COMMON_BOOT_CONTROL_INTERFACE_H_
 
 #include <climits>
+#include <map>
 #include <string>
+#include <vector>
 
 #include <base/callback.h>
 #include <base/macros.h>
@@ -32,6 +34,19 @@ namespace chromeos_update_engine {
 class BootControlInterface {
  public:
   using Slot = unsigned int;
+
+  struct PartitionMetadata {
+    struct Partition {
+      std::string name;
+      uint64_t size;
+    };
+    struct Group {
+      std::string name;
+      uint64_t size;
+      std::vector<Partition> partitions;
+    };
+    std::vector<Group> groups;
+  };
 
   static const Slot kInvalidSlot = UINT_MAX;
 
@@ -51,7 +66,9 @@ class BootControlInterface {
   // Determines the block device for the given partition name and slot number.
   // The |slot| number must be between 0 and GetNumSlots() - 1 and the
   // |partition_name| is a platform-specific name that identifies a partition on
-  // every slot. On success, returns true and stores the block device in
+  // every slot. In order to access the dynamic partitions in the target slot,
+  // InitPartitionMetadata() must be called (once per payload) prior to calling
+  // this function. On success, returns true and stores the block device in
   // |device|.
   virtual bool GetPartitionDevice(const std::string& partition_name,
                                   Slot slot,
@@ -76,6 +93,18 @@ class BootControlInterface {
   // operation, otherwise, returns true and calls the |callback| with the result
   // of the operation.
   virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
+
+  // Initializes the metadata of the underlying partitions for a given |slot|
+  // and sets up the states for accessing dynamic partitions.
+  // |partition_metadata| will be written to the specified |slot| if
+  // |update_metadata| is set.
+  virtual bool InitPartitionMetadata(
+      Slot slot,
+      const PartitionMetadata& partition_metadata,
+      bool update_metadata) = 0;
+
+  // Do necessary clean-up operations after the whole update.
+  virtual void Cleanup() = 0;
 
   // Return a human-readable slot name used for logging.
   static std::string SlotName(Slot slot) {

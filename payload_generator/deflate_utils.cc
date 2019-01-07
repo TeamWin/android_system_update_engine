@@ -102,6 +102,15 @@ bool IsBitExtentInExtent(const Extent& extent, const BitExtent& bit_extent) {
              ((extent.start_block() + extent.num_blocks()) * kBlockSize);
 }
 
+// Returns whether the given file |name| has an extension listed in
+// |extensions|.
+bool IsFileExtensions(const string& name,
+                      const std::initializer_list<string>& extensions) {
+  return any_of(extensions.begin(), extensions.end(), [&name](const auto& ext) {
+    return base::EndsWith(name, ext, base::CompareCase::INSENSITIVE_ASCII);
+  });
+}
+
 }  // namespace
 
 ByteExtent ExpandToByteExtent(const BitExtent& extent) {
@@ -247,9 +256,9 @@ bool FindAndCompactDeflates(const vector<Extent>& extents,
   return true;
 }
 
-bool PreprocessParitionFiles(const PartitionConfig& part,
-                             vector<FilesystemInterface::File>* result_files,
-                             bool extract_deflates) {
+bool PreprocessPartitionFiles(const PartitionConfig& part,
+                              vector<FilesystemInterface::File>* result_files,
+                              bool extract_deflates) {
   // Get the file system files.
   vector<FilesystemInterface::File> tmp_files;
   part.fs_interface->GetFiles(&tmp_files);
@@ -286,35 +295,35 @@ bool PreprocessParitionFiles(const PartitionConfig& part,
       }
     }
 
-    // Search for deflates if the file is in zip format.
-    // .zvoice files may eventually move out of rootfs. If that happens, remove
-    // ".zvoice" (crbug.com/782918).
-    const string zip_file_extensions[] = {".apk", ".zip", ".jar", ".zvoice"};
-    bool is_zip =
-        any_of(zip_file_extensions,
-               std::end(zip_file_extensions),
-               [&file](const string& ext) {
-                 return base::EndsWith(
-                     file.name, ext, base::CompareCase::INSENSITIVE_ASCII);
-               });
-
-    if (is_zip && extract_deflates) {
-      brillo::Blob data;
-      TEST_AND_RETURN_FALSE(
-          utils::ReadExtents(part.path,
-                             file.extents,
-                             &data,
-                             kBlockSize * utils::BlocksInExtents(file.extents),
-                             kBlockSize));
-      std::vector<puffin::BitExtent> deflates_sub_blocks;
-      TEST_AND_RETURN_FALSE(puffin::LocateDeflateSubBlocksInZipArchive(
-          data, &deflates_sub_blocks));
-      // Shift the deflate's extent to the offset starting from the beginning
-      // of the current partition; and the delta processor will align the
-      // extents in a continuous buffer later.
-      TEST_AND_RETURN_FALSE(
-          ShiftBitExtentsOverExtents(file.extents, &deflates_sub_blocks));
-      file.deflates = std::move(deflates_sub_blocks);
+    if (extract_deflates) {
+      // Search for deflates if the file is in zip or gzip format.
+      // .zvoice files may eventually move out of rootfs. If that happens,
+      // remove ".zvoice" (crbug.com/782918).
+      bool is_zip = IsFileExtensions(
+          file.name, {".apk", ".zip", ".jar", ".zvoice", ".apex"});
+      bool is_gzip = IsFileExtensions(file.name, {".gz", ".gzip", ".tgz"});
+      if (is_zip || is_gzip) {
+        brillo::Blob data;
+        TEST_AND_RETURN_FALSE(utils::ReadExtents(
+            part.path,
+            file.extents,
+            &data,
+            kBlockSize * utils::BlocksInExtents(file.extents),
+            kBlockSize));
+        vector<puffin::BitExtent> deflates;
+        if (is_zip) {
+          TEST_AND_RETURN_FALSE(
+              puffin::LocateDeflatesInZipArchive(data, &deflates));
+        } else if (is_gzip) {
+          TEST_AND_RETURN_FALSE(puffin::LocateDeflatesInGzip(data, &deflates));
+        }
+        // Shift the deflate's extent to the offset starting from the beginning
+        // of the current partition; and the delta processor will align the
+        // extents in a continuous buffer later.
+        TEST_AND_RETURN_FALSE(
+            ShiftBitExtentsOverExtents(file.extents, &deflates));
+        file.deflates = std::move(deflates);
+      }
     }
 
     result_files->push_back(file);

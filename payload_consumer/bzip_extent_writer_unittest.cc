@@ -49,8 +49,6 @@ class BzipExtentWriterTest : public ::testing::Test {
   void TearDown() override {
     fd_->Close();
   }
-  void WriteAlignedExtents(size_t chunk_size, size_t first_chunk_size);
-  void TestZeroPad(bool aligned_size);
 
   FileDescriptorPtr fd_;
   test_utils::ScopedTempFile temp_file_{"BzipExtentWriterTest-file.XXXXXX"};
@@ -72,7 +70,6 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
   EXPECT_TRUE(
       bzip_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
-  EXPECT_TRUE(bzip_writer.End());
 
   brillo::Blob buf;
   EXPECT_TRUE(utils::ReadFile(temp_file_.path(), &buf));
@@ -100,8 +97,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   for (size_t i = 0; i < decompressed_data.size(); ++i)
     decompressed_data[i] = static_cast<uint8_t>("ABC\n"[i % 4]);
 
-  vector<Extent> extents = {
-      ExtentForRange(0, (kDecompressedLength + kBlockSize - 1) / kBlockSize)};
+  vector<Extent> extents = {ExtentForBytes(kBlockSize, 0, kDecompressedLength)};
 
   BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
   EXPECT_TRUE(
@@ -113,7 +109,6 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
     size_t this_chunk_size = min(kChunkSize, compressed_data.size() - i);
     EXPECT_TRUE(bzip_writer.Write(&compressed_data[i], this_chunk_size));
   }
-  EXPECT_TRUE(bzip_writer.End());
 
   // Check that the const input has not been clobbered.
   test_utils::ExpectVectorsEq(original_compressed_data, compressed_data);

@@ -28,6 +28,7 @@
 #include <brillo/data_encoding.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
+#include <log/log_safetynet.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code_utils.h"
@@ -78,7 +79,7 @@ const char* const kGenericError = "generic_error";
 
 // Log and set the error on the passed ErrorPtr.
 bool LogAndSetError(brillo::ErrorPtr* error,
-                    const tracked_objects::Location& location,
+                    const base::Location& location,
                     const string& reason) {
   brillo::Error::AddTo(error, location, kErrorDomain, kGenericError, reason);
   LOG(ERROR) << "Replying with failure: " << location.ToString() << ": "
@@ -137,7 +138,7 @@ bool UpdateAttempterAndroid::ApplyPayload(
     return LogAndSetError(
         error, FROM_HERE, "An update already applied, waiting for reboot");
   }
-  if (ongoing_update_) {
+  if (processor_->IsRunning()) {
     return LogAndSetError(
         error, FROM_HERE, "Already processing an update, cancel it first.");
   }
@@ -218,10 +219,21 @@ bool UpdateAttempterAndroid::ApplyPayload(
   // c) RUN_POST_INSTALL is set to 0.
   if (install_plan_.is_resume && prefs_->Exists(kPrefsPostInstallSucceeded)) {
     bool post_install_succeeded = false;
-    prefs_->GetBoolean(kPrefsPostInstallSucceeded, &post_install_succeeded);
-    if (post_install_succeeded) {
+    if (prefs_->GetBoolean(kPrefsPostInstallSucceeded,
+                           &post_install_succeeded) &&
+        post_install_succeeded) {
       install_plan_.run_post_install =
           GetHeaderAsBool(headers[kPayloadPropertyRunPostInstall], true);
+    }
+  }
+
+  // Skip writing verity if we're resuming and verity has already been written.
+  install_plan_.write_verity = true;
+  if (install_plan_.is_resume && prefs_->Exists(kPrefsVerityWritten)) {
+    bool verity_written = false;
+    if (prefs_->GetBoolean(kPrefsVerityWritten, &verity_written) &&
+        verity_written) {
+      install_plan_.write_verity = false;
     }
   }
 
@@ -268,7 +280,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
   BuildUpdateActions(fetcher);
 
   SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
-  ongoing_update_ = true;
 
   UpdatePrefsOnUpdateStart(install_plan_.is_resume);
   // TODO(xunchang) report the metrics for unresumable updates
@@ -278,21 +289,21 @@ bool UpdateAttempterAndroid::ApplyPayload(
 }
 
 bool UpdateAttempterAndroid::SuspendUpdate(brillo::ErrorPtr* error) {
-  if (!ongoing_update_)
+  if (!processor_->IsRunning())
     return LogAndSetError(error, FROM_HERE, "No ongoing update to suspend.");
   processor_->SuspendProcessing();
   return true;
 }
 
 bool UpdateAttempterAndroid::ResumeUpdate(brillo::ErrorPtr* error) {
-  if (!ongoing_update_)
+  if (!processor_->IsRunning())
     return LogAndSetError(error, FROM_HERE, "No ongoing update to resume.");
   processor_->ResumeProcessing();
   return true;
 }
 
 bool UpdateAttempterAndroid::CancelUpdate(brillo::ErrorPtr* error) {
-  if (!ongoing_update_)
+  if (!processor_->IsRunning())
     return LogAndSetError(error, FROM_HERE, "No ongoing update to cancel.");
   processor_->StopProcessing();
   return true;
@@ -366,14 +377,17 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
                           "Failed to parse payload header: " +
                               utils::ErrorCodeToString(errorcode));
   }
-  metadata.resize(payload_metadata.GetMetadataSize() +
-                  payload_metadata.GetMetadataSignatureSize());
-  if (metadata.size() < kMaxPayloadHeaderSize) {
+  uint64_t metadata_size = payload_metadata.GetMetadataSize() +
+                           payload_metadata.GetMetadataSignatureSize();
+  if (metadata_size < kMaxPayloadHeaderSize ||
+      metadata_size >
+          static_cast<uint64_t>(utils::FileSize(metadata_filename))) {
     return LogAndSetError(
         error,
         FROM_HERE,
-        "Metadata size too small: " + std::to_string(metadata.size()));
+        "Invalid metadata size: " + std::to_string(metadata_size));
   }
+  metadata.resize(metadata_size);
   if (!fd->Read(metadata.data() + kMaxPayloadHeaderSize,
                 metadata.size() - kMaxPayloadHeaderSize)) {
     return LogAndSetError(
@@ -456,6 +470,11 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
       LOG(INFO) << "Resetting update progress.";
       break;
 
+    case ErrorCode::kPayloadTimestampError:
+      // SafetyNet logging, b/36232423
+      android_errorWriteLog(0x534e4554, "36232423");
+      break;
+
     default:
       // Ignore all other error codes.
       break;
@@ -489,6 +508,8 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
   }
   if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
+  } else if (type == FilesystemVerifierAction::StaticType()) {
+    prefs_->SetBoolean(kPrefsVerityWritten, true);
   }
 }
 
@@ -552,12 +573,13 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
     return;
   }
 
+  boot_control_->Cleanup();
+
   download_progress_ = 0;
   UpdateStatus new_status =
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
                                          : UpdateStatus::IDLE);
   SetStatusAndNotify(new_status);
-  ongoing_update_ = false;
 
   // The network id is only applicable to one download attempt and once it's
   // done the network id should not be re-used anymore.
@@ -664,10 +686,12 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
 
   metrics::AttemptResult attempt_result =
       metrics_utils::GetAttemptResult(error_code);
-  Time attempt_start_time = Time::FromInternalValue(
+  Time boot_time_start = Time::FromInternalValue(
+      metrics_utils::GetPersistedValue(kPrefsUpdateBootTimestampStart, prefs_));
+  Time monotonic_time_start = Time::FromInternalValue(
       metrics_utils::GetPersistedValue(kPrefsUpdateTimestampStart, prefs_));
-  TimeDelta duration = clock_->GetBootTime() - attempt_start_time;
-  TimeDelta duration_uptime = clock_->GetMonotonicTime() - attempt_start_time;
+  TimeDelta duration = clock_->GetBootTime() - boot_time_start;
+  TimeDelta duration_uptime = clock_->GetMonotonicTime() - monotonic_time_start;
 
   metrics_reporter_->ReportUpdateAttemptMetrics(
       nullptr,  // system_state
@@ -773,6 +797,11 @@ void UpdateAttempterAndroid::UpdatePrefsAndReportUpdateMetricsOnReboot() {
   metrics_utils::LoadAndReportTimeToReboot(
       metrics_reporter_.get(), prefs_, clock_.get());
   ClearMetricsPrefs();
+
+  // Also reset the update progress if the build version has changed.
+  if (!DeltaPerformer::ResetUpdateProgress(prefs_, false)) {
+    LOG(WARNING) << "Unable to reset the update progress.";
+  }
 }
 
 // Save the update start time. Reset the reboot count and attempt number if the
@@ -786,8 +815,8 @@ void UpdateAttempterAndroid::UpdatePrefsOnUpdateStart(bool is_resume) {
         metrics_utils::GetPersistedValue(kPrefsPayloadAttemptNumber, prefs_);
     metrics_utils::SetPayloadAttemptNumber(attempt_number + 1, prefs_);
   }
-  Time update_start_time = clock_->GetMonotonicTime();
-  metrics_utils::SetUpdateTimestampStart(update_start_time, prefs_);
+  metrics_utils::SetUpdateTimestampStart(clock_->GetMonotonicTime(), prefs_);
+  metrics_utils::SetUpdateBootTimestampStart(clock_->GetBootTime(), prefs_);
 }
 
 void UpdateAttempterAndroid::ClearMetricsPrefs() {
@@ -797,6 +826,7 @@ void UpdateAttempterAndroid::ClearMetricsPrefs() {
   prefs_->Delete(kPrefsPayloadAttemptNumber);
   prefs_->Delete(kPrefsSystemUpdatedMarker);
   prefs_->Delete(kPrefsUpdateTimestampStart);
+  prefs_->Delete(kPrefsUpdateBootTimestampStart);
 }
 
 }  // namespace chromeos_update_engine

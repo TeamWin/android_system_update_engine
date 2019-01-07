@@ -179,11 +179,8 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
-  string test_deadline_file;
-  CHECK(utils::MakeTempFile("omaha_response_handler_action_unittest-XXXXXX",
-                            &test_deadline_file,
-                            nullptr));
-  ScopedPathUnlinker deadline_unlinker(test_deadline_file);
+  test_utils::ScopedTempFile test_deadline_file(
+      "omaha_response_handler_action_unittest-XXXXXX");
   {
     OmahaResponse in;
     in.update_exists = true;
@@ -196,15 +193,15 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = false;
     in.deadline = "20101020";
     InstallPlan install_plan;
-    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
+    EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
-    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline));
     EXPECT_EQ("20101020", deadline);
     struct stat deadline_stat;
-    EXPECT_EQ(0, stat(test_deadline_file.c_str(), &deadline_stat));
+    EXPECT_EQ(0, stat(test_deadline_file.path().c_str(), &deadline_stat));
     EXPECT_EQ(
         static_cast<mode_t>(S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH),
         deadline_stat.st_mode);
@@ -223,12 +220,12 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     InstallPlan install_plan;
     // Set the other slot as current.
     fake_system_state_.fake_boot_control()->SetCurrentSlot(1);
-    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
+    EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
     EXPECT_EQ(0U, install_plan.target_slot);
     string deadline;
-    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline) &&
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline) &&
                 deadline.empty());
     EXPECT_EQ(in.version, install_plan.version);
   }
@@ -248,12 +245,12 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
                 GetRollbackHappened())
         .WillOnce(Return(true));
-    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
+    EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
-    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline));
     EXPECT_TRUE(deadline.empty());
     EXPECT_EQ(in.version, install_plan.version);
   }
@@ -271,12 +268,12 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
                 GetRollbackHappened())
         .WillOnce(Return(false));
-    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
+    EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
-    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline));
     EXPECT_EQ("some-deadline", deadline);
     EXPECT_EQ(in.version, install_plan.version);
   }
@@ -411,7 +408,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
-  EXPECT_FALSE(install_plan.hash_checks_mandatory);
+  EXPECT_TRUE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
 

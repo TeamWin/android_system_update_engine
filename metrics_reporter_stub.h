@@ -85,6 +85,8 @@ class MetricsReporterStub : public MetricsReporterInterface {
 
   void ReportInstallDateProvisioningSource(int source, int max) override {}
 
+  void ReportInternalErrorCode(ErrorCode error_code) override {}
+
   void ReportKeyVersionMetrics(int kernel_min_version,
                                int kernel_max_rollforward_version,
                                bool kernel_max_rollforward_success) override {}

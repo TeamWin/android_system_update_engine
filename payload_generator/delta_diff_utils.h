@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_UTILS_H_
 #define UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_UTILS_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -69,7 +70,8 @@ bool DeltaMovedAndZeroBlocks(std::vector<AnnotatedOperation>* aops,
                              const PayloadVersion& version,
                              BlobFileWriter* blob_file,
                              ExtentRanges* old_visited_blocks,
-                             ExtentRanges* new_visited_blocks);
+                             ExtentRanges* new_visited_blocks,
+                             ExtentRanges* old_zero_blocks);
 
 // For a given file |name| append operations to |aops| to produce it in the
 // |new_part|. The file will be split in chunks of |chunk_blocks| blocks each
@@ -148,6 +150,12 @@ bool IsExtFilesystem(const std::string& device);
 
 // Returns the max number of threads to process the files(chunks) in parallel.
 size_t GetMaxThreads();
+
+// Returns the old file which file name has the shortest levenshtein distance to
+// |new_file_name|.
+FilesystemInterface::File GetOldFile(
+    const std::map<std::string, FilesystemInterface::File>& old_files_map,
+    const std::string& new_file_name);
 
 }  // namespace diff_utils
 

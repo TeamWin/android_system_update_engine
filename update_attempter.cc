@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,7 +48,6 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/connection_manager_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/omaha_request_action.h"
@@ -79,8 +77,6 @@ using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateCheckParams;
 using chromeos_update_manager::CalculateStagingCase;
 using chromeos_update_manager::StagingCase;
-using std::set;
-using std::shared_ptr;
 using std::string;
 using std::vector;
 using update_engine::UpdateAttemptFlags;
@@ -108,8 +104,7 @@ const char kScheduledAUTestURLRequest[] = "autest-scheduled";
 // to |action| (e.g., ErrorCode::kFilesystemVerifierError). If |code| is
 // not ErrorCode::kError, or the action is not matched, returns |code|
 // unchanged.
-ErrorCode GetErrorCodeForAction(AbstractAction* action,
-                                     ErrorCode code) {
+ErrorCode GetErrorCodeForAction(AbstractAction* action, ErrorCode code) {
   if (code != ErrorCode::kError)
     return code;
 
@@ -1347,8 +1342,7 @@ uint32_t UpdateAttempter::GetErrorCodeFlags()  {
   if (!system_state_->hardware()->IsOfficialBuild())
     flags |= static_cast<uint32_t>(ErrorCode::kTestImageFlag);
 
-  if (omaha_request_params_->update_url() !=
-      constants::kOmahaDefaultProductionURL) {
+  if (!omaha_request_params_->IsUpdateUrlOfficial()) {
     flags |= static_cast<uint32_t>(ErrorCode::kTestOmahaUrlFlag);
   }
 
@@ -1645,7 +1639,7 @@ bool UpdateAttempter::IsUpdateRunningOrScheduled() {
           waiting_for_scheduled_check_);
 }
 
-bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
+bool UpdateAttempter::IsAnyUpdateSourceAllowed() const {
   // We allow updates from any source if either of these are true:
   //  * The device is running an unofficial (dev/test) image.
   //  * The debugd dev features are accessible (i.e. in devmode with no owner).

@@ -90,7 +90,9 @@ void InstallPlan::Dump() const {
             << ", powerwash_required: " << utils::ToString(powerwash_required)
             << ", switch_slot_on_reboot: "
             << utils::ToString(switch_slot_on_reboot)
-            << ", run_post_install: " << utils::ToString(run_post_install);
+            << ", run_post_install: " << utils::ToString(run_post_install)
+            << ", is_rollback: " << utils::ToString(is_rollback)
+            << ", write_verity: " << utils::ToString(write_verity);
 }
 
 bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
@@ -98,14 +100,17 @@ bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
   for (Partition& partition : partitions) {
     if (source_slot != BootControlInterface::kInvalidSlot) {
       result = boot_control->GetPartitionDevice(
-          partition.name, source_slot, &partition.source_path) && result;
+                   partition.name, source_slot, &partition.source_path) &&
+               result;
     } else {
       partition.source_path.clear();
     }
 
-    if (target_slot != BootControlInterface::kInvalidSlot) {
+    if (target_slot != BootControlInterface::kInvalidSlot &&
+        partition.target_size > 0) {
       result = boot_control->GetPartitionDevice(
-          partition.name, target_slot, &partition.target_path) && result;
+                   partition.name, target_slot, &partition.target_path) &&
+               result;
     } else {
       partition.target_path.clear();
     }

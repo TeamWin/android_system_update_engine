@@ -29,10 +29,7 @@
 #include <brillo/data_encoding.h>
 #include <brillo/streams/file_stream.h>
 
-#include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/payload_consumer/delta_performer.h"
-#include "update_engine/payload_consumer/payload_constants.h"
 
 using brillo::data_encoding::Base64Encode;
 using std::string;
@@ -87,24 +84,38 @@ void FilesystemVerifierAction::StartPartitionHashing() {
     Cleanup(ErrorCode::kSuccess);
     return;
   }
-  InstallPlan::Partition& partition =
+  const InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
 
   string part_path;
   switch (verifier_step_) {
     case VerifierStep::kVerifySourceHash:
       part_path = partition.source_path;
-      remaining_size_ = partition.source_size;
+      partition_size_ = partition.source_size;
       break;
     case VerifierStep::kVerifyTargetHash:
       part_path = partition.target_path;
-      remaining_size_ = partition.target_size;
+      partition_size_ = partition.target_size;
       break;
   }
+
+  if (part_path.empty()) {
+    if (partition_size_ == 0) {
+      LOG(INFO) << "Skip hashing partition " << partition_index_ << " ("
+                << partition.name << ") because size is 0.";
+      partition_index_++;
+      StartPartitionHashing();
+      return;
+    }
+    LOG(ERROR) << "Cannot hash partition " << partition_index_ << " ("
+               << partition.name
+               << ") because its device path cannot be determined.";
+    Cleanup(ErrorCode::kFilesystemVerifierError);
+    return;
+  }
+
   LOG(INFO) << "Hashing partition " << partition_index_ << " ("
             << partition.name << ") on device " << part_path;
-  if (part_path.empty())
-    return Cleanup(ErrorCode::kFilesystemVerifierError);
 
   brillo::ErrorPtr error;
   src_stream_ = brillo::FileStream::Open(
@@ -115,33 +126,55 @@ void FilesystemVerifierAction::StartPartitionHashing() {
 
   if (!src_stream_) {
     LOG(ERROR) << "Unable to open " << part_path << " for reading";
-    return Cleanup(ErrorCode::kFilesystemVerifierError);
+    Cleanup(ErrorCode::kFilesystemVerifierError);
+    return;
   }
 
   buffer_.resize(kReadFileBufferSize);
-  read_done_ = false;
-  hasher_.reset(new HashCalculator());
+  hasher_ = std::make_unique<HashCalculator>();
+
+  offset_ = 0;
+  if (verifier_step_ == VerifierStep::kVerifyTargetHash &&
+      install_plan_.write_verity) {
+    if (!verity_writer_->Init(partition)) {
+      Cleanup(ErrorCode::kVerityCalculationError);
+      return;
+    }
+  }
 
   // Start the first read.
   ScheduleRead();
 }
 
 void FilesystemVerifierAction::ScheduleRead() {
-  size_t bytes_to_read = std::min(static_cast<int64_t>(buffer_.size()),
-                                  remaining_size_);
+  const InstallPlan::Partition& partition =
+      install_plan_.partitions[partition_index_];
+
+  // We can only start reading anything past |hash_tree_offset| after we have
+  // already read all the data blocks that the hash tree covers. The same
+  // applies to FEC.
+  uint64_t read_end = partition_size_;
+  if (partition.hash_tree_size != 0 &&
+      offset_ < partition.hash_tree_data_offset + partition.hash_tree_data_size)
+    read_end = std::min(read_end, partition.hash_tree_offset);
+  if (partition.fec_size != 0 &&
+      offset_ < partition.fec_data_offset + partition.fec_data_size)
+    read_end = std::min(read_end, partition.fec_offset);
+  size_t bytes_to_read =
+      std::min(static_cast<uint64_t>(buffer_.size()), read_end - offset_);
   if (!bytes_to_read) {
-    OnReadDoneCallback(0);
+    FinishPartitionHashing();
     return;
   }
 
   bool read_async_ok = src_stream_->ReadAsync(
-    buffer_.data(),
-    bytes_to_read,
-    base::Bind(&FilesystemVerifierAction::OnReadDoneCallback,
-               base::Unretained(this)),
-    base::Bind(&FilesystemVerifierAction::OnReadErrorCallback,
-               base::Unretained(this)),
-    nullptr);
+      buffer_.data(),
+      bytes_to_read,
+      base::Bind(&FilesystemVerifierAction::OnReadDoneCallback,
+                 base::Unretained(this)),
+      base::Bind(&FilesystemVerifierAction::OnReadErrorCallback,
+                 base::Unretained(this)),
+      nullptr);
 
   if (!read_async_ok) {
     LOG(ERROR) << "Unable to schedule an asynchronous read from the stream.";
@@ -150,31 +183,40 @@ void FilesystemVerifierAction::ScheduleRead() {
 }
 
 void FilesystemVerifierAction::OnReadDoneCallback(size_t bytes_read) {
+  if (cancelled_) {
+    Cleanup(ErrorCode::kError);
+    return;
+  }
+
   if (bytes_read == 0) {
-    read_done_ = true;
-  } else {
-    remaining_size_ -= bytes_read;
-    CHECK(!read_done_);
-    if (!hasher_->Update(buffer_.data(), bytes_read)) {
-      LOG(ERROR) << "Unable to update the hash.";
-      Cleanup(ErrorCode::kError);
+    LOG(ERROR) << "Failed to read the remaining " << partition_size_ - offset_
+               << " bytes from partition "
+               << install_plan_.partitions[partition_index_].name;
+    Cleanup(ErrorCode::kFilesystemVerifierError);
+    return;
+  }
+
+  if (!hasher_->Update(buffer_.data(), bytes_read)) {
+    LOG(ERROR) << "Unable to update the hash.";
+    Cleanup(ErrorCode::kError);
+    return;
+  }
+
+  if (verifier_step_ == VerifierStep::kVerifyTargetHash &&
+      install_plan_.write_verity) {
+    if (!verity_writer_->Update(offset_, buffer_.data(), bytes_read)) {
+      Cleanup(ErrorCode::kVerityCalculationError);
       return;
     }
   }
 
-  // We either terminate the current partition or have more data to read.
-  if (cancelled_)
-    return Cleanup(ErrorCode::kError);
+  offset_ += bytes_read;
 
-  if (read_done_ || remaining_size_ == 0) {
-    if (remaining_size_ != 0) {
-      LOG(ERROR) << "Failed to read the remaining " << remaining_size_
-                 << " bytes from partition "
-                 << install_plan_.partitions[partition_index_].name;
-      return Cleanup(ErrorCode::kFilesystemVerifierError);
-    }
-    return FinishPartitionHashing();
+  if (offset_ == partition_size_) {
+    FinishPartitionHashing();
+    return;
   }
+
   ScheduleRead();
 }
 
@@ -188,7 +230,8 @@ void FilesystemVerifierAction::OnReadErrorCallback(
 void FilesystemVerifierAction::FinishPartitionHashing() {
   if (!hasher_->Finalize()) {
     LOG(ERROR) << "Unable to finalize the hash.";
-    return Cleanup(ErrorCode::kError);
+    Cleanup(ErrorCode::kError);
+    return;
   }
   InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
@@ -202,7 +245,8 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
                    << "' partition verification failed.";
         if (partition.source_hash.empty()) {
           // No need to verify source if it is a full payload.
-          return Cleanup(ErrorCode::kNewRootfsVerificationError);
+          Cleanup(ErrorCode::kNewRootfsVerificationError);
+          return;
         }
         // If we have not verified source partition yet, now that the target
         // partition does not match, and it's not a full payload, we need to
@@ -238,7 +282,8 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
                      "-binary | openssl base64";
         LOG(INFO) << "To get the checksum of partitions in a bin file, "
                   << "run: .../src/scripts/sha256_partitions.sh .../file.bin";
-        return Cleanup(ErrorCode::kDownloadStateInitializationError);
+        Cleanup(ErrorCode::kDownloadStateInitializationError);
+        return;
       }
       // The action will skip kVerifySourceHash step if target partition hash
       // matches, if we are in this step, it means target hash does not match,
@@ -246,7 +291,8 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
       // code to reflect the error in target partition.
       // We only need to verify the source partition which the target hash does
       // not match, the rest of the partitions don't matter.
-      return Cleanup(ErrorCode::kNewRootfsVerificationError);
+      Cleanup(ErrorCode::kNewRootfsVerificationError);
+      return;
   }
   // Start hashing the next partition, if any.
   hasher_.reset();

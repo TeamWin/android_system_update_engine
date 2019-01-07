@@ -45,7 +45,7 @@ class MockUpdateAttempter : public UpdateAttempter {
 
   MOCK_METHOD0(ResetStatus, bool(void));
 
-  MOCK_METHOD0(GetCurrentUpdateAttemptFlags, UpdateAttemptFlags(void));
+  MOCK_CONST_METHOD0(GetCurrentUpdateAttemptFlags, UpdateAttemptFlags(void));
 
   MOCK_METHOD3(CheckForUpdate,
                bool(const std::string& app_version,
@@ -61,8 +61,6 @@ class MockUpdateAttempter : public UpdateAttempter {
   MOCK_CONST_METHOD0(consecutive_failed_update_checks, unsigned int(void));
 
   MOCK_CONST_METHOD0(server_dictated_poll_interval, unsigned int(void));
-
-  MOCK_METHOD0(IsAnyUpdateSourceAllowed, bool(void));
 };
 
 }  // namespace chromeos_update_engine

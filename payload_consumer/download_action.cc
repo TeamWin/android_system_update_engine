@@ -56,7 +56,9 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       delegate_(nullptr),
       p2p_sharing_fd_(-1),
       p2p_visible_(true) {
+#if BASE_VER < 576279
   base::StatisticsRecorder::Initialize();
+#endif
 }
 
 DownloadAction::~DownloadAction() {}

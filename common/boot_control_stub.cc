@@ -59,4 +59,16 @@ bool BootControlStub::MarkBootSuccessfulAsync(
   return false;
 }
 
+bool BootControlStub::InitPartitionMetadata(
+    Slot slot,
+    const PartitionMetadata& partition_metadata,
+    bool update_metadata) {
+  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+  return false;
+}
+
+void BootControlStub::Cleanup() {
+  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+}
+
 }  // namespace chromeos_update_engine

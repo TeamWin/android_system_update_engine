@@ -272,6 +272,10 @@ class DeltaPerformer : public FileWriter {
   // it up.
   bool GetPublicKeyFromResponse(base::FilePath *out_tmp_key);
 
+  // After install_plan_ is filled with partition names and sizes, initialize
+  // metadata of partitions and map necessary devices before opening devices.
+  bool InitPartitionMetadata();
+
   // Update Engine preference store.
   PrefsInterface* prefs_;
 

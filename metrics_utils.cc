@@ -68,6 +68,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kDownloadWriteError:
     case ErrorCode::kFilesystemCopierError:
     case ErrorCode::kFilesystemVerifierError:
+    case ErrorCode::kVerityCalculationError:
       return metrics::AttemptResult::kOperationExecutionError;
 
     case ErrorCode::kDownloadMetadataSignatureMismatch:
@@ -78,6 +79,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kDownloadPayloadVerificationError:
     case ErrorCode::kSignedDeltaPayloadExpectedError:
     case ErrorCode::kDownloadPayloadPubKeyVerificationError:
+    case ErrorCode::kPayloadTimestampError:
       return metrics::AttemptResult::kPayloadVerificationFailed;
 
     case ErrorCode::kNewRootfsVerificationError:
@@ -218,10 +220,12 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
     case ErrorCode::kOmahaUpdateIgnoredOverCellular:
+    case ErrorCode::kPayloadTimestampError:
     case ErrorCode::kUpdatedButNotActive:
     case ErrorCode::kNoUpdate:
     case ErrorCode::kRollbackNotPossible:
     case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
+    case ErrorCode::kVerityCalculationError:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -367,8 +371,17 @@ void SetUpdateTimestampStart(const Time& update_start_time,
   CHECK(prefs);
   prefs->SetInt64(kPrefsUpdateTimestampStart,
                   update_start_time.ToInternalValue());
-  LOG(INFO) << "Update Timestamp Start = "
+  LOG(INFO) << "Update Monotonic Timestamp Start = "
             << utils::ToString(update_start_time);
+}
+
+void SetUpdateBootTimestampStart(const base::Time& update_start_boot_time,
+                                 PrefsInterface* prefs) {
+  CHECK(prefs);
+  prefs->SetInt64(kPrefsUpdateBootTimestampStart,
+                  update_start_boot_time.ToInternalValue());
+  LOG(INFO) << "Update Boot Timestamp Start = "
+            << utils::ToString(update_start_boot_time);
 }
 
 bool LoadAndReportTimeToReboot(MetricsReporterInterface* metrics_reporter,

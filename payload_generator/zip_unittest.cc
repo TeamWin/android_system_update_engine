@@ -62,7 +62,6 @@ class MemoryExtentWriter : public ExtentWriter {
                   static_cast<const uint8_t*>(bytes) + count);
     return true;
   }
-  bool EndImpl() override { return true; }
 
  private:
   brillo::Blob* data_;
@@ -75,8 +74,6 @@ bool DecompressWithWriter(const brillo::Blob& in, brillo::Blob* out) {
   // Init() parameters are ignored by the testing MemoryExtentWriter.
   bool ok = writer->Init(nullptr, {}, 1);
   ok = writer->Write(in.data(), in.size()) && ok;
-  // Call End() even if the Write failed.
-  ok = writer->End() && ok;
   return ok;
 }
 
@@ -135,7 +132,7 @@ TYPED_TEST(ZipTest, SimpleTest) {
   brillo::Blob decompressed;
   EXPECT_TRUE(this->ZipDecompress(out, &decompressed));
   EXPECT_EQ(in.size(), decompressed.size());
-  EXPECT_TRUE(!memcmp(in.data(), decompressed.data(), in.size()));
+  EXPECT_EQ(0, memcmp(in.data(), decompressed.data(), in.size()));
 }
 
 TYPED_TEST(ZipTest, PoorCompressionTest) {
@@ -163,6 +160,20 @@ TYPED_TEST(ZipTest, EmptyInputsTest) {
 
   EXPECT_TRUE(this->ZipCompress(in, &out));
   EXPECT_EQ(0U, out.size());
+}
+
+TYPED_TEST(ZipTest, CompressELFTest) {
+  string path = test_utils::GetBuildArtifactsPath("delta_generator");
+  brillo::Blob in;
+  utils::ReadFile(path, &in);
+  brillo::Blob out;
+  EXPECT_TRUE(this->ZipCompress(in, &out));
+  EXPECT_LT(out.size(), in.size());
+  EXPECT_GT(out.size(), 0U);
+  brillo::Blob decompressed;
+  EXPECT_TRUE(this->ZipDecompress(out, &decompressed));
+  EXPECT_EQ(in.size(), decompressed.size());
+  EXPECT_EQ(0, memcmp(in.data(), decompressed.data(), in.size()));
 }
 
 }  // namespace chromeos_update_engine

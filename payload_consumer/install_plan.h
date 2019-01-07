@@ -46,7 +46,7 @@ struct InstallPlan {
 
   void Dump() const;
 
-  // Load the |source_path| and |target_path| of all |partitions| based on the
+  // Loads the |source_path| and |target_path| of all |partitions| based on the
   // |source_slot| and |target_slot| if available. Returns whether it succeeded
   // to load all the partitions for the valid slots.
   bool LoadPartitionsFromSlots(BootControlInterface* boot_control);
@@ -101,6 +101,7 @@ struct InstallPlan {
     std::string target_path;
     uint64_t target_size{0};
     brillo::Blob target_hash;
+    uint32_t block_size{0};
 
     // Whether we should run the postinstall script from this partition and the
     // postinstall parameters.
@@ -108,6 +109,21 @@ struct InstallPlan {
     std::string postinstall_path;
     std::string filesystem_type;
     bool postinstall_optional{false};
+
+    // Verity hash tree and FEC config. See update_metadata.proto for details.
+    // All offsets and sizes are in bytes.
+    uint64_t hash_tree_data_offset{0};
+    uint64_t hash_tree_data_size{0};
+    uint64_t hash_tree_offset{0};
+    uint64_t hash_tree_size{0};
+    std::string hash_tree_algorithm;
+    brillo::Blob hash_tree_salt;
+
+    uint64_t fec_data_offset{0};
+    uint64_t fec_data_size{0};
+    uint64_t fec_offset{0};
+    uint64_t fec_size{0};
+    uint32_t fec_roots{0};
   };
   std::vector<Partition> partitions;
 
@@ -129,6 +145,10 @@ struct InstallPlan {
 
   // True if this update is a rollback.
   bool is_rollback{false};
+
+  // True if the update should write verity.
+  // False otherwise.
+  bool write_verity{true};
 
   // If not blank, a base-64 encoded representation of the PEM-encoded
   // public key in the response.

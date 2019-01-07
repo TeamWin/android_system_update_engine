@@ -175,11 +175,14 @@ message InstallOperation {
     PUFFDIFF = 9;  // The data is in puffdiff format.
   }
   required Type type = 1;
+
+  // Only minor version 6 or newer support 64 bits |data_offset| and
+  // |data_length|, older client will read them as uint32.
   // The offset into the delta file (after the protobuf)
   // where the data (if any) is stored
-  optional uint32 data_offset = 2;
+  optional uint64 data_offset = 2;
   // The length of the data in the delta file
-  optional uint32 data_length = 3;
+  optional uint64 data_length = 3;
 
   // Ordered list of extents that are read from (if any) and written to.
   repeated Extent src_extents = 4;
@@ -248,6 +251,52 @@ message PartitionUpdate {
   // Whether a failure in the postinstall step for this partition should be
   // ignored.
   optional bool postinstall_optional = 9;
+
+  // On minor version 6 or newer, these fields are supported:
+
+  // The extent for data covered by verity hash tree.
+  optional Extent hash_tree_data_extent = 10;
+
+  // The extent to store verity hash tree.
+  optional Extent hash_tree_extent = 11;
+
+  // The hash algorithm used in verity hash tree.
+  optional string hash_tree_algorithm = 12;
+
+  // The salt used for verity hash tree.
+  optional bytes hash_tree_salt = 13;
+
+  // The extent for data covered by FEC.
+  optional Extent fec_data_extent = 14;
+
+  // The extent to store FEC.
+  optional Extent fec_extent = 15;
+
+  // The number of FEC roots.
+  optional uint32 fec_roots = 16 [default = 2];
+}
+
+message DynamicPartitionGroup {
+  // Name of the group.
+  required string name = 1;
+
+  // Maximum size of the group. The sum of sizes of all partitions in the group
+  // must not exceed the maximum size of the group.
+  optional uint64 size = 2;
+
+  // A list of partitions that belong to the group.
+  repeated string partition_names = 3;
+}
+
+// Metadata related to all dynamic partitions.
+message DynamicPartitionMetadata {
+  // All updateable groups present in |partitions| of this DeltaArchiveManifest.
+  // - If an updatable group is on the device but not in the manifest, it is
+  //   not updated. Hence, the group will not be resized, and partitions cannot
+  //   be added to or removed from the group.
+  // - If an updatable group is in the manifest but not on the device, the group
+  //   is added to the device.
+  repeated DynamicPartitionGroup groups = 1;
 }
 
 message DeltaArchiveManifest {
@@ -290,4 +339,11 @@ message DeltaArchiveManifest {
   // array can have more than two partitions if needed, and they are identified
   // by the partition name.
   repeated PartitionUpdate partitions = 13;
+
+  // The maximum timestamp of the OS allowed to apply this payload.
+  // Can be used to prevent downgrading the OS.
+  optional int64 max_timestamp = 14;
+
+  // Metadata related to all dynamic partitions.
+  optional DynamicPartitionMetadata dynamic_partition_metadata = 15;
 }

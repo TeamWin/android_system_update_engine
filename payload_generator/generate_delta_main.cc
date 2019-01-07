@@ -14,28 +14,27 @@
 // limitations under the License.
 //
 
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <xz.h>
-
 #include <string>
 #include <vector>
 
+#include <base/files/file_path.h>
+#include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <brillo/flag_helper.h>
 #include <brillo/key_value_store.h>
+#include <brillo/message_loops/base_message_loop.h>
+#include <xz.h>
 
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/payload_consumer/delta_performer.h"
+#include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
@@ -185,8 +184,20 @@ int VerifySignedPayload(const string& in_file, const string& public_key) {
   return 0;
 }
 
-// TODO(deymo): This function is likely broken for deltas minor version 2 or
-// newer. Move this function to a new file and make the delta_performer
+class ApplyPayloadProcessorDelegate : public ActionProcessorDelegate {
+ public:
+  void ProcessingDone(const ActionProcessor* processor,
+                      ErrorCode code) override {
+    brillo::MessageLoop::current()->BreakLoop();
+    code_ = code;
+  }
+  void ProcessingStopped(const ActionProcessor* processor) override {
+    brillo::MessageLoop::current()->BreakLoop();
+  }
+  ErrorCode code_;
+};
+
+// TODO(deymo): Move this function to a new file and make the delta_performer
 // integration tests use this instead.
 bool ApplyPayload(const string& payload_file,
                   // Simply reuses the payload config used for payload
@@ -203,6 +214,14 @@ bool ApplyPayload(const string& payload_file,
   install_plan.target_slot = 1;
   payload.type =
       config.is_delta ? InstallPayloadType::kDelta : InstallPayloadType::kFull;
+  payload.size = utils::FileSize(payload_file);
+  // TODO(senj): This hash is only correct for unsigned payload, need to support
+  // signed payload using PayloadSigner.
+  HashCalculator::RawHashOfFile(payload_file, payload.size, &payload.hash);
+  install_plan.payloads = {payload};
+  install_plan.download_url =
+      "file://" +
+      base::MakeAbsoluteFilePath(base::FilePath(payload_file)).value();
 
   for (size_t i = 0; i < config.target.partitions.size(); i++) {
     const string& part_name = config.target.partitions[i].name;
@@ -220,31 +239,34 @@ bool ApplyPayload(const string& payload_file,
     }
 
     LOG(INFO) << "Install partition:"
-              << " source: " << source_path << " target: " << target_path;
+              << " source: " << source_path << "\ttarget: " << target_path;
   }
 
-  DeltaPerformer performer(&prefs,
-                           &fake_boot_control,
-                           &fake_hardware,
-                           nullptr,
-                           &install_plan,
-                           &payload,
-                           true);  // interactive
-
-  brillo::Blob buf(1024 * 1024);
-  int fd = open(payload_file.c_str(), O_RDONLY, 0);
-  CHECK_GE(fd, 0);
-  ScopedFdCloser fd_closer(&fd);
   xz_crc32_init();
-  for (off_t offset = 0;; offset += buf.size()) {
-    ssize_t bytes_read;
-    CHECK(utils::PReadAll(fd, buf.data(), buf.size(), offset, &bytes_read));
-    if (bytes_read == 0)
-      break;
-    TEST_AND_RETURN_FALSE(performer.Write(buf.data(), bytes_read));
-  }
-  CHECK_EQ(performer.Close(), 0);
-  DeltaPerformer::ResetUpdateProgress(&prefs, false);
+  brillo::BaseMessageLoop loop;
+  loop.SetAsCurrent();
+  auto install_plan_action = std::make_unique<InstallPlanAction>(install_plan);
+  auto download_action =
+      std::make_unique<DownloadAction>(&prefs,
+                                       &fake_boot_control,
+                                       &fake_hardware,
+                                       nullptr,
+                                       new FileFetcher(),
+                                       true /* interactive */);
+  auto filesystem_verifier_action =
+      std::make_unique<FilesystemVerifierAction>();
+
+  BondActions(install_plan_action.get(), download_action.get());
+  BondActions(download_action.get(), filesystem_verifier_action.get());
+  ActionProcessor processor;
+  ApplyPayloadProcessorDelegate delegate;
+  processor.set_delegate(&delegate);
+  processor.EnqueueAction(std::move(install_plan_action));
+  processor.EnqueueAction(std::move(download_action));
+  processor.EnqueueAction(std::move(filesystem_verifier_action));
+  processor.StartProcessing();
+  loop.Run();
+  CHECK_EQ(delegate.code_, ErrorCode::kSuccess);
   LOG(INFO) << "Completed applying " << (config.is_delta ? "delta" : "full")
             << " payload.";
   return true;
@@ -339,6 +361,10 @@ int Main(int argc, char** argv) {
   DEFINE_string(properties_file, "",
                 "If passed, dumps the payload properties of the payload passed "
                 "in --in_file and exits.");
+  DEFINE_int64(max_timestamp,
+               0,
+               "The maximum timestamp of the OS allowed to apply this "
+               "payload.");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -377,6 +403,10 @@ int Main(int argc, char** argv) {
                 "The version of the build containing the new image.");
   DEFINE_string(new_postinstall_config_file, "",
                 "A config file specifying postinstall related metadata. "
+                "Only allowed in major version 2 or newer.");
+  DEFINE_string(dynamic_partition_info_file,
+                "",
+                "An info file specifying dynamic partition metadata. "
                 "Only allowed in major version 2 or newer.");
 
   brillo::FlagHelper::Init(argc, argv,
@@ -527,6 +557,16 @@ int Main(int argc, char** argv) {
   }
   CHECK(payload_config.target.LoadImageSize());
 
+  if (!FLAGS_dynamic_partition_info_file.empty()) {
+    LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
+        << "Dynamic partition info is only allowed in major version 2 or "
+           "newer.";
+    brillo::KeyValueStore store;
+    CHECK(store.Load(base::FilePath(FLAGS_dynamic_partition_info_file)));
+    CHECK(payload_config.target.LoadDynamicPartitionMetadata(store));
+    CHECK(payload_config.target.ValidateDynamicPartitionMetadata());
+  }
+
   CHECK(!FLAGS_out_file.empty());
 
   // Ignore failures. These are optional arguments.
@@ -582,6 +622,11 @@ int Main(int argc, char** argv) {
     payload_config.version.minor = FLAGS_minor_version;
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
   }
+
+  payload_config.max_timestamp = FLAGS_max_timestamp;
+
+  if (payload_config.version.minor >= kVerityMinorPayloadVersion)
+    CHECK(payload_config.target.LoadVerityConfig());
 
   LOG(INFO) << "Generating " << (payload_config.is_delta ? "delta" : "full")
             << " update";

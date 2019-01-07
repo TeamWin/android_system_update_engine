@@ -40,15 +40,11 @@ class FullUpdateGeneratorTest : public ::testing::Test {
     config_.hard_chunk_size = 128 * 1024;
     config_.block_size = 4096;
 
-    EXPECT_TRUE(utils::MakeTempFile("FullUpdateTest_partition.XXXXXX",
-                                    &new_part_conf.path,
-                                    nullptr));
-    EXPECT_TRUE(utils::MakeTempFile("FullUpdateTest_blobs.XXXXXX",
-                                    &out_blobs_path_,
-                                    &out_blobs_fd_));
+    new_part_conf.path = part_file_.path();
+    EXPECT_TRUE(utils::MakeTempFile(
+        "FullUpdateTest_blobs.XXXXXX", &out_blobs_path_, &out_blobs_fd_));
 
     blob_file_.reset(new BlobFileWriter(out_blobs_fd_, &out_blobs_length_));
-    part_path_unlinker_.reset(new ScopedPathUnlinker(new_part_conf.path));
     out_blobs_unlinker_.reset(new ScopedPathUnlinker(out_blobs_path_));
   }
 
@@ -62,9 +58,9 @@ class FullUpdateGeneratorTest : public ::testing::Test {
   int out_blobs_fd_{-1};
   off_t out_blobs_length_{0};
   ScopedFdCloser out_blobs_fd_closer_{&out_blobs_fd_};
+  test_utils::ScopedTempFile part_file_{"FullUpdateTest_partition.XXXXXX"};
 
   std::unique_ptr<BlobFileWriter> blob_file_;
-  std::unique_ptr<ScopedPathUnlinker> part_path_unlinker_;
   std::unique_ptr<ScopedPathUnlinker> out_blobs_unlinker_;
 
   // FullUpdateGenerator under test.

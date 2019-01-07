@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <map>
+#include <utility>
 
 #include <base/strings/stringprintf.h>
 
@@ -73,6 +74,14 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
     *(manifest_.mutable_new_image_info()) = config.target.image_info;
 
   manifest_.set_block_size(config.block_size);
+  manifest_.set_max_timestamp(config.max_timestamp);
+
+  if (major_version_ == kBrilloMajorPayloadVersion) {
+    if (config.target.dynamic_partition_metadata != nullptr)
+      *(manifest_.mutable_dynamic_partition_metadata()) =
+          *(config.target.dynamic_partition_metadata);
+  }
+
   return true;
 }
 
@@ -90,6 +99,7 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
   part.name = new_conf.name;
   part.aops = aops;
   part.postinstall = new_conf.postinstall;
+  part.verity = new_conf.verity;
   // Initialize the PartitionInfo objects if present.
   if (!old_conf.path.empty())
     TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(old_conf,
@@ -142,6 +152,22 @@ bool PayloadFile::WritePayload(const string& payload_file,
         if (!part.postinstall.filesystem_type.empty())
           partition->set_filesystem_type(part.postinstall.filesystem_type);
         partition->set_postinstall_optional(part.postinstall.optional);
+      }
+      if (!part.verity.IsEmpty()) {
+        if (part.verity.hash_tree_extent.num_blocks() != 0) {
+          *partition->mutable_hash_tree_data_extent() =
+              part.verity.hash_tree_data_extent;
+          *partition->mutable_hash_tree_extent() = part.verity.hash_tree_extent;
+          partition->set_hash_tree_algorithm(part.verity.hash_tree_algorithm);
+          if (!part.verity.hash_tree_salt.empty())
+            partition->set_hash_tree_salt(part.verity.hash_tree_salt.data(),
+                                          part.verity.hash_tree_salt.size());
+        }
+        if (part.verity.fec_extent.num_blocks() != 0) {
+          *partition->mutable_fec_data_extent() = part.verity.fec_data_extent;
+          *partition->mutable_fec_extent() = part.verity.fec_extent;
+          partition->set_fec_roots(part.verity.fec_roots);
+        }
       }
       for (const AnnotatedOperation& aop : part.aops) {
         *partition->add_operations() = aop.op;
@@ -324,37 +350,39 @@ bool PayloadFile::AddOperationHash(InstallOperation* op,
 void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
   std::map<DeltaObject, int> object_counts;
   off_t total_size = 0;
+  int total_op = 0;
 
   for (const auto& part : part_vec_) {
+    string part_prefix = "<" + part.name + ">:";
     for (const AnnotatedOperation& aop : part.aops) {
-      DeltaObject delta(aop.name, aop.op.type(), aop.op.data_length());
+      DeltaObject delta(
+          part_prefix + aop.name, aop.op.type(), aop.op.data_length());
       object_counts[delta]++;
       total_size += aop.op.data_length();
     }
+    total_op += part.aops.size();
   }
 
   object_counts[DeltaObject("<manifest-metadata>", -1, metadata_size)] = 1;
   total_size += metadata_size;
 
-  static const char kFormatString[] = "%6.2f%% %10jd %-13s %s %d";
+  constexpr char kFormatString[] = "%6.2f%% %10jd %-13s %s %d\n";
   for (const auto& object_count : object_counts) {
     const DeltaObject& object = object_count.first;
-    LOG(INFO) << base::StringPrintf(
+    // Use printf() instead of LOG(INFO) because timestamp makes it difficult to
+    // compare two reports.
+    printf(
         kFormatString,
         object.size * 100.0 / total_size,
-        static_cast<intmax_t>(object.size),
+        object.size,
         (object.type >= 0 ? InstallOperationTypeName(
                                 static_cast<InstallOperation_Type>(object.type))
                           : "-"),
         object.name.c_str(),
         object_count.second);
   }
-  LOG(INFO) << base::StringPrintf(kFormatString,
-                                  100.0,
-                                  static_cast<intmax_t>(total_size),
-                                  "",
-                                  "<total>",
-                                  1);
+  printf(kFormatString, 100.0, total_size, "", "<total>", total_op);
+  fflush(stdout);
 }
 
 }  // namespace chromeos_update_engine

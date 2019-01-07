@@ -89,7 +89,9 @@ class AndroidOTAPackage(object):
 
     otazip = zipfile.ZipFile(otafilename, 'r')
     payload_info = otazip.getinfo(self.OTA_PAYLOAD_BIN)
-    self.offset = payload_info.header_offset + len(payload_info.FileHeader())
+    self.offset = payload_info.header_offset
+    self.offset += zipfile.sizeFileHeader
+    self.offset += len(payload_info.extra) + len(payload_info.filename)
     self.size = payload_info.file_size
     self.properties = otazip.read(self.OTA_PAYLOAD_PROPERTIES_TXT)
 

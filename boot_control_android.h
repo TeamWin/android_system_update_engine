@@ -17,11 +17,16 @@
 #ifndef UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
 #define UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
 
+#include <map>
+#include <memory>
 #include <string>
 
 #include <android/hardware/boot/1.0/IBootControl.h>
+#include <base/files/file_util.h>
+#include <liblp/builder.h>
 
 #include "update_engine/common/boot_control.h"
+#include "update_engine/dynamic_partition_control_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -46,9 +51,41 @@ class BootControlAndroid : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
+  bool InitPartitionMetadata(Slot slot,
+                             const PartitionMetadata& partition_metadata,
+                             bool update_metadata) override;
+  void Cleanup() override;
 
  private:
   ::android::sp<::android::hardware::boot::V1_0::IBootControl> module_;
+  std::unique_ptr<DynamicPartitionControlInterface> dynamic_control_;
+
+  friend class BootControlAndroidTest;
+
+  // Wrapper method of IBootControl::getSuffix().
+  bool GetSuffix(Slot slot, std::string* out) const;
+
+  enum class DynamicPartitionDeviceStatus {
+    SUCCESS,
+    ERROR,
+    TRY_STATIC,
+  };
+
+  DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
+      const base::FilePath& device_dir,
+      const std::string& partition_name_suffix,
+      Slot slot,
+      std::string* device) const;
+
+  // Return true if |partition_name_suffix| is a block device of
+  // super partition metadata slot |slot|.
+  bool IsSuperBlockDevice(const base::FilePath& device_dir,
+                          Slot slot,
+                          const std::string& partition_name_suffix) const;
+
+  // Whether the target partitions should be loaded as dynamic partitions. Set
+  // by InitPartitionMetadata() per each update.
+  bool is_target_dynamic_{false};
 
   DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);
 };

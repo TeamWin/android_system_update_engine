@@ -131,6 +131,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
                                   uint32_t minor_version) {
     BlobFileWriter blob_file(blob_fd_, &blob_size_);
     PayloadVersion version(kChromeOSMajorPayloadVersion, minor_version);
+    ExtentRanges old_zero_blocks;
     return diff_utils::DeltaMovedAndZeroBlocks(&aops_,
                                                old_part_.path,
                                                new_part_.path,
@@ -140,7 +141,8 @@ class DeltaDiffUtilsTest : public ::testing::Test {
                                                version,
                                                &blob_file,
                                                &old_visited_blocks_,
-                                               &new_visited_blocks_);
+                                               &new_visited_blocks_,
+                                               &old_zero_blocks);
   }
 
   // Old and new temporary partitions used in the tests. These are initialized
@@ -160,6 +162,31 @@ class DeltaDiffUtilsTest : public ::testing::Test {
   ExtentRanges old_visited_blocks_;
   ExtentRanges new_visited_blocks_;
 };
+
+TEST_F(DeltaDiffUtilsTest, SkipVerityExtentsTest) {
+  new_part_.verity.hash_tree_extent = ExtentForRange(20, 30);
+  new_part_.verity.fec_extent = ExtentForRange(40, 50);
+
+  BlobFileWriter blob_file(blob_fd_, &blob_size_);
+  EXPECT_TRUE(diff_utils::DeltaReadPartition(
+      &aops_,
+      old_part_,
+      new_part_,
+      -1,
+      -1,
+      PayloadVersion(kMaxSupportedMajorPayloadVersion,
+                     kVerityMinorPayloadVersion),
+      &blob_file));
+  for (const auto& aop : aops_) {
+    new_visited_blocks_.AddRepeatedExtents(aop.op.dst_extents());
+  }
+  for (const auto& extent : new_visited_blocks_.extent_set()) {
+    EXPECT_FALSE(ExtentRanges::ExtentsOverlap(
+        extent, new_part_.verity.hash_tree_extent));
+    EXPECT_FALSE(
+        ExtentRanges::ExtentsOverlap(extent, new_part_.verity.fec_extent));
+  }
+}
 
 TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
   brillo::Blob data_blob(block_size_);
@@ -443,6 +470,37 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
   EXPECT_EQ(InstallOperation::SOURCE_BSDIFF, op.type());
 }
 
+TEST_F(DeltaDiffUtilsTest, PreferReplaceTest) {
+  brillo::Blob data_blob(kBlockSize);
+  vector<Extent> extents = {ExtentForRange(1, 1)};
+
+  // Write something in the first 50 bytes so that REPLACE_BZ will be slightly
+  // larger than BROTLI_BSDIFF.
+  std::iota(data_blob.begin(), data_blob.begin() + 50, 0);
+  EXPECT_TRUE(WriteExtents(old_part_.path, extents, kBlockSize, data_blob));
+  // Shift the first 50 bytes in the new file by one.
+  std::iota(data_blob.begin(), data_blob.begin() + 50, 1);
+  EXPECT_TRUE(WriteExtents(new_part_.path, extents, kBlockSize, data_blob));
+
+  brillo::Blob data;
+  InstallOperation op;
+  EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
+      old_part_.path,
+      new_part_.path,
+      extents,
+      extents,
+      {},  // old_deflates
+      {},  // new_deflates
+      PayloadVersion(kMaxSupportedMajorPayloadVersion,
+                     kMaxSupportedMinorPayloadVersion),
+      &data,
+      &op));
+
+  EXPECT_FALSE(data.empty());
+  EXPECT_TRUE(op.has_type());
+  EXPECT_EQ(InstallOperation::REPLACE_BZ, op.type());
+}
+
 TEST_F(DeltaDiffUtilsTest, IsNoopOperationTest) {
   InstallOperation op;
   op.set_type(InstallOperation::REPLACE_BZ);
@@ -721,6 +779,47 @@ TEST_F(DeltaDiffUtilsTest, IsExtFilesystemTest) {
       test_utils::GetBuildArtifactsPath("gen/disk_ext2_1k.img")));
   EXPECT_TRUE(diff_utils::IsExtFilesystem(
       test_utils::GetBuildArtifactsPath("gen/disk_ext2_4k.img")));
+}
+
+TEST_F(DeltaDiffUtilsTest, GetOldFileEmptyTest) {
+  EXPECT_TRUE(diff_utils::GetOldFile({}, "filename").name.empty());
+}
+
+TEST_F(DeltaDiffUtilsTest, GetOldFileTest) {
+  std::map<string, FilesystemInterface::File> old_files_map;
+  auto file_list = {
+      "filename",
+      "filename.zip",
+      "version1.1",
+      "version2.0",
+      "version",
+      "update_engine",
+      "delta_generator",
+  };
+  for (const auto& name : file_list) {
+    FilesystemInterface::File file;
+    file.name = name;
+    old_files_map.emplace(name, file);
+  }
+
+  // Always return exact match if possible.
+  for (const auto& name : file_list)
+    EXPECT_EQ(diff_utils::GetOldFile(old_files_map, name).name, name);
+
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "file_name").name,
+            "filename");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "filename_new.zip").name,
+            "filename.zip");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "version1.2").name,
+            "version1.1");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "version3.0").name,
+            "version2.0");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "_version").name, "version");
+  EXPECT_EQ(
+      diff_utils::GetOldFile(old_files_map, "update_engine_unittest").name,
+      "update_engine");
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "bin/delta_generator").name,
+            "delta_generator");
 }
 
 }  // namespace chromeos_update_engine

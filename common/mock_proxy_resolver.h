@@ -14,8 +14,25 @@
 // limitations under the License.
 //
 
-#include <hardware/hardware.h>
+#ifndef UPDATE_ENGINE_COMMON_MOCK_PROXY_RESOLVER_H_
+#define UPDATE_ENGINE_COMMON_MOCK_PROXY_RESOLVER_H_
 
-hw_module_t HAL_MODULE_INFO_SYM = {
-  .id = "stub",
+#include <string>
+
+#include <gmock/gmock.h>
+
+#include "update_engine/common/proxy_resolver.h"
+
+namespace chromeos_update_engine {
+
+class MockProxyResolver : public ProxyResolver {
+ public:
+  MOCK_METHOD2(GetProxiesForUrl,
+               ProxyRequestId(const std::string& url,
+                              const ProxiesResolvedFn& callback));
+  MOCK_METHOD1(CancelProxyRequest, bool(ProxyRequestId request));
 };
+
+}  // namespace chromeos_update_engine
+
+#endif  // UPDATE_ENGINE_COMMON_MOCK_PROXY_RESOLVER_H_

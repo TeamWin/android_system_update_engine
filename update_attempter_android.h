@@ -93,14 +93,6 @@ class UpdateAttempterAndroid
  private:
   friend class UpdateAttempterAndroidTest;
 
-  // Asynchronously marks the current slot as successful if needed. If already
-  // marked as good, CompleteUpdateBootFlags() is called starting the action
-  // processor.
-  void UpdateBootFlags();
-
-  // Called when the boot flags have been updated.
-  void CompleteUpdateBootFlags(bool success);
-
   // Schedules an event loop callback to start the action processor. This is
   // scheduled asynchronously to unblock the event loop.
   void ScheduleProcessingStart();
@@ -130,7 +122,10 @@ class UpdateAttempterAndroid
   // payload_id.
   // |KprefsNumReboots|: number of reboots when applying the current update.
   // |kPrefsSystemUpdatedMarker|: end timestamp of the last successful update.
-  // |kPrefsUpdateTimestampStart|: start timestamp of the current update.
+  // |kPrefsUpdateTimestampStart|: start timestamp in monotonic time of the
+  // current update.
+  // |kPrefsUpdateBootTimestampStart|: start timestamp in boot time of
+  // the current update.
   // |kPrefsCurrentBytesDownloaded|: number of bytes downloaded for the current
   // payload_id.
   // |kPrefsTotalBytesDownloaded|: number of bytes downloaded in total since
@@ -151,13 +146,14 @@ class UpdateAttempterAndroid
   void UpdatePrefsAndReportUpdateMetricsOnReboot();
 
   // Prefs to update:
-  //   |kPrefsPayloadAttemptNumber|, |kPrefsUpdateTimestampStart|
+  //   |kPrefsPayloadAttemptNumber|, |kPrefsUpdateTimestampStart|,
+  //   |kPrefsUpdateBootTimestampStart|
   void UpdatePrefsOnUpdateStart(bool is_resume);
 
   // Prefs to delete:
   //   |kPrefsNumReboots|, |kPrefsPayloadAttemptNumber|,
   //   |kPrefsSystemUpdatedMarker|, |kPrefsUpdateTimestampStart|,
-  //   |kPrefsCurrentBytesDownloaded|
+  //   |kPrefsUpdateBootTimestampStart|, |kPrefsCurrentBytesDownloaded|
   void ClearMetricsPrefs();
 
   DaemonStateInterface* daemon_state_;
@@ -177,11 +173,6 @@ class UpdateAttempterAndroid
 
   // The processor for running Actions.
   std::unique_ptr<ActionProcessor> processor_;
-
-  // Whether there is an ongoing update. This implies that an update was started
-  // but not finished yet. This value will be true even if the update was
-  // suspended.
-  bool ongoing_update_{false};
 
   // The InstallPlan used during the ongoing update.
   InstallPlan install_plan_;

@@ -307,6 +307,8 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kPayloadMismatchedType:
     case ErrorCode::kUnsupportedMajorPayloadVersion:
     case ErrorCode::kUnsupportedMinorPayloadVersion:
+    case ErrorCode::kPayloadTimestampError:
+    case ErrorCode::kVerityCalculationError:
       IncrementUrlIndex();
       break;
 

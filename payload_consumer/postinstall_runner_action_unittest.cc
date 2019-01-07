@@ -329,7 +329,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootAbsolutePathNotAllowedTest) {
 // SElinux labels are only set on Android.
 TEST_F(PostinstallRunnerActionTest, RunAsRootCheckFileContextsTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
-  RunPosinstallAction(loop.dev(), "bin/self_check_context", false, false);
+  RunPostinstallAction(loop.dev(), "bin/self_check_context", false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 #endif  // __ANDROID__

@@ -26,6 +26,7 @@ const brillo::Blob::size_type kOutputBufferLength = 16 * 1024;
 
 BzipExtentWriter::~BzipExtentWriter() {
   TEST_AND_RETURN(BZ2_bzDecompressEnd(&stream_) == BZ_OK);
+  TEST_AND_RETURN(input_buffer_.empty());
 }
 
 bool BzipExtentWriter::Init(FileDescriptorPtr fd,
@@ -84,11 +85,6 @@ bool BzipExtentWriter::Write(const void* bytes, size_t count) {
   }
 
   return true;
-}
-
-bool BzipExtentWriter::EndImpl() {
-  TEST_AND_RETURN_FALSE(input_buffer_.empty());
-  return next_->End();
 }
 
 }  // namespace chromeos_update_engine

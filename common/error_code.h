@@ -74,11 +74,12 @@ enum class ErrorCode : int {
   kUserCanceled = 48,
   kNonCriticalUpdateInOOBE = 49,
   kOmahaUpdateIgnoredOverCellular = 50,
-  // kPayloadTimestampError = 51,
+  kPayloadTimestampError = 51,
   kUpdatedButNotActive = 52,
   kNoUpdate = 53,
   kRollbackNotPossible = 54,
   kFirstActiveOmahaPingSentPersistenceError = 55,
+  kVerityCalculationError = 56,
 
   // VERY IMPORTANT! When adding new error codes:
   //

@@ -51,26 +51,42 @@ string BoxedValue::ValuePrinter<string>(const void* value) {
 template<>
 string BoxedValue::ValuePrinter<int>(const void* value) {
   const int* val = reinterpret_cast<const int*>(value);
+#if BASE_VER < 576279
   return base::IntToString(*val);
+#else
+  return base::NumberToString(*val);
+#endif
 }
 
 template<>
 string BoxedValue::ValuePrinter<unsigned int>(const void* value) {
   const unsigned int* val = reinterpret_cast<const unsigned int*>(value);
+#if BASE_VER < 576279
   return base::UintToString(*val);
+#else
+  return base::NumberToString(*val);
+#endif
 }
 
 template<>
 string BoxedValue::ValuePrinter<int64_t>(const void* value) {
   const int64_t* val = reinterpret_cast<const int64_t*>(value);
+#if BASE_VER < 576279
   return base::Int64ToString(*val);
+#else
+  return base::NumberToString(*val);
+#endif
 }
 
 template<>
 string BoxedValue::ValuePrinter<uint64_t>(const void* value) {
   const uint64_t* val =
     reinterpret_cast<const uint64_t*>(value);
-  return base::Uint64ToString(static_cast<uint64_t>(*val));
+#if BASE_VER < 576279
+  return base::Uint64ToString(*val);
+#else
+  return base::NumberToString(*val);
+#endif
 }
 
 template<>
@@ -82,7 +98,11 @@ string BoxedValue::ValuePrinter<bool>(const void* value) {
 template<>
 string BoxedValue::ValuePrinter<double>(const void* value) {
   const double* val = reinterpret_cast<const double*>(value);
+#if BASE_VER < 576279
   return base::DoubleToString(*val);
+#else
+  return base::NumberToString(*val);
+#endif
 }
 
 template<>
