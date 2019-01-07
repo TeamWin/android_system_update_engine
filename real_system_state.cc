@@ -32,6 +32,7 @@
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
 #include "update_engine/common/constants.h"
+#include "update_engine/common/dlcservice.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/metrics_reporter_omaha.h"
@@ -85,6 +86,12 @@ bool RealSystemState::Initialize() {
   power_manager_ = power_manager::CreatePowerManager();
   if (!power_manager_) {
     LOG(ERROR) << "Error initializing the PowerManagerInterface.";
+    return false;
+  }
+
+  dlcservice_ = CreateDlcService();
+  if (!dlcservice_) {
+    LOG(ERROR) << "Error initializing the DlcServiceInterface.";
     return false;
   }
 

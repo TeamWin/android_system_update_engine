@@ -58,6 +58,11 @@ bool BinderUpdateEngineClient::AttemptUpdate(const string& in_app_version,
       .isOk();
 }
 
+bool BinderUpdateEngineClient::AttemptInstall(
+    const string& omaha_url, const std::vector<string>& dlc_module_ids) {
+  return false;
+}
+
 bool BinderUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
                                          double* out_progress,
                                          UpdateStatus* out_update_status,

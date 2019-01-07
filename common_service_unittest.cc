@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 #include <string>
+#include <vector>
 
 #include <brillo/errors/error.h>
 #include <policy/libpolicy.h>
@@ -28,6 +29,7 @@
 #include "update_engine/omaha_utils.h"
 
 using std::string;
+using std::vector;
 using testing::_;
 using testing::Return;
 using testing::SetArgPointee;
@@ -83,6 +85,21 @@ TEST_F(UpdateEngineServiceTest, AttemptUpdateReturnsFalse) {
       &error_, "app_ver", "url", UpdateAttemptFlags::kNone, &result));
   EXPECT_EQ(nullptr, error_);
   EXPECT_FALSE(result);
+}
+
+TEST_F(UpdateEngineServiceTest, AttemptInstall) {
+  EXPECT_CALL(*mock_update_attempter_, CheckForInstall(_, _))
+      .WillOnce(Return(true));
+
+  EXPECT_TRUE(common_service_.AttemptInstall(&error_, "", {}));
+  EXPECT_EQ(nullptr, error_);
+}
+
+TEST_F(UpdateEngineServiceTest, AttemptInstallReturnsFalse) {
+  EXPECT_CALL(*mock_update_attempter_, CheckForInstall(_, _))
+      .WillOnce(Return(false));
+
+  EXPECT_FALSE(common_service_.AttemptInstall(&error_, "", {}));
 }
 
 // SetChannel is allowed when there's no device policy (the device is not

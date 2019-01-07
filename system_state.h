@@ -37,6 +37,7 @@ namespace chromeos_update_engine {
 class BootControlInterface;
 class ClockInterface;
 class ConnectionManagerInterface;
+class DlcServiceInterface;
 class HardwareInterface;
 class MetricsReporterInterface;
 class OmahaRequestParams;
@@ -109,6 +110,9 @@ class SystemState {
   // restarted. Important for tracking whether you are running instance of the
   // update engine on first boot or due to a crash/restart.
   virtual bool system_rebooted() = 0;
+
+  // Returns a pointer to the DlcServiceInterface singleton.
+  virtual DlcServiceInterface* dlcservice() = 0;
 };
 
 }  // namespace chromeos_update_engine

@@ -88,6 +88,10 @@ const char kMetricSuccessfulUpdateDownloadOverheadPercentage[] =
     "UpdateEngine.SuccessfulUpdate.DownloadOverheadPercentage";
 const char kMetricSuccessfulUpdateDownloadSourcesUsed[] =
     "UpdateEngine.SuccessfulUpdate.DownloadSourcesUsed";
+const char kMetricSuccessfulUpdateDurationFromSeenDays[] =
+    "UpdateEngine.SuccessfulUpdate.DurationFromSeenDays.NoTimeRestriction";
+const char kMetricSuccessfulUpdateDurationFromSeenTimeRestrictedDays[] =
+    "UpdateEngine.SuccessfulUpdate.DurationFromSeenDays.TimeRestricted";
 const char kMetricSuccessfulUpdatePayloadType[] =
     "UpdateEngine.SuccessfulUpdate.PayloadType";
 const char kMetricSuccessfulUpdatePayloadSizeMiB[] =
@@ -615,6 +619,21 @@ void MetricsReporterOmaha::ReportKeyVersionMetrics(
   LOG(INFO) << "Sending " << bool_value << " for metric " << metric
             << " (bool)";
   metrics_lib_->SendBoolToUMA(metric, bool_value);
+}
+
+void MetricsReporterOmaha::ReportEnterpriseUpdateSeenToDownloadDays(
+    bool has_time_restriction_policy, int time_to_update_days) {
+  string metric =
+      has_time_restriction_policy
+          ? metrics::kMetricSuccessfulUpdateDurationFromSeenTimeRestrictedDays
+          : metrics::kMetricSuccessfulUpdateDurationFromSeenDays;
+  LOG(INFO) << "Sending " << time_to_update_days << " for metric " << metric;
+
+  metrics_lib_->SendToUMA(metric,
+                          time_to_update_days,
+                          1,       // min: 1 days
+                          6 * 30,  // max: 6 months (approx)
+                          50);     // num_buckets
 }
 
 }  // namespace chromeos_update_engine

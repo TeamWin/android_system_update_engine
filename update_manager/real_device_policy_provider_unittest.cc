@@ -245,7 +245,7 @@ TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {
   loop_.RunOnce(false);
 
   UmTestUtils::ExpectVariableHasValue(
-      RollbackToTargetVersion::kRollbackWithFullPowerwash,
+      RollbackToTargetVersion::kRollbackAndPowerwash,
       provider_->var_rollback_to_target_version());
 }
 

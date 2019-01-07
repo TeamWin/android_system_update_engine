@@ -251,6 +251,9 @@ metrics::ConnectionType GetConnectionType(ConnectionType type,
     case ConnectionType::kUnknown:
       return metrics::ConnectionType::kUnknown;
 
+    case ConnectionType::kDisconnected:
+      return metrics::ConnectionType::kDisconnected;
+
     case ConnectionType::kEthernet:
       if (tethering == ConnectionTethering::kConfirmed)
         return metrics::ConnectionType::kTetheredEthernet;

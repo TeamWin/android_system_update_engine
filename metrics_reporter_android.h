@@ -91,6 +91,9 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
                                int kernel_max_rollforward_version,
                                bool kernel_max_rollforward_success) override {}
 
+  void ReportEnterpriseUpdateSeenToDownloadDays(
+      bool has_time_restriction_policy, int time_to_update_days) override {}
+
  private:
   DISALLOW_COPY_AND_ASSIGN(MetricsReporterAndroid);
 };

@@ -20,6 +20,7 @@
 
 #include <dbus/bus.h>
 #include <update_engine/dbus-constants.h>
+#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/update_status_utils.h"
 
@@ -27,6 +28,7 @@ using chromeos_update_engine::StringToUpdateStatus;
 using dbus::Bus;
 using org::chromium::UpdateEngineInterfaceProxy;
 using std::string;
+using std::vector;
 
 namespace update_engine {
 namespace internal {
@@ -53,6 +55,24 @@ bool DBusUpdateEngineClient::AttemptUpdate(const string& in_app_version,
           ? 0
           : update_engine::UpdateAttemptFlags::kFlagNonInteractive,
       nullptr);
+}
+
+bool DBusUpdateEngineClient::AttemptInstall(
+    const string& omaha_url, const vector<string>& dlc_module_ids) {
+  // Convert parameters into protobuf.
+  chromeos_update_engine::DlcParameters dlc_parameters;
+  dlc_parameters.set_omaha_url(omaha_url);
+  for (const auto& dlc_module_id : dlc_module_ids) {
+    chromeos_update_engine::DlcInfo* dlc_info = dlc_parameters.add_dlc_infos();
+    dlc_info->set_dlc_id(dlc_module_id);
+  }
+  string dlc_request;
+  if (dlc_parameters.SerializeToString(&dlc_request)) {
+    return proxy_->AttemptInstall(dlc_request, nullptr /* brillo::ErrorPtr* */);
+  } else {
+    LOG(ERROR) << "Fail to serialize a protobuf to a string.";
+    return false;
+  }
 }
 
 bool DBusUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
