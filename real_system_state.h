@@ -31,6 +31,7 @@
 #include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/clock.h"
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/connection_manager_interface.h"
@@ -126,6 +127,10 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
   inline bool system_rebooted() override { return system_rebooted_; }
 
+  inline DlcServiceInterface* dlcservice() override {
+    return dlcservice_.get();
+  }
+
  private:
   // Real DBus proxies using the DBus connection.
 #if USE_CHROME_KIOSK_APP
@@ -135,6 +140,9 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
   // Interface for the power manager.
   std::unique_ptr<PowerManagerInterface> power_manager_;
+
+  // Interface for dlcservice.
+  std::unique_ptr<DlcServiceInterface> dlcservice_;
 
   // Interface for the clock.
   std::unique_ptr<BootControlInterface> boot_control_;

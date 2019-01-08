@@ -892,7 +892,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
         total_src_blocks = 16
 
     # TODO(tbrindus): add major version 2 tests.
-    payload_checker.major_version = 1
+    payload_checker.major_version = common.CHROMEOS_MAJOR_PAYLOAD_VERSION
     if op_type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       payload_checker.minor_version = 0
     elif op_type in (common.OpType.MOVE, common.OpType.BSDIFF):

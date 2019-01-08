@@ -22,6 +22,7 @@
 namespace chromeos_update_engine {
 
 enum class ConnectionType {
+  kDisconnected,
   kEthernet,
   kWifi,
   kWimax,

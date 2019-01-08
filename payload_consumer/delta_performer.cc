@@ -71,6 +71,7 @@ const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
 const unsigned DeltaPerformer::kProgressDownloadWeight = 50;
 const unsigned DeltaPerformer::kProgressOperationsWeight = 50;
+const uint64_t DeltaPerformer::kCheckpointFrequencySeconds = 1;
 
 namespace {
 const int kUpdateStateOperationInvalid = -1;
@@ -1901,6 +1902,13 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
 }
 
 bool DeltaPerformer::CheckpointUpdateProgress() {
+  base::Time curr_time = base::Time::Now();
+  if (curr_time > update_checkpoint_time_) {
+    update_checkpoint_time_ = curr_time + update_checkpoint_wait_;
+  } else {
+    return false;
+  }
+
   Terminator::set_exit_blocked(true);
   if (last_updated_buffer_offset_ != buffer_offset_) {
     // Resets the progress in case we die in the middle of the state update.

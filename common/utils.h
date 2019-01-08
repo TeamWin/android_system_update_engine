@@ -386,7 +386,9 @@ class ScopedActionCompleter {
       : processor_(processor),
         action_(action),
         code_(ErrorCode::kError),
-        should_complete_(true) {}
+        should_complete_(true) {
+    CHECK(processor_);
+  }
   ~ScopedActionCompleter() {
     if (should_complete_)
       processor_->ActionComplete(action_, code_);

@@ -32,6 +32,9 @@ TEST(MetricsUtilsTest, GetConnectionType) {
   EXPECT_EQ(metrics::ConnectionType::kUnknown,
             GetConnectionType(ConnectionType::kUnknown,
                               ConnectionTethering::kUnknown));
+  EXPECT_EQ(metrics::ConnectionType::kDisconnected,
+            GetConnectionType(ConnectionType::kDisconnected,
+                              ConnectionTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kEthernet,
             GetConnectionType(ConnectionType::kEthernet,
                               ConnectionTethering::kUnknown));

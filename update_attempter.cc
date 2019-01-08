@@ -30,6 +30,7 @@
 #include <base/rand_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <brillo/data_encoding.h>
 #include <brillo/errors/error_codes.h>
 #include <brillo/message_loops/message_loop.h>
@@ -41,6 +42,7 @@
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
@@ -123,7 +125,8 @@ UpdateAttempter::UpdateAttempter(SystemState* system_state,
                                  CertificateChecker* cert_checker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-      cert_checker_(cert_checker) {}
+      cert_checker_(cert_checker),
+      is_install_(false) {}
 
 UpdateAttempter::~UpdateAttempter() {
   // CertificateChecker might not be initialized in unittests.
@@ -152,9 +155,9 @@ void UpdateAttempter::Init() {
     status_ = UpdateStatus::IDLE;
 }
 
-void UpdateAttempter::ScheduleUpdates() {
+bool UpdateAttempter::ScheduleUpdates() {
   if (IsUpdateRunningOrScheduled())
-    return;
+    return false;
 
   chromeos_update_manager::UpdateManager* const update_manager =
       system_state_->update_manager();
@@ -165,6 +168,7 @@ void UpdateAttempter::ScheduleUpdates() {
   // starvation due to a transient bug.
   update_manager->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   waiting_for_scheduled_check_ = true;
+  return true;
 }
 
 void UpdateAttempter::CertificateChecked(ServerToCheck server_to_check,
@@ -411,6 +415,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     // target channel.
     omaha_request_params_->UpdateDownloadChannel();
   }
+  // Set the DLC module ID list.
+  omaha_request_params_->set_dlc_module_ids(dlc_module_ids_);
+  omaha_request_params_->set_is_install(is_install_);
 
   LOG(INFO) << "target_version_prefix = "
             << omaha_request_params_->target_version_prefix()
@@ -692,6 +699,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
 }
 
 bool UpdateAttempter::Rollback(bool powerwash) {
+  is_install_ = false;
   if (!CanRollback()) {
     return false;
   }
@@ -786,6 +794,8 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
 bool UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      UpdateAttemptFlags flags) {
+  dlc_module_ids_.clear();
+  is_install_ = false;
   bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
 
   if (interactive && status_ != UpdateStatus::IDLE) {
@@ -827,12 +837,46 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
   }
 
   if (forced_update_pending_callback_.get()) {
+    if (!system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
+      dlc_module_ids_.clear();
+    }
     // Make sure that a scheduling request is made prior to calling the forced
     // update pending callback.
     ScheduleUpdates();
     forced_update_pending_callback_->Run(true, interactive);
   }
 
+  return true;
+}
+
+bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
+                                      const string& omaha_url) {
+  dlc_module_ids_ = dlc_module_ids;
+  is_install_ = true;
+  forced_omaha_url_.clear();
+
+  // Certain conditions must be met to allow setting custom version and update
+  // server URLs. However, kScheduledAUTestURLRequest and kAUTestURLRequest are
+  // always allowed regardless of device state.
+  if (IsAnyUpdateSourceAllowed()) {
+    forced_omaha_url_ = omaha_url;
+  }
+  if (omaha_url == kScheduledAUTestURLRequest) {
+    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
+  } else if (omaha_url == kAUTestURLRequest) {
+    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
+  }
+
+  if (!ScheduleUpdates()) {
+    if (forced_update_pending_callback_.get()) {
+      // Make sure that a scheduling request is made prior to calling the forced
+      // update pending callback.
+      ScheduleUpdates();
+      forced_update_pending_callback_->Run(true, true);
+      return true;
+    }
+    return false;
+  }
   return true;
 }
 
@@ -975,7 +1019,12 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   attempt_error_code_ = utils::GetBaseErrorCode(code);
 
   if (code == ErrorCode::kSuccess) {
-    WriteUpdateCompletedMarker();
+    // For install operation, we do not mark update complete since we do not
+    // need reboot.
+    if (!is_install_)
+      WriteUpdateCompletedMarker();
+    ReportTimeToUpdateAppliedMetric();
+
     prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
     prefs_->SetString(kPrefsPreviousVersion,
                       omaha_request_params_->app_version());
@@ -996,6 +1045,13 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
     system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
+
+    if (is_install_) {
+      LOG(INFO) << "DLC successfully installed, no reboot needed.";
+      SetStatusAndNotify(UpdateStatus::IDLE);
+      ScheduleUpdates();
+      return;
+    }
 
     SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
     ScheduleUpdates();
@@ -1602,6 +1658,28 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() const {
   LOG(INFO)
       << "Developer features disabled; disallowing custom update sources.";
   return false;
+}
+
+void UpdateAttempter::ReportTimeToUpdateAppliedMetric() {
+  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  if (device_policy && device_policy->IsEnterpriseEnrolled()) {
+    vector<policy::DevicePolicy::WeeklyTimeInterval> parsed_intervals;
+    bool has_time_restrictions =
+        device_policy->GetDisallowedTimeIntervals(&parsed_intervals);
+
+    int64_t update_first_seen_at_int;
+    if (system_state_->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
+      if (system_state_->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
+                                           &update_first_seen_at_int)) {
+        TimeDelta update_delay =
+            system_state_->clock()->GetWallclockTime() -
+            Time::FromInternalValue(update_first_seen_at_int);
+        system_state_->metrics_reporter()
+            ->ReportEnterpriseUpdateSeenToDownloadDays(has_time_restrictions,
+                                                       update_delay.InDays());
+      }
+    }
+  }
 }
 
 }  // namespace chromeos_update_engine

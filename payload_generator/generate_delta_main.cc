@@ -353,7 +353,7 @@ int Main(int argc, char** argv) {
   DEFINE_uint64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
-  DEFINE_uint64(major_version, 1,
+  DEFINE_uint64(major_version, 2,
                "The major version of the payload being generated.");
   DEFINE_int32(minor_version, -1,
                "The minor version of the payload being generated "
