@@ -99,10 +99,13 @@ bool MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
                          range.length() - bytes_received_this_range_);
   }
   LOG_IF(WARNING, next_size <= 0) << "Asked to write length <= 0";
+  // bytes_received_this_range_ needs to be updated regardless of the delegate_
+  // result, because it will be used to determine a successful transfer in
+  // TransferEnded().
+  bytes_received_this_range_ += length;
   if (delegate_ && !delegate_->ReceivedBytes(this, bytes, next_size))
     return false;
 
-  bytes_received_this_range_ += length;
   if (range.HasLength() && bytes_received_this_range_ >= range.length()) {
     // Terminates the current fetcher. Waits for its TransferTerminated
     // callback before starting the next range so that we don't end up
