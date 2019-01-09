@@ -153,14 +153,15 @@ TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
                   GetBuildArtifactsPath(kUnittestPrivateKey2Path)});
 
   // Either public key should pass the verification.
+  string public_key;
+  EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKeyPath),
+                              &public_key));
   EXPECT_TRUE(PayloadVerifier::VerifySignature(
-      signature_blob,
-      GetBuildArtifactsPath(kUnittestPublicKeyPath),
-      padded_hash_data_));
+      signature_blob, public_key, padded_hash_data_));
+  EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKey2Path),
+                              &public_key));
   EXPECT_TRUE(PayloadVerifier::VerifySignature(
-      signature_blob,
-      GetBuildArtifactsPath(kUnittestPublicKey2Path),
-      padded_hash_data_));
+      signature_blob, public_key, padded_hash_data_));
 }
 
 TEST_F(PayloadSignerTest, VerifySignatureTest) {
@@ -168,15 +169,16 @@ TEST_F(PayloadSignerTest, VerifySignatureTest) {
   SignSampleData(&signature_blob,
                  {GetBuildArtifactsPath(kUnittestPrivateKeyPath)});
 
+  string public_key;
+  EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKeyPath),
+                              &public_key));
   EXPECT_TRUE(PayloadVerifier::VerifySignature(
-      signature_blob,
-      GetBuildArtifactsPath(kUnittestPublicKeyPath),
-      padded_hash_data_));
+      signature_blob, public_key, padded_hash_data_));
   // Passing the invalid key should fail the verification.
-  EXPECT_FALSE(PayloadVerifier::VerifySignature(
-      signature_blob,
-      GetBuildArtifactsPath(kUnittestPublicKey2Path),
-      padded_hash_data_));
+  EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKey2Path),
+                              &public_key));
+  EXPECT_TRUE(PayloadVerifier::VerifySignature(
+      signature_blob, public_key, padded_hash_data_));
 }
 
 TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
