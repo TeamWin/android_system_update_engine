@@ -264,13 +264,12 @@ class DeltaPerformer : public FileWriter {
   // update. Returns false otherwise.
   bool PrimeUpdateState();
 
-  // If the Omaha response contains a public RSA key and we're allowed
-  // to use it (e.g. if we're in developer mode), extract the key from
-  // the response and store it in a temporary file and return true. In
-  // the affirmative the path to the temporary file is stored in
-  // |out_tmp_key| and it is the responsibility of the caller to clean
-  // it up.
-  bool GetPublicKeyFromResponse(base::FilePath *out_tmp_key);
+  // Get the public key to be used to verify metadata signature or payload
+  // signature. Always use |public_key_path_| if exists, otherwise if the Omaha
+  // response contains a public RSA key and we're allowed to use it (e.g. if
+  // we're in developer mode), decode the key from the response and store it in
+  // |out_public_key|. Returns false on failures.
+  bool GetPublicKey(std::string* out_public_key);
 
   // After install_plan_ is filled with partition names and sizes, initialize
   // metadata of partitions and map necessary devices before opening devices.

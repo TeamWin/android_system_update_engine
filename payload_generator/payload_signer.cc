@@ -256,17 +256,19 @@ bool PayloadSigner::VerifySignedPayload(const string& payload_path,
                                                  &metadata_hash));
   brillo::Blob signature_blob(payload.begin() + signatures_offset,
                               payload.end());
+  string public_key;
+  TEST_AND_RETURN_FALSE(utils::ReadFile(public_key_path, &public_key));
   TEST_AND_RETURN_FALSE(PayloadVerifier::PadRSA2048SHA256Hash(&payload_hash));
   TEST_AND_RETURN_FALSE(PayloadVerifier::VerifySignature(
-      signature_blob, public_key_path, payload_hash));
+      signature_blob, public_key, payload_hash));
   if (metadata_signature_size) {
-    signature_blob.assign(payload.begin() + metadata_size,
-                          payload.begin() + metadata_size +
-                          metadata_signature_size);
+    signature_blob.assign(
+        payload.begin() + metadata_size,
+        payload.begin() + metadata_size + metadata_signature_size);
     TEST_AND_RETURN_FALSE(
         PayloadVerifier::PadRSA2048SHA256Hash(&metadata_hash));
     TEST_AND_RETURN_FALSE(PayloadVerifier::VerifySignature(
-        signature_blob, public_key_path, metadata_hash));
+        signature_blob, public_key, metadata_hash));
   }
   return true;
 }
