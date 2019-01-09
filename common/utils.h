@@ -275,14 +275,6 @@ std::string FormatTimeDelta(base::TimeDelta delta);
 // it'll return the same value again.
 ErrorCode GetBaseErrorCode(ErrorCode code);
 
-// Decodes the data in |base64_encoded| and stores it in a temporary
-// file. Returns false if the given data is empty, not well-formed
-// base64 or if an error occurred. If true is returned, the decoded
-// data is stored in the file returned in |out_path|. The file should
-// be deleted when no longer needed.
-bool DecodeAndStoreBase64String(const std::string& base64_encoded,
-                                base::FilePath *out_path);
-
 // Converts |time| to an Omaha InstallDate which is defined as "the
 // number of PST8PDT calendar weeks since Jan 1st 2007 0:00 PST, times
 // seven" with PST8PDT defined as "Pacific Time" (e.g. UTC-07:00 if
