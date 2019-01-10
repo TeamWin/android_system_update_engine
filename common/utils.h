@@ -132,13 +132,6 @@ bool IsSymlink(const char* path);
 // only returns true if "/dev/ubi%d_0" becomes available in |timeout| seconds.
 bool TryAttachingUbiVolume(int volume_num, int timeout);
 
-// Setup the directory |new_root_temp_dir| to be used as the root directory for
-// temporary files instead of the system's default. If the directory doesn't
-// exists, it will be created when first used.
-// NOTE: The memory pointed by |new_root_temp_dir| must be available until this
-// function is called again with a different value.
-void SetRootTempDir(const char* new_root_temp_dir);
-
 // If |base_filename_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or
 // "../"), then it is prepended the system's temporary directory. On success,
