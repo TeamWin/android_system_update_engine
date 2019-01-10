@@ -43,6 +43,7 @@
 
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/prefs.h"
+#include "update_engine/common/subprocess.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
