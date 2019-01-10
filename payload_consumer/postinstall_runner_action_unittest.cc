@@ -37,6 +37,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/subprocess.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/mock_payload_state.h"
