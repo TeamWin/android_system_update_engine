@@ -24,18 +24,15 @@
 // Streams used for gtest's PrintTo() functions.
 #include <iostream>  // NOLINT(readability/streams)
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 
-#include <base/callback.h>
 #include <base/files/file_path.h>
 #include <base/files/scoped_temp_dir.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/action.h"
-#include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -74,22 +71,6 @@ bool ExpectVectorsEq(const brillo::Blob& a, const brillo::Blob& b);
 
 inline int System(const std::string& cmd) {
   return system(cmd.c_str());
-}
-
-inline int Symlink(const std::string& oldpath, const std::string& newpath) {
-  return symlink(oldpath.c_str(), newpath.c_str());
-}
-
-inline int Chmod(const std::string& path, mode_t mode) {
-  return chmod(path.c_str(), mode);
-}
-
-inline int Mkdir(const std::string& path, mode_t mode) {
-  return mkdir(path.c_str(), mode);
-}
-
-inline int Chdir(const std::string& path) {
-  return chdir(path.c_str());
 }
 
 // Reads a symlink from disk. Returns empty string on failure.
@@ -144,7 +125,7 @@ class ScopedLoopbackDeviceBinder {
     ADD_FAILURE();
   }
 
-  const std::string &dev() {
+  const std::string& dev() const {
     EXPECT_TRUE(is_bound_);
     return dev_;
   }
