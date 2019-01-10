@@ -83,11 +83,6 @@ const int kGetFileFormatMaxHeaderSize = 32;
 // The path to the kernel's boot_id.
 const char kBootIdPath[] = "/proc/sys/kernel/random/boot_id";
 
-// A pointer to a null-terminated string containing the root directory where all
-// the temporary files should be created. If null, the system default is used
-// instead.
-const char* root_temp_dir = nullptr;
-
 // Return true if |disk_name| is an MTD or a UBI device. Note that this test is
 // simply based on the name of the device.
 bool IsMtdDeviceName(const string& disk_name) {
@@ -144,15 +139,11 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
   }
 
   base::FilePath temp_dir;
-  if (root_temp_dir) {
-    temp_dir = base::FilePath(root_temp_dir);
-  } else {
 #ifdef __ANDROID__
-    temp_dir = base::FilePath(constants::kNonVolatileDirectory).Append("tmp");
+  temp_dir = base::FilePath(constants::kNonVolatileDirectory).Append("tmp");
 #else
-    TEST_AND_RETURN_FALSE(base::GetTempDir(&temp_dir));
+  TEST_AND_RETURN_FALSE(base::GetTempDir(&temp_dir));
 #endif  // __ANDROID__
-  }
   if (!base::PathExists(temp_dir))
     TEST_AND_RETURN_FALSE(base::CreateDirectory(temp_dir));
   *template_path = temp_dir.Append(path);
@@ -162,10 +153,6 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
 }  // namespace
 
 namespace utils {
-
-void SetRootTempDir(const char* new_root_temp_dir) {
-  root_temp_dir = new_root_temp_dir;
-}
 
 string ParseECVersion(string input_line) {
   base::TrimWhitespaceASCII(input_line, base::TRIM_ALL, &input_line);
