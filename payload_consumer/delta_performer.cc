@@ -758,7 +758,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
 
     next_operation_num_++;
     UpdateOverallProgress(false, "Completed ");
-    CheckpointUpdateProgress();
+    CheckpointUpdateProgress(false);
   }
 
   // In major version 2, we don't add dummy operation to the payload.
@@ -787,7 +787,9 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     // Since we extracted the SignatureMessage we need to advance the
     // checkpoint, otherwise we would reload the signature and try to extract
     // it again.
-    CheckpointUpdateProgress();
+    // This is the last checkpoint for an update, force this checkpoint to be
+    // saved.
+    CheckpointUpdateProgress(true);
   }
 
   return true;
@@ -1782,10 +1784,14 @@ ErrorCode DeltaPerformer::VerifyPayload(
   }
 
   // Verifies the download size.
-  TEST_AND_RETURN_VAL(ErrorCode::kPayloadSizeMismatchError,
-                      update_check_response_size ==
-                      metadata_size_ + metadata_signature_size_ +
-                      buffer_offset_);
+  if (update_check_response_size !=
+      metadata_size_ + metadata_signature_size_ + buffer_offset_) {
+    LOG(ERROR) << "update_check_response_size (" << update_check_response_size
+               << ") doesn't match metadata_size (" << metadata_size_
+               << ") + metadata_signature_size (" << metadata_signature_size_
+               << ") + buffer_offset (" << buffer_offset_ << ").";
+    return ErrorCode::kPayloadSizeMismatchError;
+  }
 
   // Verifies the payload hash.
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
@@ -1898,9 +1904,9 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
   return true;
 }
 
-bool DeltaPerformer::CheckpointUpdateProgress() {
+bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
   base::Time curr_time = base::Time::Now();
-  if (curr_time > update_checkpoint_time_) {
+  if (force || curr_time > update_checkpoint_time_) {
     update_checkpoint_time_ = curr_time + update_checkpoint_wait_;
   } else {
     return false;
