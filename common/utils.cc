@@ -962,48 +962,6 @@ string CalculateP2PFileId(const brillo::Blob& payload_hash,
                             encoded_hash.c_str());
 }
 
-bool DecodeAndStoreBase64String(const string& base64_encoded,
-                                base::FilePath *out_path) {
-  brillo::Blob contents;
-
-  out_path->clear();
-
-  if (base64_encoded.size() == 0) {
-    LOG(ERROR) << "Can't decode empty string.";
-    return false;
-  }
-
-  if (!brillo::data_encoding::Base64Decode(base64_encoded, &contents) ||
-      contents.size() == 0) {
-    LOG(ERROR) << "Error decoding base64.";
-    return false;
-  }
-
-  FILE *file = base::CreateAndOpenTemporaryFile(out_path);
-  if (file == nullptr) {
-    LOG(ERROR) << "Error creating temporary file.";
-    return false;
-  }
-
-  if (fwrite(contents.data(), 1, contents.size(), file) != contents.size()) {
-    PLOG(ERROR) << "Error writing to temporary file.";
-    if (fclose(file) != 0)
-      PLOG(ERROR) << "Error closing temporary file.";
-    if (unlink(out_path->value().c_str()) != 0)
-      PLOG(ERROR) << "Error unlinking temporary file.";
-    out_path->clear();
-    return false;
-  }
-
-  if (fclose(file) != 0) {
-    PLOG(ERROR) << "Error closing temporary file.";
-    out_path->clear();
-    return false;
-  }
-
-  return true;
-}
-
 bool ConvertToOmahaInstallDate(Time time, int *out_num_days) {
   time_t unix_time = time.ToTimeT();
   // Output of: date +"%s" --date="Jan 1, 2007 0:00 PST".

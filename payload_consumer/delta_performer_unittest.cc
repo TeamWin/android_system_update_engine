@@ -942,8 +942,6 @@ TEST_F(DeltaPerformerTest, NonMandatoryValidMetadataSignatureTest) {
 }
 
 TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
-  base::FilePath key_path;
-
   // The result of the GetPublicKeyResponse() method is based on three things
   //
   //  1. Whether it's an official build; and
@@ -960,55 +958,65 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   string non_existing_file = temp_dir.GetPath().Append("non-existing").value();
   string existing_file = temp_dir.GetPath().Append("existing").value();
-  EXPECT_EQ(0, System(base::StringPrintf("touch %s", existing_file.c_str())));
+  constexpr char kExistingKey[] = "Existing";
+  ASSERT_TRUE(test_utils::WriteFileString(existing_file, kExistingKey));
 
-  // Non-official build, non-existing public-key, key in response -> true
+  // Non-official build, non-existing public-key, key in response ->
+  // kResponseKey
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
-  // This is the result of 'echo "Test" | base64' and is not meant to be a
-  // valid public key, but it is valid base-64.
-  constexpr char kBase64TestKey[] = "VGVzdAo=";
-  install_plan_.public_key_rsa = kBase64TestKey;
-  EXPECT_TRUE(performer_.GetPublicKeyFromResponse(&key_path));
-  EXPECT_FALSE(key_path.empty());
-  EXPECT_EQ(unlink(key_path.value().c_str()), 0);
-  // Same with official build -> false
+  // This is the result of 'echo -n "Response" | base64' and is not meant to be
+  // a valid public key, but it is valid base-64.
+  constexpr char kResponseKey[] = "Response";
+  constexpr char kBase64ResponseKey[] = "UmVzcG9uc2U=";
+  install_plan_.public_key_rsa = kBase64ResponseKey;
+  string public_key;
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_EQ(public_key, kResponseKey);
+  // Same with official build -> no key
   fake_hardware_.SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_TRUE(public_key.empty());
 
-  // Non-official build, existing public-key, key in response -> false
+  // Non-official build, existing public-key, key in response -> kExistingKey
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = existing_file;
-  install_plan_.public_key_rsa = kBase64TestKey;
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
-  // Same with official build -> false
+  install_plan_.public_key_rsa = kBase64ResponseKey;
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_EQ(public_key, kExistingKey);
+  // Same with official build -> kExistingKey
   fake_hardware_.SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_EQ(public_key, kExistingKey);
 
-  // Non-official build, non-existing public-key, no key in response -> false
+  // Non-official build, non-existing public-key, no key in response -> no key
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
   install_plan_.public_key_rsa = "";
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
-  // Same with official build -> false
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_TRUE(public_key.empty());
+  // Same with official build -> no key
   fake_hardware_.SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_TRUE(public_key.empty());
 
-  // Non-official build, existing public-key, no key in response -> false
+  // Non-official build, existing public-key, no key in response -> kExistingKey
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = existing_file;
   install_plan_.public_key_rsa = "";
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
-  // Same with official build -> false
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_EQ(public_key, kExistingKey);
+  // Same with official build -> kExistingKey
   fake_hardware_.SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
+  EXPECT_TRUE(performer_.GetPublicKey(&public_key));
+  EXPECT_EQ(public_key, kExistingKey);
 
   // Non-official build, non-existing public-key, key in response
   // but invalid base64 -> false
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
   install_plan_.public_key_rsa = "not-valid-base64";
-  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
+  EXPECT_FALSE(performer_.GetPublicKey(&public_key));
 }
 
 TEST_F(DeltaPerformerTest, ConfVersionsMatch) {

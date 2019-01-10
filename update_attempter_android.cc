@@ -396,8 +396,13 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
         "Failed to read metadata and signature from " + metadata_filename);
   }
   fd->Close();
-  errorcode = payload_metadata.ValidateMetadataSignature(
-      metadata, "", base::FilePath(constants::kUpdatePayloadPublicKeyPath));
+
+  string public_key;
+  if (!utils::ReadFile(constants::kUpdatePayloadPublicKeyPath, &public_key)) {
+    return LogAndSetError(error, FROM_HERE, "Failed to read public key.");
+  }
+  errorcode =
+      payload_metadata.ValidateMetadataSignature(metadata, "", public_key);
   if (errorcode != ErrorCode::kSuccess) {
     return LogAndSetError(error,
                           FROM_HERE,

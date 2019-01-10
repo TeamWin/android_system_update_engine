@@ -525,19 +525,17 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
                  << "Trusting metadata size in payload = " << metadata_size_;
   }
 
-  // See if we should use the public RSA key in the Omaha response.
-  base::FilePath path_to_public_key(public_key_path_);
-  base::FilePath tmp_key;
-  if (GetPublicKeyFromResponse(&tmp_key))
-    path_to_public_key = tmp_key;
-  ScopedPathUnlinker tmp_key_remover(tmp_key.value());
-  if (tmp_key.empty())
-    tmp_key_remover.set_should_remove(false);
+  string public_key;
+  if (!GetPublicKey(&public_key)) {
+    LOG(ERROR) << "Failed to get public key.";
+    *error = ErrorCode::kDownloadMetadataSignatureVerificationError;
+    return MetadataParseResult::kError;
+  }
 
   // We have the full metadata in |payload|. Verify its integrity
   // and authenticity based on the information we have in Omaha response.
   *error = payload_metadata_.ValidateMetadataSignature(
-      payload, payload_->metadata_signature, path_to_public_key);
+      payload, payload_->metadata_signature, public_key);
   if (*error != ErrorCode::kSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       // The autoupdate_CatchBadSignatures test checks for this string
@@ -1596,15 +1594,21 @@ bool DeltaPerformer::ExtractSignatureMessage() {
   return true;
 }
 
-bool DeltaPerformer::GetPublicKeyFromResponse(base::FilePath *out_tmp_key) {
-  if (hardware_->IsOfficialBuild() ||
-      utils::FileExists(public_key_path_.c_str()) ||
-      install_plan_->public_key_rsa.empty())
-    return false;
+bool DeltaPerformer::GetPublicKey(string* out_public_key) {
+  out_public_key->clear();
 
-  if (!utils::DecodeAndStoreBase64String(install_plan_->public_key_rsa,
-                                         out_tmp_key))
-    return false;
+  if (utils::FileExists(public_key_path_.c_str())) {
+    LOG(INFO) << "Verifying using public key: " << public_key_path_;
+    return utils::ReadFile(public_key_path_, out_public_key);
+  }
+
+  // If this is an official build then we are not allowed to use public key from
+  // Omaha response.
+  if (!hardware_->IsOfficialBuild() && !install_plan_->public_key_rsa.empty()) {
+    LOG(INFO) << "Verifying using public key from Omaha response.";
+    return brillo::data_encoding::Base64Decode(install_plan_->public_key_rsa,
+                                               out_public_key);
+  }
 
   return true;
 }
@@ -1771,18 +1775,11 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
 ErrorCode DeltaPerformer::VerifyPayload(
     const brillo::Blob& update_check_response_hash,
     const uint64_t update_check_response_size) {
-
-  // See if we should use the public RSA key in the Omaha response.
-  base::FilePath path_to_public_key(public_key_path_);
-  base::FilePath tmp_key;
-  if (GetPublicKeyFromResponse(&tmp_key))
-    path_to_public_key = tmp_key;
-  ScopedPathUnlinker tmp_key_remover(tmp_key.value());
-  if (tmp_key.empty())
-    tmp_key_remover.set_should_remove(false);
-
-  LOG(INFO) << "Verifying payload using public key: "
-            << path_to_public_key.value();
+  string public_key;
+  if (!GetPublicKey(&public_key)) {
+    LOG(ERROR) << "Failed to get public key.";
+    return ErrorCode::kDownloadPayloadPubKeyVerificationError;
+  }
 
   // Verifies the download size.
   TEST_AND_RETURN_VAL(ErrorCode::kPayloadSizeMismatchError,
@@ -1798,7 +1795,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
       payload_hash_calculator_.raw_hash() == update_check_response_hash);
 
   // Verifies the signed payload hash.
-  if (!utils::FileExists(path_to_public_key.value().c_str())) {
+  if (public_key.empty()) {
     LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";
     return ErrorCode::kSuccess;
   }
@@ -1811,7 +1808,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       !hash_data.empty());
 
   if (!PayloadVerifier::VerifySignature(
-      signatures_message_data_, path_to_public_key.value(), hash_data)) {
+          signatures_message_data_, public_key, hash_data)) {
     // The autoupdate_CatchBadSignatures test checks for this string
     // in log-files. Keep in sync.
     LOG(ERROR) << "Public key verification failed, thus update failed.";
