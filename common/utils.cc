@@ -914,12 +914,6 @@ ErrorCode GetBaseErrorCode(ErrorCode code) {
   return base_code;
 }
 
-Time TimeFromStructTimespec(struct timespec *ts) {
-  int64_t us = static_cast<int64_t>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
-      static_cast<int64_t>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
-  return Time::UnixEpoch() + TimeDelta::FromMicroseconds(us);
-}
-
 string StringVectorToString(const vector<string> &vec_str) {
   string str = "[";
   for (vector<string>::const_iterator i = vec_str.begin();
