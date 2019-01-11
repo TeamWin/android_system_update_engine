@@ -44,11 +44,6 @@ namespace chromeos_update_engine {
 
 namespace utils {
 
-// Converts a struct timespec representing a number of seconds since
-// the Unix epoch to a base::Time. Sub-microsecond time is rounded
-// down.
-base::Time TimeFromStructTimespec(struct timespec *ts);
-
 // Formats |vec_str| as a string of the form ["<elem1>", "<elem2>"].
 // Does no escaping, only use this for presentation in error messages.
 std::string StringVectorToString(const std::vector<std::string> &vec_str);
