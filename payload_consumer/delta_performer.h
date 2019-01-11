@@ -257,7 +257,8 @@ class DeltaPerformer : public FileWriter {
 
   // Checkpoints the update progress into persistent storage to allow this
   // update attempt to be resumed after reboot.
-  bool CheckpointUpdateProgress();
+  // If |force| is false, checkpoint may be throttled.
+  bool CheckpointUpdateProgress(bool force);
 
   // Primes the required update state. Returns true if the update state was
   // successfully initialized to a saved resume state or if the update is a new
