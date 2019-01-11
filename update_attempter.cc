@@ -225,7 +225,7 @@ void UpdateAttempter::ReportOSAge() {
     return;
   }
 
-  Time lsb_release_timestamp = utils::TimeFromStructTimespec(&sb.st_ctim);
+  Time lsb_release_timestamp = Time::FromTimeSpec(sb.st_ctim);
   Time now = system_state_->clock()->GetWallclockTime();
   TimeDelta age = now - lsb_release_timestamp;
   if (age.InSeconds() < 0) {
