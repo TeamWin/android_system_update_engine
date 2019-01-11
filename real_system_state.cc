@@ -184,6 +184,17 @@ bool RealSystemState::Initialize() {
     return false;
   }
 
+  // For devices that are not rollback enabled (ie. consumer devices),
+  // initialize max kernel key version to 0xfffffffe, which is logically
+  // infinity.
+  if (policy_provider_.IsConsumerDevice()) {
+    if (!hardware()->SetMaxKernelKeyRollforward(
+            chromeos_update_manager::kRollforwardInfinity)) {
+      LOG(ERROR) << "Failed to set kernel_max_rollforward to infinity for"
+                 << " consumer devices";
+    }
+  }
+
   // All is well. Initialization successful.
   return true;
 }
