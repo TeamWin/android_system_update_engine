@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_consumer/payload_verifier.h"
 
+#include <vector>
+
 #include <base/logging.h>
 #include <openssl/pem.h>
 
@@ -85,10 +87,8 @@ const uint8_t kRSA2048SHA256Padding[] = {
 }  // namespace
 
 bool PayloadVerifier::VerifySignature(const brillo::Blob& signature_blob,
-                                      const string& public_key_path,
+                                      const string& pem_public_key,
                                       const brillo::Blob& hash_data) {
-  TEST_AND_RETURN_FALSE(!public_key_path.empty());
-
   Signatures signatures;
   LOG(INFO) << "signature blob size = " <<  signature_blob.size();
   TEST_AND_RETURN_FALSE(signatures.ParseFromArray(signature_blob.data(),
@@ -105,7 +105,7 @@ bool PayloadVerifier::VerifySignature(const brillo::Blob& signature_blob,
     const Signatures_Signature& signature = signatures.signatures(i);
     brillo::Blob sig_data(signature.data().begin(), signature.data().end());
     brillo::Blob sig_hash_data;
-    if (!GetRawHashFromSignature(sig_data, public_key_path, &sig_hash_data))
+    if (!GetRawHashFromSignature(sig_data, pem_public_key, &sig_hash_data))
       continue;
 
     if (hash_data == sig_hash_data) {
@@ -125,28 +125,19 @@ bool PayloadVerifier::VerifySignature(const brillo::Blob& signature_blob,
   return false;
 }
 
-
-bool PayloadVerifier::GetRawHashFromSignature(
-    const brillo::Blob& sig_data,
-    const string& public_key_path,
-    brillo::Blob* out_hash_data) {
-  TEST_AND_RETURN_FALSE(!public_key_path.empty());
-
+bool PayloadVerifier::GetRawHashFromSignature(const brillo::Blob& sig_data,
+                                              const string& pem_public_key,
+                                              brillo::Blob* out_hash_data) {
   // The code below executes the equivalent of:
   //
-  // openssl rsautl -verify -pubin -inkey |public_key_path|
+  // openssl rsautl -verify -pubin -inkey <(echo |pem_public_key|)
   //   -in |sig_data| -out |out_hash_data|
 
-  // Loads the public key.
-  FILE* fpubkey = fopen(public_key_path.c_str(), "rb");
-  if (!fpubkey) {
-    LOG(ERROR) << "Unable to open public key file: " << public_key_path;
-    return false;
-  }
+  BIO* bp = BIO_new_mem_buf(pem_public_key.data(), pem_public_key.size());
+  char dummy_password[] = {' ', 0};  // Ensure no password is read from stdin.
+  RSA* rsa = PEM_read_bio_RSA_PUBKEY(bp, nullptr, nullptr, dummy_password);
+  BIO_free(bp);
 
-  char dummy_password[] = { ' ', 0 };  // Ensure no password is read from stdin.
-  RSA* rsa = PEM_read_RSA_PUBKEY(fpubkey, nullptr, nullptr, dummy_password);
-  fclose(fpubkey);
   TEST_AND_RETURN_FALSE(rsa != nullptr);
   unsigned int keysize = RSA_size(rsa);
   if (sig_data.size() > 2 * keysize) {
