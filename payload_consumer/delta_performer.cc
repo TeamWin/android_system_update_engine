@@ -261,7 +261,7 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
 
   // Update chunk index, log as needed: if forced by called, or we completed a
   // progress chunk, or a timeout has expired.
-  base::Time curr_time = base::Time::Now();
+  base::TimeTicks curr_time = base::TimeTicks::Now();
   unsigned curr_progress_chunk =
       overall_progress_ * kProgressLogMaxChunks / 100;
   if (force_log || curr_progress_chunk > last_progress_chunk_ ||
@@ -1905,7 +1905,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
 }
 
 bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
-  base::Time curr_time = base::Time::Now();
+  base::TimeTicks curr_time = base::TimeTicks::Now();
   if (force || curr_time > update_checkpoint_time_) {
     update_checkpoint_time_ = curr_time + update_checkpoint_wait_;
   } else {
