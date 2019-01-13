@@ -83,11 +83,6 @@ const int kGetFileFormatMaxHeaderSize = 32;
 // The path to the kernel's boot_id.
 const char kBootIdPath[] = "/proc/sys/kernel/random/boot_id";
 
-// A pointer to a null-terminated string containing the root directory where all
-// the temporary files should be created. If null, the system default is used
-// instead.
-const char* root_temp_dir = nullptr;
-
 // Return true if |disk_name| is an MTD or a UBI device. Note that this test is
 // simply based on the name of the device.
 bool IsMtdDeviceName(const string& disk_name) {
@@ -144,15 +139,11 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
   }
 
   base::FilePath temp_dir;
-  if (root_temp_dir) {
-    temp_dir = base::FilePath(root_temp_dir);
-  } else {
 #ifdef __ANDROID__
-    temp_dir = base::FilePath(constants::kNonVolatileDirectory).Append("tmp");
+  temp_dir = base::FilePath(constants::kNonVolatileDirectory).Append("tmp");
 #else
-    TEST_AND_RETURN_FALSE(base::GetTempDir(&temp_dir));
+  TEST_AND_RETURN_FALSE(base::GetTempDir(&temp_dir));
 #endif  // __ANDROID__
-  }
   if (!base::PathExists(temp_dir))
     TEST_AND_RETURN_FALSE(base::CreateDirectory(temp_dir));
   *template_path = temp_dir.Append(path);
@@ -162,10 +153,6 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
 }  // namespace
 
 namespace utils {
-
-void SetRootTempDir(const char* new_root_temp_dir) {
-  root_temp_dir = new_root_temp_dir;
-}
 
 string ParseECVersion(string input_line) {
   base::TrimWhitespaceASCII(input_line, base::TRIM_ALL, &input_line);
@@ -927,12 +914,6 @@ ErrorCode GetBaseErrorCode(ErrorCode code) {
   return base_code;
 }
 
-Time TimeFromStructTimespec(struct timespec *ts) {
-  int64_t us = static_cast<int64_t>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
-      static_cast<int64_t>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
-  return Time::UnixEpoch() + TimeDelta::FromMicroseconds(us);
-}
-
 string StringVectorToString(const vector<string> &vec_str) {
   string str = "[";
   for (vector<string>::const_iterator i = vec_str.begin();
@@ -960,48 +941,6 @@ string CalculateP2PFileId(const brillo::Blob& payload_hash,
   return base::StringPrintf("cros_update_size_%" PRIuS "_hash_%s",
                             payload_size,
                             encoded_hash.c_str());
-}
-
-bool DecodeAndStoreBase64String(const string& base64_encoded,
-                                base::FilePath *out_path) {
-  brillo::Blob contents;
-
-  out_path->clear();
-
-  if (base64_encoded.size() == 0) {
-    LOG(ERROR) << "Can't decode empty string.";
-    return false;
-  }
-
-  if (!brillo::data_encoding::Base64Decode(base64_encoded, &contents) ||
-      contents.size() == 0) {
-    LOG(ERROR) << "Error decoding base64.";
-    return false;
-  }
-
-  FILE *file = base::CreateAndOpenTemporaryFile(out_path);
-  if (file == nullptr) {
-    LOG(ERROR) << "Error creating temporary file.";
-    return false;
-  }
-
-  if (fwrite(contents.data(), 1, contents.size(), file) != contents.size()) {
-    PLOG(ERROR) << "Error writing to temporary file.";
-    if (fclose(file) != 0)
-      PLOG(ERROR) << "Error closing temporary file.";
-    if (unlink(out_path->value().c_str()) != 0)
-      PLOG(ERROR) << "Error unlinking temporary file.";
-    out_path->clear();
-    return false;
-  }
-
-  if (fclose(file) != 0) {
-    PLOG(ERROR) << "Error closing temporary file.";
-    out_path->clear();
-    return false;
-  }
-
-  return true;
 }
 
 bool ConvertToOmahaInstallDate(Time time, int *out_num_days) {
