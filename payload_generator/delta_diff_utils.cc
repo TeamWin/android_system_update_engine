@@ -297,7 +297,7 @@ class FileDeltaProcessor : public base::DelegateSimpleThread::Delegate {
 
 void FileDeltaProcessor::Run() {
   TEST_AND_RETURN(blob_file_ != nullptr);
-  base::Time start = base::Time::Now();
+  base::TimeTicks start = base::TimeTicks::Now();
 
   if (!DeltaReadFile(&file_aops_,
                      old_part_,
@@ -326,8 +326,7 @@ void FileDeltaProcessor::Run() {
   }
 
   LOG(INFO) << "Encoded file " << name_ << " (" << new_extents_blocks_
-            << " blocks) in " << (base::Time::Now() - start).InSecondsF()
-            << " seconds.";
+            << " blocks) in " << (base::TimeTicks::Now() - start);
 }
 
 bool FileDeltaProcessor::MergeOperation(vector<AnnotatedOperation>* aops) {

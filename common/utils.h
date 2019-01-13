@@ -44,11 +44,6 @@ namespace chromeos_update_engine {
 
 namespace utils {
 
-// Converts a struct timespec representing a number of seconds since
-// the Unix epoch to a base::Time. Sub-microsecond time is rounded
-// down.
-base::Time TimeFromStructTimespec(struct timespec *ts);
-
 // Formats |vec_str| as a string of the form ["<elem1>", "<elem2>"].
 // Does no escaping, only use this for presentation in error messages.
 std::string StringVectorToString(const std::vector<std::string> &vec_str);
@@ -131,13 +126,6 @@ bool IsSymlink(const char* path);
 // commands to attach the volume, this function returns false. This function
 // only returns true if "/dev/ubi%d_0" becomes available in |timeout| seconds.
 bool TryAttachingUbiVolume(int volume_num, int timeout);
-
-// Setup the directory |new_root_temp_dir| to be used as the root directory for
-// temporary files instead of the system's default. If the directory doesn't
-// exists, it will be created when first used.
-// NOTE: The memory pointed by |new_root_temp_dir| must be available until this
-// function is called again with a different value.
-void SetRootTempDir(const char* new_root_temp_dir);
 
 // If |base_filename_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or

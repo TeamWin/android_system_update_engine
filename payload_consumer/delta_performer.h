@@ -399,13 +399,13 @@ class DeltaPerformer : public FileWriter {
   // and the actual point in time for the next forced log to be emitted.
   const base::TimeDelta forced_progress_log_wait_{
       base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)};
-  base::Time forced_progress_log_time_;
+  base::TimeTicks forced_progress_log_time_;
 
   // The frequency that we should write an update checkpoint (constant), and
   // the point in time at which the next checkpoint should be written.
   const base::TimeDelta update_checkpoint_wait_{
       base::TimeDelta::FromSeconds(kCheckpointFrequencySeconds)};
-  base::Time update_checkpoint_time_;
+  base::TimeTicks update_checkpoint_time_;
 
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };
