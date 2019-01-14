@@ -86,8 +86,8 @@ const char kBootIdPath[] = "/proc/sys/kernel/random/boot_id";
 // Return true if |disk_name| is an MTD or a UBI device. Note that this test is
 // simply based on the name of the device.
 bool IsMtdDeviceName(const string& disk_name) {
-  return base::StartsWith(disk_name, "/dev/ubi",
-                          base::CompareCase::SENSITIVE) ||
+  return base::StartsWith(
+             disk_name, "/dev/ubi", base::CompareCase::SENSITIVE) ||
          base::StartsWith(disk_name, "/dev/mtd", base::CompareCase::SENSITIVE);
 }
 
@@ -228,13 +228,15 @@ bool PWriteAll(int fd, const void* buf, size_t count, off_t offset) {
   int num_attempts = 0;
   while (bytes_written < count) {
     num_attempts++;
-    ssize_t rc = pwrite(fd, c_buf + bytes_written, count - bytes_written,
+    ssize_t rc = pwrite(fd,
+                        c_buf + bytes_written,
+                        count - bytes_written,
                         offset + bytes_written);
     // TODO(garnold) for debugging failure in chromium-os:31077; to be removed.
     if (rc < 0) {
       PLOG(ERROR) << "pwrite error; num_attempts=" << num_attempts
-                  << " bytes_written=" << bytes_written
-                  << " count=" << count << " offset=" << offset;
+                  << " bytes_written=" << bytes_written << " count=" << count
+                  << " offset=" << offset;
     }
     TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
     bytes_written += rc;
@@ -262,13 +264,13 @@ bool PWriteAll(const FileDescriptorPtr& fd,
   return WriteAll(fd, buf, count);
 }
 
-bool PReadAll(int fd, void* buf, size_t count, off_t offset,
-              ssize_t* out_bytes_read) {
+bool PReadAll(
+    int fd, void* buf, size_t count, off_t offset, ssize_t* out_bytes_read) {
   char* c_buf = static_cast<char*>(buf);
   ssize_t bytes_read = 0;
   while (bytes_read < static_cast<ssize_t>(count)) {
-    ssize_t rc = pread(fd, c_buf + bytes_read, count - bytes_read,
-                       offset + bytes_read);
+    ssize_t rc =
+        pread(fd, c_buf + bytes_read, count - bytes_read, offset + bytes_read);
     TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
     if (rc == 0) {
       break;
@@ -302,14 +304,14 @@ bool PReadAll(const FileDescriptorPtr& fd,
 
 // Append |nbytes| of content from |buf| to the vector pointed to by either
 // |vec_p| or |str_p|.
-static void AppendBytes(const uint8_t* buf, size_t nbytes,
+static void AppendBytes(const uint8_t* buf,
+                        size_t nbytes,
                         brillo::Blob* vec_p) {
   CHECK(buf);
   CHECK(vec_p);
   vec_p->insert(vec_p->end(), buf, buf + nbytes);
 }
-static void AppendBytes(const uint8_t* buf, size_t nbytes,
-                        string* str_p) {
+static void AppendBytes(const uint8_t* buf, size_t nbytes, string* str_p) {
   CHECK(buf);
   CHECK(str_p);
   str_p->append(buf, buf + nbytes);
@@ -387,7 +389,9 @@ bool ReadFile(const string& path, string* out_p) {
   return ReadFileChunkAndAppend(path, 0, -1, out_p);
 }
 
-bool ReadFileChunk(const string& path, off_t offset, off_t size,
+bool ReadFileChunk(const string& path,
+                   off_t offset,
+                   off_t size,
                    brillo::Blob* out_p) {
   return ReadFileChunkAndAppend(path, offset, size, out_p);
 }
@@ -436,8 +440,8 @@ void HexDumpArray(const uint8_t* const arr, const size_t length) {
   const unsigned int bytes_per_line = 16;
   for (uint32_t i = 0; i < length; i += bytes_per_line) {
     const unsigned int bytes_remaining = length - i;
-    const unsigned int bytes_per_this_line = min(bytes_per_line,
-                                                 bytes_remaining);
+    const unsigned int bytes_per_this_line =
+        min(bytes_per_line, bytes_remaining);
     char header[100];
     int r = snprintf(header, sizeof(header), "0x%08x : ", i);
     TEST_AND_RETURN(r == 13);
@@ -456,8 +460,8 @@ void HexDumpArray(const uint8_t* const arr, const size_t length) {
 bool SplitPartitionName(const string& partition_name,
                         string* out_disk_name,
                         int* out_partition_num) {
-  if (!base::StartsWith(partition_name, "/dev/",
-                        base::CompareCase::SENSITIVE)) {
+  if (!base::StartsWith(
+          partition_name, "/dev/", base::CompareCase::SENSITIVE)) {
     LOG(ERROR) << "Invalid partition device name: " << partition_name;
     return false;
   }
@@ -489,8 +493,7 @@ bool SplitPartitionName(const string& partition_name,
     // Special case for MMC devices which have the following naming scheme:
     // mmcblk0p2
     size_t disk_name_len = last_nondigit_pos;
-    if (partition_name[last_nondigit_pos] != 'p' ||
-        last_nondigit_pos == 0 ||
+    if (partition_name[last_nondigit_pos] != 'p' || last_nondigit_pos == 0 ||
         !isdigit(partition_name[last_nondigit_pos - 1])) {
       disk_name_len++;
     }
@@ -498,8 +501,8 @@ bool SplitPartitionName(const string& partition_name,
   }
 
   if (out_partition_num) {
-    string partition_str = partition_name.substr(last_nondigit_pos + 1,
-                                                 partition_name_len);
+    string partition_str =
+        partition_name.substr(last_nondigit_pos + 1, partition_name_len);
     *out_partition_num = atoi(partition_str.c_str());
   }
   return true;
@@ -570,21 +573,15 @@ bool TryAttachingUbiVolume(int volume_num, int timeout) {
   }
 
   int exit_code;
-  vector<string> cmd = {
-      "ubiattach",
-      "-m",
-      base::StringPrintf("%d", volume_num),
-      "-d",
-      base::StringPrintf("%d", volume_num)
-  };
+  vector<string> cmd = {"ubiattach",
+                        "-m",
+                        base::StringPrintf("%d", volume_num),
+                        "-d",
+                        base::StringPrintf("%d", volume_num)};
   TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &exit_code, nullptr));
   TEST_AND_RETURN_FALSE(exit_code == 0);
 
-  cmd = {
-      "ubiblock",
-      "--create",
-      volume_path
-  };
+  cmd = {"ubiblock", "--create", volume_path};
   TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &exit_code, nullptr));
   TEST_AND_RETURN_FALSE(exit_code == 0);
 
@@ -604,7 +601,8 @@ bool MakeTempFile(const string& base_filename_template,
       GetTempName(base_filename_template, &filename_template));
   DCHECK(filename || fd);
   vector<char> buf(filename_template.value().size() + 1);
-  memcpy(buf.data(), filename_template.value().data(),
+  memcpy(buf.data(),
+         filename_template.value().data(),
          filename_template.value().size());
   buf[filename_template.value().size()] = '\0';
 
@@ -638,8 +636,8 @@ bool SetBlockDeviceReadOnly(const string& device, bool read_only) {
 
   rc = ioctl(fd, BLKROSET, &expected_flag);
   if (rc != 0) {
-    PLOG(ERROR) << "Marking block device " << device << " as read_only="
-                << expected_flag;
+    PLOG(ERROR) << "Marking block device " << device
+                << " as read_only=" << expected_flag;
     return false;
   }
   return true;
@@ -657,13 +655,16 @@ bool MountFilesystem(const string& device,
     fstypes = {type.c_str()};
   }
   for (const char* fstype : fstypes) {
-    int rc = mount(device.c_str(), mountpoint.c_str(), fstype, mountflags,
+    int rc = mount(device.c_str(),
+                   mountpoint.c_str(),
+                   fstype,
+                   mountflags,
                    fs_mount_options.c_str());
     if (rc == 0)
       return true;
 
-    PLOG(WARNING) << "Unable to mount destination device " << device
-                  << " on " << mountpoint << " as " << fstype;
+    PLOG(WARNING) << "Unable to mount destination device " << device << " on "
+                  << mountpoint << " as " << fstype;
   }
   if (!type.empty()) {
     LOG(ERROR) << "Unable to mount " << device << " with any supported type";
@@ -721,7 +722,8 @@ bool IsMountpoint(const std::string& mountpoint) {
 
 // Tries to parse the header of an ELF file to obtain a human-readable
 // description of it on the |output| string.
-static bool GetFileFormatELF(const uint8_t* buffer, size_t size,
+static bool GetFileFormatELF(const uint8_t* buffer,
+                             size_t size,
                              string* output) {
   // 0x00: EI_MAG - ELF magic header, 4 bytes.
   if (size < SELFMAG || memcmp(buffer, ELFMAG, SELFMAG) != 0)
@@ -855,12 +857,12 @@ string ToString(const Time utc_time) {
   Time::Exploded exp_time;
   utc_time.UTCExplode(&exp_time);
   return base::StringPrintf("%d/%d/%d %d:%02d:%02d GMT",
-                      exp_time.month,
-                      exp_time.day_of_month,
-                      exp_time.year,
-                      exp_time.hour,
-                      exp_time.minute,
-                      exp_time.second);
+                            exp_time.month,
+                            exp_time.day_of_month,
+                            exp_time.year,
+                            exp_time.hour,
+                            exp_time.minute,
+                            exp_time.second);
 }
 
 string ToString(bool b) {
@@ -869,12 +871,16 @@ string ToString(bool b) {
 
 string ToString(DownloadSource source) {
   switch (source) {
-    case kDownloadSourceHttpsServer: return "HttpsServer";
-    case kDownloadSourceHttpServer:  return "HttpServer";
-    case kDownloadSourceHttpPeer:    return "HttpPeer";
-    case kNumDownloadSources:        return "Unknown";
-    // Don't add a default case to let the compiler warn about newly added
-    // download sources which should be added here.
+    case kDownloadSourceHttpsServer:
+      return "HttpsServer";
+    case kDownloadSourceHttpServer:
+      return "HttpServer";
+    case kDownloadSourceHttpPeer:
+      return "HttpPeer";
+    case kNumDownloadSources:
+      return "Unknown";
+      // Don't add a default case to let the compiler warn about newly added
+      // download sources which should be added here.
   }
 
   return "Unknown";
@@ -882,12 +888,16 @@ string ToString(DownloadSource source) {
 
 string ToString(PayloadType payload_type) {
   switch (payload_type) {
-    case kPayloadTypeDelta:      return "Delta";
-    case kPayloadTypeFull:       return "Full";
-    case kPayloadTypeForcedFull: return "ForcedFull";
-    case kNumPayloadTypes:       return "Unknown";
-    // Don't add a default case to let the compiler warn about newly added
-    // payload types which should be added here.
+    case kPayloadTypeDelta:
+      return "Delta";
+    case kPayloadTypeFull:
+      return "Full";
+    case kPayloadTypeForcedFull:
+      return "ForcedFull";
+    case kNumPayloadTypes:
+      return "Unknown";
+      // Don't add a default case to let the compiler warn about newly added
+      // payload types which should be added here.
   }
 
   return "Unknown";
@@ -916,8 +926,8 @@ ErrorCode GetBaseErrorCode(ErrorCode code) {
 
 string StringVectorToString(const vector<string> &vec_str) {
   string str = "[";
-  for (vector<string>::const_iterator i = vec_str.begin();
-       i != vec_str.end(); ++i) {
+  for (vector<string>::const_iterator i = vec_str.begin(); i != vec_str.end();
+       ++i) {
     if (i != vec_str.begin())
       str += ", ";
     str += '"';
@@ -947,7 +957,7 @@ bool ConvertToOmahaInstallDate(Time time, int *out_num_days) {
   time_t unix_time = time.ToTimeT();
   // Output of: date +"%s" --date="Jan 1, 2007 0:00 PST".
   const time_t kOmahaEpoch = 1167638400;
-  const int64_t kNumSecondsPerWeek = 7*24*3600;
+  const int64_t kNumSecondsPerWeek = 7 * 24 * 3600;
   const int64_t kNumDaysPerWeek = 7;
 
   time_t omaha_time = unix_time - kOmahaEpoch;
@@ -977,8 +987,10 @@ bool GetMinorVersion(const brillo::KeyValueStore& store,
   return false;
 }
 
-bool ReadExtents(const string& path, const vector<Extent>& extents,
-                 brillo::Blob* out_data, ssize_t out_data_size,
+bool ReadExtents(const string& path,
+                 const vector<Extent>& extents,
+                 brillo::Blob* out_data,
+                 ssize_t out_data_size,
                  size_t block_size) {
   brillo::Blob data(out_data_size);
   ssize_t bytes_read = 0;

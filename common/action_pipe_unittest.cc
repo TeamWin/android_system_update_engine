@@ -28,7 +28,7 @@ using chromeos_update_engine::ActionPipe;
 
 class ActionPipeTestAction;
 
-template<>
+template <>
 class ActionTraits<ActionPipeTestAction> {
  public:
   typedef string OutputObjectType;
@@ -46,7 +46,7 @@ class ActionPipeTestAction : public Action<ActionPipeTestAction> {
   string Type() const { return "ActionPipeTestAction"; }
 };
 
-class ActionPipeTest : public ::testing::Test { };
+class ActionPipeTest : public ::testing::Test {};
 
 // This test creates two simple Actions and sends a message via an ActionPipe
 // from one to the other.

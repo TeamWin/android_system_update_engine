@@ -62,9 +62,7 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
     ranges_.push_back(Range(offset, size));
   }
 
-  void AddRange(off_t offset) {
-    ranges_.push_back(Range(offset));
-  }
+  void AddRange(off_t offset) { ranges_.push_back(Range(offset)); }
 
   // HttpFetcher overrides.
   void SetOffset(off_t offset) override;

@@ -159,9 +159,7 @@ class FakeHardware : public HardwareInterface {
     oobe_timestamp_ = oobe_timestamp;
   }
 
-  void UnsetIsOOBEComplete() {
-    is_oobe_complete_ = false;
-  }
+  void UnsetIsOOBEComplete() { is_oobe_complete_ = false; }
 
   void SetHardwareClass(const std::string& hardware_class) {
     hardware_class_ = hardware_class;
@@ -171,9 +169,7 @@ class FakeHardware : public HardwareInterface {
     firmware_version_ = firmware_version;
   }
 
-  void SetECVersion(const std::string& ec_version) {
-    ec_version_ = ec_version;
-  }
+  void SetECVersion(const std::string& ec_version) { ec_version_ = ec_version; }
 
   void SetMinKernelKeyVersion(int min_kernel_key_version) {
     min_kernel_key_version_ = min_kernel_key_version;

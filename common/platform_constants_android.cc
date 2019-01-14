@@ -32,7 +32,7 @@ const char kCACertificatesPath[] = "/system/etc/security/cacerts_google";
 const char kOmahaResponseDeadlineFile[] = "";
 const char kNonVolatileDirectory[] = "/data/misc/update_engine";
 const char kPostinstallMountOptions[] =
-  "context=u:object_r:postinstall_file:s0";
+    "context=u:object_r:postinstall_file:s0";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine
