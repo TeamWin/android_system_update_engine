@@ -176,7 +176,6 @@ bool DiscardPartitionTail(const FileDescriptorPtr& fd, uint64_t data_size) {
 
 }  // namespace
 
-
 // Computes the ratio of |part| and |total|, scaled to |norm|, using integer
 // arithmetic.
 static uint64_t IntRatio(uint64_t part, uint64_t total, uint64_t norm) {
@@ -190,10 +189,9 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   if (num_total_operations_) {
     total_operations_str = std::to_string(num_total_operations_);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
-    completed_percentage_str =
-        base::StringPrintf(" (%" PRIu64 "%%)",
-                           IntRatio(next_operation_num_, num_total_operations_,
-                                    100));
+    completed_percentage_str = base::StringPrintf(
+        " (%" PRIu64 "%%)",
+        IntRatio(next_operation_num_, num_total_operations_, 100));
   }
 
   // Format download total count and percentage.
@@ -203,15 +201,14 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   if (payload_size) {
     payload_size_str = std::to_string(payload_size);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
-    downloaded_percentage_str =
-        base::StringPrintf(" (%" PRIu64 "%%)",
-                           IntRatio(total_bytes_received_, payload_size, 100));
+    downloaded_percentage_str = base::StringPrintf(
+        " (%" PRIu64 "%%)", IntRatio(total_bytes_received_, payload_size, 100));
   }
 
   LOG(INFO) << (message_prefix ? message_prefix : "") << next_operation_num_
             << "/" << total_operations_str << " operations"
-            << completed_percentage_str << ", " << total_bytes_received_
-            << "/" << payload_size_str << " bytes downloaded"
+            << completed_percentage_str << ", " << total_bytes_received_ << "/"
+            << payload_size_str << " bytes downloaded"
             << downloaded_percentage_str << ", overall progress "
             << overall_progress_ << "%";
 }
@@ -235,10 +232,10 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
   size_t payload_size = payload_->size;
   unsigned actual_operations_weight = kProgressOperationsWeight;
   if (payload_size)
-    new_overall_progress += min(
-        static_cast<unsigned>(IntRatio(total_bytes_received_, payload_size,
-                                       kProgressDownloadWeight)),
-        kProgressDownloadWeight);
+    new_overall_progress +=
+        min(static_cast<unsigned>(IntRatio(
+                total_bytes_received_, payload_size, kProgressDownloadWeight)),
+            kProgressDownloadWeight);
   else
     actual_operations_weight += kProgressDownloadWeight;
 
@@ -246,8 +243,8 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
   // expect an update to have at least one operation, so the expectation is that
   // this will eventually reach |actual_operations_weight|.
   if (num_total_operations_)
-    new_overall_progress += IntRatio(next_operation_num_, num_total_operations_,
-                                     actual_operations_weight);
+    new_overall_progress += IntRatio(
+        next_operation_num_, num_total_operations_, actual_operations_weight);
 
   // Progress ratio cannot recede, unless our assumptions about the total
   // payload size, total number of operations, or the monotonicity of progress
@@ -272,8 +269,8 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
   last_progress_chunk_ = curr_progress_chunk;
 }
 
-
-size_t DeltaPerformer::CopyDataToBuffer(const char** bytes_p, size_t* count_p,
+size_t DeltaPerformer::CopyDataToBuffer(const char** bytes_p,
+                                        size_t* count_p,
                                         size_t max) {
   const size_t count = *count_p;
   if (!count)
@@ -288,8 +285,8 @@ size_t DeltaPerformer::CopyDataToBuffer(const char** bytes_p, size_t* count_p,
   return read_len;
 }
 
-
-bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
+bool DeltaPerformer::HandleOpResult(bool op_result,
+                                    const char* op_type_name,
                                     ErrorCode* error) {
   if (op_result)
     return true;
@@ -308,8 +305,9 @@ bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
 
 int DeltaPerformer::Close() {
   int err = -CloseCurrentPartition();
-  LOG_IF(ERROR, !payload_hash_calculator_.Finalize() ||
-                !signed_hash_calculator_.Finalize())
+  LOG_IF(ERROR,
+         !payload_hash_calculator_.Finalize() ||
+             !signed_hash_calculator_.Finalize())
       << "Unable to finalize the hash.";
   if (!buffer_.empty()) {
     LOG(INFO) << "Discarding " << buffer_.size() << " unused downloaded bytes";
@@ -560,19 +558,18 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   return MetadataParseResult::kSuccess;
 }
 
-#define OP_DURATION_HISTOGRAM(_op_name, _start_time)      \
-    LOCAL_HISTOGRAM_CUSTOM_TIMES(                         \
-        "UpdateEngine.DownloadAction.InstallOperation::"  \
-        _op_name ".Duration",                             \
-        base::TimeTicks::Now() - _start_time,             \
-        base::TimeDelta::FromMilliseconds(10),            \
-        base::TimeDelta::FromMinutes(5),                  \
-        20);
+#define OP_DURATION_HISTOGRAM(_op_name, _start_time)                         \
+  LOCAL_HISTOGRAM_CUSTOM_TIMES(                                              \
+      "UpdateEngine.DownloadAction.InstallOperation::" _op_name ".Duration", \
+      base::TimeTicks::Now() - _start_time,                                  \
+      base::TimeDelta::FromMilliseconds(10),                                 \
+      base::TimeDelta::FromMinutes(5),                                       \
+      20);
 
 // Wrapper around write. Returns true if all requested bytes
 // were written, or false on any error, regardless of progress
 // and stores an action exit code in |error|.
-bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
+bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
   *error = ErrorCode::kSuccess;
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
 
@@ -584,9 +581,11 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     // Read data up to the needed limit; this is either maximium payload header
     // size, or the full metadata size (once it becomes known).
     const bool do_read_header = !IsHeaderParsed();
-    CopyDataToBuffer(&c_bytes, &count,
-                     (do_read_header ? kMaxPayloadHeaderSize :
-                      metadata_size_ + metadata_signature_size_));
+    CopyDataToBuffer(
+        &c_bytes,
+        &count,
+        (do_read_header ? kMaxPayloadHeaderSize
+                        : metadata_size_ + metadata_signature_size_));
 
     MetadataParseResult result = ParsePayloadMetadata(buffer_, error);
     if (result == MetadataParseResult::kError)
@@ -626,11 +625,12 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       acc_num_operations_.push_back(num_total_operations_);
     }
 
-    LOG_IF(WARNING, !prefs_->SetInt64(kPrefsManifestMetadataSize,
-                                      metadata_size_))
+    LOG_IF(WARNING,
+           !prefs_->SetInt64(kPrefsManifestMetadataSize, metadata_size_))
         << "Unable to save the manifest metadata size.";
-    LOG_IF(WARNING, !prefs_->SetInt64(kPrefsManifestSignatureSize,
-                                      metadata_signature_size_))
+    LOG_IF(WARNING,
+           !prefs_->SetInt64(kPrefsManifestSignatureSize,
+                             metadata_signature_size_))
         << "Unable to save the manifest signature size.";
 
     if (!PrimeUpdateState()) {
@@ -671,8 +671,9 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         return false;
       }
     }
-    const size_t partition_operation_num = next_operation_num_ - (
-        current_partition_ ? acc_num_operations_[current_partition_ - 1] : 0);
+    const size_t partition_operation_num =
+        next_operation_num_ -
+        (current_partition_ ? acc_num_operations_[current_partition_ - 1] : 0);
 
     const InstallOperation& op =
         partitions_[current_partition_].operations(partition_operation_num);
@@ -769,8 +770,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     if (manifest_.signatures_offset() != buffer_offset_) {
       LOG(ERROR) << "Payload signatures offset points to blob offset "
                  << manifest_.signatures_offset()
-                 << " but signatures are expected at offset "
-                 << buffer_offset_;
+                 << " but signatures are expected at offset " << buffer_offset_;
       *error = ErrorCode::kDownloadPayloadVerificationError;
       return false;
     }
@@ -1044,7 +1044,7 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
   bool attempt_ioctl = true;
   int request =
       (operation.type() == InstallOperation::ZERO ? BLKZEROOUT : BLKDISCARD);
-#else  // !defined(BLKZEROOUT)
+#else   // !defined(BLKZEROOUT)
   bool attempt_ioctl = false;
   int request = 0;
 #endif  // !defined(BLKZEROOUT)
@@ -1062,8 +1062,8 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
     // In case of failure, we fall back to writing 0 to the selected region.
     zeros.resize(16 * block_size_);
     for (uint64_t offset = 0; offset < length; offset += zeros.size()) {
-      uint64_t chunk_length = min(length - offset,
-                                  static_cast<uint64_t>(zeros.size()));
+      uint64_t chunk_length =
+          min(length - offset, static_cast<uint64_t>(zeros.size()));
       TEST_AND_RETURN_FALSE(utils::PWriteAll(
           target_fd_, zeros.data(), chunk_length, start + offset));
     }
@@ -1100,8 +1100,8 @@ bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation) {
                                           bytes,
                                           extent.start_block() * block_size_,
                                           &bytes_read_this_iteration));
-    TEST_AND_RETURN_FALSE(
-        bytes_read_this_iteration == static_cast<ssize_t>(bytes));
+    TEST_AND_RETURN_FALSE(bytes_read_this_iteration ==
+                          static_cast<ssize_t>(bytes));
     bytes_read += bytes_read_this_iteration;
   }
 
@@ -1573,8 +1573,7 @@ bool DeltaPerformer::ExtractSignatureMessage() {
   TEST_AND_RETURN_FALSE(buffer_offset_ == manifest_.signatures_offset());
   TEST_AND_RETURN_FALSE(buffer_.size() >= manifest_.signatures_size());
   signatures_message_data_.assign(
-      buffer_.begin(),
-      buffer_.begin() + manifest_.signatures_size());
+      buffer_.begin(), buffer_.begin() + manifest_.signatures_size());
 
   // Save the signature blob because if the update is interrupted after the
   // download phase we don't go through this path anymore. Some alternatives to
@@ -1585,9 +1584,10 @@ bool DeltaPerformer::ExtractSignatureMessage() {
   //
   // 2. Verify the signature as soon as it's received and don't checkpoint the
   // blob and the signed sha-256 context.
-  LOG_IF(WARNING, !prefs_->SetString(kPrefsUpdateStateSignatureBlob,
-                                     string(signatures_message_data_.begin(),
-                                            signatures_message_data_.end())))
+  LOG_IF(WARNING,
+         !prefs_->SetString(kPrefsUpdateStateSignatureBlob,
+                            string(signatures_message_data_.begin(),
+                                   signatures_message_data_.end())))
       << "Unable to store the signature blob.";
 
   LOG(INFO) << "Extracted signature data of size "
@@ -1666,10 +1666,8 @@ ErrorCode DeltaPerformer::ValidateManifest() {
   }
 
   if (major_payload_version_ != kChromeOSMajorPayloadVersion) {
-    if (manifest_.has_old_rootfs_info() ||
-        manifest_.has_new_rootfs_info() ||
-        manifest_.has_old_kernel_info() ||
-        manifest_.has_new_kernel_info() ||
+    if (manifest_.has_old_rootfs_info() || manifest_.has_new_rootfs_info() ||
+        manifest_.has_old_kernel_info() || manifest_.has_new_kernel_info() ||
         manifest_.install_operations_size() != 0 ||
         manifest_.kernel_install_operations_size() != 0) {
       LOG(ERROR) << "Manifest contains deprecated field only supported in "
@@ -1766,12 +1764,12 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
   return ErrorCode::kSuccess;
 }
 
-#define TEST_AND_RETURN_VAL(_retval, _condition)                \
-  do {                                                          \
-    if (!(_condition)) {                                        \
-      LOG(ERROR) << "VerifyPayload failure: " << #_condition;   \
-      return _retval;                                           \
-    }                                                           \
+#define TEST_AND_RETURN_VAL(_retval, _condition)              \
+  do {                                                        \
+    if (!(_condition)) {                                      \
+      LOG(ERROR) << "VerifyPayload failure: " << #_condition; \
+      return _retval;                                         \
+    }                                                         \
   } while (0);
 
 ErrorCode DeltaPerformer::VerifyPayload(
@@ -1843,8 +1841,7 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
                                      const string& update_check_response_hash) {
   int64_t next_operation = kUpdateStateOperationInvalid;
   if (!(prefs->GetInt64(kPrefsUpdateStateNextOperation, &next_operation) &&
-        next_operation != kUpdateStateOperationInvalid &&
-        next_operation > 0))
+        next_operation != kUpdateStateOperationInvalid && next_operation > 0))
     return false;
 
   string interrupted_hash;
@@ -1916,33 +1913,33 @@ bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
   if (last_updated_buffer_offset_ != buffer_offset_) {
     // Resets the progress in case we die in the middle of the state update.
     ResetUpdateProgress(prefs_, true);
-    TEST_AND_RETURN_FALSE(
-        prefs_->SetString(kPrefsUpdateStateSHA256Context,
-                          payload_hash_calculator_.GetContext()));
+    TEST_AND_RETURN_FALSE(prefs_->SetString(
+        kPrefsUpdateStateSHA256Context, payload_hash_calculator_.GetContext()));
     TEST_AND_RETURN_FALSE(
         prefs_->SetString(kPrefsUpdateStateSignedSHA256Context,
                           signed_hash_calculator_.GetContext()));
-    TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataOffset,
-                                           buffer_offset_));
+    TEST_AND_RETURN_FALSE(
+        prefs_->SetInt64(kPrefsUpdateStateNextDataOffset, buffer_offset_));
     last_updated_buffer_offset_ = buffer_offset_;
 
     if (next_operation_num_ < num_total_operations_) {
       size_t partition_index = current_partition_;
       while (next_operation_num_ >= acc_num_operations_[partition_index])
         partition_index++;
-      const size_t partition_operation_num = next_operation_num_ - (
-          partition_index ? acc_num_operations_[partition_index - 1] : 0);
+      const size_t partition_operation_num =
+          next_operation_num_ -
+          (partition_index ? acc_num_operations_[partition_index - 1] : 0);
       const InstallOperation& op =
           partitions_[partition_index].operations(partition_operation_num);
-      TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataLength,
-                                             op.data_length()));
+      TEST_AND_RETURN_FALSE(
+          prefs_->SetInt64(kPrefsUpdateStateNextDataLength, op.data_length()));
     } else {
-      TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataLength,
-                                             0));
+      TEST_AND_RETURN_FALSE(
+          prefs_->SetInt64(kPrefsUpdateStateNextDataLength, 0));
     }
   }
-  TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextOperation,
-                                         next_operation_num_));
+  TEST_AND_RETURN_FALSE(
+      prefs_->SetInt64(kPrefsUpdateStateNextOperation, next_operation_num_));
   return true;
 }
 
@@ -1951,8 +1948,7 @@ bool DeltaPerformer::PrimeUpdateState() {
 
   int64_t next_operation = kUpdateStateOperationInvalid;
   if (!prefs_->GetInt64(kPrefsUpdateStateNextOperation, &next_operation) ||
-      next_operation == kUpdateStateOperationInvalid ||
-      next_operation <= 0) {
+      next_operation == kUpdateStateOperationInvalid || next_operation <= 0) {
     // Initiating a new update, no more state needs to be initialized.
     return true;
   }
@@ -1960,9 +1956,9 @@ bool DeltaPerformer::PrimeUpdateState() {
 
   // Resuming an update -- load the rest of the update state.
   int64_t next_data_offset = -1;
-  TEST_AND_RETURN_FALSE(prefs_->GetInt64(kPrefsUpdateStateNextDataOffset,
-                                         &next_data_offset) &&
-                        next_data_offset >= 0);
+  TEST_AND_RETURN_FALSE(
+      prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset) &&
+      next_data_offset >= 0);
   buffer_offset_ = next_data_offset;
 
   // The signed hash context and the signature blob may be empty if the
@@ -1981,14 +1977,14 @@ bool DeltaPerformer::PrimeUpdateState() {
   }
 
   string hash_context;
-  TEST_AND_RETURN_FALSE(prefs_->GetString(kPrefsUpdateStateSHA256Context,
-                                          &hash_context) &&
-                        payload_hash_calculator_.SetContext(hash_context));
+  TEST_AND_RETURN_FALSE(
+      prefs_->GetString(kPrefsUpdateStateSHA256Context, &hash_context) &&
+      payload_hash_calculator_.SetContext(hash_context));
 
   int64_t manifest_metadata_size = 0;
-  TEST_AND_RETURN_FALSE(prefs_->GetInt64(kPrefsManifestMetadataSize,
-                                         &manifest_metadata_size) &&
-                        manifest_metadata_size > 0);
+  TEST_AND_RETURN_FALSE(
+      prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size) &&
+      manifest_metadata_size > 0);
   metadata_size_ = manifest_metadata_size;
 
   int64_t manifest_signature_size = 0;

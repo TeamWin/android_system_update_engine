@@ -32,7 +32,7 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-class FileWriterTest : public ::testing::Test { };
+class FileWriterTest : public ::testing::Test {};
 
 TEST(FileWriterTest, SimpleTest) {
   // Create a uniquely named file for testing.
@@ -53,8 +53,9 @@ TEST(FileWriterTest, SimpleTest) {
 TEST(FileWriterTest, ErrorTest) {
   DirectFileWriter file_writer;
   const string path("/tmp/ENOENT/FileWriterTest");
-  EXPECT_EQ(-ENOENT, file_writer.Open(path.c_str(),
-                                      O_CREAT | O_LARGEFILE | O_TRUNC, 0644));
+  EXPECT_EQ(
+      -ENOENT,
+      file_writer.Open(path.c_str(), O_CREAT | O_LARGEFILE | O_TRUNC, 0644));
 }
 
 TEST(FileWriterTest, WriteErrorTest) {
@@ -68,6 +69,5 @@ TEST(FileWriterTest, WriteErrorTest) {
   EXPECT_FALSE(file_writer.Write("x", 1));
   EXPECT_EQ(0, file_writer.Close());
 }
-
 
 }  // namespace chromeos_update_engine

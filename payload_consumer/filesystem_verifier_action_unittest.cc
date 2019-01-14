@@ -38,9 +38,7 @@ namespace chromeos_update_engine {
 
 class FilesystemVerifierActionTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    loop_.SetAsCurrent();
-  }
+  void SetUp() override { loop_.SetAsCurrent(); }
 
   void TearDown() override {
     EXPECT_EQ(0, brillo::MessageLoopRunMaxIterations(&loop_, 1));
@@ -270,7 +268,8 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
   ASSERT_EQ(0U, getuid());
   EXPECT_TRUE(DoTest(true, false));
   // TerminateEarlyTest may leak some null callbacks from the Stream class.
-  while (loop_.RunOnce(false)) {}
+  while (loop_.RunOnce(false)) {
+  }
 }
 
 #ifdef __ANDROID__

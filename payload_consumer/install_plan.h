@@ -157,7 +157,7 @@ struct InstallPlan {
 
 class InstallPlanAction;
 
-template<>
+template <>
 class ActionTraits<InstallPlanAction> {
  public:
   // Takes the install plan as input
@@ -172,8 +172,8 @@ class ActionTraits<InstallPlanAction> {
 class InstallPlanAction : public Action<InstallPlanAction> {
  public:
   InstallPlanAction() {}
-  explicit InstallPlanAction(const InstallPlan& install_plan):
-    install_plan_(install_plan) {}
+  explicit InstallPlanAction(const InstallPlan& install_plan)
+      : install_plan_(install_plan) {}
 
   void PerformAction() override {
     if (HasOutputPipe()) {
