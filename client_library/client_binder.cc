@@ -25,12 +25,12 @@
 #include "update_engine/parcelable_update_engine_status.h"
 #include "update_engine/update_status_utils.h"
 
-using android::binder::Status;
-using android::brillo::ParcelableUpdateEngineStatus;
 using android::getService;
 using android::OK;
 using android::String16;
 using android::String8;
+using android::binder::Status;
+using android::brillo::ParcelableUpdateEngineStatus;
 using chromeos_update_engine::StringToUpdateStatus;
 using std::string;
 using update_engine::UpdateAttemptFlags;
@@ -39,10 +39,11 @@ namespace update_engine {
 namespace internal {
 
 bool BinderUpdateEngineClient::Init() {
-  if (!binder_watcher_.Init()) return false;
+  if (!binder_watcher_.Init())
+    return false;
 
   return getService(String16{"android.brillo.UpdateEngineService"},
-      &service_) == OK;
+                    &service_) == OK;
 }
 
 bool BinderUpdateEngineClient::AttemptUpdate(const string& in_app_version,
@@ -172,8 +173,7 @@ Status BinderUpdateEngineClient::StatusUpdateCallback::HandleStatusUpdate(
 bool BinderUpdateEngineClient::RegisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
   if (!status_callback_.get()) {
-    status_callback_ =
-        new BinderUpdateEngineClient::StatusUpdateCallback(this);
+    status_callback_ = new BinderUpdateEngineClient::StatusUpdateCallback(this);
     if (!service_->RegisterStatusCallback(status_callback_).isOk()) {
       return false;
     }
@@ -187,13 +187,16 @@ bool BinderUpdateEngineClient::RegisterStatusUpdateHandler(
   string new_version;
   int64_t new_size;
 
-  if (!GetStatus(&last_checked_time, &progress, &update_status,
-                 &new_version, &new_size)) {
+  if (!GetStatus(&last_checked_time,
+                 &progress,
+                 &update_status,
+                 &new_version,
+                 &new_size)) {
     handler->IPCError("Could not get status from binder service");
   }
 
-  handler->HandleStatusUpdate(last_checked_time, progress, update_status,
-                              new_version, new_size);
+  handler->HandleStatusUpdate(
+      last_checked_time, progress, update_status, new_version, new_size);
 
   return true;
 }
@@ -211,8 +214,9 @@ bool BinderUpdateEngineClient::UnregisterStatusUpdateHandler(
 
 bool BinderUpdateEngineClient::SetTargetChannel(const string& in_target_channel,
                                                 bool allow_powerwash) {
-  return service_->SetChannel(String16{in_target_channel.c_str()},
-                              allow_powerwash).isOk();
+  return service_
+      ->SetChannel(String16{in_target_channel.c_str()}, allow_powerwash)
+      .isOk();
 }
 
 bool BinderUpdateEngineClient::GetTargetChannel(string* out_channel) const {
