@@ -61,8 +61,12 @@ const char kPowerwashCountMarker[] = "powerwash_count";
 const char kPowerwashMarkerFile[] =
     "/mnt/stateful_partition/factory_install_reset";
 
-// The contents of the powerwash marker file.
+// The contents of the powerwash marker file for the non-rollback case.
 const char kPowerwashCommand[] = "safe fast keepimg reason=update_engine\n";
+
+// The contents of the powerwas marker file for the rollback case.
+const char kRollbackPowerwashCommand[] =
+    "safe fast keepimg rollback reason=update_engine\n";
 
 // UpdateManager config path.
 const char* kConfigFilePath = "/etc/update_manager.conf";
@@ -222,12 +226,15 @@ int HardwareChromeOS::GetPowerwashCount() const {
   return powerwash_count;
 }
 
-bool HardwareChromeOS::SchedulePowerwash() {
+bool HardwareChromeOS::SchedulePowerwash(bool is_rollback) {
+  const char* powerwash_command =
+      is_rollback ? kRollbackPowerwashCommand : kPowerwashCommand;
   bool result = utils::WriteFile(
-      kPowerwashMarkerFile, kPowerwashCommand, strlen(kPowerwashCommand));
+      kPowerwashMarkerFile, powerwash_command, strlen(powerwash_command));
   if (result) {
     LOG(INFO) << "Created " << kPowerwashMarkerFile
-              << " to powerwash on next reboot";
+              << " to powerwash on next reboot (is_rollback=" << is_rollback
+              << ")";
   } else {
     PLOG(ERROR) << "Error in creating powerwash marker file: "
                 << kPowerwashMarkerFile;

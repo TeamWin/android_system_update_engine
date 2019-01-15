@@ -104,13 +104,15 @@ class FakeHardware : public HardwareInterface {
 
   int GetPowerwashCount() const override { return powerwash_count_; }
 
-  bool SchedulePowerwash() override {
+  bool SchedulePowerwash(bool is_rollback) override {
     powerwash_scheduled_ = true;
+    is_rollback_powerwash_ = is_rollback;
     return true;
   }
 
   bool CancelPowerwash() override {
     powerwash_scheduled_ = false;
+    is_rollback_powerwash_ = false;
     return true;
   }
 
@@ -190,6 +192,10 @@ class FakeHardware : public HardwareInterface {
   // Getters to verify state.
   int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
 
+  bool GetIsRollbackPowerwashScheduled() const {
+    return powerwash_scheduled_ && is_rollback_powerwash_;
+  }
+
  private:
   bool is_official_build_{true};
   bool is_normal_boot_mode_{true};
@@ -207,6 +213,7 @@ class FakeHardware : public HardwareInterface {
   int firmware_max_rollforward_{kFirmwareMaxRollforward};
   int powerwash_count_{kPowerwashCountNotSet};
   bool powerwash_scheduled_{false};
+  bool is_rollback_powerwash_{false};
   int64_t build_timestamp_{0};
   bool first_active_omaha_ping_sent_{false};
 
