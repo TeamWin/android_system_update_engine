@@ -29,7 +29,7 @@ namespace power_manager {
 std::unique_ptr<PowerManagerInterface> CreatePowerManager() {
   return std::unique_ptr<PowerManagerInterface>(new PowerManagerChromeOS());
 }
-}
+}  // namespace power_manager
 
 PowerManagerChromeOS::PowerManagerChromeOS()
     : power_manager_proxy_(DBusConnection::Get()->GetDBus()) {}

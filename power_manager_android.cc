@@ -16,6 +16,8 @@
 
 #include "update_engine/power_manager_android.h"
 
+#include <memory>
+
 #include <base/logging.h>
 
 namespace chromeos_update_engine {
@@ -24,7 +26,7 @@ namespace power_manager {
 std::unique_ptr<PowerManagerInterface> CreatePowerManager() {
   return std::unique_ptr<PowerManagerInterface>(new PowerManagerAndroid());
 }
-}
+}  // namespace power_manager
 
 bool PowerManagerAndroid::RequestReboot() {
   LOG(WARNING) << "PowerManager not implemented.";

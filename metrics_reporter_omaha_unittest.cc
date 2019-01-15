@@ -226,7 +226,6 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
                         _))
       .Times(2);
 
-
   // Check the report of attempt result.
   EXPECT_CALL(
       *mock_metrics_lib_,

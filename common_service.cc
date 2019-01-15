@@ -71,8 +71,7 @@ const char* const UpdateEngineService::kErrorFailed =
     "org.chromium.UpdateEngine.Error.Failed";
 
 UpdateEngineService::UpdateEngineService(SystemState* system_state)
-    : system_state_(system_state) {
-}
+    : system_state_(system_state) {}
 
 // org::chromium::UpdateEngineInterfaceInterface methods implementation.
 

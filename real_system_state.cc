@@ -149,8 +149,8 @@ bool RealSystemState::Initialize() {
       new CertificateChecker(prefs_.get(), &openssl_wrapper_));
   certificate_checker_->Init();
 
-  update_attempter_.reset(new UpdateAttempter(this,
-                                              certificate_checker_.get()));
+  update_attempter_.reset(
+      new UpdateAttempter(this, certificate_checker_.get()));
 
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_->Init();
@@ -169,15 +169,20 @@ bool RealSystemState::Initialize() {
     LOG(ERROR) << "Failed to initialize the Update Manager.";
     return false;
   }
-  update_manager_.reset(
-      new chromeos_update_manager::UpdateManager(
-          &clock_, base::TimeDelta::FromSeconds(5),
-          base::TimeDelta::FromHours(12), um_state));
+  update_manager_.reset(new chromeos_update_manager::UpdateManager(
+      &clock_,
+      base::TimeDelta::FromSeconds(5),
+      base::TimeDelta::FromHours(12),
+      um_state));
 
   // The P2P Manager depends on the Update Manager for its initialization.
-  p2p_manager_.reset(P2PManager::Construct(
-          nullptr, &clock_, update_manager_.get(), "cros_au",
-          kMaxP2PFilesToKeep, base::TimeDelta::FromDays(kMaxP2PFileAgeDays)));
+  p2p_manager_.reset(
+      P2PManager::Construct(nullptr,
+                            &clock_,
+                            update_manager_.get(),
+                            "cros_au",
+                            kMaxP2PFilesToKeep,
+                            base::TimeDelta::FromDays(kMaxP2PFileAgeDays)));
 
   if (!payload_state_.Initialize(this)) {
     LOG(ERROR) << "Failed to initialize the payload state object.";
@@ -215,14 +220,16 @@ bool RealSystemState::StartUpdater() {
 
   // Broadcast the update engine status on startup to ensure consistent system
   // state on crashes.
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &UpdateAttempter::BroadcastStatus,
-      base::Unretained(update_attempter_.get())));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempter::BroadcastStatus,
+                 base::Unretained(update_attempter_.get())));
 
   // Run the UpdateEngineStarted() method on |update_attempter|.
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &UpdateAttempter::UpdateEngineStarted,
-      base::Unretained(update_attempter_.get())));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempter::UpdateEngineStarted,
+                 base::Unretained(update_attempter_.get())));
   return true;
 }
 

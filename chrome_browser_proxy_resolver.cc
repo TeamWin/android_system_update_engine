@@ -28,8 +28,7 @@
 namespace chromeos_update_engine {
 
 ChromeBrowserProxyResolver::ChromeBrowserProxyResolver()
-    : next_request_id_(kProxyRequestIdNull + 1),
-      weak_ptr_factory_(this) {}
+    : next_request_id_(kProxyRequestIdNull + 1), weak_ptr_factory_(this) {}
 
 ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() = default;
 
@@ -37,9 +36,11 @@ ProxyRequestId ChromeBrowserProxyResolver::GetProxiesForUrl(
     const std::string& url, const ProxiesResolvedFn& callback) {
   const ProxyRequestId id = next_request_id_++;
   brillo::http::GetChromeProxyServersAsync(
-      DBusConnection::Get()->GetDBus(), url,
+      DBusConnection::Get()->GetDBus(),
+      url,
       base::Bind(&ChromeBrowserProxyResolver::OnGetChromeProxyServers,
-                 weak_ptr_factory_.GetWeakPtr(), id));
+                 weak_ptr_factory_.GetWeakPtr(),
+                 id));
   pending_callbacks_[id] = callback;
   return id;
 }
@@ -49,7 +50,8 @@ bool ChromeBrowserProxyResolver::CancelProxyRequest(ProxyRequestId request) {
 }
 
 void ChromeBrowserProxyResolver::OnGetChromeProxyServers(
-    ProxyRequestId request_id, bool success,
+    ProxyRequestId request_id,
+    bool success,
     const std::vector<std::string>& proxies) {
   // If |success| is false, |proxies| will still hold the direct proxy option
   // which is what we do in our error case.

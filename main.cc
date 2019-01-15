@@ -108,9 +108,8 @@ void SetupLogSymlink(const string& symlink_path, const string& log_path) {
   // we stop caring about the old-style logs.
   if (utils::FileExists(symlink_path.c_str()) &&
       !utils::IsSymlink(symlink_path.c_str())) {
-    base::ReplaceFile(base::FilePath(symlink_path),
-                      base::FilePath(log_path),
-                      nullptr);
+    base::ReplaceFile(
+        base::FilePath(symlink_path), base::FilePath(log_path), nullptr);
   }
   base::DeleteFile(base::FilePath(symlink_path), true);
   if (symlink(log_path.c_str(), symlink_path.c_str()) == -1) {
@@ -160,10 +159,10 @@ void SetupLogging(bool log_to_system, bool log_to_file) {
 
 int main(int argc, char** argv) {
   DEFINE_bool(logtofile, false, "Write logs to a file in log_dir.");
-  DEFINE_bool(logtostderr, false,
+  DEFINE_bool(logtostderr,
+              false,
               "Write logs to stderr instead of to a file in log_dir.");
-  DEFINE_bool(foreground, false,
-              "Don't daemon()ize; run in foreground.");
+  DEFINE_bool(foreground, false, "Don't daemon()ize; run in foreground.");
 
   chromeos_update_engine::Terminator::Init();
   brillo::FlagHelper::Init(argc, argv, "A/B Update Engine");

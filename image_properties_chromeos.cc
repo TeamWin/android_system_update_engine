@@ -114,7 +114,8 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   result.board = GetStringWithDefault(lsb_release, kLsbReleaseBoardKey, "");
   result.version = GetStringWithDefault(lsb_release, kLsbReleaseVersionKey, "");
   result.omaha_url =
-      GetStringWithDefault(lsb_release, kLsbReleaseAutoUpdateServerKey,
+      GetStringWithDefault(lsb_release,
+                           kLsbReleaseAutoUpdateServerKey,
                            constants::kOmahaDefaultProductionURL);
   // Build fingerprint not used in Chrome OS.
   result.build_fingerprint = "";
