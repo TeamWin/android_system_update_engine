@@ -33,7 +33,7 @@ class TopologicalSortTest : public ::testing::Test {};
 namespace {
 // Returns true if the value is found in vect. If found, the index is stored
 // in out_index if out_index is not null.
-template<typename T>
+template <typename T>
 bool IndexOf(const vector<T>& vect,
              const T& value,
              typename vector<T>::size_type* out_index) {
@@ -84,7 +84,8 @@ TEST(TopologicalSortTest, SimpleTest) {
     vector<Vertex::Index>::size_type src_index = 0;
     EXPECT_TRUE(IndexOf(sorted, i, &src_index));
     for (Vertex::EdgeMap::const_iterator it = graph[i].out_edges.begin();
-         it != graph[i].out_edges.end(); ++it) {
+         it != graph[i].out_edges.end();
+         ++it) {
       vector<Vertex::Index>::size_type dst_index = 0;
       EXPECT_TRUE(IndexOf(sorted, it->first, &dst_index));
       EXPECT_LT(dst_index, src_index);

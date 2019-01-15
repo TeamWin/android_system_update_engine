@@ -20,10 +20,8 @@
 
 namespace chromeos_update_engine {
 
-FakeFilesystem::FakeFilesystem(uint64_t block_size, uint64_t block_count) :
-    block_size_(block_size),
-    block_count_(block_count) {
-}
+FakeFilesystem::FakeFilesystem(uint64_t block_size, uint64_t block_count)
+    : block_size_(block_size), block_count_(block_count) {}
 
 size_t FakeFilesystem::GetBlockSize() const {
   return block_size_;

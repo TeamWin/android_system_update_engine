@@ -57,9 +57,9 @@ class ExtentRanges {
   void AddExtents(const std::vector<Extent>& extents);
   void SubtractExtents(const std::vector<Extent>& extents);
   void AddRepeatedExtents(
-      const ::google::protobuf::RepeatedPtrField<Extent> &exts);
+      const ::google::protobuf::RepeatedPtrField<Extent>& exts);
   void SubtractRepeatedExtents(
-      const ::google::protobuf::RepeatedPtrField<Extent> &exts);
+      const ::google::protobuf::RepeatedPtrField<Extent>& exts);
   void AddRanges(const ExtentRanges& ranges);
   void SubtractRanges(const ExtentRanges& ranges);
 

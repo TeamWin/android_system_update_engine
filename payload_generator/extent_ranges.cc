@@ -85,7 +85,8 @@ void ExtentRanges::AddExtent(Extent extent) {
   ExtentSet::iterator end_del = extent_set_.end();
   uint64_t del_blocks = 0;
   for (ExtentSet::iterator it = extent_set_.begin(), e = extent_set_.end();
-       it != e; ++it) {
+       it != e;
+       ++it) {
     if (ExtentsOverlapOrTouch(*it, extent)) {
       end_del = it;
       ++end_del;
@@ -129,7 +130,8 @@ void ExtentRanges::SubtractExtent(const Extent& extent) {
   uint64_t del_blocks = 0;
   ExtentSet new_extents;
   for (ExtentSet::iterator it = extent_set_.begin(), e = extent_set_.end();
-       it != e; ++it) {
+       it != e;
+       ++it) {
     if (!ExtentsOverlap(*it, extent))
       continue;
 
@@ -142,7 +144,8 @@ void ExtentRanges::SubtractExtent(const Extent& extent) {
 
     ExtentSet subtraction = SubtractOverlappingExtents(*it, extent);
     for (ExtentSet::iterator jt = subtraction.begin(), je = subtraction.end();
-         jt != je; ++jt) {
+         jt != je;
+         ++jt) {
       new_extents.insert(*jt);
       del_blocks -= jt->num_blocks();
     }
@@ -154,41 +157,47 @@ void ExtentRanges::SubtractExtent(const Extent& extent) {
 
 void ExtentRanges::AddRanges(const ExtentRanges& ranges) {
   for (ExtentSet::const_iterator it = ranges.extent_set_.begin(),
-           e = ranges.extent_set_.end(); it != e; ++it) {
+                                 e = ranges.extent_set_.end();
+       it != e;
+       ++it) {
     AddExtent(*it);
   }
 }
 
 void ExtentRanges::SubtractRanges(const ExtentRanges& ranges) {
   for (ExtentSet::const_iterator it = ranges.extent_set_.begin(),
-           e = ranges.extent_set_.end(); it != e; ++it) {
+                                 e = ranges.extent_set_.end();
+       it != e;
+       ++it) {
     SubtractExtent(*it);
   }
 }
 
 void ExtentRanges::AddExtents(const vector<Extent>& extents) {
   for (vector<Extent>::const_iterator it = extents.begin(), e = extents.end();
-       it != e; ++it) {
+       it != e;
+       ++it) {
     AddExtent(*it);
   }
 }
 
 void ExtentRanges::SubtractExtents(const vector<Extent>& extents) {
   for (vector<Extent>::const_iterator it = extents.begin(), e = extents.end();
-       it != e; ++it) {
+       it != e;
+       ++it) {
     SubtractExtent(*it);
   }
 }
 
 void ExtentRanges::AddRepeatedExtents(
-    const ::google::protobuf::RepeatedPtrField<Extent> &exts) {
+    const ::google::protobuf::RepeatedPtrField<Extent>& exts) {
   for (int i = 0, e = exts.size(); i != e; ++i) {
     AddExtent(exts.Get(i));
   }
 }
 
 void ExtentRanges::SubtractRepeatedExtents(
-    const ::google::protobuf::RepeatedPtrField<Extent> &exts) {
+    const ::google::protobuf::RepeatedPtrField<Extent>& exts) {
   for (int i = 0, e = exts.size(); i != e; ++i) {
     SubtractExtent(exts.Get(i));
   }
@@ -214,8 +223,9 @@ bool ExtentRanges::ContainsBlock(uint64_t block) const {
 void ExtentRanges::Dump() const {
   LOG(INFO) << "ExtentRanges Dump. blocks: " << blocks_;
   for (ExtentSet::const_iterator it = extent_set_.begin(),
-           e = extent_set_.end();
-       it != e; ++it) {
+                                 e = extent_set_.end();
+       it != e;
+       ++it) {
     LOG(INFO) << "{" << it->start_block() << ", " << it->num_blocks() << "}";
   }
 }
@@ -235,16 +245,16 @@ Extent ExtentForBytes(uint64_t block_size,
   return ExtentForRange(start_block, end_block - start_block);
 }
 
-vector<Extent> ExtentRanges::GetExtentsForBlockCount(
-    uint64_t count) const {
+vector<Extent> ExtentRanges::GetExtentsForBlockCount(uint64_t count) const {
   vector<Extent> out;
   if (count == 0)
     return out;
   uint64_t out_blocks = 0;
   CHECK(count <= blocks_);
   for (ExtentSet::const_iterator it = extent_set_.begin(),
-           e = extent_set_.end();
-       it != e; ++it) {
+                                 e = extent_set_.end();
+       it != e;
+       ++it) {
     const uint64_t blocks_needed = count - out_blocks;
     const Extent& extent = *it;
     out.push_back(extent);
@@ -285,8 +295,8 @@ vector<Extent> FilterExtentRanges(const vector<Extent>& extents,
         continue;
       if (iter->start_block() <= extent.start_block()) {
         // We need to cut blocks from the beginning of the |extent|.
-        uint64_t cut_blocks = iter->start_block() + iter->num_blocks() -
-            extent.start_block();
+        uint64_t cut_blocks =
+            iter->start_block() + iter->num_blocks() - extent.start_block();
         if (cut_blocks >= extent.num_blocks()) {
           extent.set_num_blocks(0);
           break;
@@ -296,9 +306,8 @@ vector<Extent> FilterExtentRanges(const vector<Extent>& extents,
       } else {
         // We need to cut blocks on the middle of the extent, possible up to the
         // end of it.
-        result.push_back(
-            ExtentForRange(extent.start_block(),
-                           iter->start_block() - extent.start_block()));
+        result.push_back(ExtentForRange(
+            extent.start_block(), iter->start_block() - extent.start_block()));
         uint64_t new_start = iter->start_block() + iter->num_blocks();
         uint64_t old_end = extent.start_block() + extent.num_blocks();
         if (new_start >= old_end) {

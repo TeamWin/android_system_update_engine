@@ -22,6 +22,7 @@
 
 #include "update_engine/payload_generator/filesystem_interface.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -29,8 +30,9 @@ namespace chromeos_update_engine {
 
 class RawFilesystem : public FilesystemInterface {
  public:
-  static std::unique_ptr<RawFilesystem> Create(
-      const std::string& filename, uint64_t block_size, uint64_t block_count);
+  static std::unique_ptr<RawFilesystem> Create(const std::string& filename,
+                                               uint64_t block_size,
+                                               uint64_t block_count);
   virtual ~RawFilesystem() = default;
 
   // FilesystemInterface overrides.
