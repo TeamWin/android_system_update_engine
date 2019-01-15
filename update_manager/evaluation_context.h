@@ -73,8 +73,10 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   EvaluationContext(chromeos_update_engine::ClockInterface* clock,
                     base::TimeDelta evaluation_timeout)
       : EvaluationContext(
-          clock, evaluation_timeout, base::TimeDelta::Max(),
-          std::unique_ptr<base::Callback<void(EvaluationContext*)>>()) {}
+            clock,
+            evaluation_timeout,
+            base::TimeDelta::Max(),
+            std::unique_ptr<base::Callback<void(EvaluationContext*)>>()) {}
   ~EvaluationContext();
 
   // Returns a pointer to the value returned by the passed variable |var|. The
@@ -83,7 +85,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // passed Variable changes it.
   //
   // In case of error, a null value is returned.
-  template<typename T>
+  template <typename T>
   const T* GetValue(Variable<T>* var);
 
   // Returns whether the evaluation time has surpassed |timestamp|, on either
@@ -163,8 +165,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
 
   // The TaskId returned by the message loop identifying the timeout callback.
   // Used for canceling the timeout callback.
-  brillo::MessageLoop::TaskId timeout_event_ =
-      brillo::MessageLoop::kTaskIdNull;
+  brillo::MessageLoop::TaskId timeout_event_ = brillo::MessageLoop::kTaskIdNull;
 
   // Whether a timeout event firing marks the expiration of the evaluation
   // context.

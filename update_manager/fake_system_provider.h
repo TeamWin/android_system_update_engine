@@ -17,8 +17,11 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_FAKE_SYSTEM_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_FAKE_SYSTEM_PROVIDER_H_
 
-#include "update_engine/update_manager/fake_variable.h"
 #include "update_engine/update_manager/system_provider.h"
+
+#include <string>
+
+#include "update_engine/update_manager/fake_variable.h"
 
 namespace chromeos_update_manager {
 
@@ -48,12 +51,12 @@ class FakeSystemProvider : public SystemProvider {
   }
 
  private:
-  FakeVariable<bool> var_is_normal_boot_mode_{  // NOLINT(whitespace/braces)
-    "is_normal_boot_mode", kVariableModeConst};
-  FakeVariable<bool> var_is_official_build_{  // NOLINT(whitespace/braces)
-    "is_official_build", kVariableModeConst};
-  FakeVariable<bool> var_is_oobe_complete_{  // NOLINT(whitespace/braces)
-    "is_oobe_complete", kVariableModePoll};
+  FakeVariable<bool> var_is_normal_boot_mode_{"is_normal_boot_mode",
+                                              kVariableModeConst};
+  FakeVariable<bool> var_is_official_build_{"is_official_build",
+                                            kVariableModeConst};
+  FakeVariable<bool> var_is_oobe_complete_{"is_oobe_complete",
+                                           kVariableModePoll};
   FakeVariable<unsigned int> var_num_slots_{"num_slots", kVariableModePoll};
   FakeVariable<std::string> var_kiosk_required_platform_version_{
       "kiosk_required_platform_version", kVariableModePoll};

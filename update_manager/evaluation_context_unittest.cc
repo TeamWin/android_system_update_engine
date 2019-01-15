@@ -41,9 +41,9 @@ using brillo::MessageLoopRunUntil;
 using chromeos_update_engine::FakeClock;
 using std::string;
 using std::unique_ptr;
+using testing::_;
 using testing::Return;
 using testing::StrictMock;
-using testing::_;
 
 namespace chromeos_update_manager {
 
@@ -58,15 +58,17 @@ bool GetBoolean(bool* value) {
   return *value;
 }
 
-template<typename T>
+template <typename T>
 void ReadVar(scoped_refptr<EvaluationContext> ec, Variable<T>* var) {
   ec->GetValue(var);
 }
 
 // Runs |evaluation|; if the value pointed by |count_p| is greater than zero,
 // decrement it and schedule a reevaluation; otherwise, writes true to |done_p|.
-void EvaluateRepeatedly(Closure evaluation, scoped_refptr<EvaluationContext> ec,
-                        int* count_p, bool* done_p) {
+void EvaluateRepeatedly(Closure evaluation,
+                        scoped_refptr<EvaluationContext> ec,
+                        int* count_p,
+                        bool* done_p) {
   evaluation.Run();
 
   // Schedule reevaluation if needed.
@@ -91,7 +93,9 @@ class UmEvaluationContextTest : public ::testing::Test {
     // Mar 2, 2006 1:23:45 UTC.
     fake_clock_.SetWallclockTime(Time::FromTimeT(1141262625));
     eval_ctx_ = new EvaluationContext(
-        &fake_clock_, default_timeout_, default_timeout_,
+        &fake_clock_,
+        default_timeout_,
+        default_timeout_,
         unique_ptr<base::Callback<void(EvaluationContext*)>>(nullptr));
   }
 
@@ -133,10 +137,10 @@ class UmEvaluationContextTest : public ::testing::Test {
   FakeVariable<string> fake_const_var_ = {"fake_const", kVariableModeConst};
   FakeVariable<string> fake_poll_var_ = {"fake_poll",
                                          TimeDelta::FromSeconds(1)};
-  StrictMock<MockVariable<string>> mock_var_async_ {
-    "mock_var_async", kVariableModeAsync};
-  StrictMock<MockVariable<string>> mock_var_poll_ {
-    "mock_var_poll", kVariableModePoll};
+  StrictMock<MockVariable<string>> mock_var_async_{"mock_var_async",
+                                                   kVariableModeAsync};
+  StrictMock<MockVariable<string>> mock_var_poll_{"mock_var_poll",
+                                                  kVariableModePoll};
 };
 
 TEST_F(UmEvaluationContextTest, GetValueFails) {
@@ -329,8 +333,8 @@ TEST_F(UmEvaluationContextTest,
   evaluation.Run();
 
   // Schedule repeated reevaluations.
-  Closure closure = Bind(EvaluateRepeatedly, evaluation, eval_ctx_,
-                         &num_reevaluations, &done);
+  Closure closure = Bind(
+      EvaluateRepeatedly, evaluation, eval_ctx_, &num_reevaluations, &done);
   ASSERT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(closure));
   MessageLoopRunUntil(MessageLoop::current(),
                       TimeDelta::FromSeconds(10),
@@ -384,13 +388,12 @@ TEST_F(UmEvaluationContextTest, DefaultTimeout) {
 }
 
 TEST_F(UmEvaluationContextTest, TimeoutUpdatesWithMonotonicTime) {
-  fake_clock_.SetMonotonicTime(
-      fake_clock_.GetMonotonicTime() + TimeDelta::FromSeconds(1));
+  fake_clock_.SetMonotonicTime(fake_clock_.GetMonotonicTime() +
+                               TimeDelta::FromSeconds(1));
 
   TimeDelta timeout = default_timeout_ - TimeDelta::FromSeconds(1);
 
-  EXPECT_CALL(mock_var_async_, GetValue(timeout, _))
-      .WillOnce(Return(nullptr));
+  EXPECT_CALL(mock_var_async_, GetValue(timeout, _)).WillOnce(Return(nullptr));
   EXPECT_EQ(nullptr, eval_ctx_->GetValue(&mock_var_async_));
 }
 
@@ -399,20 +402,20 @@ TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesWallclock) {
   // Advance the time on the clock but don't call ResetEvaluation yet.
   fake_clock_.SetWallclockTime(cur_time + TimeDelta::FromSeconds(4));
 
-  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(
-          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(cur_time -
+                                                    TimeDelta::FromSeconds(1)));
   EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(cur_time));
   EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(
-          cur_time + TimeDelta::FromSeconds(1)));
+      cur_time + TimeDelta::FromSeconds(1)));
   // Call ResetEvaluation now, which should use the new evaluation time.
   eval_ctx_->ResetEvaluation();
 
   cur_time = fake_clock_.GetWallclockTime();
-  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(
-          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(cur_time -
+                                                    TimeDelta::FromSeconds(1)));
   EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(cur_time));
   EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(
-          cur_time + TimeDelta::FromSeconds(1)));
+      cur_time + TimeDelta::FromSeconds(1)));
 }
 
 TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesMonotonic) {
@@ -420,20 +423,20 @@ TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesMonotonic) {
   // Advance the time on the clock but don't call ResetEvaluation yet.
   fake_clock_.SetMonotonicTime(cur_time + TimeDelta::FromSeconds(4));
 
-  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(
-          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(cur_time -
+                                                    TimeDelta::FromSeconds(1)));
   EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(cur_time));
   EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(
-          cur_time + TimeDelta::FromSeconds(1)));
+      cur_time + TimeDelta::FromSeconds(1)));
   // Call ResetEvaluation now, which should use the new evaluation time.
   eval_ctx_->ResetEvaluation();
 
   cur_time = fake_clock_.GetMonotonicTime();
-  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(
-          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(cur_time -
+                                                    TimeDelta::FromSeconds(1)));
   EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(cur_time));
   EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(
-          cur_time + TimeDelta::FromSeconds(1)));
+      cur_time + TimeDelta::FromSeconds(1)));
 }
 
 TEST_F(UmEvaluationContextTest,
@@ -521,16 +524,17 @@ TEST_F(UmEvaluationContextTest, DumpContext) {
   // Note that the variables are printed in alphabetical order. Also
   // see UmEvaluationContextText::SetUp() where the values used for
   // |evaluation_start_{monotonic,wallclock| are set.
-  EXPECT_EQ("{\n"
-            "   \"evaluation_start_monotonic\": \"4/22/2009 19:25:00 GMT\",\n"
-            "   \"evaluation_start_wallclock\": \"3/2/2006 1:23:45 GMT\",\n"
-            "   \"variables\": {\n"
-            "      \"fail_var\": \"(no value)\",\n"
-            "      \"fake_int\": \"42\",\n"
-            "      \"fake_poll\": \"Hello \\\"world\\\"!\"\n"
-            "   }\n"
-            "}",
-            eval_ctx_->DumpContext());
+  EXPECT_EQ(
+      "{\n"
+      "   \"evaluation_start_monotonic\": \"4/22/2009 19:25:00 GMT\",\n"
+      "   \"evaluation_start_wallclock\": \"3/2/2006 1:23:45 GMT\",\n"
+      "   \"variables\": {\n"
+      "      \"fail_var\": \"(no value)\",\n"
+      "      \"fake_int\": \"42\",\n"
+      "      \"fake_poll\": \"Hello \\\"world\\\"!\"\n"
+      "   }\n"
+      "}",
+      eval_ctx_->DumpContext());
 }
 
 }  // namespace chromeos_update_manager

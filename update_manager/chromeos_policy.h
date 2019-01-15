@@ -54,9 +54,10 @@ class ChromeOSPolicy : public Policy {
   ~ChromeOSPolicy() override {}
 
   // Policy overrides.
-  EvalStatus UpdateCheckAllowed(
-      EvaluationContext* ec, State* state, std::string* error,
-      UpdateCheckParams* result) const override;
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+                                State* state,
+                                std::string* error,
+                                UpdateCheckParams* result) const override;
 
   EvalStatus UpdateCanBeApplied(
       EvaluationContext* ec,
@@ -65,31 +66,27 @@ class ChromeOSPolicy : public Policy {
       chromeos_update_engine::ErrorCode* result,
       chromeos_update_engine::InstallPlan* install_plan) const override;
 
-  EvalStatus UpdateCanStart(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
-      UpdateDownloadParams* result,
-      UpdateState update_state) const override;
+  EvalStatus UpdateCanStart(EvaluationContext* ec,
+                            State* state,
+                            std::string* error,
+                            UpdateDownloadParams* result,
+                            UpdateState update_state) const override;
 
-  EvalStatus UpdateDownloadAllowed(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
-      bool* result) const override;
+  EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
+                                   State* state,
+                                   std::string* error,
+                                   bool* result) const override;
 
-  EvalStatus P2PEnabled(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
-      bool* result) const override;
+  EvalStatus P2PEnabled(EvaluationContext* ec,
+                        State* state,
+                        std::string* error,
+                        bool* result) const override;
 
-  EvalStatus P2PEnabledChanged(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
-      bool* result,
-      bool prev_result) const override;
+  EvalStatus P2PEnabledChanged(EvaluationContext* ec,
+                               State* state,
+                               std::string* error,
+                               bool* result,
+                               bool prev_result) const override;
 
  protected:
   // Policy override.
@@ -151,7 +148,9 @@ class ChromeOSPolicy : public Policy {
   // In any of these cases, returns |EvalStatus::kSucceeded|. If an error
   // occurred, returns |EvalStatus::kFailed|.
   EvalStatus UpdateBackoffAndDownloadUrl(
-      EvaluationContext* ec, State* state, std::string* error,
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
       UpdateBackoffAndDownloadUrlResult* result,
       const UpdateState& update_state) const;
 
@@ -167,7 +166,8 @@ class ChromeOSPolicy : public Policy {
   // threshold, or zero if no such threshold is known. If not scattering, or if
   // any of the scattering values has changed, returns |EvalStatus::kSucceeded|;
   // otherwise, |EvalStatus::kAskMeAgainLater|.
-  EvalStatus UpdateScattering(EvaluationContext* ec, State* state,
+  EvalStatus UpdateScattering(EvaluationContext* ec,
+                              State* state,
                               std::string* error,
                               UpdateScatteringResult* result,
                               const UpdateState& update_state) const;

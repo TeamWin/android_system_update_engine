@@ -45,10 +45,11 @@ namespace chromeos_update_manager {
 
 // A templated base class for all update related variables. Provides uniform
 // construction and a system state handle.
-template<typename T>
+template <typename T>
 class UpdaterVariableBase : public Variable<T> {
  public:
-  UpdaterVariableBase(const string& name, VariableMode mode,
+  UpdaterVariableBase(const string& name,
+                      VariableMode mode,
                       SystemState* system_state)
       : Variable<T>(name, mode), system_state_(system_state) {}
 
@@ -125,8 +126,8 @@ class ProgressVariable : public UpdaterVariableBase<double> {
 
     if (raw.progress() < 0.0 || raw.progress() > 1.0) {
       if (errmsg) {
-        *errmsg = StringPrintf("Invalid progress value received: %f",
-                               raw.progress());
+        *errmsg =
+            StringPrintf("Invalid progress value received: %f", raw.progress());
       }
       return nullptr;
     }
@@ -157,22 +158,20 @@ class StageVariable : public UpdaterVariableBase<Stage> {
 };
 
 const StageVariable::CurrOpStrToStage StageVariable::curr_op_str_to_stage[] = {
-  {update_engine::kUpdateStatusIdle, Stage::kIdle},
-  {update_engine::kUpdateStatusCheckingForUpdate, Stage::kCheckingForUpdate},
-  {update_engine::kUpdateStatusUpdateAvailable, Stage::kUpdateAvailable},
-  {update_engine::kUpdateStatusDownloading, Stage::kDownloading},
-  {update_engine::kUpdateStatusVerifying, Stage::kVerifying},
-  {update_engine::kUpdateStatusFinalizing, Stage::kFinalizing},
-  {update_engine::kUpdateStatusUpdatedNeedReboot, Stage::kUpdatedNeedReboot},
-  {  // NOLINT(whitespace/braces)
-    update_engine::kUpdateStatusReportingErrorEvent,
-    Stage::kReportingErrorEvent
-  },
-  {update_engine::kUpdateStatusAttemptingRollback, Stage::kAttemptingRollback},
+    {update_engine::kUpdateStatusIdle, Stage::kIdle},
+    {update_engine::kUpdateStatusCheckingForUpdate, Stage::kCheckingForUpdate},
+    {update_engine::kUpdateStatusUpdateAvailable, Stage::kUpdateAvailable},
+    {update_engine::kUpdateStatusDownloading, Stage::kDownloading},
+    {update_engine::kUpdateStatusVerifying, Stage::kVerifying},
+    {update_engine::kUpdateStatusFinalizing, Stage::kFinalizing},
+    {update_engine::kUpdateStatusUpdatedNeedReboot, Stage::kUpdatedNeedReboot},
+    {update_engine::kUpdateStatusReportingErrorEvent,
+     Stage::kReportingErrorEvent},
+    {update_engine::kUpdateStatusAttemptingRollback,
+     Stage::kAttemptingRollback},
 };
 
-const Stage* StageVariable::GetValue(TimeDelta /* timeout */,
-                                     string* errmsg) {
+const Stage* StageVariable::GetValue(TimeDelta /* timeout */, string* errmsg) {
   GetStatusHelper raw(system_state(), errmsg);
   if (!raw.is_success())
     return nullptr;
@@ -316,9 +315,7 @@ class BooleanPrefVariable
     prefs->AddObserver(key, this);
     OnPrefSet(key);
   }
-  ~BooleanPrefVariable() {
-    prefs_->RemoveObserver(key_, this);
-  }
+  ~BooleanPrefVariable() { prefs_->RemoveObserver(key_, this); }
 
  private:
   // Reads the actual value from the Prefs instance and updates the Variable
@@ -331,9 +328,7 @@ class BooleanPrefVariable
     SetValue(result);
   }
 
-  void OnPrefDeleted(const string& key) override {
-    SetValue(default_val_);
-  }
+  void OnPrefDeleted(const string& key) override { SetValue(default_val_); }
 
   chromeos_update_engine::PrefsInterface* prefs_;
 
@@ -350,8 +345,8 @@ class ConsecutiveFailedUpdateChecksVariable
  public:
   ConsecutiveFailedUpdateChecksVariable(const string& name,
                                         SystemState* system_state)
-      : UpdaterVariableBase<unsigned int>(name, kVariableModePoll,
-                                          system_state) {}
+      : UpdaterVariableBase<unsigned int>(
+            name, kVariableModePoll, system_state) {}
 
  private:
   const unsigned int* GetValue(TimeDelta /* timeout */,
@@ -369,8 +364,8 @@ class ServerDictatedPollIntervalVariable
  public:
   ServerDictatedPollIntervalVariable(const string& name,
                                      SystemState* system_state)
-      : UpdaterVariableBase<unsigned int>(name, kVariableModePoll,
-                                          system_state) {}
+      : UpdaterVariableBase<unsigned int>(
+            name, kVariableModePoll, system_state) {}
 
  private:
   const unsigned int* GetValue(TimeDelta /* timeout */,
@@ -388,7 +383,7 @@ class ForcedUpdateRequestedVariable
  public:
   ForcedUpdateRequestedVariable(const string& name, SystemState* system_state)
       : UpdaterVariableBase<UpdateRequestStatus>::UpdaterVariableBase(
-          name, kVariableModeAsync, system_state) {
+            name, kVariableModeAsync, system_state) {
     system_state->update_attempter()->set_forced_update_pending_callback(
         new base::Callback<void(bool, bool)>(  // NOLINT(readability/function)
             base::Bind(&ForcedUpdateRequestedVariable::Reset,

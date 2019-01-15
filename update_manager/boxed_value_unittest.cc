@@ -51,14 +51,14 @@ class DeleterMarker {
   ~DeleterMarker() { *marker_ = true; }
 
  private:
-  friend string BoxedValue::ValuePrinter<DeleterMarker>(const void *);
+  friend string BoxedValue::ValuePrinter<DeleterMarker>(const void*);
 
   // Pointer to the bool marker.
   bool* marker_;
 };
 
-template<>
-string BoxedValue::ValuePrinter<DeleterMarker>(const void *value) {
+template <>
+string BoxedValue::ValuePrinter<DeleterMarker>(const void* value) {
   const DeleterMarker* val = reinterpret_cast<const DeleterMarker*>(value);
   return base::StringPrintf("DeleterMarker:%s",
                             *val->marker_ ? "true" : "false");
@@ -112,8 +112,7 @@ TEST(UmBoxedValueTest, MixedMap) {
 }
 
 TEST(UmBoxedValueTest, StringToString) {
-  EXPECT_EQ("Hej Verden!",
-            BoxedValue(new string("Hej Verden!")).ToString());
+  EXPECT_EQ("Hej Verden!", BoxedValue(new string("Hej Verden!")).ToString());
 }
 
 TEST(UmBoxedValueTest, IntToString) {
@@ -122,8 +121,8 @@ TEST(UmBoxedValueTest, IntToString) {
 
 TEST(UmBoxedValueTest, Int64ToString) {
   // -123456789012345 doesn't fit in 32-bit integers.
-  EXPECT_EQ("-123456789012345", BoxedValue(
-      new int64_t(-123456789012345LL)).ToString());
+  EXPECT_EQ("-123456789012345",
+            BoxedValue(new int64_t(-123456789012345LL)).ToString());
 }
 
 TEST(UmBoxedValueTest, UnsignedIntToString) {
@@ -134,8 +133,8 @@ TEST(UmBoxedValueTest, UnsignedIntToString) {
 
 TEST(UmBoxedValueTest, UnsignedInt64ToString) {
   // 18446744073709551615 is the biggest possible 64-bit unsigned integer.
-  EXPECT_EQ("18446744073709551615", BoxedValue(
-      new uint64_t(18446744073709551615ULL)).ToString());
+  EXPECT_EQ("18446744073709551615",
+            BoxedValue(new uint64_t(18446744073709551615ULL)).ToString());
 }
 
 TEST(UmBoxedValueTest, BoolToString) {
@@ -155,46 +154,47 @@ TEST(UmBoxedValueTest, TimeToString) {
 
 TEST(UmBoxedValueTest, TimeDeltaToString) {
   // 12345 seconds is 3 hours, 25 minutes and 45 seconds.
-  EXPECT_EQ("3h25m45s",
-            BoxedValue(new TimeDelta(TimeDelta::FromSeconds(12345)))
-            .ToString());
+  EXPECT_EQ(
+      "3h25m45s",
+      BoxedValue(new TimeDelta(TimeDelta::FromSeconds(12345))).ToString());
 }
 
 TEST(UmBoxedValueTest, ConnectionTypeToString) {
   EXPECT_EQ(
       "Disconnected",
       BoxedValue(new ConnectionType(ConnectionType::kDisconnected)).ToString());
-  EXPECT_EQ("ethernet",
-            BoxedValue(new ConnectionType(ConnectionType::kEthernet))
-            .ToString());
+  EXPECT_EQ(
+      "ethernet",
+      BoxedValue(new ConnectionType(ConnectionType::kEthernet)).ToString());
   EXPECT_EQ("wifi",
             BoxedValue(new ConnectionType(ConnectionType::kWifi)).ToString());
   EXPECT_EQ("wimax",
             BoxedValue(new ConnectionType(ConnectionType::kWimax)).ToString());
-  EXPECT_EQ("bluetooth",
-            BoxedValue(new ConnectionType(ConnectionType::kBluetooth))
-            .ToString());
-  EXPECT_EQ("cellular",
-            BoxedValue(new ConnectionType(ConnectionType::kCellular))
-            .ToString());
-  EXPECT_EQ("Unknown",
-            BoxedValue(new ConnectionType(ConnectionType::kUnknown))
-            .ToString());
+  EXPECT_EQ(
+      "bluetooth",
+      BoxedValue(new ConnectionType(ConnectionType::kBluetooth)).ToString());
+  EXPECT_EQ(
+      "cellular",
+      BoxedValue(new ConnectionType(ConnectionType::kCellular)).ToString());
+  EXPECT_EQ(
+      "Unknown",
+      BoxedValue(new ConnectionType(ConnectionType::kUnknown)).ToString());
 }
 
 TEST(UmBoxedValueTest, ConnectionTetheringToString) {
-  EXPECT_EQ("Not Detected",
-            BoxedValue(new ConnectionTethering(
-                ConnectionTethering::kNotDetected)).ToString());
+  EXPECT_EQ(
+      "Not Detected",
+      BoxedValue(new ConnectionTethering(ConnectionTethering::kNotDetected))
+          .ToString());
   EXPECT_EQ("Suspected",
             BoxedValue(new ConnectionTethering(ConnectionTethering::kSuspected))
-            .ToString());
+                .ToString());
   EXPECT_EQ("Confirmed",
             BoxedValue(new ConnectionTethering(ConnectionTethering::kConfirmed))
-            .ToString());
+                .ToString());
   EXPECT_EQ("Unknown",
             BoxedValue(new ConnectionTethering(ConnectionTethering::kUnknown))
-            .ToString());
+                .ToString());
 }
 
 TEST(UmBoxedValueTest, RollbackToTargetVersionToString) {
@@ -234,18 +234,15 @@ TEST(UmBoxedValueTest, SetConnectionTypeToString) {
 }
 
 TEST(UmBoxedValueTest, StageToString) {
-  EXPECT_EQ("Idle",
-            BoxedValue(new Stage(Stage::kIdle)).ToString());
+  EXPECT_EQ("Idle", BoxedValue(new Stage(Stage::kIdle)).ToString());
   EXPECT_EQ("Checking For Update",
             BoxedValue(new Stage(Stage::kCheckingForUpdate)).ToString());
   EXPECT_EQ("Update Available",
             BoxedValue(new Stage(Stage::kUpdateAvailable)).ToString());
   EXPECT_EQ("Downloading",
             BoxedValue(new Stage(Stage::kDownloading)).ToString());
-  EXPECT_EQ("Verifying",
-            BoxedValue(new Stage(Stage::kVerifying)).ToString());
-  EXPECT_EQ("Finalizing",
-            BoxedValue(new Stage(Stage::kFinalizing)).ToString());
+  EXPECT_EQ("Verifying", BoxedValue(new Stage(Stage::kVerifying)).ToString());
+  EXPECT_EQ("Finalizing", BoxedValue(new Stage(Stage::kFinalizing)).ToString());
   EXPECT_EQ("Updated, Need Reboot",
             BoxedValue(new Stage(Stage::kUpdatedNeedReboot)).ToString());
   EXPECT_EQ("Reporting Error Event",

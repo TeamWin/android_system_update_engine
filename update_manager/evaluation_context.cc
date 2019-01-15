@@ -43,8 +43,7 @@ namespace {
 // Returns whether |curr_time| surpassed |ref_time|; if not, also checks whether
 // |ref_time| is sooner than the current value of |*reeval_time|, in which case
 // the latter is updated to the former.
-bool IsTimeGreaterThanHelper(Time ref_time, Time curr_time,
-                             Time* reeval_time) {
+bool IsTimeGreaterThanHelper(Time ref_time, Time curr_time, Time* reeval_time) {
   if (curr_time > ref_time)
     return true;
   // Remember the nearest reference we've checked against in this evaluation.
@@ -104,8 +103,8 @@ TimeDelta EvaluationContext::RemainingTime(Time monotonic_deadline) const {
 }
 
 Time EvaluationContext::MonotonicDeadline(TimeDelta timeout) {
-  return (timeout.is_max() ? Time::Max() :
-          clock_->GetMonotonicTime() + timeout);
+  return (timeout.is_max() ? Time::Max()
+                           : clock_->GetMonotonicTime() + timeout);
 }
 
 void EvaluationContext::ValueChanged(BaseVariable* var) {
@@ -130,13 +129,13 @@ void EvaluationContext::OnValueChangedOrTimeout() {
 }
 
 bool EvaluationContext::IsWallclockTimeGreaterThan(Time timestamp) {
-  return IsTimeGreaterThanHelper(timestamp, evaluation_start_wallclock_,
-                                 &reevaluation_time_wallclock_);
+  return IsTimeGreaterThanHelper(
+      timestamp, evaluation_start_wallclock_, &reevaluation_time_wallclock_);
 }
 
 bool EvaluationContext::IsMonotonicTimeGreaterThan(Time timestamp) {
-  return IsTimeGreaterThanHelper(timestamp, evaluation_start_monotonic_,
-                                 &reevaluation_time_monotonic_);
+  return IsTimeGreaterThanHelper(
+      timestamp, evaluation_start_monotonic_, &reevaluation_time_monotonic_);
 }
 
 void EvaluationContext::ResetEvaluation() {
@@ -147,7 +146,7 @@ void EvaluationContext::ResetEvaluation() {
   evaluation_monotonic_deadline_ = MonotonicDeadline(evaluation_timeout_);
 
   // Remove the cached values of non-const variables
-  for (auto it = value_cache_.begin(); it != value_cache_.end(); ) {
+  for (auto it = value_cache_.begin(); it != value_cache_.end();) {
     if (it->first->GetMode() == kVariableModeConst) {
       ++it;
     } else {

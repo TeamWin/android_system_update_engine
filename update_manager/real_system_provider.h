@@ -45,7 +45,8 @@ class RealSystemProvider : public SystemProvider {
         kiosk_app_proxy_(kiosk_app_proxy) {
   }
 #else
-        boot_control_(boot_control) {}
+        boot_control_(boot_control) {
+  }
 #endif  // USE_CHROME_KIOSK_APP
 
   // Initializes the provider and returns whether it succeeded.

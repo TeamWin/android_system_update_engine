@@ -74,20 +74,14 @@ class BaseVariable {
   }
 
   // Returns the variable name as a string.
-  const std::string& GetName() const {
-    return name_;
-  }
+  const std::string& GetName() const { return name_; }
 
   // Returns the variable mode.
-  VariableMode GetMode() const {
-    return mode_;
-  }
+  VariableMode GetMode() const { return mode_; }
 
   // For VariableModePoll variables, it returns the polling interval of this
   // variable. In other case, it returns 0.
-  base::TimeDelta GetPollInterval() const {
-    return poll_interval_;
-  }
+  base::TimeDelta GetPollInterval() const { return poll_interval_; }
 
   // Adds and removes observers for value changes on the variable. This only
   // works for kVariableAsync variables since the other modes don't track value
@@ -106,8 +100,8 @@ class BaseVariable {
  protected:
   // Creates a BaseVariable using the default polling interval (5 minutes).
   BaseVariable(const std::string& name, VariableMode mode)
-      : BaseVariable(name, mode,
-                     base::TimeDelta::FromMinutes(kDefaultPollMinutes)) {}
+      : BaseVariable(
+            name, mode, base::TimeDelta::FromMinutes(kDefaultPollMinutes)) {}
 
   // Creates a BaseVariable with mode kVariableModePoll and the provided
   // polling interval.
@@ -116,8 +110,8 @@ class BaseVariable {
 
   // Reset the poll interval on a polling variable to the given one.
   void SetPollInterval(base::TimeDelta poll_interval) {
-    DCHECK_EQ(kVariableModePoll, mode_) << "Can't set the poll_interval on a "
-                                        << mode_ << " variable";
+    DCHECK_EQ(kVariableModePoll, mode_)
+        << "Can't set the poll_interval on a " << mode_ << " variable";
     poll_interval_ = poll_interval;
   }
 
@@ -140,11 +134,13 @@ class BaseVariable {
   FRIEND_TEST(UmBaseVariableTest, NotifyValueChangedTest);
   FRIEND_TEST(UmBaseVariableTest, NotifyValueRemovesObserversTest);
 
-  BaseVariable(const std::string& name, VariableMode mode,
+  BaseVariable(const std::string& name,
+               VariableMode mode,
                base::TimeDelta poll_interval)
-    : name_(name), mode_(mode),
-      poll_interval_(mode == kVariableModePoll ?
-                     poll_interval : base::TimeDelta()) {}
+      : name_(name),
+        mode_(mode),
+        poll_interval_(mode == kVariableModePoll ? poll_interval
+                                                 : base::TimeDelta()) {}
 
   void OnValueChangedNotification() {
     // A ValueChanged() method can change the list of observers, for example
@@ -184,7 +180,7 @@ class BaseVariable {
 // Interface to an Update Manager variable of a given type. Implementation
 // internals are hidden as protected members, since policies should not be
 // using them directly.
-template<typename T>
+template <typename T>
 class Variable : public BaseVariable {
  public:
   ~Variable() override {}
