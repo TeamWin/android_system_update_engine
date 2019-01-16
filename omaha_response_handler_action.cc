@@ -178,6 +178,8 @@ void OmahaResponseHandlerAction::PerformAction() {
       return;
     }
     install_plan_.is_rollback = true;
+    install_plan_.rollback_data_save_requested =
+        params->rollback_data_save_requested();
   }
 
   if (response.powerwash_required || params->ShouldPowerwash())

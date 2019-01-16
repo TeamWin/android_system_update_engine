@@ -54,6 +54,7 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
   result->target_channel.clear();
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
+  result->rollback_data_save_requested = false;
   result->rollback_allowed_milestones = -1;
   result->interactive = false;
 

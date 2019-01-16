@@ -50,6 +50,8 @@ struct UpdateCheckParams {
   std::string target_version_prefix;
   // Specifies whether rollback images are allowed by device policy.
   bool rollback_allowed;
+  // Specifies if rollbacks should attempt to preserve some system state.
+  bool rollback_data_save_requested;
   // Specifies the number of Chrome milestones rollback should be allowed,
   // starting from the stable version at any time. Value is -1 if unspecified
   // (e.g. no device policy is available yet), in this case no version

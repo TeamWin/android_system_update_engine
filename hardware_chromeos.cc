@@ -61,6 +61,11 @@ const char kPowerwashCountMarker[] = "powerwash_count";
 const char kPowerwashMarkerFile[] =
     "/mnt/stateful_partition/factory_install_reset";
 
+// The name of the marker file used to trigger a save of rollback data
+// during the next shutdown.
+const char kRollbackSaveMarkerFile[] =
+    "/mnt/stateful_partition/.save_rollback_data";
+
 // The contents of the powerwash marker file for the non-rollback case.
 const char kPowerwashCommand[] = "safe fast keepimg reason=update_engine\n";
 
@@ -226,15 +231,25 @@ int HardwareChromeOS::GetPowerwashCount() const {
   return powerwash_count;
 }
 
-bool HardwareChromeOS::SchedulePowerwash(bool is_rollback) {
+bool HardwareChromeOS::SchedulePowerwash(bool save_rollback_data) {
+  if (save_rollback_data) {
+    if (!utils::WriteFile(kRollbackSaveMarkerFile, nullptr, 0)) {
+      PLOG(ERROR) << "Error in creating rollback save marker file: "
+                  << kRollbackSaveMarkerFile << ". Rollback will not"
+                  << " preserve any data.";
+    } else {
+      LOG(INFO) << "Rollback data save has been scheduled on next shutdown.";
+    }
+  }
+
   const char* powerwash_command =
-      is_rollback ? kRollbackPowerwashCommand : kPowerwashCommand;
+      save_rollback_data ? kRollbackPowerwashCommand : kPowerwashCommand;
   bool result = utils::WriteFile(
       kPowerwashMarkerFile, powerwash_command, strlen(powerwash_command));
   if (result) {
     LOG(INFO) << "Created " << kPowerwashMarkerFile
-              << " to powerwash on next reboot (is_rollback=" << is_rollback
-              << ")";
+              << " to powerwash on next reboot ("
+              << "save_rollback_data=" << save_rollback_data << ")";
   } else {
     PLOG(ERROR) << "Error in creating powerwash marker file: "
                 << kPowerwashMarkerFile;
@@ -252,6 +267,11 @@ bool HardwareChromeOS::CancelPowerwash() {
   } else {
     PLOG(ERROR) << "Could not delete the powerwash marker file : "
                 << kPowerwashMarkerFile;
+  }
+
+  // Delete the rollback save marker file if it existed.
+  if (!base::DeleteFile(base::FilePath(kRollbackSaveMarkerFile), false)) {
+    PLOG(ERROR) << "Could not remove rollback save marker";
   }
 
   return result;

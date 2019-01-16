@@ -51,6 +51,7 @@ class OmahaRequestParams {
         delta_okay_(true),
         interactive_(false),
         rollback_allowed_(false),
+        rollback_data_save_requested_(false),
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
@@ -131,6 +132,15 @@ class OmahaRequestParams {
   }
 
   inline bool rollback_allowed() const { return rollback_allowed_; }
+
+  inline void set_rollback_data_save_requested(
+      bool rollback_data_save_requested) {
+    rollback_data_save_requested_ = rollback_data_save_requested;
+  }
+
+  inline bool rollback_data_save_requested() const {
+    return rollback_data_save_requested_;
+  }
 
   inline void set_rollback_allowed_milestones(int rollback_allowed_milestones) {
     rollback_allowed_milestones_ = rollback_allowed_milestones;
@@ -329,6 +339,9 @@ class OmahaRequestParams {
 
   // Whether the client is accepting rollback images too.
   bool rollback_allowed_;
+
+  // Whether rollbacks should preserve some system state during powerwash.
+  bool rollback_data_save_requested_;
 
   // How many milestones the client can rollback to.
   int rollback_allowed_milestones_;

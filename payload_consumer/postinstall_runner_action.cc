@@ -57,9 +57,14 @@ void PostinstallRunnerAction::PerformAction() {
   CHECK(HasInputObject());
   install_plan_ = GetInputObject();
 
-  // Currently we're always powerwashing when rolling back.
+  // We always powerwash when rolling back, however policy can determine
+  // if this is a full/normal powerwash, or a special rollback powerwash
+  // that retains a small amount of system state such as enrollment and
+  // network configuration. In both cases all user accounts are deleted.
   if (install_plan_.powerwash_required || install_plan_.is_rollback) {
-    if (hardware_->SchedulePowerwash(install_plan_.is_rollback)) {
+    bool save_rollback_data =
+        install_plan_.is_rollback && install_plan_.rollback_data_save_requested;
+    if (hardware_->SchedulePowerwash(save_rollback_data)) {
       powerwash_scheduled_ = true;
     } else {
       return CompletePostinstall(ErrorCode::kPostinstallPowerwashError);

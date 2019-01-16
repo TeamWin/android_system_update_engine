@@ -239,6 +239,7 @@ void UpdateAttempter::Update(const string& app_version,
                              const string& target_channel,
                              const string& target_version_prefix,
                              bool rollback_allowed,
+                             bool rollback_data_save_requested,
                              int rollback_allowed_milestones,
                              bool obey_proxies,
                              bool interactive) {
@@ -275,6 +276,7 @@ void UpdateAttempter::Update(const string& app_version,
                              target_channel,
                              target_version_prefix,
                              rollback_allowed,
+                             rollback_data_save_requested,
                              rollback_allowed_milestones,
                              obey_proxies,
                              interactive)) {
@@ -349,6 +351,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& target_channel,
                                             const string& target_version_prefix,
                                             bool rollback_allowed,
+                                            bool rollback_data_save_requested,
                                             int rollback_allowed_milestones,
                                             bool obey_proxies,
                                             bool interactive) {
@@ -367,6 +370,10 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
 
   // Set whether rollback is allowed.
   omaha_request_params_->set_rollback_allowed(rollback_allowed);
+
+  // Set whether saving data over rollback is requested.
+  omaha_request_params_->set_rollback_data_save_requested(
+      rollback_data_save_requested);
 
   CalculateStagingParams(interactive);
   // If staging_wait_time_ wasn't set, staging is off, use scattering instead.
@@ -953,6 +960,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
            params.target_channel,
            params.target_version_prefix,
            params.rollback_allowed,
+           params.rollback_data_save_requested,
            params.rollback_allowed_milestones,
            /*obey_proxies=*/false,
            params.interactive);
