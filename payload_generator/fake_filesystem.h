@@ -47,9 +47,7 @@ class FakeFilesystem : public FilesystemInterface {
 
   // Sets the PAYLOAD_MINOR_VERSION key stored by LoadSettings(). Use a negative
   // value to produce an error in LoadSettings().
-  void SetMinorVersion(int minor_version) {
-    minor_version_ = minor_version;
-  }
+  void SetMinorVersion(int minor_version) { minor_version_ = minor_version; }
 
  private:
   FakeFilesystem() = default;

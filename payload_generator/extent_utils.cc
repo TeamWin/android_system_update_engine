@@ -39,8 +39,9 @@ void AppendBlockToExtents(vector<Extent>* extents, uint64_t block) {
   // First try to extend the last extent in |extents|, if any.
   if (!extents->empty()) {
     Extent& extent = extents->back();
-    uint64_t next_block = extent.start_block() == kSparseHole ?
-        kSparseHole : extent.start_block() + extent.num_blocks();
+    uint64_t next_block = extent.start_block() == kSparseHole
+                              ? kSparseHole
+                              : extent.start_block() + extent.num_blocks();
     if (next_block == block) {
       extent.set_num_blocks(extent.num_blocks() + 1);
       return;
@@ -116,7 +117,8 @@ void NormalizeExtents(vector<Extent>* extents) {
 }
 
 vector<Extent> ExtentsSublist(const vector<Extent>& extents,
-                              uint64_t block_offset, uint64_t block_count) {
+                              uint64_t block_offset,
+                              uint64_t block_count) {
   vector<Extent> result;
   uint64_t scanned_blocks = 0;
   if (block_count == 0)

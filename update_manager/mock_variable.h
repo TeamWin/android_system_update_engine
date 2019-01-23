@@ -26,7 +26,7 @@
 namespace chromeos_update_manager {
 
 // This is a generic mock of the Variable class.
-template<typename T>
+template <typename T>
 class MockVariable : public Variable<T> {
  public:
   using Variable<T>::Variable;

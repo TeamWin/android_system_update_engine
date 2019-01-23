@@ -114,9 +114,8 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
   Time SetupUpdateCompletedTime(bool valid) {
     const TimeDelta kDurationSinceUpdate = TimeDelta::FromMinutes(7);
     const Time kUpdateBootTime = Time() + kDurationSinceUpdate * 2;
-    const Time kCurrBootTime = (valid ?
-                                kUpdateBootTime + kDurationSinceUpdate :
-                                kUpdateBootTime - kDurationSinceUpdate);
+    const Time kCurrBootTime = (valid ? kUpdateBootTime + kDurationSinceUpdate
+                                      : kUpdateBootTime - kDurationSinceUpdate);
     const Time kCurrWallclockTime = FixedTime();
     EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
                 GetBootTimeAtUpdate(_))

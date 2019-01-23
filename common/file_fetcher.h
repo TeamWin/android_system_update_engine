@@ -57,7 +57,7 @@ class FileFetcher : public HttpFetcher {
 
   // Ignore all extra headers for files.
   void SetHeader(const std::string& header_name,
-                 const std::string& header_value) override {};
+                 const std::string& header_value) override {}
 
   // Suspend the asynchronous file read.
   void Pause() override;

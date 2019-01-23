@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "update_engine/common/utils.h"
@@ -61,8 +62,8 @@ bool BlockMapping::AddManyDiskBlocks(int fd,
   bool ret = true;
   block_ids->resize(num_blocks);
   for (size_t block = 0; block < num_blocks; block++) {
-    (*block_ids)[block] = AddDiskBlock(
-        fd, initial_byte_offset + block * block_size_);
+    (*block_ids)[block] =
+        AddDiskBlock(fd, initial_byte_offset + block * block_size_);
     ret = ret && (*block_ids)[block] != -1;
   }
   return ret;
@@ -78,7 +79,7 @@ BlockMapping::BlockId BlockMapping::AddBlock(int fd,
   // We either reuse a UniqueBlock or create a new one. If we need a new
   // UniqueBlock it could also be part of a new or existing bucket (if there is
   // a hash collision).
-  vector<UniqueBlock> *bucket = nullptr;
+  vector<UniqueBlock>* bucket = nullptr;
 
   auto mapping_it = mapping_.find(h);
   if (mapping_it == mapping_.end()) {
@@ -97,7 +98,7 @@ BlockMapping::BlockId BlockMapping::AddBlock(int fd,
   // No existing block was found at this point, so we create and fill in a new
   // one.
   bucket->emplace_back();
-  UniqueBlock *new_ublock = &bucket->back();
+  UniqueBlock* new_ublock = &bucket->back();
 
   new_ublock->times_read = 1;
   new_ublock->fd = fd;

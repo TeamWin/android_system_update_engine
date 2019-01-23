@@ -72,11 +72,11 @@ using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
 using brillo::MessageLoop;
+using chromeos_update_manager::CalculateStagingCase;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
-using chromeos_update_manager::UpdateCheckParams;
-using chromeos_update_manager::CalculateStagingCase;
 using chromeos_update_manager::StagingCase;
+using chromeos_update_manager::UpdateCheckParams;
 using std::string;
 using std::vector;
 using update_engine::UpdateAttemptFlags;
@@ -100,10 +100,6 @@ const char kAUTestURLRequest[] = "autest";
 const char kScheduledAUTestURLRequest[] = "autest-scheduled";
 }  // namespace
 
-// Turns a generic ErrorCode::kError to a generic error code specific
-// to |action| (e.g., ErrorCode::kFilesystemVerifierError). If |code| is
-// not ErrorCode::kError, or the action is not matched, returns |code|
-// unchanged.
 ErrorCode GetErrorCodeForAction(AbstractAction* action, ErrorCode code) {
   if (code != ErrorCode::kError)
     return code;
@@ -162,8 +158,8 @@ bool UpdateAttempter::ScheduleUpdates() {
   chromeos_update_manager::UpdateManager* const update_manager =
       system_state_->update_manager();
   CHECK(update_manager);
-  Callback<void(EvalStatus, const UpdateCheckParams&)> callback = Bind(
-      &UpdateAttempter::OnUpdateScheduled, base::Unretained(this));
+  Callback<void(EvalStatus, const UpdateCheckParams&)> callback =
+      Bind(&UpdateAttempter::OnUpdateScheduled, base::Unretained(this));
   // We limit the async policy request to a reasonably short time, to avoid a
   // starvation due to a transient bug.
   update_manager->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
@@ -193,7 +189,7 @@ bool UpdateAttempter::CheckAndReportDailyMetrics() {
                    << "is wrong.";
       // In this case, report daily metrics to reset.
     } else {
-      if (time_reported_since.InSeconds() < 24*60*60) {
+      if (time_reported_since.InSeconds() < 24 * 60 * 60) {
         LOG(INFO) << "Last reported daily metrics "
                   << utils::FormatTimeDelta(time_reported_since) << " ago.";
         return false;
@@ -388,9 +384,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     }
   }
 
-  if (!omaha_request_params_->Init(app_version,
-                                   omaha_url,
-                                   interactive)) {
+  if (!omaha_request_params_->Init(app_version, omaha_url, interactive)) {
     LOG(ERROR) << "Unable to initialize Omaha request params.";
     return false;
   }
@@ -403,8 +397,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     // Pass in false for powerwash_allowed until we add it to the policy
     // protobuf.
     string error_message;
-    if (!omaha_request_params_->SetTargetChannel(target_channel, false,
-                                                 &error_message)) {
+    if (!omaha_request_params_->SetTargetChannel(
+            target_channel, false, &error_message)) {
       LOG(ERROR) << "Setting the channel failed: " << error_message;
     }
 
@@ -430,8 +424,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
             << omaha_request_params_->wall_clock_based_wait_enabled()
             << ", Update Check Count Wait Enabled = "
             << omaha_request_params_->update_check_count_wait_enabled()
-            << ", Waiting Period = " << utils::FormatSecs(
-               omaha_request_params_->waiting_period().InSeconds());
+            << ", Waiting Period = "
+            << utils::FormatSecs(
+                   omaha_request_params_->waiting_period().InSeconds());
 
   LOG(INFO) << "Use p2p For Downloading = "
             << payload_state->GetUsingP2PForDownloading()
@@ -451,9 +446,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   } else if (base::RandInt(0, 4) == 0) {
     obeying_proxies_ = false;
   }
-  LOG_IF(INFO, !obeying_proxies_) << "To help ensure updates work, this update "
-      "check we are ignoring the proxy settings and using "
-      "direct connections.";
+  LOG_IF(INFO, !obeying_proxies_)
+      << "To help ensure updates work, this update check we are ignoring the "
+      << "proxy settings and using direct connections.";
 
   DisableDeltaUpdateIfNeeded();
   return true;
@@ -468,7 +463,7 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     int64_t new_scatter_factor_in_secs = 0;
     device_policy->GetScatterFactorInSeconds(&new_scatter_factor_in_secs);
     if (new_scatter_factor_in_secs < 0)  // sanitize input, just in case.
-      new_scatter_factor_in_secs  = 0;
+      new_scatter_factor_in_secs = 0;
     scatter_factor_ = TimeDelta::FromSeconds(new_scatter_factor_in_secs);
   }
 
@@ -509,10 +504,10 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
         // generating a new random value to improve the chances of a good
         // distribution for scattering.
         omaha_request_params_->set_waiting_period(
-          TimeDelta::FromSeconds(wait_period_in_secs));
-        LOG(INFO) << "Using persisted wall-clock waiting period: " <<
-            utils::FormatSecs(
-                omaha_request_params_->waiting_period().InSeconds());
+            TimeDelta::FromSeconds(wait_period_in_secs));
+        LOG(INFO) << "Using persisted wall-clock waiting period: "
+                  << utils::FormatSecs(
+                         omaha_request_params_->waiting_period().InSeconds());
       } else {
         // This means there's no persisted value for the waiting period
         // available or its value is invalid given the new scatter_factor value.
@@ -532,9 +527,9 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     } else {
       // Neither the first time scattering is enabled nor the scattering value
       // changed. Nothing to do.
-      LOG(INFO) << "Keeping current wall-clock waiting period: " <<
-          utils::FormatSecs(
-              omaha_request_params_->waiting_period().InSeconds());
+      LOG(INFO) << "Keeping current wall-clock waiting period: "
+                << utils::FormatSecs(
+                       omaha_request_params_->waiting_period().InSeconds());
     }
 
     // The invariant at this point is that omaha_request_params_->waiting_period
@@ -550,7 +545,7 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     // the update check count value, we'll turn that on as well.
     bool decrement_succeeded = DecrementUpdateCheckCount();
     omaha_request_params_->set_update_check_count_wait_enabled(
-      decrement_succeeded);
+        decrement_succeeded);
   } else {
     // This means the scattering feature is turned off or disabled for
     // this particular update check. Make sure to disable
@@ -569,11 +564,12 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
 }
 
 void UpdateAttempter::GenerateNewWaitingPeriod() {
-  omaha_request_params_->set_waiting_period(TimeDelta::FromSeconds(
-      base::RandInt(1, scatter_factor_.InSeconds())));
+  omaha_request_params_->set_waiting_period(
+      TimeDelta::FromSeconds(base::RandInt(1, scatter_factor_.InSeconds())));
 
-  LOG(INFO) << "Generated new wall-clock waiting period: " << utils::FormatSecs(
-                omaha_request_params_->waiting_period().InSeconds());
+  LOG(INFO) << "Generated new wall-clock waiting period: "
+            << utils::FormatSecs(
+                   omaha_request_params_->waiting_period().InSeconds());
 
   // Do a best-effort to persist this in all cases. Even if the persistence
   // fails, we'll still be able to scatter based on our in-memory value.
@@ -1013,7 +1009,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
       return;
     }
     LOG(INFO) << "Booted from FW B and tried to install new firmware, "
-        "so requesting reboot from user.";
+                 "so requesting reboot from user.";
   }
 
   attempt_error_code_ = utils::GetBaseErrorCode(code);
@@ -1267,7 +1263,7 @@ bool UpdateAttempter::ResetStatus() {
       // no-op.
       return true;
 
-    case UpdateStatus::UPDATED_NEED_REBOOT:  {
+    case UpdateStatus::UPDATED_NEED_REBOOT: {
       bool ret_value = true;
       status_ = UpdateStatus::IDLE;
 
@@ -1285,7 +1281,7 @@ bool UpdateAttempter::ResetStatus() {
       // Mark the current slot as successful again, since marking it as active
       // may reset the successful bit. We ignore the result of whether marking
       // the current slot as successful worked.
-      if (!boot_control->MarkBootSuccessfulAsync(Bind([](bool successful){})))
+      if (!boot_control->MarkBootSuccessfulAsync(Bind([](bool successful) {})))
         ret_value = false;
 
       // Notify the PayloadState that the successful payload was canceled.
@@ -1330,7 +1326,7 @@ void UpdateAttempter::BroadcastStatus() {
   last_notify_time_ = TimeTicks::Now();
 }
 
-uint32_t UpdateAttempter::GetErrorCodeFlags()  {
+uint32_t UpdateAttempter::GetErrorCodeFlags() {
   uint32_t flags = 0;
 
   if (!system_state_->hardware()->IsNormalBootMode())
@@ -1399,11 +1395,10 @@ void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
   fake_update_success_ = code == ErrorCode::kPostinstallBootedFromFirmwareB;
 
   // Compute the final error code with all the bit flags to be sent to Omaha.
-  code = static_cast<ErrorCode>(
-      static_cast<uint32_t>(code) | GetErrorCodeFlags());
-  error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
-                                    event_result,
-                                    code));
+  code =
+      static_cast<ErrorCode>(static_cast<uint32_t>(code) | GetErrorCodeFlags());
+  error_event_.reset(
+      new OmahaEvent(OmahaEvent::kTypeUpdateComplete, event_result, code));
 }
 
 bool UpdateAttempter::ScheduleErrorEventAction() {
@@ -1497,7 +1492,6 @@ void UpdateAttempter::PingOmaha() {
   ScheduleUpdates();
 }
 
-
 bool UpdateAttempter::DecrementUpdateCheckCount() {
   int64_t update_check_count_value;
 
@@ -1545,7 +1539,6 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
   prefs_->Delete(kPrefsUpdateCheckCount);
   return false;
 }
-
 
 void UpdateAttempter::UpdateEngineStarted() {
   // If we just booted into a new update, keep the previous OS version
@@ -1607,7 +1600,7 @@ bool UpdateAttempter::StartP2PAndPerformHousekeeping() {
   return true;
 }
 
-bool UpdateAttempter::GetBootTimeAtUpdate(Time *out_boot_time) {
+bool UpdateAttempter::GetBootTimeAtUpdate(Time* out_boot_time) {
   // In case of an update_engine restart without a reboot, we stored the boot_id
   // when the update was completed by setting a pref, so we can check whether
   // the last update was on this boot or a previous one.

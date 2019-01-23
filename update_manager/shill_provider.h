@@ -40,7 +40,7 @@ class ShillProvider : public Provider {
   // A variable returning the tethering mode of a network connection. Unknown if
   // not connected.
   virtual Variable<chromeos_update_engine::ConnectionTethering>*
-      var_conn_tethering() = 0;
+  var_conn_tethering() = 0;
 
   // A variable returning the time when network connection last changed.
   // Initialized to current time.

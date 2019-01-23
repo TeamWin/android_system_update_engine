@@ -86,17 +86,11 @@ class PayloadState : public PayloadStateInterface {
                : "";
   }
 
-  inline uint32_t GetUrlFailureCount() override {
-    return url_failure_count_;
-  }
+  inline uint32_t GetUrlFailureCount() override { return url_failure_count_; }
 
-  inline uint32_t GetUrlSwitchCount() override {
-    return url_switch_count_;
-  }
+  inline uint32_t GetUrlSwitchCount() override { return url_switch_count_; }
 
-  inline int GetNumResponsesSeen() override {
-    return num_responses_seen_;
-  }
+  inline int GetNumResponsesSeen() override { return num_responses_seen_; }
 
   inline base::Time GetBackoffExpiryTime() override {
     return backoff_expiry_time_;
@@ -114,9 +108,7 @@ class PayloadState : public PayloadStateInterface {
     return source < kNumDownloadSources ? total_bytes_downloaded_[source] : 0;
   }
 
-  inline uint32_t GetNumReboots() override {
-    return num_reboots_;
-  }
+  inline uint32_t GetNumReboots() override { return num_reboots_; }
 
   void UpdateEngineStarted() override;
 
@@ -124,9 +116,7 @@ class PayloadState : public PayloadStateInterface {
 
   void SetRollbackHappened(bool rollback_happened) override;
 
-  inline std::string GetRollbackVersion() override {
-    return rollback_version_;
-  }
+  inline std::string GetRollbackVersion() override { return rollback_version_; }
 
   int GetP2PNumAttempts() override;
   base::Time GetP2PFirstAttemptTimestamp() override;
@@ -137,9 +127,7 @@ class PayloadState : public PayloadStateInterface {
     return using_p2p_for_downloading_;
   }
 
-  bool GetUsingP2PForSharing() const override {
-    return using_p2p_for_sharing_;
-  }
+  bool GetUsingP2PForSharing() const override { return using_p2p_for_sharing_; }
 
   base::TimeDelta GetScatteringWaitPeriod() override {
     return scattering_wait_period_;
@@ -149,13 +137,9 @@ class PayloadState : public PayloadStateInterface {
 
   void SetStagingWaitPeriod(base::TimeDelta wait_period) override;
 
-  void SetP2PUrl(const std::string& url) override {
-    p2p_url_ = url;
-  }
+  void SetP2PUrl(const std::string& url) override { p2p_url_ = url; }
 
-  std::string GetP2PUrl() const override {
-    return p2p_url_;
-  }
+  std::string GetP2PUrl() const override { return p2p_url_; }
 
   bool NextPayload() override;
 

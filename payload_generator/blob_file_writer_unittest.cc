@@ -33,9 +33,8 @@ class BlobFileWriterTest : public ::testing::Test {};
 TEST(BlobFileWriterTest, SimpleTest) {
   string blob_path;
   int blob_fd;
-  EXPECT_TRUE(utils::MakeTempFile("BlobFileWriterTest.XXXXXX",
-                                  &blob_path,
-                                  &blob_fd));
+  EXPECT_TRUE(
+      utils::MakeTempFile("BlobFileWriterTest.XXXXXX", &blob_path, &blob_fd));
   off_t blob_file_size = 0;
   BlobFileWriter blob_file(blob_fd, &blob_file_size);
 
@@ -47,11 +46,8 @@ TEST(BlobFileWriterTest, SimpleTest) {
 
   brillo::Blob stored_blob(blob_size);
   ssize_t bytes_read;
-  ASSERT_TRUE(utils::PReadAll(blob_fd,
-                              stored_blob.data(),
-                              blob_size,
-                              0,
-                              &bytes_read));
+  ASSERT_TRUE(
+      utils::PReadAll(blob_fd, stored_blob.data(), blob_size, 0, &bytes_read));
   EXPECT_EQ(bytes_read, blob_size);
   EXPECT_EQ(blob, stored_blob);
 }

@@ -78,10 +78,12 @@ void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
 
     // Set subgraph edges for the components in the SCC.
     for (vector<Vertex::Index>::iterator it = component_indexes.begin();
-         it != component_indexes.end(); ++it) {
+         it != component_indexes.end();
+         ++it) {
       subgraph_[*it].subgraph_edges.clear();
       for (vector<Vertex::Index>::iterator jt = component_indexes.begin();
-           jt != component_indexes.end(); ++jt) {
+           jt != component_indexes.end();
+           ++jt) {
         // If there's a link from *it -> *jt in the graph,
         // add a subgraph_ edge
         if (base::ContainsKey(subgraph_[*it].out_edges, *jt))
@@ -106,13 +108,13 @@ static const size_t kMaxEdgesToConsider = 2;
 
 void CycleBreaker::HandleCircuit() {
   stack_.push_back(current_vertex_);
-  CHECK_GE(stack_.size(),
-           static_cast<vector<Vertex::Index>::size_type>(2));
+  CHECK_GE(stack_.size(), static_cast<vector<Vertex::Index>::size_type>(2));
   Edge min_edge = make_pair(stack_[0], stack_[1]);
   uint64_t min_edge_weight = std::numeric_limits<uint64_t>::max();
   size_t edges_considered = 0;
   for (vector<Vertex::Index>::const_iterator it = stack_.begin();
-       it != (stack_.end() - 1); ++it) {
+       it != (stack_.end() - 1);
+       ++it) {
     Edge edge = make_pair(*it, *(it + 1));
     if (cut_edges_.find(edge) != cut_edges_.end()) {
       stack_.pop_back();
@@ -135,7 +137,7 @@ void CycleBreaker::Unblock(Vertex::Index u) {
   blocked_[u] = false;
 
   for (Vertex::EdgeMap::iterator it = blocked_graph_[u].out_edges.begin();
-       it != blocked_graph_[u].out_edges.end(); ) {
+       it != blocked_graph_[u].out_edges.end();) {
     Vertex::Index w = it->first;
     blocked_graph_[u].out_edges.erase(it++);
     if (blocked_[w])
@@ -145,7 +147,9 @@ void CycleBreaker::Unblock(Vertex::Index u) {
 
 bool CycleBreaker::StackContainsCutEdge() const {
   for (vector<Vertex::Index>::const_iterator it = ++stack_.begin(),
-           e = stack_.end(); it != e; ++it) {
+                                             e = stack_.end();
+       it != e;
+       ++it) {
     Edge edge = make_pair(*(it - 1), *it);
     if (base::ContainsKey(cut_edges_, edge)) {
       return true;
@@ -175,7 +179,8 @@ bool CycleBreaker::Circuit(Vertex::Index vertex, Vertex::Index depth) {
 
   for (Vertex::SubgraphEdgeMap::iterator w =
            subgraph_[vertex].subgraph_edges.begin();
-       w != subgraph_[vertex].subgraph_edges.end(); ++w) {
+       w != subgraph_[vertex].subgraph_edges.end();
+       ++w) {
     if (*w == current_vertex_) {
       // The original paper called for printing stack_ followed by
       // current_vertex_ here, which is a cycle. Instead, we call
@@ -196,11 +201,12 @@ bool CycleBreaker::Circuit(Vertex::Index vertex, Vertex::Index depth) {
   } else {
     for (Vertex::SubgraphEdgeMap::iterator w =
              subgraph_[vertex].subgraph_edges.begin();
-         w != subgraph_[vertex].subgraph_edges.end(); ++w) {
+         w != subgraph_[vertex].subgraph_edges.end();
+         ++w) {
       if (blocked_graph_[*w].out_edges.find(vertex) ==
           blocked_graph_[*w].out_edges.end()) {
-        blocked_graph_[*w].out_edges.insert(make_pair(vertex,
-                                                      EdgeProperties()));
+        blocked_graph_[*w].out_edges.insert(
+            make_pair(vertex, EdgeProperties()));
       }
     }
   }

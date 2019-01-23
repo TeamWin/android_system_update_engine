@@ -88,8 +88,10 @@ const int kBrotliCompressionQuality = 11;
 // removed, which may cause the extent to be trimmed, split or removed entirely.
 // The value of |*idx_p| is updated to point to the next extent to be processed.
 // Returns true iff the next extent to process is a new or updated one.
-bool ProcessExtentBlockRange(vector<Extent>* extents, size_t* idx_p,
-                             const bool do_remove, uint64_t range_start,
+bool ProcessExtentBlockRange(vector<Extent>* extents,
+                             size_t* idx_p,
+                             const bool do_remove,
+                             uint64_t range_start,
                              uint64_t range_end) {
   size_t idx = *idx_p;
   uint64_t start_block = (*extents)[idx].start_block();
@@ -148,17 +150,17 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
 
     uint64_t src_num_blocks = (*src_extents)[src_idx].num_blocks();
     uint64_t dst_num_blocks = (*dst_extents)[dst_idx].num_blocks();
-    uint64_t min_num_blocks = std::min(src_num_blocks - src_offset,
-                                       dst_num_blocks - dst_offset);
+    uint64_t min_num_blocks =
+        std::min(src_num_blocks - src_offset, dst_num_blocks - dst_offset);
     uint64_t prev_src_offset = src_offset;
     uint64_t prev_dst_offset = dst_offset;
     src_offset += min_num_blocks;
     dst_offset += min_num_blocks;
 
-    bool new_src = ProcessExtentBlockRange(src_extents, &src_idx, do_remove,
-                                           prev_src_offset, src_offset);
-    bool new_dst = ProcessExtentBlockRange(dst_extents, &dst_idx, do_remove,
-                                           prev_dst_offset, dst_offset);
+    bool new_src = ProcessExtentBlockRange(
+        src_extents, &src_idx, do_remove, prev_src_offset, src_offset);
+    bool new_dst = ProcessExtentBlockRange(
+        dst_extents, &dst_idx, do_remove, prev_dst_offset, dst_offset);
     if (new_src) {
       src_offset = 0;
     }
@@ -428,8 +430,8 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
     // data blocks (for example, symlinks bigger than 60 bytes in ext2) are
     // handled as normal files. We also ignore blocks that were already
     // processed by a previous file.
-    vector<Extent> new_file_extents = FilterExtentRanges(
-        new_file.extents, new_visited_blocks);
+    vector<Extent> new_file_extents =
+        FilterExtentRanges(new_file.extents, new_visited_blocks);
     new_visited_blocks.AddExtents(new_file_extents);
 
     if (new_file_extents.empty())
@@ -559,7 +561,7 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
   // is a block from the new partition.
   map<BlockMapping::BlockId, vector<uint64_t>> old_blocks_map;
 
-  for (uint64_t block = old_num_blocks; block-- > 0; ) {
+  for (uint64_t block = old_num_blocks; block-- > 0;) {
     if (old_block_ids[block] != 0 && !old_visited_blocks->ContainsBlock(block))
       old_blocks_map[old_block_ids[block]].push_back(block);
 
@@ -706,15 +708,15 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
     chunk_blocks = total_blocks;
 
   for (uint64_t block_offset = 0; block_offset < total_blocks;
-      block_offset += chunk_blocks) {
+       block_offset += chunk_blocks) {
     // Split the old/new file in the same chunks. Note that this could drop
     // some information from the old file used for the new chunk. If the old
     // file is smaller (or even empty when there's no old file) the chunk will
     // also be empty.
-    vector<Extent> old_extents_chunk = ExtentsSublist(
-        old_extents, block_offset, chunk_blocks);
-    vector<Extent> new_extents_chunk = ExtentsSublist(
-        new_extents, block_offset, chunk_blocks);
+    vector<Extent> old_extents_chunk =
+        ExtentsSublist(old_extents, block_offset, chunk_blocks);
+    vector<Extent> new_extents_chunk =
+        ExtentsSublist(new_extents, block_offset, chunk_blocks);
     NormalizeExtents(&old_extents_chunk);
     NormalizeExtents(&new_extents_chunk);
 
@@ -731,8 +733,7 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
     // Check if the operation writes nothing.
     if (operation.dst_extents_size() == 0) {
       if (operation.type() == InstallOperation::MOVE) {
-        LOG(INFO) << "Empty MOVE operation ("
-                  << name << "), skipping";
+        LOG(INFO) << "Empty MOVE operation (" << name << "), skipping";
         continue;
       } else {
         LOG(ERROR) << "Empty non-MOVE operation";
@@ -744,8 +745,8 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
     AnnotatedOperation aop;
     aop.name = name;
     if (static_cast<uint64_t>(chunk_blocks) < total_blocks) {
-      aop.name = base::StringPrintf("%s:%" PRIu64,
-                                    name.c_str(), block_offset / chunk_blocks);
+      aop.name = base::StringPrintf(
+          "%s:%" PRIu64, name.c_str(), block_offset / chunk_blocks);
     }
     aop.op = operation;
 
@@ -870,9 +871,11 @@ bool ReadExtentsToDiff(const string& old_part,
   brillo::Blob old_data;
   if (blocks_to_read > 0) {
     // Read old data.
-    TEST_AND_RETURN_FALSE(
-        utils::ReadExtents(old_part, src_extents, &old_data,
-                           kBlockSize * blocks_to_read, kBlockSize));
+    TEST_AND_RETURN_FALSE(utils::ReadExtents(old_part,
+                                             src_extents,
+                                             &old_data,
+                                             kBlockSize * blocks_to_read,
+                                             kBlockSize));
     if (old_data == new_data) {
       // No change in data.
       operation.set_type(version.OperationAllowed(InstallOperation::SOURCE_COPY)
@@ -975,8 +978,8 @@ bool ReadExtentsToDiff(const string& old_part,
 
   // Remove identical src/dst block ranges in MOVE operations.
   if (operation.type() == InstallOperation::MOVE) {
-    auto removed_bytes = RemoveIdenticalBlockRanges(
-        &src_extents, &dst_extents, new_data.size());
+    auto removed_bytes =
+        RemoveIdenticalBlockRanges(&src_extents, &dst_extents, new_data.size());
     operation.set_src_length(old_data.size() - removed_bytes);
     operation.set_dst_length(new_data.size() - removed_bytes);
   }
@@ -1014,8 +1017,7 @@ bool IsAReplaceOperation(InstallOperation_Type op_type) {
 }
 
 bool IsNoSourceOperation(InstallOperation_Type op_type) {
-  return (IsAReplaceOperation(op_type) ||
-          op_type == InstallOperation::ZERO ||
+  return (IsAReplaceOperation(op_type) || op_type == InstallOperation::ZERO ||
           op_type == InstallOperation::DISCARD);
 }
 
@@ -1027,11 +1029,12 @@ bool IsNoopOperation(const InstallOperation& op) {
 }
 
 void FilterNoopOperations(vector<AnnotatedOperation>* ops) {
-  ops->erase(
-      std::remove_if(
-          ops->begin(), ops->end(),
-          [](const AnnotatedOperation& aop){return IsNoopOperation(aop.op);}),
-      ops->end());
+  ops->erase(std::remove_if(ops->begin(),
+                            ops->end(),
+                            [](const AnnotatedOperation& aop) {
+                              return IsNoopOperation(aop.op);
+                            }),
+             ops->end());
 }
 
 bool InitializePartitionInfo(const PartitionConfig& part, PartitionInfo* info) {

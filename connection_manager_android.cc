@@ -26,7 +26,7 @@ std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
   return std::unique_ptr<ConnectionManagerInterface>(
       new ConnectionManagerAndroid());
 }
-}
+}  // namespace connection_manager
 
 bool ConnectionManagerAndroid::GetConnectionProperties(
     ConnectionType* out_type, ConnectionTethering* out_tethering) {

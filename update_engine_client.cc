@@ -61,15 +61,15 @@ const int kShowStatusRetryIntervalInSeconds = 2;
 
 class UpdateEngineClient : public brillo::Daemon {
  public:
-  UpdateEngineClient(int argc, char** argv) : argc_(argc), argv_(argv) {
-  }
+  UpdateEngineClient(int argc, char** argv) : argc_(argc), argv_(argv) {}
 
   ~UpdateEngineClient() override = default;
 
  protected:
   int OnInit() override {
     int ret = Daemon::OnInit();
-    if (ret != EX_OK) return ret;
+    if (ret != EX_OK)
+      return ret;
 
     client_ = update_engine::UpdateEngineClient::CreateInstance();
 
@@ -140,8 +140,11 @@ class WatchingStatusUpdateHandler : public ExitingStatusUpdateHandler {
 };
 
 void WatchingStatusUpdateHandler::HandleStatusUpdate(
-    int64_t last_checked_time, double progress, UpdateStatus current_operation,
-    const string& new_version, int64_t new_size) {
+    int64_t last_checked_time,
+    double progress,
+    UpdateStatus current_operation,
+    const string& new_version,
+    int64_t new_size) {
   LOG(INFO) << "Got status update:";
   LOG(INFO) << "  last_checked_time: " << last_checked_time;
   LOG(INFO) << "  progress: " << progress;
@@ -160,8 +163,11 @@ bool UpdateEngineClient::ShowStatus() {
 
   int retry_count = kShowStatusRetryCount;
   while (retry_count > 0) {
-    if (client_->GetStatus(&last_checked_time, &progress, &current_op,
-                           &new_version, &new_size)) {
+    if (client_->GetStatus(&last_checked_time,
+                           &progress,
+                           &current_op,
+                           &new_version,
+                           &new_size)) {
       break;
     }
     if (--retry_count == 0) {
@@ -175,8 +181,11 @@ bool UpdateEngineClient::ShowStatus() {
   printf("LAST_CHECKED_TIME=%" PRIi64
          "\nPROGRESS=%f\nCURRENT_OP=%s\n"
          "NEW_VERSION=%s\nNEW_SIZE=%" PRIi64 "\n",
-         last_checked_time, progress, UpdateStatusToString(current_op),
-         new_version.c_str(), new_size);
+         last_checked_time,
+         progress,
+         UpdateStatusToString(current_op),
+         new_version.c_str(),
+         new_size);
 
   return true;
 }
@@ -188,8 +197,11 @@ int UpdateEngineClient::GetNeedReboot() {
   string new_version;
   int64_t new_size = 0;
 
-  if (!client_->GetStatus(&last_checked_time, &progress, &current_op,
-                          &new_version, &new_size)) {
+  if (!client_->GetStatus(&last_checked_time,
+                          &progress,
+                          &current_op,
+                          &new_version,
+                          &new_size)) {
     return 1;
   }
 
@@ -244,54 +256,68 @@ void UpdateWaitHandler::HandleStatusUpdate(int64_t /* last_checked_time */,
 
 int UpdateEngineClient::ProcessFlags() {
   DEFINE_string(app_version, "", "Force the current app version.");
-  DEFINE_string(channel, "",
+  DEFINE_string(channel,
+                "",
                 "Set the target channel. The device will be powerwashed if the "
                 "target channel is more stable than the current channel unless "
                 "--nopowerwash is specified.");
   DEFINE_bool(check_for_update, false, "Initiate check for updates.");
   DEFINE_string(
       cohort_hint, "", "Set the current cohort hint to the passed value.");
-  DEFINE_bool(follow, false,
+  DEFINE_bool(follow,
+              false,
               "Wait for any update operations to complete."
               "Exit status is 0 if the update succeeded, and 1 otherwise.");
   DEFINE_bool(interactive, true, "Mark the update request as interactive.");
   DEFINE_string(omaha_url, "", "The URL of the Omaha update server.");
-  DEFINE_string(p2p_update, "",
+  DEFINE_string(p2p_update,
+                "",
                 "Enables (\"yes\") or disables (\"no\") the peer-to-peer update"
                 " sharing.");
-  DEFINE_bool(powerwash, true,
+  DEFINE_bool(powerwash,
+              true,
               "When performing rollback or channel change, "
               "do a powerwash or allow it respectively.");
   DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
-  DEFINE_bool(is_reboot_needed, false,
+  DEFINE_bool(is_reboot_needed,
+              false,
               "Exit status 0 if reboot is needed, "
               "2 if reboot is not needed or 1 if an error occurred.");
-  DEFINE_bool(block_until_reboot_is_needed, false,
+  DEFINE_bool(block_until_reboot_is_needed,
+              false,
               "Blocks until reboot is "
               "needed. Returns non-zero exit status if an error occurred.");
   DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
-  DEFINE_bool(rollback, false,
+  DEFINE_bool(rollback,
+              false,
               "Perform a rollback to the previous partition. The device will "
               "be powerwashed unless --nopowerwash is specified.");
-  DEFINE_bool(can_rollback, false,
+  DEFINE_bool(can_rollback,
+              false,
               "Shows whether rollback partition "
               "is available.");
   DEFINE_bool(show_channel, false, "Show the current and target channels.");
   DEFINE_bool(show_cohort_hint, false, "Show the current cohort hint.");
-  DEFINE_bool(show_p2p_update, false,
+  DEFINE_bool(show_p2p_update,
+              false,
               "Show the current setting for peer-to-peer update sharing.");
-  DEFINE_bool(show_update_over_cellular, false,
+  DEFINE_bool(show_update_over_cellular,
+              false,
               "Show the current setting for updates over cellular networks.");
   DEFINE_bool(status, false, "Print the status to stdout.");
-  DEFINE_bool(update, false,
+  DEFINE_bool(update,
+              false,
               "Forces an update and waits for it to complete. "
               "Implies --follow.");
-  DEFINE_string(update_over_cellular, "",
+  DEFINE_string(update_over_cellular,
+                "",
                 "Enables (\"yes\") or disables (\"no\") the updates over "
                 "cellular networks.");
-  DEFINE_bool(watch_for_updates, false,
+  DEFINE_bool(watch_for_updates,
+              false,
               "Listen for status updates and print them to the screen.");
-  DEFINE_bool(prev_version, false,
+  DEFINE_bool(prev_version,
+              false,
               "Show the previous OS version used before the update reboot.");
   DEFINE_bool(last_attempt_error, false, "Show the last attempt error.");
   DEFINE_bool(eol_status, false, "Show the current end-of-life status.");
@@ -464,7 +490,8 @@ int UpdateEngineClient::ProcessFlags() {
   bool do_update_request = FLAGS_check_for_update || FLAGS_update ||
                            !FLAGS_app_version.empty() ||
                            !FLAGS_omaha_url.empty();
-  if (FLAGS_update) FLAGS_follow = true;
+  if (FLAGS_update)
+    FLAGS_follow = true;
 
   if (do_update_request && FLAGS_rollback) {
     LOG(ERROR) << "Incompatible flags specified with rollback."
@@ -513,8 +540,8 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(INFO) << "Forcing an update by setting app_version to ForcedUpdate.";
     }
     LOG(INFO) << "Initiating update check and install.";
-    if (!client_->AttemptUpdate(app_version, FLAGS_omaha_url,
-                                FLAGS_interactive)) {
+    if (!client_->AttemptUpdate(
+            app_version, FLAGS_omaha_url, FLAGS_interactive)) {
       LOG(ERROR) << "Error checking for update.";
       return 1;
     }

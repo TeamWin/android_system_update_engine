@@ -38,9 +38,7 @@ namespace chromeos_update_engine {
 
 class FilesystemVerifierActionTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    loop_.SetAsCurrent();
-  }
+  void SetUp() override { loop_.SetAsCurrent(); }
 
   void TearDown() override {
     EXPECT_EQ(0, brillo::MessageLoopRunMaxIterations(&loop_, 1));
@@ -270,11 +268,12 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
   ASSERT_EQ(0U, getuid());
   EXPECT_TRUE(DoTest(true, false));
   // TerminateEarlyTest may leak some null callbacks from the Stream class.
-  while (loop_.RunOnce(false)) {}
+  while (loop_.RunOnce(false)) {
+  }
 }
 
 #ifdef __ANDROID__
-TEST_F(FilesystemVerifierActionTest, WriteVerityTest) {
+TEST_F(FilesystemVerifierActionTest, RunAsRootWriteVerityTest) {
   test_utils::ScopedTempFile part_file("part_file.XXXXXX");
   constexpr size_t filesystem_size = 200 * 4096;
   constexpr size_t part_size = 256 * 4096;
@@ -336,7 +335,7 @@ TEST_F(FilesystemVerifierActionTest, WriteVerityTest) {
 }
 #endif  // __ANDROID__
 
-TEST_F(FilesystemVerifierActionTest, SkipWriteVerityTest) {
+TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
   test_utils::ScopedTempFile part_file("part_file.XXXXXX");
   constexpr size_t filesystem_size = 200 * 4096;
   constexpr size_t part_size = 256 * 4096;

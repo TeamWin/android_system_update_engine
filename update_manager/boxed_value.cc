@@ -42,68 +42,87 @@ namespace chromeos_update_manager {
 // Template instantiation for common types; used in BoxedValue::ToString().
 // Keep in sync with boxed_value_unitttest.cc.
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<string>(const void* value) {
   const string* val = reinterpret_cast<const string*>(value);
   return *val;
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<int>(const void* value) {
   const int* val = reinterpret_cast<const int*>(value);
+#if BASE_VER < 576279
+  return base::IntToString(*val);
+#else
   return base::NumberToString(*val);
+#endif
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<unsigned int>(const void* value) {
   const unsigned int* val = reinterpret_cast<const unsigned int*>(value);
+#if BASE_VER < 576279
+  return base::UintToString(*val);
+#else
   return base::NumberToString(*val);
+#endif
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<int64_t>(const void* value) {
   const int64_t* val = reinterpret_cast<const int64_t*>(value);
+#if BASE_VER < 576279
+  return base::Int64ToString(*val);
+#else
   return base::NumberToString(*val);
+#endif
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<uint64_t>(const void* value) {
-  const uint64_t* val =
-    reinterpret_cast<const uint64_t*>(value);
-  return base::NumberToString(static_cast<uint64_t>(*val));
+  const uint64_t* val = reinterpret_cast<const uint64_t*>(value);
+#if BASE_VER < 576279
+  return base::Uint64ToString(*val);
+#else
+  return base::NumberToString(*val);
+#endif
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<bool>(const void* value) {
   const bool* val = reinterpret_cast<const bool*>(value);
   return *val ? "true" : "false";
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<double>(const void* value) {
   const double* val = reinterpret_cast<const double*>(value);
+#if BASE_VER < 576279
+  return base::DoubleToString(*val);
+#else
   return base::NumberToString(*val);
+#endif
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<base::Time>(const void* value) {
   const base::Time* val = reinterpret_cast<const base::Time*>(value);
   return chromeos_update_engine::utils::ToString(*val);
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<base::TimeDelta>(const void* value) {
   const base::TimeDelta* val = reinterpret_cast<const base::TimeDelta*>(value);
   return chromeos_update_engine::utils::FormatTimeDelta(*val);
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<ConnectionType>(const void* value) {
   const ConnectionType* val = reinterpret_cast<const ConnectionType*>(value);
   return StringForConnectionType(*val);
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<set<ConnectionType>>(const void* value) {
   string ret = "";
   const set<ConnectionType>* val =
@@ -117,7 +136,7 @@ string BoxedValue::ValuePrinter<set<ConnectionType>>(const void* value) {
   return ret;
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<ConnectionTethering>(const void* value) {
   const ConnectionTethering* val =
       reinterpret_cast<const ConnectionTethering*>(value);
@@ -158,7 +177,7 @@ string BoxedValue::ValuePrinter<RollbackToTargetVersion>(const void* value) {
   return "Unknown";
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<Stage>(const void* value) {
   const Stage* val = reinterpret_cast<const Stage*>(value);
   switch (*val) {
@@ -185,7 +204,7 @@ string BoxedValue::ValuePrinter<Stage>(const void* value) {
   return "Unknown";
 }
 
-template<>
+template <>
 string BoxedValue::ValuePrinter<UpdateRequestStatus>(const void* value) {
   const UpdateRequestStatus* val =
       reinterpret_cast<const UpdateRequestStatus*>(value);

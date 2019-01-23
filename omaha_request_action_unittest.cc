@@ -58,6 +58,7 @@ using base::TimeDelta;
 using chromeos_update_manager::kRollforwardInfinity;
 using std::string;
 using std::vector;
+using testing::_;
 using testing::AllOf;
 using testing::AnyNumber;
 using testing::DoAll;
@@ -65,11 +66,10 @@ using testing::Ge;
 using testing::Le;
 using testing::NiceMock;
 using testing::Return;
-using testing::ReturnRef;
 using testing::ReturnPointee;
+using testing::ReturnRef;
 using testing::SaveArg;
 using testing::SetArgPointee;
-using testing::_;
 
 namespace {
 
@@ -188,9 +188,7 @@ struct FakeUpdateResponse {
   }
 
   // Return the payload URL, which is split in two fields in the XML response.
-  string GetPayloadUrl() {
-    return codebase + filename;
-  }
+  string GetPayloadUrl() { return codebase + filename; }
 
   string app_id = kTestAppId;
   string app_id2 = kTestAppId2;
@@ -376,21 +374,20 @@ class OmahaRequestActionTest : public ::testing::Test {
   void PingTest(bool ping_only);
 
   // InstallDate test helper function.
-  bool InstallDateParseHelper(const string &elapsed_days,
-                              OmahaResponse *response);
+  bool InstallDateParseHelper(const string& elapsed_days,
+                              OmahaResponse* response);
 
   // P2P test helper function.
-  void P2PTest(
-      bool initial_allow_p2p_for_downloading,
-      bool initial_allow_p2p_for_sharing,
-      bool omaha_disable_p2p_for_downloading,
-      bool omaha_disable_p2p_for_sharing,
-      bool payload_state_allow_p2p_attempt,
-      bool expect_p2p_client_lookup,
-      const string& p2p_client_result_url,
-      bool expected_allow_p2p_for_downloading,
-      bool expected_allow_p2p_for_sharing,
-      const string& expected_p2p_url);
+  void P2PTest(bool initial_allow_p2p_for_downloading,
+               bool initial_allow_p2p_for_sharing,
+               bool omaha_disable_p2p_for_downloading,
+               bool omaha_disable_p2p_for_sharing,
+               bool payload_state_allow_p2p_attempt,
+               bool expect_p2p_client_lookup,
+               const string& p2p_client_result_url,
+               bool expected_allow_p2p_for_downloading,
+               bool expected_allow_p2p_for_sharing,
+               const string& expected_p2p_url);
 
   FakeSystemState fake_system_state_;
   FakeUpdateResponse fake_update_response_;
@@ -878,10 +875,9 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   fake_system_state_.set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
-      .WillRepeatedly(
-          DoAll(SetArgPointee<0>(ConnectionType::kEthernet),
-                SetArgPointee<1>(ConnectionTethering::kUnknown),
-                Return(true)));
+      .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kEthernet),
+                            SetArgPointee<1>(ConnectionTethering::kUnknown),
+                            Return(true)));
   EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kEthernet, _))
       .WillRepeatedly(Return(false));
 
@@ -1069,7 +1065,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
   fake_system_state_.set_payload_state(&mock_payload_state);
 
   EXPECT_CALL(mock_payload_state, GetRollbackVersion())
-    .WillRepeatedly(Return(rollback_version));
+      .WillRepeatedly(Return(rollback_version));
 
   fake_update_response_.version = rollback_version;
   ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
@@ -1269,7 +1265,6 @@ TEST_F(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
   EXPECT_TRUE(response.update_exists);
 }
 
-
 TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   OmahaResponse response;
   request_params_.set_wall_clock_based_wait_enabled(true);
@@ -1280,16 +1275,15 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
 
   fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
-  ASSERT_TRUE(TestUpdateCheck(
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
 
   int64_t count;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
@@ -1307,16 +1301,15 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
 
   fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
 
-  ASSERT_FALSE(TestUpdateCheck(
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kDeferring,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateDeferredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kDeferring,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
 
   int64_t count;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
@@ -1349,16 +1342,15 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsUpdateCheckCount, 5));
 
-  ASSERT_FALSE(TestUpdateCheck(
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kDeferring,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateDeferredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kDeferring,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
 
   int64_t count;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
@@ -1774,9 +1766,9 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   request_params_.set_hwid("<OEM MODEL>");
   fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
-  fake_prefs_.SetString(kPrefsOmahaCohortName,
-                        base::JoinString(
-                            vector<string>(100, "My spoon is too big."), " "));
+  fake_prefs_.SetString(
+      kPrefsOmahaCohortName,
+      base::JoinString(vector<string>(100, "My spoon is too big."), " "));
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck("invalid xml>",
                                -1,
@@ -1870,14 +1862,11 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
       string::npos);
   EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
             string::npos);
-  EXPECT_NE(post_str.find("fw_version=\"ChromeOSFirmware.1.0\""),
-            string::npos);
-  EXPECT_NE(post_str.find("ec_version=\"0X0A1\""),
-            string::npos);
+  EXPECT_NE(post_str.find("fw_version=\"ChromeOSFirmware.1.0\""), string::npos);
+  EXPECT_NE(post_str.find("ec_version=\"0X0A1\""), string::npos);
   // No <event> tag should be sent if we didn't reboot to an update.
   EXPECT_EQ(post_str.find("<event"), string::npos);
 }
-
 
 TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
   brillo::Blob post_data;
@@ -1919,18 +1908,16 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   OmahaRequestAction update_check_action(
       &fake_system_state_,
       nullptr,
-      std::make_unique<MockHttpFetcher>(http_response.data(),
-                                        http_response.size(),
-                                        nullptr),
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
       false);
   EXPECT_FALSE(update_check_action.IsEvent());
 
   OmahaRequestAction event_action(
       &fake_system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-      std::make_unique<MockHttpFetcher>(http_response.data(),
-                                        http_response.size(),
-                                        nullptr),
+      std::make_unique<MockHttpFetcher>(
+          http_response.data(), http_response.size(), nullptr),
       false);
   EXPECT_TRUE(event_action.IsEvent());
 }
@@ -1954,9 +1941,9 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                                  &post_data));
     // convert post_data to string
     string post_str(post_data.begin(), post_data.end());
-    EXPECT_NE(post_str.find(base::StringPrintf(" delta_okay=\"%s\"",
-                                               delta_okay_str)),
-              string::npos)
+    EXPECT_NE(
+        post_str.find(base::StringPrintf(" delta_okay=\"%s\"", delta_okay_str)),
+        string::npos)
         << "i = " << i;
   }
 }
@@ -2073,7 +2060,7 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
-    .Times(AnyNumber());
+      .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   // Add a few hours to the day difference to test no rounding, etc.
   int64_t five_days_ago =
@@ -2109,18 +2096,18 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
 }
 
 TEST_F(OmahaRequestActionTest, PingTestSendOnlyAPing) {
-  PingTest(true  /* ping_only */);
+  PingTest(true /* ping_only */);
 }
 
 TEST_F(OmahaRequestActionTest, PingTestSendAlsoAnUpdateCheck) {
-  PingTest(false  /* ping_only */);
+  PingTest(false /* ping_only */);
 }
 
 TEST_F(OmahaRequestActionTest, ActivePingTest) {
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
-    .Times(AnyNumber());
+      .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t three_days_ago =
       (Time::Now() - TimeDelta::FromHours(3 * 24 + 12)).ToInternalValue();
@@ -2142,15 +2129,14 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
                               nullptr,
                               &post_data));
   string post_str(post_data.begin(), post_data.end());
-  EXPECT_NE(post_str.find("<ping active=\"1\" a=\"3\"></ping>"),
-            string::npos);
+  EXPECT_NE(post_str.find("<ping active=\"1\" a=\"3\"></ping>"), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, RollCallPingTest) {
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
-    .Times(AnyNumber());
+      .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t four_days_ago =
       (Time::Now() - TimeDelta::FromHours(4 * 24)).ToInternalValue();
@@ -2180,7 +2166,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
-    .Times(AnyNumber());
+      .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t one_hour_ago =
       (Time::Now() - TimeDelta::FromHours(1)).ToInternalValue();
@@ -2238,7 +2224,7 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
-    .Times(AnyNumber());
+      .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t future =
       (Time::Now() + TimeDelta::FromHours(3 * 24 + 4)).ToInternalValue();
@@ -2283,11 +2269,13 @@ TEST_F(OmahaRequestActionTest, LastPingDayUpdateTest) {
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
-  EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay,
-                              AllOf(Ge(midnight), Le(midnight_slack))))
+  EXPECT_CALL(prefs,
+              SetInt64(kPrefsLastActivePingDay,
+                       AllOf(Ge(midnight), Le(midnight_slack))))
       .WillOnce(Return(true));
-  EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay,
-                              AllOf(Ge(midnight), Le(midnight_slack))))
+  EXPECT_CALL(prefs,
+              SetInt64(kPrefsLastRollCallPingDay,
+                       AllOf(Ge(midnight), Le(midnight_slack))))
       .WillOnce(Return(true));
   ASSERT_TRUE(
       TestUpdateCheck("<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
@@ -2516,10 +2504,11 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
                                &post_data));
   // convert post_data to string
   string post_str(post_data.begin(), post_data.end());
-  EXPECT_NE(string::npos, post_str.find(
-      "appid=\"{22222222-2222-2222-2222-222222222222}\" "
-      "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
-      "track=\"stable-channel\" from_track=\"canary-channel\" "));
+  EXPECT_NE(
+      string::npos,
+      post_str.find("appid=\"{22222222-2222-2222-2222-222222222222}\" "
+                    "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
+                    "track=\"stable-channel\" from_track=\"canary-channel\" "));
   EXPECT_EQ(string::npos, post_str.find("o.bundle"));
 }
 
@@ -2549,10 +2538,11 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                &post_data));
   // Convert post_data to string.
   string post_str(post_data.begin(), post_data.end());
-  EXPECT_NE(string::npos, post_str.find(
-      "appid=\"{11111111-1111-1111-1111-111111111111}\" "
-      "version=\"5.6.7.8\" "
-      "track=\"canary-channel\" from_track=\"stable-channel\""));
+  EXPECT_NE(
+      string::npos,
+      post_str.find("appid=\"{11111111-1111-1111-1111-111111111111}\" "
+                    "version=\"5.6.7.8\" "
+                    "track=\"canary-channel\" from_track=\"stable-channel\""));
   EXPECT_EQ(string::npos, post_str.find("from_version"));
   EXPECT_NE(string::npos, post_str.find("o.bundle.version=\"1\""));
 }
@@ -2625,10 +2615,10 @@ TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
   string post_str(post_data.begin(), post_data.end());
 
   // An event 54 is included and has the right version.
-  EXPECT_NE(string::npos,
-            post_str.find(base::StringPrintf(
-                              "<event eventtype=\"%d\"",
-                              OmahaEvent::kTypeRebootedAfterUpdate)));
+  EXPECT_NE(
+      string::npos,
+      post_str.find(base::StringPrintf("<event eventtype=\"%d\"",
+                                       OmahaEvent::kTypeRebootedAfterUpdate)));
   EXPECT_NE(string::npos,
             post_str.find("previousversion=\"1.2.3.4\"></event>"));
 
@@ -2639,17 +2629,16 @@ TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
   EXPECT_TRUE(prev_version.empty());
 }
 
-void OmahaRequestActionTest::P2PTest(
-    bool initial_allow_p2p_for_downloading,
-    bool initial_allow_p2p_for_sharing,
-    bool omaha_disable_p2p_for_downloading,
-    bool omaha_disable_p2p_for_sharing,
-    bool payload_state_allow_p2p_attempt,
-    bool expect_p2p_client_lookup,
-    const string& p2p_client_result_url,
-    bool expected_allow_p2p_for_downloading,
-    bool expected_allow_p2p_for_sharing,
-    const string& expected_p2p_url) {
+void OmahaRequestActionTest::P2PTest(bool initial_allow_p2p_for_downloading,
+                                     bool initial_allow_p2p_for_sharing,
+                                     bool omaha_disable_p2p_for_downloading,
+                                     bool omaha_disable_p2p_for_sharing,
+                                     bool payload_state_allow_p2p_attempt,
+                                     bool expect_p2p_client_lookup,
+                                     const string& p2p_client_result_url,
+                                     bool expected_allow_p2p_for_downloading,
+                                     bool expected_allow_p2p_for_sharing,
+                                     const string& expected_p2p_url) {
   OmahaResponse response;
   bool actual_allow_p2p_for_downloading = initial_allow_p2p_for_downloading;
   bool actual_allow_p2p_for_sharing = initial_allow_p2p_for_sharing;
@@ -2694,8 +2683,7 @@ void OmahaRequestActionTest::P2PTest(
 
   EXPECT_EQ(omaha_disable_p2p_for_downloading,
             response.disable_p2p_for_downloading);
-  EXPECT_EQ(omaha_disable_p2p_for_sharing,
-            response.disable_p2p_for_sharing);
+  EXPECT_EQ(omaha_disable_p2p_for_sharing, response.disable_p2p_for_sharing);
 
   EXPECT_EQ(expected_allow_p2p_for_downloading,
             actual_allow_p2p_for_downloading);
@@ -2717,42 +2705,42 @@ TEST_F(OmahaRequestActionTest, P2PWithPeer) {
 }
 
 TEST_F(OmahaRequestActionTest, P2PWithoutPeer) {
-  P2PTest(true,                   // initial_allow_p2p_for_downloading
-          true,                   // initial_allow_p2p_for_sharing
-          false,                  // omaha_disable_p2p_for_downloading
-          false,                  // omaha_disable_p2p_for_sharing
-          true,                   // payload_state_allow_p2p_attempt
-          true,                   // expect_p2p_client_lookup
-          "",                     // p2p_client_result_url
-          false,                  // expected_allow_p2p_for_downloading
-          true,                   // expected_allow_p2p_for_sharing
-          "");                    // expected_p2p_url
+  P2PTest(true,   // initial_allow_p2p_for_downloading
+          true,   // initial_allow_p2p_for_sharing
+          false,  // omaha_disable_p2p_for_downloading
+          false,  // omaha_disable_p2p_for_sharing
+          true,   // payload_state_allow_p2p_attempt
+          true,   // expect_p2p_client_lookup
+          "",     // p2p_client_result_url
+          false,  // expected_allow_p2p_for_downloading
+          true,   // expected_allow_p2p_for_sharing
+          "");    // expected_p2p_url
 }
 
 TEST_F(OmahaRequestActionTest, P2PDownloadNotAllowed) {
-  P2PTest(false,                  // initial_allow_p2p_for_downloading
-          true,                   // initial_allow_p2p_for_sharing
-          false,                  // omaha_disable_p2p_for_downloading
-          false,                  // omaha_disable_p2p_for_sharing
-          true,                   // payload_state_allow_p2p_attempt
-          false,                  // expect_p2p_client_lookup
-          "unset",                // p2p_client_result_url
-          false,                  // expected_allow_p2p_for_downloading
-          true,                   // expected_allow_p2p_for_sharing
-          "");                    // expected_p2p_url
+  P2PTest(false,    // initial_allow_p2p_for_downloading
+          true,     // initial_allow_p2p_for_sharing
+          false,    // omaha_disable_p2p_for_downloading
+          false,    // omaha_disable_p2p_for_sharing
+          true,     // payload_state_allow_p2p_attempt
+          false,    // expect_p2p_client_lookup
+          "unset",  // p2p_client_result_url
+          false,    // expected_allow_p2p_for_downloading
+          true,     // expected_allow_p2p_for_sharing
+          "");      // expected_p2p_url
 }
 
 TEST_F(OmahaRequestActionTest, P2PWithPeerDownloadDisabledByOmaha) {
-  P2PTest(true,                   // initial_allow_p2p_for_downloading
-          true,                   // initial_allow_p2p_for_sharing
-          true,                   // omaha_disable_p2p_for_downloading
-          false,                  // omaha_disable_p2p_for_sharing
-          true,                   // payload_state_allow_p2p_attempt
-          false,                  // expect_p2p_client_lookup
-          "unset",                // p2p_client_result_url
-          false,                  // expected_allow_p2p_for_downloading
-          true,                   // expected_allow_p2p_for_sharing
-          "");                    // expected_p2p_url
+  P2PTest(true,     // initial_allow_p2p_for_downloading
+          true,     // initial_allow_p2p_for_sharing
+          true,     // omaha_disable_p2p_for_downloading
+          false,    // omaha_disable_p2p_for_sharing
+          true,     // payload_state_allow_p2p_attempt
+          false,    // expect_p2p_client_lookup
+          "unset",  // p2p_client_result_url
+          false,    // expected_allow_p2p_for_downloading
+          true,     // expected_allow_p2p_for_sharing
+          "");      // expected_p2p_url
 }
 
 TEST_F(OmahaRequestActionTest, P2PWithPeerSharingDisabledByOmaha) {
@@ -2769,20 +2757,20 @@ TEST_F(OmahaRequestActionTest, P2PWithPeerSharingDisabledByOmaha) {
 }
 
 TEST_F(OmahaRequestActionTest, P2PWithPeerBothDisabledByOmaha) {
-  P2PTest(true,                   // initial_allow_p2p_for_downloading
-          true,                   // initial_allow_p2p_for_sharing
-          true,                   // omaha_disable_p2p_for_downloading
-          true,                   // omaha_disable_p2p_for_sharing
-          true,                   // payload_state_allow_p2p_attempt
-          false,                  // expect_p2p_client_lookup
-          "unset",                // p2p_client_result_url
-          false,                  // expected_allow_p2p_for_downloading
-          false,                  // expected_allow_p2p_for_sharing
-          "");                    // expected_p2p_url
+  P2PTest(true,     // initial_allow_p2p_for_downloading
+          true,     // initial_allow_p2p_for_sharing
+          true,     // omaha_disable_p2p_for_downloading
+          true,     // omaha_disable_p2p_for_sharing
+          true,     // payload_state_allow_p2p_attempt
+          false,    // expect_p2p_client_lookup
+          "unset",  // p2p_client_result_url
+          false,    // expected_allow_p2p_for_downloading
+          false,    // expected_allow_p2p_for_sharing
+          "");      // expected_p2p_url
 }
 
-bool OmahaRequestActionTest::InstallDateParseHelper(const string &elapsed_days,
-                                                    OmahaResponse *response) {
+bool OmahaRequestActionTest::InstallDateParseHelper(const string& elapsed_days,
+                                                    OmahaResponse* response) {
   fake_update_response_.elapsed_days = elapsed_days;
   return TestUpdateCheck(fake_update_response_.GetUpdateResponse(),
                          -1,

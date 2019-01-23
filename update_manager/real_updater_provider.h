@@ -52,13 +52,9 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_update_completed_time_.get();
   }
 
-  Variable<double>* var_progress() override {
-    return var_progress_.get();
-  }
+  Variable<double>* var_progress() override { return var_progress_.get(); }
 
-  Variable<Stage>* var_stage() override {
-    return var_stage_.get();
-  }
+  Variable<Stage>* var_stage() override { return var_stage_.get(); }
 
   Variable<std::string>* var_new_version() override {
     return var_new_version_.get();
@@ -76,9 +72,7 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_new_channel_.get();
   }
 
-  Variable<bool>* var_p2p_enabled() override {
-    return var_p2p_enabled_.get();
-  }
+  Variable<bool>* var_p2p_enabled() override { return var_p2p_enabled_.get(); }
 
   Variable<bool>* var_cellular_enabled() override {
     return var_cellular_enabled_.get();

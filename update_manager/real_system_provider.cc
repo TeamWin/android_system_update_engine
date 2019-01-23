@@ -95,23 +95,20 @@ class RetryPollVariable : public Variable<T> {
 }  // namespace
 
 bool RealSystemProvider::Init() {
-  var_is_normal_boot_mode_.reset(
-      new ConstCopyVariable<bool>("is_normal_boot_mode",
-                                  hardware_->IsNormalBootMode()));
+  var_is_normal_boot_mode_.reset(new ConstCopyVariable<bool>(
+      "is_normal_boot_mode", hardware_->IsNormalBootMode()));
 
-  var_is_official_build_.reset(
-      new ConstCopyVariable<bool>("is_official_build",
-                                  hardware_->IsOfficialBuild()));
+  var_is_official_build_.reset(new ConstCopyVariable<bool>(
+      "is_official_build", hardware_->IsOfficialBuild()));
 
-  var_is_oobe_complete_.reset(
-      new CallCopyVariable<bool>(
-          "is_oobe_complete",
-          base::Bind(&chromeos_update_engine::HardwareInterface::IsOOBEComplete,
-                     base::Unretained(hardware_), nullptr)));
+  var_is_oobe_complete_.reset(new CallCopyVariable<bool>(
+      "is_oobe_complete",
+      base::Bind(&chromeos_update_engine::HardwareInterface::IsOOBEComplete,
+                 base::Unretained(hardware_),
+                 nullptr)));
 
-  var_num_slots_.reset(
-      new ConstCopyVariable<unsigned int>(
-          "num_slots", boot_control_->GetNumSlots()));
+  var_num_slots_.reset(new ConstCopyVariable<unsigned int>(
+      "num_slots", boot_control_->GetNumSlots()));
 
   var_kiosk_required_platform_version_.reset(new RetryPollVariable<string>(
       "kiosk_required_platform_version",

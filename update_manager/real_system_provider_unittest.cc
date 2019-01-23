@@ -39,7 +39,7 @@ using testing::SetArgPointee;
 
 #if USE_CHROME_KIOSK_APP
 namespace {
-const char kRequiredPlatformVersion[] ="1234.0.0";
+const char kRequiredPlatformVersion[] = "1234.0.0";
 }  // namespace
 #endif  // USE_CHROME_KIOSK_APP
 

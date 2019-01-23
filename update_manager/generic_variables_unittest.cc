@@ -34,15 +34,14 @@ namespace chromeos_update_manager {
 
 class UmPollCopyVariableTest : public ::testing::Test {};
 
-
 TEST_F(UmPollCopyVariableTest, SimpleTest) {
   // Tests that copies are generated as intended.
   int source = 5;
   PollCopyVariable<int> var("var", source);
 
   // Generate and validate a copy.
-  unique_ptr<const int> copy_1(var.GetValue(
-          UmTestUtils::DefaultTimeout(), nullptr));
+  unique_ptr<const int> copy_1(
+      var.GetValue(UmTestUtils::DefaultTimeout(), nullptr));
   ASSERT_NE(nullptr, copy_1.get());
   EXPECT_EQ(5, *copy_1);
 
@@ -70,7 +69,6 @@ TEST_F(UmPollCopyVariableTest, SetFlagTest) {
   UmTestUtils::ExpectVariableHasValue(5, &var);
 }
 
-
 class CopyConstructorTestClass {
  public:
   CopyConstructorTestClass(void) : copied_(false) {}
@@ -84,7 +82,6 @@ class CopyConstructorTestClass {
   int val_ = 0;
 };
 
-
 TEST_F(UmPollCopyVariableTest, UseCopyConstructorTest) {
   // Ensures that CopyVariables indeed uses the copy constructor.
   const CopyConstructorTestClass source;
@@ -97,7 +94,6 @@ TEST_F(UmPollCopyVariableTest, UseCopyConstructorTest) {
   EXPECT_TRUE(copy->copied_);
 }
 
-
 class UmConstCopyVariableTest : public ::testing::Test {};
 
 TEST_F(UmConstCopyVariableTest, SimpleTest) {
@@ -109,7 +105,6 @@ TEST_F(UmConstCopyVariableTest, SimpleTest) {
   source = 42;
   UmTestUtils::ExpectVariableHasValue(5, &var);
 }
-
 
 class UmCallCopyVariableTest : public ::testing::Test {};
 
@@ -126,8 +121,8 @@ TEST_F(UmCallCopyVariableTest, SimpleTest) {
   ASSERT_FALSE(test_obj.copied_);
   test_obj.val_ = 5;
 
-  base::Callback<CopyConstructorTestClass(void)> cb = base::Bind(
-      test_func, &test_obj);
+  base::Callback<CopyConstructorTestClass(void)> cb =
+      base::Bind(test_func, &test_obj);
   CallCopyVariable<CopyConstructorTestClass> var("var", cb);
 
   unique_ptr<const CopyConstructorTestClass> copy(
@@ -148,15 +143,12 @@ TEST_F(UmCallCopyVariableTest, NullTest) {
 
 class UmAsyncCopyVariableTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    loop_.SetAsCurrent();
-  }
+  void SetUp() override { loop_.SetAsCurrent(); }
 
   void TearDown() override {
     // No remaining event on the main loop.
     EXPECT_FALSE(loop_.PendingTasks());
   }
-
 
   brillo::FakeMessageLoop loop_{nullptr};
 };
@@ -185,9 +177,7 @@ TEST_F(UmAsyncCopyVariableTest, UnsetValueTest) {
 
 class CallCounterObserver : public BaseVariable::ObserverInterface {
  public:
-  void ValueChanged(BaseVariable* variable) {
-    calls_count_++;
-  }
+  void ValueChanged(BaseVariable* variable) { calls_count_++; }
 
   int calls_count_ = 0;
 };

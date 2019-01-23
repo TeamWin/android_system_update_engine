@@ -51,7 +51,7 @@ class DevicePolicyProvider : public Provider {
   // Variable returning what should happen if the target_version_prefix is
   // earlier than the current Chrome OS version.
   virtual Variable<RollbackToTargetVersion>*
-      var_rollback_to_target_version() = 0;
+  var_rollback_to_target_version() = 0;
 
   // Variable returning the number of Chrome milestones rollback should be
   // possible. Rollback protection will be postponed by this many versions.
@@ -64,7 +64,7 @@ class DevicePolicyProvider : public Provider {
   // identifiers returned are consistent with the ones returned by the
   // ShillProvider.
   virtual Variable<std::set<chromeos_update_engine::ConnectionType>>*
-      var_allowed_connection_types_for_update() = 0;
+  var_allowed_connection_types_for_update() = 0;
 
   // Variable stating the name of the device owner. For enterprise enrolled
   // devices, this will be an empty string.

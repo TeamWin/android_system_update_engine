@@ -46,29 +46,19 @@ class FakeState : public State {
   ~FakeState() override {}
 
   // Downcasted getters to access the fake instances during testing.
-  FakeConfigProvider* config_provider() override {
-    return &config_provider_;
-  }
+  FakeConfigProvider* config_provider() override { return &config_provider_; }
 
   FakeDevicePolicyProvider* device_policy_provider() override {
     return &device_policy_provider_;
   }
 
-  FakeRandomProvider* random_provider() override {
-    return &random_provider_;
-  }
+  FakeRandomProvider* random_provider() override { return &random_provider_; }
 
-  FakeShillProvider* shill_provider() override {
-    return &shill_provider_;
-  }
+  FakeShillProvider* shill_provider() override { return &shill_provider_; }
 
-  FakeSystemProvider* system_provider() override {
-    return &system_provider_;
-  }
+  FakeSystemProvider* system_provider() override { return &system_provider_; }
 
-  FakeTimeProvider* time_provider() override {
-    return &time_provider_;
-  }
+  FakeTimeProvider* time_provider() override { return &time_provider_; }
 
   FakeUpdaterProvider* updater_provider() override {
     return &updater_provider_;

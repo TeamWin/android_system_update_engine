@@ -98,14 +98,13 @@ TEST_F(Ext2FilesystemTest, EmptyFilesystem) {
 // "generate_image.sh" script. The expected conditions of each file in these
 // images is encoded in the file name, as defined in the mentioned script.
 TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
-  const vector<string> kGeneratedImages = {
-      "disk_ext2_1k.img",
-      "disk_ext2_4k.img" };
+  const vector<string> kGeneratedImages = {"disk_ext2_1k.img",
+                                           "disk_ext2_4k.img"};
   base::FilePath build_path = GetBuildArtifactsPath().Append("gen");
   for (const string& fs_name : kGeneratedImages) {
     LOG(INFO) << "Testing " << fs_name;
-    unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(
-        build_path.Append(fs_name).value());
+    unique_ptr<Ext2Filesystem> fs =
+        Ext2Filesystem::CreateFromFile(build_path.Append(fs_name).value());
     ASSERT_NE(nullptr, fs.get());
 
     vector<FilesystemInterface::File> files;

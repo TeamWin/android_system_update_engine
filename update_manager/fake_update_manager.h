@@ -27,8 +27,10 @@ namespace chromeos_update_manager {
 class FakeUpdateManager : public UpdateManager {
  public:
   explicit FakeUpdateManager(chromeos_update_engine::ClockInterface* clock)
-      : UpdateManager(clock, base::TimeDelta::FromSeconds(5),
-                      base::TimeDelta::FromHours(1), new FakeState()) {
+      : UpdateManager(clock,
+                      base::TimeDelta::FromSeconds(5),
+                      base::TimeDelta::FromHours(1),
+                      new FakeState()) {
     // The FakeUpdateManager uses a DefaultPolicy.
     set_policy(new DefaultPolicy(clock));
   }

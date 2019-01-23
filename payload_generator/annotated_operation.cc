@@ -55,7 +55,7 @@ std::ostream& operator<<(std::ostream& os, const AnnotatedOperation& aop) {
   // REPLACE_BZ 500 @3000
   //   name: /foo/bar
   //    dst: (123, 3) (127, 2)
-  os << InstallOperationTypeName(aop.op.type()) << " "  << aop.op.data_length();
+  os << InstallOperationTypeName(aop.op.type()) << " " << aop.op.data_length();
   if (aop.op.data_length() > 0)
     os << " @" << aop.op.data_offset();
   if (!aop.name.empty()) {

@@ -33,7 +33,7 @@ namespace chromeos_update_engine {
 
 class OmahaResponseHandlerAction;
 
-template<>
+template <>
 class ActionTraits<OmahaResponseHandlerAction> {
  public:
   typedef OmahaResponse InputObjectType;

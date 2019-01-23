@@ -95,7 +95,8 @@ bool HashCalculator::RawHashOfData(const brillo::Blob& data,
   return RawHashOfBytes(data.data(), data.size(), out_hash);
 }
 
-off_t HashCalculator::RawHashOfFile(const string& name, off_t length,
+off_t HashCalculator::RawHashOfFile(const string& name,
+                                    off_t length,
                                     brillo::Blob* out_hash) {
   HashCalculator calc;
   off_t res = calc.UpdateFile(name, length);

@@ -95,11 +95,8 @@ bool ChunkProcessor::ProcessChunk() {
   brillo::Blob buffer_in_(size_);
   brillo::Blob op_blob;
   ssize_t bytes_read = -1;
-  TEST_AND_RETURN_FALSE(utils::PReadAll(fd_,
-                                        buffer_in_.data(),
-                                        buffer_in_.size(),
-                                        offset_,
-                                        &bytes_read));
+  TEST_AND_RETURN_FALSE(utils::PReadAll(
+      fd_, buffer_in_.data(), buffer_in_.size(), offset_, &bytes_read));
   TEST_AND_RETURN_FALSE(bytes_read == static_cast<ssize_t>(size_));
 
   InstallOperation_Type op_type;
@@ -140,10 +137,10 @@ bool FullUpdateGenerator::GenerateOperations(
 
   size_t chunk_blocks = full_chunk_size / config.block_size;
   size_t max_threads = diff_utils::GetMaxThreads();
-  LOG(INFO) << "Compressing partition " << new_part.name
-            << " from " << new_part.path << " splitting in chunks of "
-            << chunk_blocks << " blocks (" << config.block_size
-            << " bytes each) using " << max_threads << " threads";
+  LOG(INFO) << "Compressing partition " << new_part.name << " from "
+            << new_part.path << " splitting in chunks of " << chunk_blocks
+            << " blocks (" << config.block_size << " bytes each) using "
+            << max_threads << " threads";
 
   int in_fd = open(new_part.path.c_str(), O_RDONLY, 0);
   TEST_AND_RETURN_FALSE(in_fd >= 0);
@@ -161,14 +158,14 @@ bool FullUpdateGenerator::GenerateOperations(
   for (size_t i = 0; i < num_chunks; ++i) {
     size_t start_block = i * chunk_blocks;
     // The last chunk could be smaller.
-    size_t num_blocks = std::min(chunk_blocks,
-                                 partition_blocks - i * chunk_blocks);
+    size_t num_blocks =
+        std::min(chunk_blocks, partition_blocks - i * chunk_blocks);
 
     // Preset all the static information about the operations. The
     // ChunkProcessor will set the rest.
     AnnotatedOperation* aop = aops->data() + i;
-    aop->name = base::StringPrintf("<%s-operation-%" PRIuS ">",
-                                   new_part.name.c_str(), i);
+    aop->name = base::StringPrintf(
+        "<%s-operation-%" PRIuS ">", new_part.name.c_str(), i);
     Extent* dst_extent = aop->op.add_dst_extents();
     dst_extent->set_start_block(start_block);
     dst_extent->set_num_blocks(num_blocks);

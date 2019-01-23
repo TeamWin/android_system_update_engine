@@ -99,8 +99,7 @@ class XzExtentWriterTest : public ::testing::Test {
   std::unique_ptr<XzExtentWriter> xz_writer_;
 
   const brillo::Blob sample_data_{
-      std::begin(kSampleData),
-      std::begin(kSampleData) + strlen(kSampleData)};
+      std::begin(kSampleData), std::begin(kSampleData) + strlen(kSampleData)};
   FileDescriptorPtr fd_;
 };
 
@@ -111,13 +110,13 @@ TEST_F(XzExtentWriterTest, CreateAndDestroy) {
 
 TEST_F(XzExtentWriterTest, CompressedSampleData) {
   WriteAll(brillo::Blob(std::begin(kCompressedDataNoCheck),
-                          std::end(kCompressedDataNoCheck)));
+                        std::end(kCompressedDataNoCheck)));
   EXPECT_EQ(sample_data_, fake_extent_writer_->WrittenData());
 }
 
 TEST_F(XzExtentWriterTest, CompressedSampleDataWithCrc) {
   WriteAll(brillo::Blob(std::begin(kCompressedDataCRC32),
-                          std::end(kCompressedDataCRC32)));
+                        std::end(kCompressedDataCRC32)));
   EXPECT_EQ(sample_data_, fake_extent_writer_->WrittenData());
 }
 
@@ -125,7 +124,7 @@ TEST_F(XzExtentWriterTest, CompressedDataBiggerThanTheBuffer) {
   // Test that even if the output data is bigger than the internal buffer, all
   // the data is written.
   WriteAll(brillo::Blob(std::begin(kCompressed30KiBofA),
-                          std::end(kCompressed30KiBofA)));
+                        std::end(kCompressed30KiBofA)));
   brillo::Blob expected_data(30 * 1024, 'a');
   EXPECT_EQ(expected_data, fake_extent_writer_->WrittenData());
 }
@@ -138,7 +137,7 @@ TEST_F(XzExtentWriterTest, GarbageDataRejected) {
 
 TEST_F(XzExtentWriterTest, PartialDataIsKept) {
   brillo::Blob compressed(std::begin(kCompressed30KiBofA),
-                            std::end(kCompressed30KiBofA));
+                          std::end(kCompressed30KiBofA));
   EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
   for (uint8_t byte : compressed) {
     EXPECT_TRUE(xz_writer_->Write(&byte, 1));

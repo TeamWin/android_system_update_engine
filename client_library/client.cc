@@ -31,13 +31,13 @@ namespace update_engine {
 unique_ptr<UpdateEngineClient> UpdateEngineClient::CreateInstance() {
 #if USE_BINDER
   auto update_engine_client_impl = new internal::BinderUpdateEngineClient{};
-#else  // !USE_BINDER
+#else   // !USE_BINDER
   auto update_engine_client_impl = new internal::DBusUpdateEngineClient{};
 #endif  // USE_BINDER
   auto ret = unique_ptr<UpdateEngineClient>{update_engine_client_impl};
 
   if (!update_engine_client_impl->Init()) {
-      ret.reset();
+    ret.reset();
   }
 
   return ret;
