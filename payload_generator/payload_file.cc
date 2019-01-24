@@ -197,7 +197,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   uint64_t signature_blob_length = 0;
   if (!private_key_path.empty()) {
     TEST_AND_RETURN_FALSE(PayloadSigner::SignatureBlobLength(
-        vector<string>(1, private_key_path), &signature_blob_length));
+        {private_key_path}, &signature_blob_length));
     PayloadSigner::AddSignatureToManifest(
         next_blob_offset,
         signature_blob_length,
@@ -207,7 +207,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
 
   // Serialize protobuf
   string serialized_manifest;
-  TEST_AND_RETURN_FALSE(manifest_.AppendToString(&serialized_manifest));
+  TEST_AND_RETURN_FALSE(manifest_.SerializeToString(&serialized_manifest));
 
   uint64_t metadata_size =
       sizeof(kDeltaMagic) + 2 * sizeof(uint64_t) + serialized_manifest.size();
@@ -251,13 +251,12 @@ bool PayloadFile::WritePayload(const string& payload_file,
   // Write metadata signature blob.
   if (major_version_ == kBrilloMajorPayloadVersion &&
       !private_key_path.empty()) {
-    brillo::Blob metadata_hash, metadata_signature;
+    brillo::Blob metadata_hash;
     TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(
         payload_file, metadata_size, &metadata_hash));
-    TEST_AND_RETURN_FALSE(
-        PayloadSigner::SignHashWithKeys(metadata_hash,
-                                        vector<string>(1, private_key_path),
-                                        &metadata_signature));
+    string metadata_signature;
+    TEST_AND_RETURN_FALSE(PayloadSigner::SignHashWithKeys(
+        metadata_hash, {private_key_path}, &metadata_signature));
     TEST_AND_RETURN_FALSE_ERRNO(
         writer.Write(metadata_signature.data(), metadata_signature.size()));
   }
@@ -281,16 +280,16 @@ bool PayloadFile::WritePayload(const string& payload_file,
   // Write payload signature blob.
   if (!private_key_path.empty()) {
     LOG(INFO) << "Signing the update...";
-    brillo::Blob signature_blob;
+    string signature;
     TEST_AND_RETURN_FALSE(PayloadSigner::SignPayload(
         payload_file,
-        vector<string>(1, private_key_path),
+        {private_key_path},
         metadata_size,
         metadata_signature_size,
         metadata_size + metadata_signature_size + manifest_.signatures_offset(),
-        &signature_blob));
+        &signature));
     TEST_AND_RETURN_FALSE_ERRNO(
-        writer.Write(signature_blob.data(), signature_blob.size()));
+        writer.Write(signature.data(), signature.size()));
   }
 
   ReportPayloadUsage(metadata_size);
