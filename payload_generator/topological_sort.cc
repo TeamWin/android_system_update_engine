@@ -37,7 +37,8 @@ void TopologicalSortVisit(const Graph& graph,
   visited_nodes->insert(node);
   // Visit all children.
   for (Vertex::EdgeMap::const_iterator it = graph[node].out_edges.begin();
-       it != graph[node].out_edges.end(); ++it) {
+       it != graph[node].out_edges.end();
+       ++it) {
     TopologicalSortVisit(graph, visited_nodes, nodes, it->first);
   }
   // Visit this node.

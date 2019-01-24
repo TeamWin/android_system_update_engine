@@ -64,8 +64,7 @@ class DownloadActionDelegate {
 
 class PrefsInterface;
 
-class DownloadAction : public InstallPlanAction,
-                       public HttpFetcherDelegate {
+class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
  public:
   // Debugging/logging
   static std::string StaticType() { return "DownloadAction"; }
@@ -90,9 +89,7 @@ class DownloadAction : public InstallPlanAction,
   std::string Type() const override { return StaticType(); }
 
   // Testing
-  void SetTestFileWriter(FileWriter* writer) {
-    writer_ = writer;
-  }
+  void SetTestFileWriter(FileWriter* writer) { writer_ = writer; }
 
   int GetHTTPResponseCode() { return http_fetcher_->http_response_code(); }
 
@@ -105,9 +102,7 @@ class DownloadAction : public InstallPlanAction,
   void TransferTerminated(HttpFetcher* fetcher) override;
 
   DownloadActionDelegate* delegate() const { return delegate_; }
-  void set_delegate(DownloadActionDelegate* delegate) {
-    delegate_ = delegate;
-  }
+  void set_delegate(DownloadActionDelegate* delegate) { delegate_ = delegate; }
 
   void set_base_offset(int64_t base_offset) { base_offset_ = base_offset; }
 

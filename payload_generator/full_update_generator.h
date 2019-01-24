@@ -37,12 +37,11 @@ class FullUpdateGenerator : public OperationsGenerator {
   // must be a valid payload generation configuration for a full payload.
   // Populates |aops|, with data about the update operations, and writes
   // relevant data to |blob_file|.
-  bool GenerateOperations(
-      const PayloadGenerationConfig& config,
-      const PartitionConfig& old_part,
-      const PartitionConfig& new_part,
-      BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* aops) override;
+  bool GenerateOperations(const PayloadGenerationConfig& config,
+                          const PartitionConfig& old_part,
+                          const PartitionConfig& new_part,
+                          BlobFileWriter* blob_file,
+                          std::vector<AnnotatedOperation>* aops) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FullUpdateGenerator);

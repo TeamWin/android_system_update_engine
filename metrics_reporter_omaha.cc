@@ -300,8 +300,6 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
                           1024,  // max: 1024 MiB = 1 GiB
                           50);   // num_buckets
 
-
-
   metric = metrics::kMetricAttemptResult;
   LOG(INFO) << "Uploading " << static_cast<int>(attempt_result)
             << " for metric " << metric;

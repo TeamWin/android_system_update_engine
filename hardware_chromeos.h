@@ -53,7 +53,7 @@ class HardwareChromeOS final : public HardwareInterface {
   bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) override;
   bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override;
   int GetPowerwashCount() const override;
-  bool SchedulePowerwash() override;
+  bool SchedulePowerwash(bool is_rollback) override;
   bool CancelPowerwash() override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;

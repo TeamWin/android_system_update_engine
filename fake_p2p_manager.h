@@ -26,31 +26,23 @@ namespace chromeos_update_engine {
 // A fake implementation of P2PManager.
 class FakeP2PManager : public P2PManager {
  public:
-  FakeP2PManager() :
-    is_p2p_enabled_(false),
-    ensure_p2p_running_result_(false),
-    ensure_p2p_not_running_result_(false),
-    perform_housekeeping_result_(false),
-    count_shared_files_result_(0) {}
+  FakeP2PManager()
+      : is_p2p_enabled_(false),
+        ensure_p2p_running_result_(false),
+        ensure_p2p_not_running_result_(false),
+        perform_housekeeping_result_(false),
+        count_shared_files_result_(0) {}
 
   // P2PManager overrides.
   void SetDevicePolicy(const policy::DevicePolicy* device_policy) override {}
 
-  bool IsP2PEnabled() override {
-    return is_p2p_enabled_;
-  }
+  bool IsP2PEnabled() override { return is_p2p_enabled_; }
 
-  bool EnsureP2PRunning() override {
-    return ensure_p2p_running_result_;
-  }
+  bool EnsureP2PRunning() override { return ensure_p2p_running_result_; }
 
-  bool EnsureP2PNotRunning() override {
-    return ensure_p2p_not_running_result_;
-  }
+  bool EnsureP2PNotRunning() override { return ensure_p2p_not_running_result_; }
 
-  bool PerformHousekeeping() override {
-    return perform_housekeeping_result_;
-  }
+  bool PerformHousekeeping() override { return perform_housekeeping_result_; }
 
   void LookupUrlForFile(const std::string& file_id,
                         size_t minimum_size,
@@ -59,8 +51,7 @@ class FakeP2PManager : public P2PManager {
     callback.Run(lookup_url_for_file_result_);
   }
 
-  bool FileShare(const std::string& file_id,
-                 size_t expected_size) override {
+  bool FileShare(const std::string& file_id, size_t expected_size) override {
     return false;
   }
 
@@ -68,31 +59,22 @@ class FakeP2PManager : public P2PManager {
     return base::FilePath();
   }
 
-  ssize_t FileGetSize(const std::string& file_id) override {
-    return -1;
-  }
+  ssize_t FileGetSize(const std::string& file_id) override { return -1; }
 
   ssize_t FileGetExpectedSize(const std::string& file_id) override {
     return -1;
   }
 
-  bool FileGetVisible(const std::string& file_id,
-                      bool *out_result) override {
+  bool FileGetVisible(const std::string& file_id, bool* out_result) override {
     return false;
   }
 
-  bool FileMakeVisible(const std::string& file_id) override {
-    return false;
-  }
+  bool FileMakeVisible(const std::string& file_id) override { return false; }
 
-  int CountSharedFiles() override {
-    return count_shared_files_result_;
-  }
+  int CountSharedFiles() override { return count_shared_files_result_; }
 
   // Methods for controlling what the fake returns and how it acts.
-  void SetP2PEnabled(bool is_p2p_enabled) {
-    is_p2p_enabled_ = is_p2p_enabled;
-  }
+  void SetP2PEnabled(bool is_p2p_enabled) { is_p2p_enabled_ = is_p2p_enabled; }
 
   void SetEnsureP2PRunningResult(bool ensure_p2p_running_result) {
     ensure_p2p_running_result_ = ensure_p2p_running_result;

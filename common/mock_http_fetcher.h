@@ -56,8 +56,8 @@ class MockHttpFetcher : public HttpFetcher {
 
   // Constructor overload for string data.
   MockHttpFetcher(const char* data, size_t size, ProxyResolver* proxy_resolver)
-      : MockHttpFetcher(reinterpret_cast<const uint8_t*>(data), size,
-                        proxy_resolver) {}
+      : MockHttpFetcher(
+            reinterpret_cast<const uint8_t*>(data), size, proxy_resolver) {}
 
   // Cleans up all internal state. Does not notify delegate
   ~MockHttpFetcher() override;
@@ -77,9 +77,7 @@ class MockHttpFetcher : public HttpFetcher {
   void set_max_retry_count(int max_retry_count) override {}
 
   // Dummy: no bytes were downloaded.
-  size_t GetBytesDownloaded() override {
-    return sent_size_;
-  }
+  size_t GetBytesDownloaded() override { return sent_size_; }
 
   // Begins the transfer if it hasn't already begun.
   void BeginTransfer(const std::string& url) override;
@@ -107,9 +105,7 @@ class MockHttpFetcher : public HttpFetcher {
   // If set to true, this will EXPECT fail on BeginTransfer
   void set_never_use(bool never_use) { never_use_ = never_use; }
 
-  const brillo::Blob& post_data() const {
-    return post_data_;
-  }
+  const brillo::Blob& post_data() const { return post_data_; }
 
  private:
   // Sends data to the delegate and sets up a timeout callback if needed. There

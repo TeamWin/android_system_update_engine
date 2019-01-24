@@ -51,10 +51,7 @@ struct EdgeProperties {
 };
 
 struct Vertex {
-  Vertex() :
-      valid(true),
-      index(-1),
-      lowlink(-1) {}
+  Vertex() : valid(true), index(-1), lowlink(-1) {}
   bool valid;
 
   typedef std::map<std::vector<Vertex>::size_type, EdgeProperties> EdgeMap;

@@ -35,9 +35,7 @@ uint64_t EdgeWeight(const Graph& graph, const Edge& edge);
 
 // These add a read-before dependency from graph[src] -> graph[dst]. If the dep
 // already exists, the block/s is/are added to the existing edge.
-void AddReadBeforeDep(Vertex* src,
-                      Vertex::Index dst,
-                      uint64_t block);
+void AddReadBeforeDep(Vertex* src, Vertex::Index dst, uint64_t block);
 void AddReadBeforeDepExtents(Vertex* src,
                              Vertex::Index dst,
                              const std::vector<Extent>& extents);

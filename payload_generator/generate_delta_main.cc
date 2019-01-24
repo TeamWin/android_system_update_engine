@@ -56,17 +56,15 @@ namespace {
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<int>* signature_sizes) {
   signature_sizes->clear();
-  vector<string> split_strings =
-      base::SplitString(signature_sizes_flag, ":", base::TRIM_WHITESPACE,
-                        base::SPLIT_WANT_ALL);
+  vector<string> split_strings = base::SplitString(
+      signature_sizes_flag, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (const string& str : split_strings) {
     int size = 0;
     bool parsing_successful = base::StringToInt(str, &size);
-    LOG_IF(FATAL, !parsing_successful)
-        << "Invalid signature size: " << str;
+    LOG_IF(FATAL, !parsing_successful) << "Invalid signature size: " << str;
 
-    LOG_IF(FATAL, size != (2048 / 8)) <<
-        "Only signature sizes of 256 bytes are supported.";
+    LOG_IF(FATAL, size != (2048 / 8))
+        << "Only signature sizes of 256 bytes are supported.";
 
     signature_sizes->push_back(size);
   }
@@ -95,16 +93,16 @@ bool ParseImageInfo(const string& channel,
   image_info->set_version(version);
   image_info->set_key(key);
 
-  image_info->set_build_channel(
-      build_channel.empty() ? channel : build_channel);
+  image_info->set_build_channel(build_channel.empty() ? channel
+                                                      : build_channel);
 
-  image_info->set_build_version(
-      build_version.empty() ? version : build_version);
+  image_info->set_build_version(build_version.empty() ? version
+                                                      : build_version);
 
   return true;
 }
 
-void CalculateHashForSigning(const vector<int> &sizes,
+void CalculateHashForSigning(const vector<int>& sizes,
                              const string& out_hash_file,
                              const string& out_metadata_hash_file,
                              const string& in_file) {
@@ -115,12 +113,13 @@ void CalculateHashForSigning(const vector<int> &sizes,
       << "Must pass --out_hash_file to calculate hash for signing.";
 
   brillo::Blob payload_hash, metadata_hash;
-  CHECK(PayloadSigner::HashPayloadForSigning(in_file, sizes, &payload_hash,
-                                             &metadata_hash));
-  CHECK(utils::WriteFile(out_hash_file.c_str(), payload_hash.data(),
-                         payload_hash.size()));
+  CHECK(PayloadSigner::HashPayloadForSigning(
+      in_file, sizes, &payload_hash, &metadata_hash));
+  CHECK(utils::WriteFile(
+      out_hash_file.c_str(), payload_hash.data(), payload_hash.size()));
   if (!out_metadata_hash_file.empty())
-    CHECK(utils::WriteFile(out_metadata_hash_file.c_str(), metadata_hash.data(),
+    CHECK(utils::WriteFile(out_metadata_hash_file.c_str(),
+                           metadata_hash.data(),
                            metadata_hash.size()));
 
   LOG(INFO) << "Done calculating hash for signing.";
@@ -128,9 +127,8 @@ void CalculateHashForSigning(const vector<int> &sizes,
 
 void SignatureFileFlagToBlobs(const string& signature_file_flag,
                               vector<brillo::Blob>* signatures) {
-  vector<string> signature_files =
-      base::SplitString(signature_file_flag, ":", base::TRIM_WHITESPACE,
-                        base::SPLIT_WANT_ALL);
+  vector<string> signature_files = base::SplitString(
+      signature_file_flag, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (const string& signature_file : signature_files) {
     brillo::Blob signature;
     CHECK(utils::ReadFile(signature_file, &signature));
@@ -144,10 +142,8 @@ void SignPayload(const string& in_file,
                  const string& metadata_signature_file,
                  const string& out_metadata_size_file) {
   LOG(INFO) << "Signing payload.";
-  LOG_IF(FATAL, in_file.empty())
-      << "Must pass --in_file to sign payload.";
-  LOG_IF(FATAL, out_file.empty())
-      << "Must pass --out_file to sign payload.";
+  LOG_IF(FATAL, in_file.empty()) << "Must pass --in_file to sign payload.";
+  LOG_IF(FATAL, out_file.empty()) << "Must pass --out_file to sign payload.";
   LOG_IF(FATAL, payload_signature_file.empty())
       << "Must pass --payload_signature_file to sign payload.";
   vector<brillo::Blob> payload_signatures, metadata_signatures;
@@ -290,12 +286,14 @@ int Main(int argc, char** argv) {
   DEFINE_string(new_image, "", "Path to the new rootfs");
   DEFINE_string(old_kernel, "", "Path to the old kernel partition image");
   DEFINE_string(new_kernel, "", "Path to the new kernel partition image");
-  DEFINE_string(old_partitions, "",
+  DEFINE_string(old_partitions,
+                "",
                 "Path to the old partitions. To pass multiple partitions, use "
                 "a single argument with a colon between paths, e.g. "
                 "/path/to/part:/path/to/part2::/path/to/last_part . Path can "
                 "be empty, but it has to match the order of partition_names.");
-  DEFINE_string(new_partitions, "",
+  DEFINE_string(new_partitions,
+                "",
                 "Path to the new partitions. To pass multiple partitions, use "
                 "a single argument with a colon between paths, e.g. "
                 "/path/to/part:/path/to/part2:/path/to/last_part . Path has "
@@ -312,26 +310,27 @@ int Main(int argc, char** argv) {
                 "Path to the .map files associated with the partition files "
                 "in the new partition, similar to the -old_mapfiles flag.");
   DEFINE_string(partition_names,
-                string(kPartitionNameRoot) + ":" +
-                kPartitionNameKernel,
+                string(kPartitionNameRoot) + ":" + kPartitionNameKernel,
                 "Names of the partitions. To pass multiple names, use a single "
                 "argument with a colon between names, e.g. "
                 "name:name2:name3:last_name . Name can not be empty, and it "
                 "has to match the order of partitions.");
-  DEFINE_string(in_file, "",
+  DEFINE_string(in_file,
+                "",
                 "Path to input delta payload file used to hash/sign payloads "
                 "and apply delta over old_image (for debugging)");
   DEFINE_string(out_file, "", "Path to output delta payload file");
   DEFINE_string(out_hash_file, "", "Path to output hash file");
-  DEFINE_string(out_metadata_hash_file, "",
-                "Path to output metadata hash file");
-  DEFINE_string(out_metadata_size_file, "",
-                "Path to output metadata size file");
+  DEFINE_string(
+      out_metadata_hash_file, "", "Path to output metadata hash file");
+  DEFINE_string(
+      out_metadata_size_file, "", "Path to output metadata size file");
   DEFINE_string(private_key, "", "Path to private key in .pem format");
   DEFINE_string(public_key, "", "Path to public key in .pem format");
-  DEFINE_int32(public_key_version, -1,
-               "DEPRECATED. Key-check version # of client");
-  DEFINE_string(signature_size, "",
+  DEFINE_int32(
+      public_key_version, -1, "DEPRECATED. Key-check version # of client");
+  DEFINE_string(signature_size,
+                "",
                 "Raw signature size used for hash calculation. "
                 "You may pass in multiple sizes by colon separating them. E.g. "
                 "2048:2048:4096 will assume 3 signatures, the first two with "
@@ -343,22 +342,25 @@ int Main(int argc, char** argv) {
                 "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
                 "signature will be assigned a client version, starting from "
                 "kSignatureOriginalVersion.");
-  DEFINE_string(metadata_signature_file, "",
+  DEFINE_string(metadata_signature_file,
+                "",
                 "Raw signature file with the signature of the metadata hash. "
                 "To pass multiple signatures, use a single argument with a "
                 "colon between paths, "
                 "e.g. /path/to/sig:/path/to/next:/path/to/last_sig .");
-  DEFINE_int32(chunk_size, 200 * 1024 * 1024,
-               "Payload chunk size (-1 for whole files)");
+  DEFINE_int32(
+      chunk_size, 200 * 1024 * 1024, "Payload chunk size (-1 for whole files)");
   DEFINE_uint64(rootfs_partition_size,
-               chromeos_update_engine::kRootFSPartitionSize,
-               "RootFS partition size for the image once installed");
-  DEFINE_uint64(major_version, 2,
-               "The major version of the payload being generated.");
-  DEFINE_int32(minor_version, -1,
+                chromeos_update_engine::kRootFSPartitionSize,
+                "RootFS partition size for the image once installed");
+  DEFINE_uint64(
+      major_version, 2, "The major version of the payload being generated.");
+  DEFINE_int32(minor_version,
+               -1,
                "The minor version of the payload being generated "
                "(-1 means autodetect).");
-  DEFINE_string(properties_file, "",
+  DEFINE_string(properties_file,
+                "",
                 "If passed, dumps the payload properties of the payload passed "
                 "in --in_file and exits.");
   DEFINE_int64(max_timestamp,
@@ -366,42 +368,53 @@ int Main(int argc, char** argv) {
                "The maximum timestamp of the OS allowed to apply this "
                "payload.");
 
-  DEFINE_string(old_channel, "",
+  DEFINE_string(old_channel,
+                "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
                 "etc. Ignored, except during delta generation.");
-  DEFINE_string(old_board, "",
+  DEFINE_string(old_board,
+                "",
                 "The board for the old image. 'x86-mario', 'lumpy', "
                 "etc. Ignored, except during delta generation.");
-  DEFINE_string(old_version, "",
-                "The build version of the old image. 1.2.3, etc.");
-  DEFINE_string(old_key, "",
+  DEFINE_string(
+      old_version, "", "The build version of the old image. 1.2.3, etc.");
+  DEFINE_string(old_key,
+                "",
                 "The key used to sign the old image. 'premp', 'mp', 'mp-v3',"
                 " etc");
-  DEFINE_string(old_build_channel, "",
+  DEFINE_string(old_build_channel,
+                "",
                 "The channel for the build of the old image. 'dev-channel', "
                 "etc, but will never contain special channels such as "
                 "'npo-channel'. Ignored, except during delta generation.");
-  DEFINE_string(old_build_version, "",
+  DEFINE_string(old_build_version,
+                "",
                 "The version of the build containing the old image.");
 
-  DEFINE_string(new_channel, "",
+  DEFINE_string(new_channel,
+                "",
                 "The channel for the new image. 'dev-channel', 'npo-channel', "
                 "etc. Ignored, except during delta generation.");
-  DEFINE_string(new_board, "",
+  DEFINE_string(new_board,
+                "",
                 "The board for the new image. 'x86-mario', 'lumpy', "
                 "etc. Ignored, except during delta generation.");
-  DEFINE_string(new_version, "",
-                "The build version of the new image. 1.2.3, etc.");
-  DEFINE_string(new_key, "",
+  DEFINE_string(
+      new_version, "", "The build version of the new image. 1.2.3, etc.");
+  DEFINE_string(new_key,
+                "",
                 "The key used to sign the new image. 'premp', 'mp', 'mp-v3',"
                 " etc");
-  DEFINE_string(new_build_channel, "",
+  DEFINE_string(new_build_channel,
+                "",
                 "The channel for the build of the new image. 'dev-channel', "
                 "etc, but will never contain special channels such as "
                 "'npo-channel'. Ignored, except during delta generation.");
-  DEFINE_string(new_build_version, "",
+  DEFINE_string(new_build_version,
+                "",
                 "The version of the build containing the new image.");
-  DEFINE_string(new_postinstall_config_file, "",
+  DEFINE_string(new_postinstall_config_file,
+                "",
                 "A config file specifying postinstall related metadata. "
                 "Only allowed in major version 2 or newer.");
   DEFINE_string(dynamic_partition_info_file,
@@ -409,7 +422,9 @@ int Main(int argc, char** argv) {
                 "An info file specifying dynamic partition metadata. "
                 "Only allowed in major version 2 or newer.");
 
-  brillo::FlagHelper::Init(argc, argv,
+  brillo::FlagHelper::Init(
+      argc,
+      argv,
       "Generates a payload to provide to ChromeOS' update_engine.\n\n"
       "This tool can create full payloads and also delta payloads if the src\n"
       "image is provided. It also provides debugging options to apply, sign\n"
@@ -417,10 +432,10 @@ int Main(int argc, char** argv) {
   Terminator::Init();
 
   logging::LoggingSettings log_settings;
-  log_settings.log_file     = "delta_generator.log";
+  log_settings.log_file = "delta_generator.log";
   log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
-  log_settings.lock_log     = logging::LOCK_LOG_FILE;
-  log_settings.delete_old   = logging::APPEND_TO_OLD_LOG_FILE;
+  log_settings.lock_log = logging::LOCK_LOG_FILE;
+  log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
 
   logging::InitLogging(log_settings);
 
@@ -432,8 +447,10 @@ int Main(int argc, char** argv) {
 
   if (!FLAGS_out_hash_file.empty() || !FLAGS_out_metadata_hash_file.empty()) {
     CHECK(FLAGS_out_metadata_size_file.empty());
-    CalculateHashForSigning(signature_sizes, FLAGS_out_hash_file,
-                            FLAGS_out_metadata_hash_file, FLAGS_in_file);
+    CalculateHashForSigning(signature_sizes,
+                            FLAGS_out_hash_file,
+                            FLAGS_out_metadata_hash_file,
+                            FLAGS_in_file);
     return 0;
   }
   if (!FLAGS_payload_signature_file.empty()) {
@@ -468,17 +485,17 @@ int Main(int argc, char** argv) {
         FLAGS_new_mapfiles, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   }
 
-  partition_names =
-      base::SplitString(FLAGS_partition_names, ":", base::TRIM_WHITESPACE,
-                        base::SPLIT_WANT_ALL);
+  partition_names = base::SplitString(
+      FLAGS_partition_names, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   CHECK(!partition_names.empty());
   if (FLAGS_major_version == kChromeOSMajorPayloadVersion ||
       FLAGS_new_partitions.empty()) {
     LOG_IF(FATAL, partition_names.size() != 2)
         << "To support more than 2 partitions, please use the "
         << "--new_partitions flag and major version 2.";
-    LOG_IF(FATAL, partition_names[0] != kPartitionNameRoot ||
-                  partition_names[1] != kPartitionNameKernel)
+    LOG_IF(FATAL,
+           partition_names[0] != kPartitionNameRoot ||
+               partition_names[1] != kPartitionNameKernel)
         << "To support non-default partition name, please use the "
         << "--new_partitions flag and major version 2.";
   }
@@ -487,9 +504,8 @@ int Main(int argc, char** argv) {
     LOG_IF(FATAL, !FLAGS_new_image.empty() || !FLAGS_new_kernel.empty())
         << "--new_image and --new_kernel are deprecated, please use "
         << "--new_partitions for all partitions.";
-    new_partitions =
-        base::SplitString(FLAGS_new_partitions, ":", base::TRIM_WHITESPACE,
-                          base::SPLIT_WANT_ALL);
+    new_partitions = base::SplitString(
+        FLAGS_new_partitions, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     CHECK(partition_names.size() == new_partitions.size());
 
     payload_config.is_delta = !FLAGS_old_partitions.empty();
@@ -501,8 +517,8 @@ int Main(int argc, char** argv) {
     LOG(WARNING) << "--new_partitions is empty, using deprecated --new_image "
                  << "and --new_kernel flags.";
 
-    payload_config.is_delta = !FLAGS_old_image.empty() ||
-                              !FLAGS_old_kernel.empty();
+    payload_config.is_delta =
+        !FLAGS_old_image.empty() || !FLAGS_old_kernel.empty();
     LOG_IF(FATAL, !FLAGS_old_partitions.empty())
         << "Please use --new_partitions if you are using --old_partitions.";
   }
@@ -517,9 +533,10 @@ int Main(int argc, char** argv) {
 
   if (payload_config.is_delta) {
     if (!FLAGS_old_partitions.empty()) {
-      old_partitions =
-          base::SplitString(FLAGS_old_partitions, ":", base::TRIM_WHITESPACE,
-                            base::SPLIT_WANT_ALL);
+      old_partitions = base::SplitString(FLAGS_old_partitions,
+                                         ":",
+                                         base::TRIM_WHITESPACE,
+                                         base::SPLIT_WANT_ALL);
       CHECK(old_partitions.size() == new_partitions.size());
     } else {
       old_partitions = {FLAGS_old_image, FLAGS_old_kernel};
@@ -638,10 +655,8 @@ int Main(int argc, char** argv) {
   }
 
   uint64_t metadata_size;
-  if (!GenerateUpdatePayloadFile(payload_config,
-                                 FLAGS_out_file,
-                                 FLAGS_private_key,
-                                 &metadata_size)) {
+  if (!GenerateUpdatePayloadFile(
+          payload_config, FLAGS_out_file, FLAGS_private_key, &metadata_size)) {
     return 1;
   }
   if (!FLAGS_out_metadata_size_file.empty()) {

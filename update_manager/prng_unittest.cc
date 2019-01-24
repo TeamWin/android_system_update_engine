@@ -63,7 +63,7 @@ TEST(UmPRNGTest, IsNotConstant) {
 
 TEST(UmPRNGTest, RandCoversRange) {
   PRNG a(42);
-  int hits[11] = { 0 };
+  int hits[11] = {0};
 
   for (int i = 0; i < 1000; i++) {
     int r = a.RandMinMax(0, 10);

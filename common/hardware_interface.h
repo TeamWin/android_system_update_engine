@@ -102,8 +102,9 @@ class HardwareInterface {
   virtual int GetPowerwashCount() const = 0;
 
   // Signals that a powerwash (stateful partition wipe) should be performed
-  // after reboot.
-  virtual bool SchedulePowerwash() = 0;
+  // after reboot. If |is_rollback| is true additional state is preserved
+  // during shutdown that can be restored after the powerwash.
+  virtual bool SchedulePowerwash(bool is_rollback) = 0;
 
   // Cancel the powerwash operation scheduled to be performed on next boot.
   virtual bool CancelPowerwash() = 0;

@@ -32,9 +32,7 @@ namespace chromeos_update_engine {
 // /var/cache/p2p, a temporary directory is used.
 class FakeP2PManagerConfiguration : public P2PManager::Configuration {
  public:
-  FakeP2PManagerConfiguration() {
-    EXPECT_TRUE(p2p_dir_.CreateUniqueTempDir());
-  }
+  FakeP2PManagerConfiguration() { EXPECT_TRUE(p2p_dir_.CreateUniqueTempDir()); }
 
   // P2PManager::Configuration override
   base::FilePath GetP2PDir() override { return p2p_dir_.GetPath(); }
@@ -45,15 +43,15 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   }
 
   // P2PManager::Configuration override
-  std::vector<std::string> GetP2PClientArgs(const std::string &file_id,
+  std::vector<std::string> GetP2PClientArgs(const std::string& file_id,
                                             size_t minimum_size) override {
     std::vector<std::string> formatted_command = p2p_client_cmd_format_;
     // Replace {variable} on the passed string.
     std::string str_minimum_size = std::to_string(minimum_size);
     for (std::string& arg : formatted_command) {
       base::ReplaceSubstringsAfterOffset(&arg, 0, "{file_id}", file_id);
-      base::ReplaceSubstringsAfterOffset(&arg, 0, "{minsize}",
-                                         str_minimum_size);
+      base::ReplaceSubstringsAfterOffset(
+          &arg, 0, "{minsize}", str_minimum_size);
     }
     return formatted_command;
   }

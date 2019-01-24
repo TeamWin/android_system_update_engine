@@ -52,15 +52,16 @@ void TarjanAlgorithm::Tarjan(Vertex::Index vertex, Graph* graph) {
   index_++;
   stack_.push_back(vertex);
   for (Vertex::EdgeMap::iterator it = (*graph)[vertex].out_edges.begin();
-       it != (*graph)[vertex].out_edges.end(); ++it) {
+       it != (*graph)[vertex].out_edges.end();
+       ++it) {
     Vertex::Index vertex_next = it->first;
     if ((*graph)[vertex_next].index == kInvalidIndex) {
       Tarjan(vertex_next, graph);
-      (*graph)[vertex].lowlink = min((*graph)[vertex].lowlink,
-                                     (*graph)[vertex_next].lowlink);
+      (*graph)[vertex].lowlink =
+          min((*graph)[vertex].lowlink, (*graph)[vertex_next].lowlink);
     } else if (base::ContainsValue(stack_, vertex_next)) {
-      (*graph)[vertex].lowlink = min((*graph)[vertex].lowlink,
-                                     (*graph)[vertex_next].index);
+      (*graph)[vertex].lowlink =
+          min((*graph)[vertex].lowlink, (*graph)[vertex_next].index);
     }
   }
   if ((*graph)[vertex].lowlink == (*graph)[vertex].index) {

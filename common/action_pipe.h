@@ -48,10 +48,10 @@ namespace chromeos_update_engine {
 // for that type, no object is taken/given.
 class NoneType {};
 
-template<typename T>
+template <typename T>
 class Action;
 
-template<typename ObjectType>
+template <typename ObjectType>
 class ActionPipe {
  public:
   virtual ~ActionPipe() {}
@@ -67,7 +67,7 @@ class ActionPipe {
   // Bonds two Actions together with a new ActionPipe. The ActionPipe is
   // jointly owned by the two Actions and will be automatically destroyed
   // when the last Action is destroyed.
-  template<typename FromAction, typename ToAction>
+  template <typename FromAction, typename ToAction>
   static void Bond(FromAction* from, ToAction* to) {
     std::shared_ptr<ActionPipe<ObjectType>> pipe(new ActionPipe<ObjectType>);
     from->set_out_pipe(pipe);
@@ -87,7 +87,7 @@ class ActionPipe {
 };
 
 // Utility function
-template<typename FromAction, typename ToAction>
+template <typename FromAction, typename ToAction>
 void BondActions(FromAction* from, ToAction* to) {
   static_assert(
       std::is_same<typename FromAction::OutputObjectType,

@@ -32,7 +32,9 @@ const brillo::Blob::size_type kOutputBufferLength = 16 * 1024;
 const uint32_t kXzMaxDictSize = 64 * 1024 * 1024;
 
 const char* XzErrorString(enum xz_ret error) {
-  #define __XZ_ERROR_STRING_CASE(code) case code: return #code;
+#define __XZ_ERROR_STRING_CASE(code) \
+  case code:                         \
+    return #code;
   switch (error) {
     __XZ_ERROR_STRING_CASE(XZ_OK)
     __XZ_ERROR_STRING_CASE(XZ_STREAM_END)
@@ -46,7 +48,7 @@ const char* XzErrorString(enum xz_ret error) {
     default:
       return "<unknown xz error>";
   }
-  #undef __XZ_ERROR_STRING_CASE
+#undef __XZ_ERROR_STRING_CASE
 }
 }  // namespace
 

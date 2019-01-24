@@ -586,10 +586,7 @@ class PayloadApplier(object):
       if self.minor_version == common.INPLACE_MINOR_PAYLOAD_VERSION:
         # Copy the src partition to the dst one; make sure we don't truncate it.
         shutil.copyfile(old_part_file_name, new_part_file_name)
-      elif (self.minor_version == common.SOURCE_MINOR_PAYLOAD_VERSION or
-            self.minor_version == common.OPSRCHASH_MINOR_PAYLOAD_VERSION or
-            self.minor_version == common.BROTLI_BSDIFF_MINOR_PAYLOAD_VERSION or
-            self.minor_version == common.PUFFDIFF_MINOR_PAYLOAD_VERSION):
+      elif self.minor_version >= common.SOURCE_MINOR_PAYLOAD_VERSION:
         # In minor version >= 2, we don't want to copy the partitions, so
         # instead just make the new partition file.
         open(new_part_file_name, 'w').close()
@@ -682,4 +679,3 @@ class PayloadApplier(object):
       self._ApplyToPartition(
           operations, name, '%s_install_operations' % name, new_parts[name],
           new_part_info[name], old_parts.get(name, None), old_part_info[name])
-

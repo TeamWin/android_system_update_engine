@@ -156,7 +156,7 @@ string GetAppBody(const OmahaEvent* event,
   string app_body;
   if (event == nullptr) {
     if (include_ping)
-        app_body = GetPingXml(ping_active_days, ping_roll_call_days);
+      app_body = GetPingXml(ping_active_days, ping_roll_call_days);
     if (!ping_only) {
       if (!skip_updatecheck) {
         app_body += "        <updatecheck";
@@ -209,7 +209,9 @@ string GetAppBody(const OmahaEvent* event,
     }
     app_body = base::StringPrintf(
         "        <event eventtype=\"%d\" eventresult=\"%d\"%s></event>\n",
-        event->type, event->result, error_code.c_str());
+        event->type,
+        event->result,
+        error_code.c_str());
   }
 
   return app_body;
@@ -245,8 +247,8 @@ string GetCohortArgXml(PrefsInterface* prefs,
     return "";
   }
 
-  return base::StringPrintf("%s=\"%s\" ",
-                            arg_name.c_str(), escaped_xml_value.c_str());
+  return base::StringPrintf(
+      "%s=\"%s\" ", arg_name.c_str(), escaped_xml_value.c_str());
 }
 
 struct OmahaAppData {
@@ -302,8 +304,8 @@ string GetAppXml(const OmahaEvent* event,
   string app_channels =
       "track=\"" + XmlEncodeWithDefault(download_channel, "") + "\" ";
   if (params->current_channel() != download_channel) {
-    app_channels += "from_track=\"" + XmlEncodeWithDefault(
-        params->current_channel(), "") + "\" ";
+    app_channels += "from_track=\"" +
+                    XmlEncodeWithDefault(params->current_channel(), "") + "\" ";
   }
 
   string delta_okay_str = params->delta_okay() ? "true" : "false";
@@ -312,17 +314,17 @@ string GetAppXml(const OmahaEvent* event,
   // include the attribute.
   string install_date_in_days_str = "";
   if (install_date_in_days >= 0) {
-    install_date_in_days_str = base::StringPrintf("installdate=\"%d\" ",
-                                                  install_date_in_days);
+    install_date_in_days_str =
+        base::StringPrintf("installdate=\"%d\" ", install_date_in_days);
   }
 
   string app_cohort_args;
-  app_cohort_args += GetCohortArgXml(system_state->prefs(),
-                                     "cohort", kPrefsOmahaCohort);
-  app_cohort_args += GetCohortArgXml(system_state->prefs(),
-                                     "cohorthint", kPrefsOmahaCohortHint);
-  app_cohort_args += GetCohortArgXml(system_state->prefs(),
-                                     "cohortname", kPrefsOmahaCohortName);
+  app_cohort_args +=
+      GetCohortArgXml(system_state->prefs(), "cohort", kPrefsOmahaCohort);
+  app_cohort_args += GetCohortArgXml(
+      system_state->prefs(), "cohorthint", kPrefsOmahaCohortHint);
+  app_cohort_args += GetCohortArgXml(
+      system_state->prefs(), "cohortname", kPrefsOmahaCohortName);
 
   string fingerprint_arg;
   if (!params->os_build_fingerprint().empty()) {
@@ -389,10 +391,13 @@ string GetAppXml(const OmahaEvent* event,
 // Returns an XML that corresponds to the entire <os> node of the Omaha
 // request based on the given parameters.
 string GetOsXml(OmahaRequestParams* params) {
-  string os_xml ="    <os "
-      "version=\"" + XmlEncodeWithDefault(params->os_version(), "") + "\" " +
-      "platform=\"" + XmlEncodeWithDefault(params->os_platform(), "") + "\" " +
-      "sp=\"" + XmlEncodeWithDefault(params->os_sp(), "") + "\">"
+  string os_xml =
+      "    <os "
+      "version=\"" +
+      XmlEncodeWithDefault(params->os_version(), "") + "\" " + "platform=\"" +
+      XmlEncodeWithDefault(params->os_platform(), "") + "\" " + "sp=\"" +
+      XmlEncodeWithDefault(params->os_sp(), "") +
+      "\">"
       "</os>\n";
   return os_xml;
 }
@@ -455,23 +460,22 @@ string GetRequestXml(const OmahaEvent* event,
                          system_state);
   }
 
-  string install_source = base::StringPrintf("installsource=\"%s\" ",
+  string install_source = base::StringPrintf(
+      "installsource=\"%s\" ",
       (params->interactive() ? "ondemandupdate" : "scheduler"));
 
   string updater_version = XmlEncodeWithDefault(
-      base::StringPrintf("%s-%s",
-                         constants::kOmahaUpdaterID,
-                         kOmahaUpdaterVersion), "");
+      base::StringPrintf(
+          "%s-%s", constants::kOmahaUpdaterID, kOmahaUpdaterVersion),
+      "");
   string request_xml =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<request protocol=\"3.0\" " + (
-          "version=\"" + updater_version + "\" "
-          "updaterversion=\"" + updater_version + "\" " +
-          install_source +
-          "ismachine=\"1\">\n") +
-      os_xml +
-      app_xml +
-      "</request>\n";
+      "<request protocol=\"3.0\" " +
+      ("version=\"" + updater_version +
+       "\" "
+       "updaterversion=\"" +
+       updater_version + "\" " + install_source + "ismachine=\"1\">\n") +
+      os_xml + app_xml + "</request>\n";
 
   return request_xml;
 }
@@ -522,7 +526,8 @@ struct OmahaParserData {
 namespace {
 
 // Callback function invoked by expat.
-void ParserHandlerStart(void* user_data, const XML_Char* element,
+void ParserHandlerStart(void* user_data,
+                        const XML_Char* element,
                         const XML_Char** attr) {
   OmahaParserData* data = reinterpret_cast<OmahaParserData*>(user_data);
 
@@ -533,7 +538,7 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
 
   map<string, string> attrs;
   if (attr != nullptr) {
-    for (int n = 0; attr[n] != nullptr && attr[n+1] != nullptr; n += 2) {
+    for (int n = 0; attr[n] != nullptr && attr[n + 1] != nullptr; n += 2) {
       string key = attr[n];
       string value = attr[n + 1];
       attrs[key] = value;
@@ -605,8 +610,8 @@ void ParserHandlerEnd(void* user_data, const XML_Char* element) {
 
   const string path_suffix = string("/") + element;
 
-  if (!base::EndsWith(data->current_path, path_suffix,
-                      base::CompareCase::SENSITIVE)) {
+  if (!base::EndsWith(
+          data->current_path, path_suffix, base::CompareCase::SENSITIVE)) {
     LOG(ERROR) << "Unexpected end element '" << element
                << "' with current_path='" << data->current_path << "'";
     data->failed = true;
@@ -621,15 +626,15 @@ void ParserHandlerEnd(void* user_data, const XML_Char* element) {
 // to never return any XML with entities our course of action is to
 // just stop parsing. This avoids potential resource exhaustion
 // problems AKA the "billion laughs". CVE-2013-0340.
-void ParserHandlerEntityDecl(void *user_data,
-                             const XML_Char *entity_name,
+void ParserHandlerEntityDecl(void* user_data,
+                             const XML_Char* entity_name,
                              int is_parameter_entity,
-                             const XML_Char *value,
+                             const XML_Char* value,
                              int value_length,
-                             const XML_Char *base,
-                             const XML_Char *system_id,
-                             const XML_Char *public_id,
-                             const XML_Char *notation_name) {
+                             const XML_Char* base,
+                             const XML_Char* system_id,
+                             const XML_Char* public_id,
+                             const XML_Char* notation_name) {
   OmahaParserData* data = reinterpret_cast<OmahaParserData*>(user_data);
 
   LOG(ERROR) << "XML entities are not supported. Aborting parsing.";
@@ -641,8 +646,9 @@ void ParserHandlerEntityDecl(void *user_data,
 }  // namespace
 
 bool XmlEncode(const string& input, string* output) {
-  if (std::find_if(input.begin(), input.end(),
-                   [](const char c){return c & 0x80;}) != input.end()) {
+  if (std::find_if(input.begin(), input.end(), [](const char c) {
+        return c & 0x80;
+      }) != input.end()) {
     LOG(WARNING) << "Invalid ASCII-7 string passed to the XML encoder:";
     utils::HexDumpString(input);
     return false;
@@ -713,8 +719,8 @@ int OmahaRequestAction::CalculatePingDays(const string& key) {
       // last ping daystart preference. This way the next ping time
       // will be correct, hopefully.
       days = kPingTimeJump;
-      LOG(WARNING) <<
-          "System clock jumped back in time. Resetting ping daystarts.";
+      LOG(WARNING)
+          << "System clock jumped back in time. Resetting ping daystarts.";
     }
   }
   return days;
@@ -805,13 +811,12 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   }
 
   // Persist this to disk, for future use.
-  if (!OmahaRequestAction::PersistInstallDate(system_state,
-                                              num_days,
-                                              kProvisionedFromOOBEMarker))
+  if (!OmahaRequestAction::PersistInstallDate(
+          system_state, num_days, kProvisionedFromOOBEMarker))
     return -1;
 
-  LOG(INFO) << "Set the Omaha InstallDate from OOBE time-stamp to "
-            << num_days << " days";
+  LOG(INFO) << "Set the Omaha InstallDate from OOBE time-stamp to " << num_days
+            << " days";
 
   return num_days;
 }
@@ -842,8 +847,8 @@ void OmahaRequestAction::PerformAction() {
       base::StringPrintf(
           "%s-%s", constants::kOmahaUpdaterID, kOmahaUpdaterVersion));
 
-  http_fetcher_->SetPostData(request_post.data(), request_post.size(),
-                             kHttpContentTypeTextXml);
+  http_fetcher_->SetPostData(
+      request_post.data(), request_post.size(), kHttpContentTypeTextXml);
   LOG(INFO) << "Posting an Omaha request to " << params_->update_url();
   LOG(INFO) << "Request: " << request_post;
   http_fetcher_->BeginTransfer(params_->update_url());
@@ -885,11 +890,10 @@ bool ParseBool(const string& str) {
 
 // Update the last ping day preferences based on the server daystart
 // response. Returns true on success, false otherwise.
-bool UpdateLastPingDays(OmahaParserData *parser_data, PrefsInterface* prefs) {
+bool UpdateLastPingDays(OmahaParserData* parser_data, PrefsInterface* prefs) {
   int64_t elapsed_seconds = 0;
-  TEST_AND_RETURN_FALSE(
-      base::StringToInt64(parser_data->daystart_elapsed_seconds,
-                          &elapsed_seconds));
+  TEST_AND_RETURN_FALSE(base::StringToInt64(
+      parser_data->daystart_elapsed_seconds, &elapsed_seconds));
   TEST_AND_RETURN_FALSE(elapsed_seconds >= 0);
 
   // Remember the local time that matches the server's last midnight
@@ -1204,7 +1208,7 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
 // If the transfer was successful, this uses expat to parse the response
 // and fill in the appropriate fields of the output object. Also, notifies
 // the processor that we're done.
-void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
+void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
                                           bool successful) {
   ScopedActionCompleter completer(processor_, this);
   string current_response(response_buffer_.begin(), response_buffer_.end());
@@ -1239,17 +1243,17 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   XML_SetUserData(parser, &parser_data);
   XML_SetElementHandler(parser, ParserHandlerStart, ParserHandlerEnd);
   XML_SetEntityDeclHandler(parser, ParserHandlerEntityDecl);
-  XML_Status res = XML_Parse(
-      parser,
-      reinterpret_cast<const char*>(response_buffer_.data()),
-      response_buffer_.size(),
-      XML_TRUE);
+  XML_Status res =
+      XML_Parse(parser,
+                reinterpret_cast<const char*>(response_buffer_.data()),
+                response_buffer_.size(),
+                XML_TRUE);
 
   if (res != XML_STATUS_OK || parser_data.failed) {
     LOG(ERROR) << "Omaha response not valid XML: "
-               << XML_ErrorString(XML_GetErrorCode(parser))
-               << " at line " << XML_GetCurrentLineNumber(parser)
-               << " col " << XML_GetCurrentColumnNumber(parser);
+               << XML_ErrorString(XML_GetErrorCode(parser)) << " at line "
+               << XML_GetCurrentLineNumber(parser) << " col "
+               << XML_GetCurrentColumnNumber(parser);
     XML_ParserFree(parser);
     ErrorCode error_code = ErrorCode::kOmahaRequestXMLParseError;
     if (response_buffer_.empty()) {
@@ -1303,7 +1307,6 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     completer.set_code(error);
     return;
   }
-
 
   // If Omaha says to disable p2p, respect that
   if (output_object.disable_p2p_for_downloading) {
@@ -1555,9 +1558,9 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
 
     // But we can't download until the update-check-count-based wait is also
     // satisfied, so mark it as required now if update checks are enabled.
-    return params_->update_check_count_wait_enabled() ?
-              kWallClockWaitDoneButUpdateCheckWaitRequired :
-              kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
+    return params_->update_check_count_wait_enabled()
+               ? kWallClockWaitDoneButUpdateCheckWaitRequired
+               : kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
   }
 
   // Not our turn yet, so we have to wait until our turn to
@@ -1583,9 +1586,9 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
   } else {
     // This file does not exist. This means we haven't started our update
     // check count down yet, so this is the right time to start the count down.
-    update_check_count_value = base::RandInt(
-      params_->min_update_checks_needed(),
-      params_->max_update_checks_allowed());
+    update_check_count_value =
+        base::RandInt(params_->min_update_checks_needed(),
+                      params_->max_update_checks_allowed());
 
     LOG(INFO) << "Randomly picked update check count value = "
               << update_check_count_value;
@@ -1618,8 +1621,7 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
   // Legal value, we need to wait for more update checks to happen
   // until this becomes 0.
   LOG(INFO) << "Deferring Omaha updates for another "
-            << update_check_count_value
-            << " update checks per policy";
+            << update_check_count_value << " update checks per policy";
   return false;
 }
 
@@ -1627,8 +1629,7 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
 bool OmahaRequestAction::ParseInstallDate(OmahaParserData* parser_data,
                                           OmahaResponse* output_object) {
   int64_t elapsed_days = 0;
-  if (!base::StringToInt64(parser_data->daystart_elapsed_days,
-                           &elapsed_days))
+  if (!base::StringToInt64(parser_data->daystart_elapsed_days, &elapsed_days))
     return false;
 
   if (elapsed_days < 0)
@@ -1639,7 +1640,7 @@ bool OmahaRequestAction::ParseInstallDate(OmahaParserData* parser_data,
 }
 
 // static
-bool OmahaRequestAction::HasInstallDate(SystemState *system_state) {
+bool OmahaRequestAction::HasInstallDate(SystemState* system_state) {
   PrefsInterface* prefs = system_state->prefs();
   if (prefs == nullptr)
     return false;
@@ -1649,7 +1650,7 @@ bool OmahaRequestAction::HasInstallDate(SystemState *system_state) {
 
 // static
 bool OmahaRequestAction::PersistInstallDate(
-    SystemState *system_state,
+    SystemState* system_state,
     int install_date_days,
     InstallDateProvisioningSource source) {
   TEST_AND_RETURN_FALSE(install_date_days >= 0);
@@ -1667,9 +1668,8 @@ bool OmahaRequestAction::PersistInstallDate(
   return true;
 }
 
-bool OmahaRequestAction::PersistCohortData(
-    const string& prefs_key,
-    const string& new_value) {
+bool OmahaRequestAction::PersistCohortData(const string& prefs_key,
+                                           const string& new_value) {
   if (new_value.empty() && system_state_->prefs()->Exists(prefs_key)) {
     LOG(INFO) << "Removing stored " << prefs_key << " value.";
     return system_state_->prefs()->Delete(prefs_key);
@@ -1703,51 +1703,51 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
 
   // Regular update attempt.
   switch (code) {
-  case ErrorCode::kSuccess:
-    // OK, we parsed the response successfully but that does
-    // necessarily mean that an update is available.
-    if (HasOutputPipe()) {
-      const OmahaResponse& response = GetOutputObject();
-      if (response.update_exists) {
-        result = metrics::CheckResult::kUpdateAvailable;
-        reaction = metrics::CheckReaction::kUpdating;
+    case ErrorCode::kSuccess:
+      // OK, we parsed the response successfully but that does
+      // necessarily mean that an update is available.
+      if (HasOutputPipe()) {
+        const OmahaResponse& response = GetOutputObject();
+        if (response.update_exists) {
+          result = metrics::CheckResult::kUpdateAvailable;
+          reaction = metrics::CheckReaction::kUpdating;
+        } else {
+          result = metrics::CheckResult::kNoUpdateAvailable;
+        }
       } else {
         result = metrics::CheckResult::kNoUpdateAvailable;
       }
-    } else {
-      result = metrics::CheckResult::kNoUpdateAvailable;
-    }
-    break;
+      break;
 
-  case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
-  case ErrorCode::kOmahaUpdateIgnoredOverCellular:
-    result = metrics::CheckResult::kUpdateAvailable;
-    reaction = metrics::CheckReaction::kIgnored;
-    break;
+    case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
+      result = metrics::CheckResult::kUpdateAvailable;
+      reaction = metrics::CheckReaction::kIgnored;
+      break;
 
-  case ErrorCode::kOmahaUpdateDeferredPerPolicy:
-    result = metrics::CheckResult::kUpdateAvailable;
-    reaction = metrics::CheckReaction::kDeferring;
-    break;
+    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+      result = metrics::CheckResult::kUpdateAvailable;
+      reaction = metrics::CheckReaction::kDeferring;
+      break;
 
-  case ErrorCode::kOmahaUpdateDeferredForBackoff:
-    result = metrics::CheckResult::kUpdateAvailable;
-    reaction = metrics::CheckReaction::kBackingOff;
-    break;
+    case ErrorCode::kOmahaUpdateDeferredForBackoff:
+      result = metrics::CheckResult::kUpdateAvailable;
+      reaction = metrics::CheckReaction::kBackingOff;
+      break;
 
-  default:
-    // We report two flavors of errors, "Download errors" and "Parsing
-    // error". Try to convert to the former and if that doesn't work
-    // we know it's the latter.
-    metrics::DownloadErrorCode tmp_error =
-        metrics_utils::GetDownloadErrorCode(code);
-    if (tmp_error != metrics::DownloadErrorCode::kInputMalformed) {
-      result = metrics::CheckResult::kDownloadError;
-      download_error_code = tmp_error;
-    } else {
-      result = metrics::CheckResult::kParsingError;
-    }
-    break;
+    default:
+      // We report two flavors of errors, "Download errors" and "Parsing
+      // error". Try to convert to the former and if that doesn't work
+      // we know it's the latter.
+      metrics::DownloadErrorCode tmp_error =
+          metrics_utils::GetDownloadErrorCode(code);
+      if (tmp_error != metrics::DownloadErrorCode::kInputMalformed) {
+        result = metrics::CheckResult::kDownloadError;
+        download_error_code = tmp_error;
+      } else {
+        result = metrics::CheckResult::kParsingError;
+      }
+      break;
   }
 
   system_state_->metrics_reporter()->ReportUpdateCheckMetrics(

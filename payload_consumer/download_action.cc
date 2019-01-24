@@ -56,6 +56,9 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       delegate_(nullptr),
       p2p_sharing_fd_(-1),
       p2p_visible_(true) {
+#if BASE_VER < 576279
+  base::StatisticsRecorder::Initialize();
+#endif
 }
 
 DownloadAction::~DownloadAction() {}
@@ -69,8 +72,7 @@ void DownloadAction::CloseP2PSharingFd(bool delete_p2p_file) {
   }
 
   if (delete_p2p_file) {
-    FilePath path =
-      system_state_->p2p_manager()->FileGetPath(p2p_file_id_);
+    FilePath path = system_state_->p2p_manager()->FileGetPath(p2p_file_id_);
     if (unlink(path.value().c_str()) != 0) {
       PLOG(ERROR) << "Error deleting p2p file " << path.value();
     } else {
@@ -83,7 +85,7 @@ void DownloadAction::CloseP2PSharingFd(bool delete_p2p_file) {
 }
 
 bool DownloadAction::SetupP2PSharingFd() {
-  P2PManager *p2p_manager = system_state_->p2p_manager();
+  P2PManager* p2p_manager = system_state_->p2p_manager();
 
   if (!p2p_manager->FileShare(p2p_file_id_, payload_->size)) {
     LOG(ERROR) << "Unable to share file via p2p";
@@ -144,23 +146,21 @@ void DownloadAction::WriteToP2PFile(const void* data,
   }
   if (p2p_size < file_offset) {
     LOG(ERROR) << "Wanting to write to file offset " << file_offset
-               << " but existing p2p file is only " << p2p_size
-               << " bytes.";
+               << " but existing p2p file is only " << p2p_size << " bytes.";
     CloseP2PSharingFd(true);  // Delete p2p file.
     return;
   }
 
   off_t cur_file_offset = lseek(p2p_sharing_fd_, file_offset, SEEK_SET);
   if (cur_file_offset != static_cast<off_t>(file_offset)) {
-    PLOG(ERROR) << "Error seeking to position "
-                << file_offset << " in p2p file";
+    PLOG(ERROR) << "Error seeking to position " << file_offset
+                << " in p2p file";
     CloseP2PSharingFd(true);  // Delete p2p file.
   } else {
     // OK, seeking worked, now write the data
     ssize_t bytes_written = write(p2p_sharing_fd_, data, length);
     if (bytes_written != static_cast<ssize_t>(length)) {
-      PLOG(ERROR) << "Error writing "
-                  << length << " bytes at file offset "
+      PLOG(ERROR) << "Error writing " << length << " bytes at file offset "
                   << file_offset << " in p2p file";
       CloseP2PSharingFd(true);  // Delete p2p file.
     }
@@ -374,7 +374,7 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
       code = delta_performer_->VerifyPayload(payload_->hash, payload_->size);
     if (code == ErrorCode::kSuccess) {
       if (payload_ < &install_plan_.payloads.back() &&
-                 system_state_->payload_state()->NextPayload()) {
+          system_state_->payload_state()->NextPayload()) {
         LOG(INFO) << "Incrementing to next payload";
         // No need to reset if this payload was already applied.
         if (delta_performer_ && !payload_->already_applied)
@@ -395,8 +395,8 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
       // Log UpdateEngine.DownloadAction.* histograms to help diagnose
       // long-blocking operations.
       std::string histogram_output;
-      base::StatisticsRecorder::WriteGraph(
-          "UpdateEngine.DownloadAction.", &histogram_output);
+      base::StatisticsRecorder::WriteGraph("UpdateEngine.DownloadAction.",
+                                           &histogram_output);
       LOG(INFO) << histogram_output;
     } else {
       LOG(ERROR) << "Download of " << install_plan_.download_url

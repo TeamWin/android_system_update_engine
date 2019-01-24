@@ -34,9 +34,10 @@ namespace chromeos_update_manager {
 DefaultPolicy::DefaultPolicy(chromeos_update_engine::ClockInterface* clock)
     : clock_(clock), aux_state_(new DefaultPolicyState()) {}
 
-EvalStatus DefaultPolicy::UpdateCheckAllowed(
-    EvaluationContext* ec, State* state, std::string* error,
-    UpdateCheckParams* result) const {
+EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
+                                             State* state,
+                                             std::string* error,
+                                             UpdateCheckParams* result) const {
   result->updates_enabled = true;
   result->target_channel.clear();
   result->target_version_prefix.clear();
@@ -67,12 +68,11 @@ EvalStatus DefaultPolicy::UpdateCanBeApplied(EvaluationContext* ec,
   return EvalStatus::kSucceeded;
 }
 
-EvalStatus DefaultPolicy::UpdateCanStart(
-    EvaluationContext* ec,
-    State* state,
-    std::string* error,
-    UpdateDownloadParams* result,
-    const UpdateState update_state) const {
+EvalStatus DefaultPolicy::UpdateCanStart(EvaluationContext* ec,
+                                         State* state,
+                                         std::string* error,
+                                         UpdateDownloadParams* result,
+                                         const UpdateState update_state) const {
   result->update_can_start = true;
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->download_url_idx = 0;
@@ -87,30 +87,27 @@ EvalStatus DefaultPolicy::UpdateCanStart(
   return EvalStatus::kSucceeded;
 }
 
-EvalStatus DefaultPolicy::UpdateDownloadAllowed(
-    EvaluationContext* ec,
-    State* state,
-    std::string* error,
-    bool* result) const {
+EvalStatus DefaultPolicy::UpdateDownloadAllowed(EvaluationContext* ec,
+                                                State* state,
+                                                std::string* error,
+                                                bool* result) const {
   *result = true;
   return EvalStatus::kSucceeded;
 }
 
-EvalStatus DefaultPolicy::P2PEnabled(
-    EvaluationContext* ec,
-    State* state,
-    std::string* error,
-    bool* result) const {
+EvalStatus DefaultPolicy::P2PEnabled(EvaluationContext* ec,
+                                     State* state,
+                                     std::string* error,
+                                     bool* result) const {
   *result = false;
   return EvalStatus::kSucceeded;
 }
 
-EvalStatus DefaultPolicy::P2PEnabledChanged(
-    EvaluationContext* ec,
-    State* state,
-    std::string* error,
-    bool* result,
-    bool prev_result) const {
+EvalStatus DefaultPolicy::P2PEnabledChanged(EvaluationContext* ec,
+                                            State* state,
+                                            std::string* error,
+                                            bool* result,
+                                            bool prev_result) const {
   // This policy will always prohibit P2P, so this is signaling to the caller
   // that the decision is final (because the current value is the same as the
   // previous one) and there's no need to issue another call.

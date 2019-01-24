@@ -232,8 +232,7 @@ bool BootControlAndroid::IsSlotBootable(Slot slot) const {
   Return<BoolResult> ret = module_->isSlotBootable(slot);
   if (!ret.isOk()) {
     LOG(ERROR) << "Unable to determine if slot " << SlotName(slot)
-               << " is bootable: "
-               << ret.description();
+               << " is bootable: " << ret.description();
     return false;
   }
   if (ret == BoolResult::INVALID_SLOT) {
@@ -248,8 +247,7 @@ bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
   auto ret = module_->setSlotAsUnbootable(slot, StoreResultCallback(&result));
   if (!ret.isOk()) {
     LOG(ERROR) << "Unable to call MarkSlotUnbootable for slot "
-               << SlotName(slot) << ": "
-               << ret.description();
+               << SlotName(slot) << ": " << ret.description();
     return false;
   }
   if (!result.success) {
@@ -279,8 +277,7 @@ bool BootControlAndroid::MarkBootSuccessfulAsync(
   CommandResult result;
   auto ret = module_->markBootSuccessful(StoreResultCallback(&result));
   if (!ret.isOk()) {
-    LOG(ERROR) << "Unable to call MarkBootSuccessful: "
-               << ret.description();
+    LOG(ERROR) << "Unable to call MarkBootSuccessful: " << ret.description();
     return false;
   }
   if (!result.success) {

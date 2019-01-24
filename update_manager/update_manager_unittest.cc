@@ -81,13 +81,13 @@ class UmUpdateManagerTest : public ::testing::Test {
   void SetUp() override {
     loop_.SetAsCurrent();
     fake_state_ = new FakeState();
-    umut_.reset(new UpdateManager(&fake_clock_, TimeDelta::FromSeconds(5),
-                                  TimeDelta::FromSeconds(1), fake_state_));
+    umut_.reset(new UpdateManager(&fake_clock_,
+                                  TimeDelta::FromSeconds(5),
+                                  TimeDelta::FromSeconds(1),
+                                  fake_state_));
   }
 
-  void TearDown() override {
-    EXPECT_FALSE(loop_.PendingTasks());
-  }
+  void TearDown() override { EXPECT_FALSE(loop_.PendingTasks()); }
 
   base::SimpleTestClock test_clock_;
   brillo::FakeMessageLoop loop_{&test_clock_};
@@ -103,7 +103,8 @@ class FailingPolicy : public DefaultPolicy {
  public:
   explicit FailingPolicy(int* num_called_p) : num_called_p_(num_called_p) {}
   FailingPolicy() : FailingPolicy(nullptr) {}
-  EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+                                State* state,
                                 string* error,
                                 UpdateCheckParams* result) const override {
     if (num_called_p_)
@@ -121,7 +122,8 @@ class FailingPolicy : public DefaultPolicy {
 
 // The LazyPolicy always returns EvalStatus::kAskMeAgainLater.
 class LazyPolicy : public DefaultPolicy {
-  EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+                                State* state,
                                 string* error,
                                 UpdateCheckParams* result) const override {
     return EvalStatus::kAskMeAgainLater;
@@ -139,9 +141,11 @@ class LazyPolicy : public DefaultPolicy {
 class DelayPolicy : public DefaultPolicy {
  public:
   DelayPolicy(int sleep_secs, Time time_threshold, int* num_called_p)
-      : sleep_secs_(sleep_secs), time_threshold_(time_threshold),
+      : sleep_secs_(sleep_secs),
+        time_threshold_(time_threshold),
         num_called_p_(num_called_p) {}
-  EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+                                State* state,
                                 string* error,
                                 UpdateCheckParams* result) const override {
     if (num_called_p_)
@@ -173,9 +177,10 @@ class DelayPolicy : public DefaultPolicy {
 // of EvalStatus and T instances. This allows to create a callback that keeps
 // track of when it is called and the arguments passed to it, to be used with
 // the UpdateManager::AsyncPolicyRequest().
-template<typename T>
+template <typename T>
 static void AccumulateCallsCallback(vector<pair<EvalStatus, T>>* acc,
-                                    EvalStatus status, const T& result) {
+                                    EvalStatus status,
+                                    const T& result) {
   acc->push_back(std::make_pair(status, result));
 }
 
@@ -183,8 +188,8 @@ static void AccumulateCallsCallback(vector<pair<EvalStatus, T>>* acc,
 // this tests cover all policy requests as defined in Policy.
 TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCheckAllowed) {
   UpdateCheckParams result;
-  EXPECT_EQ(EvalStatus::kSucceeded, umut_->PolicyRequest(
-      &Policy::UpdateCheckAllowed, &result));
+  EXPECT_EQ(EvalStatus::kSucceeded,
+            umut_->PolicyRequest(&Policy::UpdateCheckAllowed, &result));
 }
 
 TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCanStart) {
@@ -213,9 +218,9 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCanStart) {
   update_state.scatter_check_threshold_max = 8;
 
   UpdateDownloadParams result;
-  EXPECT_EQ(EvalStatus::kSucceeded,
-            umut_->PolicyRequest(&Policy::UpdateCanStart, &result,
-                                 update_state));
+  EXPECT_EQ(
+      EvalStatus::kSucceeded,
+      umut_->PolicyRequest(&Policy::UpdateCanStart, &result, update_state));
 }
 
 TEST_F(UmUpdateManagerTest, PolicyRequestCallsDefaultOnError) {
@@ -225,8 +230,8 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallsDefaultOnError) {
   // which will set this as true.
   UpdateCheckParams result;
   result.updates_enabled = false;
-  EvalStatus status = umut_->PolicyRequest(
-      &Policy::UpdateCheckAllowed, &result);
+  EvalStatus status =
+      umut_->PolicyRequest(&Policy::UpdateCheckAllowed, &result);
   EXPECT_EQ(EvalStatus::kSucceeded, status);
   EXPECT_TRUE(result.updates_enabled);
 }
@@ -250,8 +255,8 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   umut_->set_policy(new FailingPolicy());
 
   vector<pair<EvalStatus, UpdateCheckParams>> calls;
-  Callback<void(EvalStatus, const UpdateCheckParams&)> callback = Bind(
-      AccumulateCallsCallback<UpdateCheckParams>, &calls);
+  Callback<void(EvalStatus, const UpdateCheckParams&)> callback =
+      Bind(AccumulateCallsCallback<UpdateCheckParams>, &calls);
 
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // The callback should wait until we run the main loop for it to be executed.
@@ -291,8 +296,9 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   // reattempted.
   int num_called = 0;
   umut_->set_policy(new DelayPolicy(
-          0, fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(3),
-          &num_called));
+      0,
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(3),
+      &num_called));
 
   vector<pair<EvalStatus, UpdateCheckParams>> calls;
   Callback<void(EvalStatus, const UpdateCheckParams&)> callback =

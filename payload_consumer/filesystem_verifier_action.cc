@@ -118,11 +118,11 @@ void FilesystemVerifierAction::StartPartitionHashing() {
             << partition.name << ") on device " << part_path;
 
   brillo::ErrorPtr error;
-  src_stream_ = brillo::FileStream::Open(
-      base::FilePath(part_path),
-      brillo::Stream::AccessMode::READ,
-      brillo::FileStream::Disposition::OPEN_EXISTING,
-      &error);
+  src_stream_ =
+      brillo::FileStream::Open(base::FilePath(part_path),
+                               brillo::Stream::AccessMode::READ,
+                               brillo::FileStream::Disposition::OPEN_EXISTING,
+                               &error);
 
   if (!src_stream_) {
     LOG(ERROR) << "Unable to open " << part_path << " for reading";
@@ -220,8 +220,7 @@ void FilesystemVerifierAction::OnReadDoneCallback(size_t bytes_read) {
   ScheduleRead();
 }
 
-void FilesystemVerifierAction::OnReadErrorCallback(
-      const brillo::Error* error) {
+void FilesystemVerifierAction::OnReadErrorCallback(const brillo::Error* error) {
   // TODO(deymo): Transform the read-error into an specific ErrorCode.
   LOG(ERROR) << "Asynchronous read failed.";
   Cleanup(ErrorCode::kError);

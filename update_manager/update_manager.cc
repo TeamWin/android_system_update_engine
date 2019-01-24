@@ -27,11 +27,14 @@ namespace chromeos_update_manager {
 
 UpdateManager::UpdateManager(chromeos_update_engine::ClockInterface* clock,
                              base::TimeDelta evaluation_timeout,
-                             base::TimeDelta expiration_timeout, State* state)
-      : default_policy_(clock), state_(state), clock_(clock),
-        evaluation_timeout_(evaluation_timeout),
-        expiration_timeout_(expiration_timeout),
-        weak_ptr_factory_(this) {
+                             base::TimeDelta expiration_timeout,
+                             State* state)
+    : default_policy_(clock),
+      state_(state),
+      clock_(clock),
+      evaluation_timeout_(evaluation_timeout),
+      expiration_timeout_(expiration_timeout),
+      weak_ptr_factory_(this) {
 #ifdef __ANDROID__
   policy_.reset(new AndroidThingsPolicy());
 #else

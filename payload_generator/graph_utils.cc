@@ -39,17 +39,15 @@ uint64_t EdgeWeight(const Graph& graph, const Edge& edge) {
   uint64_t weight = 0;
   const vector<Extent>& extents =
       graph[edge.first].out_edges.find(edge.second)->second.extents;
-  for (vector<Extent>::const_iterator it = extents.begin();
-       it != extents.end(); ++it) {
+  for (vector<Extent>::const_iterator it = extents.begin(); it != extents.end();
+       ++it) {
     if (it->start_block() != kSparseHole)
       weight += it->num_blocks();
   }
   return weight;
 }
 
-void AddReadBeforeDep(Vertex* src,
-                      Vertex::Index dst,
-                      uint64_t block) {
+void AddReadBeforeDep(Vertex* src, Vertex::Index dst, uint64_t block) {
   Vertex::EdgeMap::iterator edge_it = src->out_edges.find(dst);
   if (edge_it == src->out_edges.end()) {
     // Must create new edge
@@ -66,11 +64,13 @@ void AddReadBeforeDepExtents(Vertex* src,
                              const vector<Extent>& extents) {
   // TODO(adlr): Be more efficient than adding each block individually.
   for (vector<Extent>::const_iterator it = extents.begin(), e = extents.end();
-       it != e; ++it) {
+       it != e;
+       ++it) {
     const Extent& extent = *it;
     for (uint64_t block = extent.start_block(),
-             block_end = extent.start_block() + extent.num_blocks();
-         block != block_end; ++block) {
+                  block_end = extent.start_block() + extent.num_blocks();
+         block != block_end;
+         ++block) {
       AddReadBeforeDep(src, dst, block);
     }
   }
@@ -79,7 +79,7 @@ void AddReadBeforeDepExtents(Vertex* src,
 void DropWriteBeforeDeps(Vertex::EdgeMap* edge_map) {
   // Specially crafted for-loop for the map-iterate-delete dance.
   for (Vertex::EdgeMap::iterator it = edge_map->begin();
-       it != edge_map->end(); ) {
+       it != edge_map->end();) {
     if (!it->second.write_extents.empty())
       it->second.write_extents.clear();
     if (it->second.extents.empty()) {
@@ -101,7 +101,7 @@ void DropIncomingEdgesTo(Graph* graph, Vertex::Index index) {
 }
 
 namespace {
-template<typename T>
+template <typename T>
 void DumpExtents(const T& field, int prepend_space_count) {
   string header(prepend_space_count, ' ');
   for (const auto& extent : field) {
@@ -112,7 +112,9 @@ void DumpExtents(const T& field, int prepend_space_count) {
 
 void DumpOutEdges(const Vertex::EdgeMap& out_edges) {
   for (Vertex::EdgeMap::const_iterator it = out_edges.begin(),
-           e = out_edges.end(); it != e; ++it) {
+                                       e = out_edges.end();
+       it != e;
+       ++it) {
     LOG(INFO) << "    " << it->first << " read-before:";
     DumpExtents(it->second.extents, 6);
     LOG(INFO) << "      write-before:";
@@ -124,10 +126,9 @@ void DumpOutEdges(const Vertex::EdgeMap& out_edges) {
 void DumpGraph(const Graph& graph) {
   LOG(INFO) << "Graph length: " << graph.size();
   for (Graph::size_type i = 0, e = graph.size(); i != e; ++i) {
-    LOG(INFO) << i
-              << (graph[i].valid ? "" : "-INV")
-              << ": " << graph[i].aop.name
-              << ": " << InstallOperationTypeName(graph[i].aop.op.type());
+    LOG(INFO) << i << (graph[i].valid ? "" : "-INV") << ": "
+              << graph[i].aop.name << ": "
+              << InstallOperationTypeName(graph[i].aop.op.type());
     LOG(INFO) << "  src_extents:";
     DumpExtents(graph[i].aop.op.src_extents(), 4);
     LOG(INFO) << "  dst_extents:";

@@ -96,14 +96,13 @@ TEST(CycleBreakerTest, SimpleTest) {
 
 namespace {
 pair<Vertex::Index, EdgeProperties> EdgeWithWeight(Vertex::Index dest,
-uint64_t weight) {
+                                                   uint64_t weight) {
   EdgeProperties props;
   props.extents.resize(1);
   props.extents[0].set_num_blocks(weight);
   return make_pair(dest, props);
 }
 }  // namespace
-
 
 // This creates a bunch of cycles like this:
 //
@@ -168,7 +167,9 @@ TEST(CycleBreakerTest, AggressiveCutTest) {
   set<Edge> expected_cuts;
 
   for (Vertex::EdgeMap::const_iterator it = graph[n_root].out_edges.begin(),
-       e = graph[n_root].out_edges.end(); it != e; ++it) {
+                                       e = graph[n_root].out_edges.end();
+       it != e;
+       ++it) {
     expected_cuts.insert(make_pair(n_root, it->first));
   }
 

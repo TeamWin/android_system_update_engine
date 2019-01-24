@@ -89,9 +89,7 @@ class ConfigurationImpl : public P2PManager::Configuration {
  public:
   ConfigurationImpl() {}
 
-  FilePath GetP2PDir() override {
-    return FilePath(kDefaultP2PDir);
-  }
+  FilePath GetP2PDir() override { return FilePath(kDefaultP2PDir); }
 
   vector<string> GetInitctlArgs(bool is_start) override {
     vector<string> args;
@@ -101,7 +99,7 @@ class ConfigurationImpl : public P2PManager::Configuration {
     return args;
   }
 
-  vector<string> GetP2PClientArgs(const string &file_id,
+  vector<string> GetP2PClientArgs(const string& file_id,
                                   size_t minimum_size) override {
     vector<string> args;
     args.push_back("p2p-client");
@@ -117,8 +115,8 @@ class ConfigurationImpl : public P2PManager::Configuration {
 // The default P2PManager implementation.
 class P2PManagerImpl : public P2PManager {
  public:
-  P2PManagerImpl(Configuration *configuration,
-                 ClockInterface *clock,
+  P2PManagerImpl(Configuration* configuration,
+                 ClockInterface* clock,
                  UpdateManager* update_manager,
                  const string& file_extension,
                  const int num_files_to_keep,
@@ -134,22 +132,17 @@ class P2PManagerImpl : public P2PManager {
                         size_t minimum_size,
                         TimeDelta max_time_to_wait,
                         LookupCallback callback) override;
-  bool FileShare(const string& file_id,
-                 size_t expected_size) override;
+  bool FileShare(const string& file_id, size_t expected_size) override;
   FilePath FileGetPath(const string& file_id) override;
   ssize_t FileGetSize(const string& file_id) override;
   ssize_t FileGetExpectedSize(const string& file_id) override;
-  bool FileGetVisible(const string& file_id,
-                      bool *out_result) override;
+  bool FileGetVisible(const string& file_id, bool* out_result) override;
   bool FileMakeVisible(const string& file_id) override;
   int CountSharedFiles() override;
 
  private:
   // Enumeration for specifying visibility.
-  enum Visibility {
-    kVisible,
-    kNonVisible
-  };
+  enum Visibility { kVisible, kNonVisible };
 
   // Returns "." + |file_extension_| + ".p2p" if |visibility| is
   // |kVisible|. Returns the same concatenated with ".tmp" otherwise.
@@ -218,19 +211,19 @@ const char P2PManagerImpl::kP2PExtension[] = ".p2p";
 
 const char P2PManagerImpl::kTmpExtension[] = ".tmp";
 
-P2PManagerImpl::P2PManagerImpl(Configuration *configuration,
-                               ClockInterface *clock,
+P2PManagerImpl::P2PManagerImpl(Configuration* configuration,
+                               ClockInterface* clock,
                                UpdateManager* update_manager,
                                const string& file_extension,
                                const int num_files_to_keep,
                                const TimeDelta& max_file_age)
-  : clock_(clock),
-    update_manager_(update_manager),
-    file_extension_(file_extension),
-    num_files_to_keep_(num_files_to_keep),
-    max_file_age_(max_file_age) {
-  configuration_.reset(configuration != nullptr ? configuration :
-                       new ConfigurationImpl());
+    : clock_(clock),
+      update_manager_(update_manager),
+      file_extension_(file_extension),
+      num_files_to_keep_(num_files_to_keep),
+      max_file_age_(max_file_age) {
+  configuration_.reset(configuration != nullptr ? configuration
+                                                : new ConfigurationImpl());
 }
 
 void P2PManagerImpl::SetDevicePolicy(
@@ -272,9 +265,9 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
   // running" or "stop if running".
   // TODO(zeuthen,chromium:277051): Avoid doing this.
   if (return_code != 0) {
-    const char *expected_error_message = should_be_running ?
-      "initctl: Job is already running: p2p\n" :
-      "initctl: Unknown instance \n";
+    const char* expected_error_message =
+        should_be_running ? "initctl: Job is already running: p2p\n"
+                          : "initctl: Unknown instance \n";
     if (output != expected_error_message)
       return false;
   }
@@ -303,13 +296,13 @@ static bool MatchCompareFunc(const pair<FilePath, Time>& a,
 string P2PManagerImpl::GetExt(Visibility visibility) {
   string ext = string(".") + file_extension_ + kP2PExtension;
   switch (visibility) {
-  case kVisible:
-    break;
-  case kNonVisible:
-    ext += kTmpExtension;
-    break;
-  // Don't add a default case to let the compiler warn about newly
-  // added enum values.
+    case kVisible:
+      break;
+    case kNonVisible:
+      ext += kTmpExtension;
+      break;
+      // Don't add a default case to let the compiler warn about newly
+      // added enum values.
   }
   return ext;
 }
@@ -318,17 +311,15 @@ FilePath P2PManagerImpl::GetPath(const string& file_id, Visibility visibility) {
   return configuration_->GetP2PDir().Append(file_id + GetExt(visibility));
 }
 
-bool P2PManagerImpl::DeleteP2PFile(const FilePath& path,
-                                   const string& reason) {
-  LOG(INFO) << "Deleting p2p file " << path.value()
-            << " (reason: " << reason << ")";
+bool P2PManagerImpl::DeleteP2PFile(const FilePath& path, const string& reason) {
+  LOG(INFO) << "Deleting p2p file " << path.value() << " (reason: " << reason
+            << ")";
   if (unlink(path.value().c_str()) != 0) {
     PLOG(ERROR) << "Error deleting p2p file " << path.value();
     return false;
   }
   return true;
 }
-
 
 bool P2PManagerImpl::PerformHousekeeping() {
   // Open p2p dir.
@@ -342,10 +333,10 @@ bool P2PManagerImpl::PerformHousekeeping() {
   base::FileEnumerator dir(p2p_dir, false, base::FileEnumerator::FILES);
   // Go through all files and collect their mtime.
   for (FilePath name = dir.Next(); !name.empty(); name = dir.Next()) {
-    if (!(base::EndsWith(name.value(), ext_visible,
-                         base::CompareCase::SENSITIVE) ||
-          base::EndsWith(name.value(), ext_non_visible,
-                         base::CompareCase::SENSITIVE))) {
+    if (!(base::EndsWith(
+              name.value(), ext_visible, base::CompareCase::SENSITIVE) ||
+          base::EndsWith(
+              name.value(), ext_non_visible, base::CompareCase::SENSITIVE))) {
       continue;
     }
 
@@ -382,7 +373,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
 class LookupData {
  public:
   explicit LookupData(P2PManager::LookupCallback callback)
-    : callback_(callback) {}
+      : callback_(callback) {}
 
   ~LookupData() {
     if (timeout_task_ != MessageLoop::kTaskIdNull)
@@ -399,7 +390,9 @@ class LookupData {
 
     // We expect to run just "p2p-client" and find it in the path.
     child_pid_ = Subprocess::Get().ExecFlags(
-        cmd, Subprocess::kSearchPath, {},
+        cmd,
+        Subprocess::kSearchPath,
+        {},
         Bind(&LookupData::OnLookupDone, base::Unretained(this)));
 
     if (!child_pid_) {
@@ -418,9 +411,10 @@ class LookupData {
 
  private:
   void ReportErrorAndDeleteInIdle() {
-    MessageLoop::current()->PostTask(FROM_HERE, Bind(
-        &LookupData::OnIdleForReportErrorAndDelete,
-        base::Unretained(this)));
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        Bind(&LookupData::OnIdleForReportErrorAndDelete,
+             base::Unretained(this)));
   }
 
   void OnIdleForReportErrorAndDelete() {
@@ -463,8 +457,7 @@ class LookupData {
   void OnLookupDone(int return_code, const string& output) {
     child_pid_ = 0;
     if (return_code != 0) {
-      LOG(INFO) << "Child exited with non-zero exit code "
-                << return_code;
+      LOG(INFO) << "Child exited with non-zero exit code " << return_code;
       ReportError();
     } else {
       ReportSuccess(output);
@@ -494,15 +487,14 @@ void P2PManagerImpl::LookupUrlForFile(const string& file_id,
                                       size_t minimum_size,
                                       TimeDelta max_time_to_wait,
                                       LookupCallback callback) {
-  LookupData *lookup_data = new LookupData(callback);
+  LookupData* lookup_data = new LookupData(callback);
   string file_id_with_ext = file_id + "." + file_extension_;
-  vector<string> args = configuration_->GetP2PClientArgs(file_id_with_ext,
-                                                         minimum_size);
+  vector<string> args =
+      configuration_->GetP2PClientArgs(file_id_with_ext, minimum_size);
   lookup_data->InitiateLookup(args, max_time_to_wait);
 }
 
-bool P2PManagerImpl::FileShare(const string& file_id,
-                               size_t expected_size) {
+bool P2PManagerImpl::FileShare(const string& file_id, size_t expected_size) {
   // Check if file already exist.
   FilePath path = FileGetPath(file_id);
   if (!path.empty()) {
@@ -563,8 +555,8 @@ bool P2PManagerImpl::FileShare(const string& file_id,
       } else {
         // ENOSPC can happen (funky race though, cf. the statvfs() check
         // above), handle it gracefully, e.g. use logging level INFO.
-        PLOG(INFO) << "Error allocating " << expected_size
-                   << " bytes for file " << path.value();
+        PLOG(INFO) << "Error allocating " << expected_size << " bytes for file "
+                   << path.value();
         if (unlink(path.value().c_str()) != 0) {
           PLOG(ERROR) << "Error deleting file with path " << path.value();
         }
@@ -573,8 +565,11 @@ bool P2PManagerImpl::FileShare(const string& file_id,
     }
 
     string decimal_size = std::to_string(expected_size);
-    if (fsetxattr(fd, kCrosP2PFileSizeXAttrName,
-                  decimal_size.c_str(), decimal_size.size(), 0) != 0) {
+    if (fsetxattr(fd,
+                  kCrosP2PFileSizeXAttrName,
+                  decimal_size.c_str(),
+                  decimal_size.size(),
+                  0) != 0) {
       PLOG(ERROR) << "Error setting xattr " << path.value();
       return false;
     }
@@ -601,8 +596,7 @@ FilePath P2PManagerImpl::FileGetPath(const string& file_id) {
   return path;
 }
 
-bool P2PManagerImpl::FileGetVisible(const string& file_id,
-                                    bool *out_result) {
+bool P2PManagerImpl::FileGetVisible(const string& file_id, bool* out_result) {
   FilePath path = FileGetPath(file_id);
   if (path.empty()) {
     LOG(ERROR) << "No file for id " << file_id;
@@ -628,8 +622,8 @@ bool P2PManagerImpl::FileMakeVisible(const string& file_id) {
   FilePath new_path = path.RemoveExtension();
   LOG_ASSERT(new_path.MatchesExtension(kP2PExtension));
   if (rename(path.value().c_str(), new_path.value().c_str()) != 0) {
-    PLOG(ERROR) << "Error renaming " << path.value()
-                << " to " << new_path.value();
+    PLOG(ERROR) << "Error renaming " << path.value() << " to "
+                << new_path.value();
     return false;
   }
 
@@ -649,10 +643,12 @@ ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {
   if (path.empty())
     return -1;
 
-  char ea_value[64] = { 0 };
+  char ea_value[64] = {0};
   ssize_t ea_size;
-  ea_size = getxattr(path.value().c_str(), kCrosP2PFileSizeXAttrName,
-                     &ea_value, sizeof(ea_value) - 1);
+  ea_size = getxattr(path.value().c_str(),
+                     kCrosP2PFileSizeXAttrName,
+                     &ea_value,
+                     sizeof(ea_value) - 1);
   if (ea_size == -1) {
     PLOG(ERROR) << "Error calling getxattr() on file " << path.value();
     return -1;
@@ -661,9 +657,8 @@ ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {
   char* endp = nullptr;
   long long int val = strtoll(ea_value, &endp, 0);  // NOLINT(runtime/int)
   if (*endp != '\0') {
-    LOG(ERROR) << "Error parsing the value '" << ea_value
-               << "' of the xattr " << kCrosP2PFileSizeXAttrName
-               << " as an integer";
+    LOG(ERROR) << "Error parsing the value '" << ea_value << "' of the xattr "
+               << kCrosP2PFileSizeXAttrName << " as an integer";
     return -1;
   }
 
@@ -679,10 +674,10 @@ int P2PManagerImpl::CountSharedFiles() {
 
   base::FileEnumerator dir(p2p_dir, false, base::FileEnumerator::FILES);
   for (FilePath name = dir.Next(); !name.empty(); name = dir.Next()) {
-    if (base::EndsWith(name.value(), ext_visible,
-                       base::CompareCase::SENSITIVE) ||
-        base::EndsWith(name.value(), ext_non_visible,
-                       base::CompareCase::SENSITIVE)) {
+    if (base::EndsWith(
+            name.value(), ext_visible, base::CompareCase::SENSITIVE) ||
+        base::EndsWith(
+            name.value(), ext_non_visible, base::CompareCase::SENSITIVE)) {
       num_files += 1;
     }
   }
@@ -694,10 +689,10 @@ void P2PManagerImpl::ScheduleEnabledStatusChange() {
   if (waiting_for_enabled_status_change_)
     return;
 
-  Callback<void(EvalStatus, const bool&)> callback = Bind(
-      &P2PManagerImpl::OnEnabledStatusChange, base::Unretained(this));
-  update_manager_->AsyncPolicyRequest(callback, &Policy::P2PEnabledChanged,
-                                      is_enabled_);
+  Callback<void(EvalStatus, const bool&)> callback =
+      Bind(&P2PManagerImpl::OnEnabledStatusChange, base::Unretained(this));
+  update_manager_->AsyncPolicyRequest(
+      callback, &Policy::P2PEnabledChanged, is_enabled_);
   waiting_for_enabled_status_change_ = true;
 }
 
@@ -727,13 +722,12 @@ void P2PManagerImpl::OnEnabledStatusChange(EvalStatus status,
   ScheduleEnabledStatusChange();
 }
 
-P2PManager* P2PManager::Construct(
-    Configuration *configuration,
-    ClockInterface *clock,
-    UpdateManager* update_manager,
-    const string& file_extension,
-    const int num_files_to_keep,
-    const TimeDelta& max_file_age) {
+P2PManager* P2PManager::Construct(Configuration* configuration,
+                                  ClockInterface* clock,
+                                  UpdateManager* update_manager,
+                                  const string& file_extension,
+                                  const int num_files_to_keep,
+                                  const TimeDelta& max_file_age) {
   return new P2PManagerImpl(configuration,
                             clock,
                             update_manager,

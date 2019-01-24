@@ -32,7 +32,7 @@ using chromeos_update_engine::ActionPipe;
 
 class ActionProcessorTestAction;
 
-template<>
+template <>
 class ActionTraits<ActionProcessorTestAction> {
  public:
   typedef string OutputObjectType;
@@ -104,9 +104,7 @@ class ActionProcessorTest : public ::testing::Test {
     EXPECT_CALL(*mock_action_, Type()).Times(testing::AnyNumber());
   }
 
-  void TearDown() override {
-    action_processor_.set_delegate(nullptr);
-  }
+  void TearDown() override { action_processor_.set_delegate(nullptr); }
 
  protected:
   // The ActionProcessor under test.

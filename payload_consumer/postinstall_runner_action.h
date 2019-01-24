@@ -89,8 +89,7 @@ class PostinstallRunnerAction : public InstallPlanAction {
   void Cleanup();
 
   // Subprocess::Exec callback.
-  void CompletePartitionPostinstall(int return_code,
-                                    const std::string& output);
+  void CompletePartitionPostinstall(int return_code, const std::string& output);
 
   // Complete the Action with the passed |error_code| and mark the new slot as
   // ready. Called when the post-install script was run for all the partitions.

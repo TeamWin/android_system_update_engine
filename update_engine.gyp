@@ -404,6 +404,7 @@
         },
       },
       'sources': [
+        'common/file_fetcher.cc',
         'payload_generator/ab_generator.cc',
         'payload_generator/annotated_operation.cc',
         'payload_generator/blob_file_writer.cc',
@@ -466,7 +467,6 @@
       ],
       'sources': [
         'common/fake_prefs.cc',
-        'common/file_fetcher.cc',  # Only required for tests.
         'common/mock_http_fetcher.cc',
         'common/test_utils.cc',
         'fake_shill_proxy.cc',

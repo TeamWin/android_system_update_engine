@@ -97,9 +97,7 @@ class Subprocess {
                                    std::string* stdout);
 
   // Gets the one instance.
-  static Subprocess& Get() {
-    return *subprocess_singleton_;
-  }
+  static Subprocess& Get() { return *subprocess_singleton_; }
 
   // Tries to log all in flight processes's output. It is used right before
   // exiting the update_engine, probably when the subprocess caused a system
@@ -111,7 +109,7 @@ class Subprocess {
 
   struct SubprocessRecord {
     explicit SubprocessRecord(const ExecCallback& callback)
-      : callback(callback) {}
+        : callback(callback) {}
 
     // The callback supplied by the caller.
     ExecCallback callback;

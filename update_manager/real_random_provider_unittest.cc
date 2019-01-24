@@ -55,9 +55,8 @@ TEST_F(UmRealRandomProviderTest, GetRandomValues) {
   // by design, once every 2^320 runs.
   bool is_same_value = true;
   for (int i = 0; i < 5; i++) {
-    unique_ptr<const uint64_t> other_value(
-        provider_->var_seed()->GetValue(UmTestUtils::DefaultTimeout(),
-                                        nullptr));
+    unique_ptr<const uint64_t> other_value(provider_->var_seed()->GetValue(
+        UmTestUtils::DefaultTimeout(), nullptr));
     ASSERT_NE(nullptr, other_value.get());
     is_same_value = is_same_value && *other_value == *value;
   }

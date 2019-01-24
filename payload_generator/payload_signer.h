@@ -77,8 +77,7 @@ class PayloadSigner {
   // Returns the length of out_signature_blob that will result in a call
   // to SignPayload with the given private keys. Returns true on success.
   static bool SignatureBlobLength(
-      const std::vector<std::string>& private_key_paths,
-      uint64_t* out_length);
+      const std::vector<std::string>& private_key_paths, uint64_t* out_length);
 
   // Given an unsigned payload in |payload_path|,
   // this method does two things:
