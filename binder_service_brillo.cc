@@ -25,12 +25,12 @@
 
 #include "update_engine/update_status_utils.h"
 
+using android::sp;
 using android::String16;
 using android::String8;
 using android::binder::Status;
 using android::brillo::IUpdateEngineStatusCallback;
 using android::brillo::ParcelableUpdateEngineStatus;
-using android::sp;
 using brillo::ErrorPtr;
 using std::string;
 using update_engine::UpdateEngineStatus;

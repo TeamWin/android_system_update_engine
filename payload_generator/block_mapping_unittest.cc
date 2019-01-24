@@ -33,10 +33,6 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-namespace {
-
-}  // namespace
-
 class BlockMappingTest : public ::testing::Test {
  protected:
   // Old new partition files used in testing.
@@ -113,8 +109,7 @@ TEST_F(BlockMappingTest, MapPartitionBlocks) {
 
   EXPECT_EQ((vector<BlockMapping::BlockId>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
             old_ids);
-  EXPECT_EQ((vector<BlockMapping::BlockId>{0, 11, 12, 13, 1, 2}),
-            new_ids);
+  EXPECT_EQ((vector<BlockMapping::BlockId>{0, 11, 12, 13, 1, 2}), new_ids);
 }
 
 }  // namespace chromeos_update_engine

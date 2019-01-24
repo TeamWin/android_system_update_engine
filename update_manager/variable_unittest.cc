@@ -42,8 +42,7 @@ class DefaultVariable : public Variable<T> {
   ~DefaultVariable() override {}
 
  protected:
-  const T* GetValue(TimeDelta /* timeout */,
-                    string* /* errmsg */) override {
+  const T* GetValue(TimeDelta /* timeout */, string* /* errmsg */) override {
     return new T();
   }
 
@@ -53,9 +52,7 @@ class DefaultVariable : public Variable<T> {
 
 class UmBaseVariableTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    loop_.SetAsCurrent();
-  }
+  void SetUp() override { loop_.SetAsCurrent(); }
 
   brillo::FakeMessageLoop loop_{nullptr};
 };
@@ -87,9 +84,7 @@ TEST_F(UmBaseVariableTest, GetPollIntervalTest) {
 
 class BaseVariableObserver : public BaseVariable::ObserverInterface {
  public:
-  void ValueChanged(BaseVariable* variable) {
-    calls_.push_back(variable);
-  }
+  void ValueChanged(BaseVariable* variable) { calls_.push_back(variable); }
 
   // List of called functions.
   vector<BaseVariable*> calls_;

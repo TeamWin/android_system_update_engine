@@ -154,22 +154,22 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
                 << " (" << static_cast<int>(err_code) << ")";
       return false;
 
-    case ErrorCode::kSuccess:                            // success code
-    case ErrorCode::kUmaReportedMax:                     // not an error code
-    case ErrorCode::kOmahaRequestHTTPResponseBase:       // aggregated already
-    case ErrorCode::kDevModeFlag:                        // not an error code
-    case ErrorCode::kResumedFlag:                        // not an error code
-    case ErrorCode::kTestImageFlag:                      // not an error code
-    case ErrorCode::kTestOmahaUrlFlag:                   // not an error code
-    case ErrorCode::kSpecialFlags:                       // not an error code
+    case ErrorCode::kSuccess:                       // success code
+    case ErrorCode::kUmaReportedMax:                // not an error code
+    case ErrorCode::kOmahaRequestHTTPResponseBase:  // aggregated already
+    case ErrorCode::kDevModeFlag:                   // not an error code
+    case ErrorCode::kResumedFlag:                   // not an error code
+    case ErrorCode::kTestImageFlag:                 // not an error code
+    case ErrorCode::kTestOmahaUrlFlag:              // not an error code
+    case ErrorCode::kSpecialFlags:                  // not an error code
       // These shouldn't happen. Enumerating these  explicitly here so that we
       // can let the compiler warn about new error codes that are added to
       // action_processor.h but not added here.
       LOG(WARNING) << "Unexpected error "
                    << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                    << " (" << static_cast<int>(err_code) << ")";
-    // Note: Not adding a default here so as to let the compiler warn us of
-    // any new enums that were added in the .h but not listed in this switch.
+      // Note: Not adding a default here so as to let the compiler warn us of
+      // any new enums that were added in the .h but not listed in this switch.
   }
   return false;
 }
@@ -177,8 +177,8 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
 // Checks whether |url| can be used under given download restrictions.
 bool IsUrlUsable(const string& url, bool http_allowed) {
   return http_allowed ||
-         !base::StartsWith(url, "http://",
-                           base::CompareCase::INSENSITIVE_ASCII);
+         !base::StartsWith(
+             url, "http://", base::CompareCase::INSENSITIVE_ASCII);
 }
 
 }  // namespace
@@ -198,9 +198,10 @@ const NextUpdateCheckPolicyConstants
 const int ChromeOSPolicy::kMaxP2PAttempts = 10;
 const int ChromeOSPolicy::kMaxP2PAttemptsPeriodInSeconds = 5 * 24 * 60 * 60;
 
-EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
-    EvaluationContext* ec, State* state, string* error,
-    UpdateCheckParams* result) const {
+EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
+                                              State* state,
+                                              string* error,
+                                              UpdateCheckParams* result) const {
   // Set the default return values.
   result->updates_enabled = true;
   result->target_channel.clear();
@@ -343,8 +344,8 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   bool is_scattering_active = false;
   EvalStatus scattering_status = EvalStatus::kSucceeded;
 
-  const bool* device_policy_is_loaded_p = ec->GetValue(
-      dp_provider->var_device_policy_is_loaded());
+  const bool* device_policy_is_loaded_p =
+      ec->GetValue(dp_provider->var_device_policy_is_loaded());
   if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
     // Check whether scattering applies to this update attempt. We should not be
     // scattering if this is an interactive update check, or if OOBE is enabled
@@ -358,13 +359,13 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     result->scatter_wait_period = kZeroInterval;
     result->scatter_check_threshold = 0;
     if (!update_state.interactive) {
-      const bool* is_oobe_enabled_p = ec->GetValue(
-          state->config_provider()->var_is_oobe_enabled());
+      const bool* is_oobe_enabled_p =
+          ec->GetValue(state->config_provider()->var_is_oobe_enabled());
       if (is_oobe_enabled_p && !(*is_oobe_enabled_p)) {
         is_scattering_applicable = true;
       } else {
-        const bool* is_oobe_complete_p = ec->GetValue(
-            state->system_provider()->var_is_oobe_complete());
+        const bool* is_oobe_complete_p =
+            ec->GetValue(state->system_provider()->var_is_oobe_complete());
         is_scattering_applicable = (is_oobe_complete_p && *is_oobe_complete_p);
       }
     }
@@ -372,8 +373,8 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     // Compute scattering values.
     if (is_scattering_applicable) {
       UpdateScatteringResult scatter_result;
-      scattering_status = UpdateScattering(ec, state, error, &scatter_result,
-                                           update_state);
+      scattering_status =
+          UpdateScattering(ec, state, error, &scatter_result, update_state);
       if (scattering_status == EvalStatus::kFailed) {
         return EvalStatus::kFailed;
       } else {
@@ -461,22 +462,21 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
 // updates over a cellular network (disabled by default). We may want to
 // revisit this semantics, allowing greater flexibility in defining specific
 // permissions over all types of networks.
-EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
-    EvaluationContext* ec,
-    State* state,
-    string* error,
-    bool* result) const {
+EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(EvaluationContext* ec,
+                                                 State* state,
+                                                 string* error,
+                                                 bool* result) const {
   // Get the current connection type.
   ShillProvider* const shill_provider = state->shill_provider();
-  const ConnectionType* conn_type_p = ec->GetValue(
-      shill_provider->var_conn_type());
+  const ConnectionType* conn_type_p =
+      ec->GetValue(shill_provider->var_conn_type());
   POLICY_CHECK_VALUE_AND_FAIL(conn_type_p, error);
   ConnectionType conn_type = *conn_type_p;
 
   // If we're tethering, treat it as a cellular connection.
   if (conn_type != ConnectionType::kCellular) {
-    const ConnectionTethering* conn_tethering_p = ec->GetValue(
-        shill_provider->var_conn_tethering());
+    const ConnectionTethering* conn_tethering_p =
+        ec->GetValue(shill_provider->var_conn_tethering());
     POLICY_CHECK_VALUE_AND_FAIL(conn_tethering_p, error);
     if (*conn_tethering_p == ConnectionTethering::kConfirmed)
       conn_type = ConnectionType::kCellular;
@@ -513,11 +513,11 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
   // Check whether the device policy specifically allows this connection.
   if (device_policy_can_override) {
     DevicePolicyProvider* const dp_provider = state->device_policy_provider();
-    const bool* device_policy_is_loaded_p = ec->GetValue(
-        dp_provider->var_device_policy_is_loaded());
+    const bool* device_policy_is_loaded_p =
+        ec->GetValue(dp_provider->var_device_policy_is_loaded());
     if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
-      const set<ConnectionType>* allowed_conn_types_p = ec->GetValue(
-          dp_provider->var_allowed_connection_types_for_update());
+      const set<ConnectionType>* allowed_conn_types_p =
+          ec->GetValue(dp_provider->var_allowed_connection_types_for_update());
       if (allowed_conn_types_p) {
         if (allowed_conn_types_p->count(conn_type)) {
           *result = true;
@@ -526,8 +526,8 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
       } else if (conn_type == ConnectionType::kCellular) {
         // Local user settings can allow updates over cellular iff a policy was
         // loaded but no allowed connections were specified in it.
-        const bool* update_over_cellular_allowed_p = ec->GetValue(
-            state->updater_provider()->var_cellular_enabled());
+        const bool* update_over_cellular_allowed_p =
+            ec->GetValue(state->updater_provider()->var_cellular_enabled());
         if (update_over_cellular_allowed_p && *update_over_cellular_allowed_p)
           *result = true;
       }
@@ -547,11 +547,11 @@ EvalStatus ChromeOSPolicy::P2PEnabled(EvaluationContext* ec,
   // explicitly allowed, we allow it if the device is enterprise enrolled (that
   // is, missing or empty owner string).
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
-  const bool* device_policy_is_loaded_p = ec->GetValue(
-      dp_provider->var_device_policy_is_loaded());
+  const bool* device_policy_is_loaded_p =
+      ec->GetValue(dp_provider->var_device_policy_is_loaded());
   if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
-    const bool* policy_au_p2p_enabled_p = ec->GetValue(
-        dp_provider->var_au_p2p_enabled());
+    const bool* policy_au_p2p_enabled_p =
+        ec->GetValue(dp_provider->var_au_p2p_enabled());
     if (policy_au_p2p_enabled_p) {
       enabled = *policy_au_p2p_enabled_p;
     } else {
@@ -564,8 +564,8 @@ EvalStatus ChromeOSPolicy::P2PEnabled(EvaluationContext* ec,
   // Enable P2P, if so mandated by the updater configuration. This is additive
   // to whether or not P2P is enabled by device policy.
   if (!enabled) {
-    const bool* updater_p2p_enabled_p = ec->GetValue(
-        state->updater_provider()->var_p2p_enabled());
+    const bool* updater_p2p_enabled_p =
+        ec->GetValue(state->updater_provider()->var_p2p_enabled());
     enabled = updater_p2p_enabled_p && *updater_p2p_enabled_p;
   }
 
@@ -585,7 +585,9 @@ EvalStatus ChromeOSPolicy::P2PEnabledChanged(EvaluationContext* ec,
 }
 
 EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
-    EvaluationContext* ec, State* state, string* error,
+    EvaluationContext* ec,
+    State* state,
+    string* error,
     UpdateBackoffAndDownloadUrlResult* result,
     const UpdateState& update_state) const {
   // Sanity checks.
@@ -597,8 +599,8 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
   result->url_idx = -1;
   result->url_num_errors = 0;
 
-  const bool* is_official_build_p = ec->GetValue(
-      state->system_provider()->var_is_official_build());
+  const bool* is_official_build_p =
+      ec->GetValue(state->system_provider()->var_is_official_build());
   bool is_official_build = (is_official_build_p ? *is_official_build_p : true);
 
   // Check whether backoff is enabled.
@@ -627,11 +629,11 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
   bool http_allowed = true;
   if (is_official_build) {
     DevicePolicyProvider* const dp_provider = state->device_policy_provider();
-    const bool* device_policy_is_loaded_p = ec->GetValue(
-        dp_provider->var_device_policy_is_loaded());
+    const bool* device_policy_is_loaded_p =
+        ec->GetValue(dp_provider->var_device_policy_is_loaded());
     if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
-      const bool* policy_http_downloads_enabled_p = ec->GetValue(
-          dp_provider->var_http_downloads_enabled());
+      const bool* policy_http_downloads_enabled_p =
+          ec->GetValue(dp_provider->var_http_downloads_enabled());
       http_allowed = (!policy_http_downloads_enabled_p ||
                       *policy_http_downloads_enabled_p);
     }
@@ -753,8 +755,8 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
     const uint64_t* seed = ec->GetValue(state->random_provider()->var_seed());
     POLICY_CHECK_VALUE_AND_FAIL(seed, error);
     PRNG prng(*seed);
-    int exp = min(update_state.num_failures,
-                       static_cast<int>(sizeof(int)) * 8 - 2);
+    int exp =
+        min(update_state.num_failures, static_cast<int>(sizeof(int)) * 8 - 2);
     TimeDelta backoff_interval = TimeDelta::FromDays(min(
         1 << exp,
         kNextUpdateCheckPolicyConstants.attempt_backoff_max_interval_in_days));
@@ -794,14 +796,14 @@ EvalStatus ChromeOSPolicy::UpdateScattering(
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
 
   // Ensure that a device policy is loaded.
-  const bool* device_policy_is_loaded_p = ec->GetValue(
-      dp_provider->var_device_policy_is_loaded());
+  const bool* device_policy_is_loaded_p =
+      ec->GetValue(dp_provider->var_device_policy_is_loaded());
   if (!(device_policy_is_loaded_p && *device_policy_is_loaded_p))
     return EvalStatus::kSucceeded;
 
   // Is scattering enabled by policy?
-  const TimeDelta* scatter_factor_p = ec->GetValue(
-      dp_provider->var_scatter_factor());
+  const TimeDelta* scatter_factor_p =
+      ec->GetValue(dp_provider->var_scatter_factor());
   if (!scatter_factor_p || *scatter_factor_p == kZeroInterval)
     return EvalStatus::kSucceeded;
 
@@ -833,9 +835,8 @@ EvalStatus ChromeOSPolicy::UpdateScattering(
   // one.
   int check_threshold = update_state.scatter_check_threshold;
   if (check_threshold == 0) {
-    check_threshold = prng.RandMinMax(
-        update_state.scatter_check_threshold_min,
-        update_state.scatter_check_threshold_max);
+    check_threshold = prng.RandMinMax(update_state.scatter_check_threshold_min,
+                                      update_state.scatter_check_threshold_max);
   }
 
   // If the update check threshold is not within allowed range then nullify it.

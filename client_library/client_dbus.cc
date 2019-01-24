@@ -147,13 +147,11 @@ bool DBusUpdateEngineClient::ResetStatus() {
 }
 
 void DBusUpdateEngineClient::DBusStatusHandlersRegistered(
-    const string& interface,
-    const string& signal_name,
-    bool success) const {
+    const string& interface, const string& signal_name, bool success) const {
   if (!success) {
     for (auto handler : handlers_) {
-      handler->IPCError("Could not connect to" + signal_name +
-                        " on " + interface);
+      handler->IPCError("Could not connect to" + signal_name + " on " +
+                        interface);
     }
   } else {
     StatusUpdateHandlersRegistered(nullptr);

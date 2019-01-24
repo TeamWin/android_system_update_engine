@@ -72,14 +72,14 @@ class FakePrefs : public PrefsInterface {
   };
 
   // Class to store compile-time type-dependent constants.
-  template<typename T>
+  template <typename T>
   class PrefConsts {
    public:
     // The PrefType associated with T.
     static FakePrefs::PrefType const type;
 
     // The data member pointer to PrefValue associated with T.
-    static T FakePrefs::PrefValue::* const member;
+    static T FakePrefs::PrefValue::*const member;
   };
 
   // Returns a string representation of the PrefType useful for logging.
@@ -90,13 +90,13 @@ class FakePrefs : public PrefsInterface {
 
   // Helper function to set a value of the passed |key|. It sets the type based
   // on the template parameter T.
-  template<typename T>
+  template <typename T>
   void SetValue(const std::string& key, const T& value);
 
   // Helper function to get a value from the map checking for invalid calls.
   // The function fails the test if you attempt to read a value  defined as a
   // different type. Returns whether the get succeeded.
-  template<typename T>
+  template <typename T>
   bool GetValue(const std::string& key, T* value) const;
 
   // Container for all the key/value pairs.

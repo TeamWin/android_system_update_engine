@@ -86,7 +86,7 @@ class DeltaPerformer : public FileWriter {
 
   // FileWriter's Write implementation that returns a more specific |error| code
   // in case of failures in Write operation.
-  bool Write(const void* bytes, size_t count, ErrorCode *error) override;
+  bool Write(const void* bytes, size_t count, ErrorCode* error) override;
 
   // Wrapper around close. Returns 0 on success or -errno on error.
   // Closes both 'path' given to Open() and the kernel path.
@@ -192,7 +192,8 @@ class DeltaPerformer : public FileWriter {
 
   // If |op_result| is false, emits an error message using |op_type_name| and
   // sets |*error| accordingly. Otherwise does nothing. Returns |op_result|.
-  bool HandleOpResult(bool op_result, const char* op_type_name,
+  bool HandleOpResult(bool op_result,
+                      const char* op_type_name,
                       ErrorCode* error);
 
   // Logs the progress of downloading/applying an update.

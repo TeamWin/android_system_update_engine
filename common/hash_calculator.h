@@ -71,9 +71,9 @@ class HashCalculator {
   static bool RawHashOfBytes(const void* data,
                              size_t length,
                              brillo::Blob* out_hash);
-  static bool RawHashOfData(const brillo::Blob& data,
-                            brillo::Blob* out_hash);
-  static off_t RawHashOfFile(const std::string& name, off_t length,
+  static bool RawHashOfData(const brillo::Blob& data, brillo::Blob* out_hash);
+  static off_t RawHashOfFile(const std::string& name,
+                             off_t length,
                              brillo::Blob* out_hash);
 
  private:

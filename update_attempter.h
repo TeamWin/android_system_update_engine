@@ -186,7 +186,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Stores in |out_boot_time| the boottime (CLOCK_BOOTTIME) recorded at the
   // time of the last successful update in the current boot. Returns false if
   // there wasn't a successful update in the current boot.
-  virtual bool GetBootTimeAtUpdate(base::Time *out_boot_time);
+  virtual bool GetBootTimeAtUpdate(base::Time* out_boot_time);
 
   // Returns a version OS version that was being used before the last reboot,
   // and if that reboot happened to be into an update (current version).
@@ -520,6 +520,13 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };
+
+// Turns a generic ErrorCode::kError to a generic error code specific
+// to |action| (e.g., ErrorCode::kFilesystemVerifierError). If |code| is
+// not ErrorCode::kError, or the action is not matched, returns |code|
+// unchanged.
+
+ErrorCode GetErrorCodeForAction(AbstractAction* action, ErrorCode code);
 
 }  // namespace chromeos_update_engine
 

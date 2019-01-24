@@ -201,9 +201,7 @@ class UpdateAttempterTest : public ::testing::Test {
   bool actual_using_p2p_for_downloading() {
     return actual_using_p2p_for_downloading_;
   }
-  bool actual_using_p2p_for_sharing() {
-    return actual_using_p2p_for_sharing_;
-  }
+  bool actual_using_p2p_for_sharing() { return actual_using_p2p_for_sharing_; }
 
   base::MessageLoopForIO base_loop_;
   brillo::BaseMessageLoop loop_{&base_loop_};
@@ -338,8 +336,8 @@ TEST_F(UpdateAttempterTest, BroadcastCompleteDownloadTest) {
 TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(500);  // Sets the HTTP response code.
-  OmahaRequestAction action(&fake_system_state_, nullptr,
-                            std::move(fetcher), false);
+  OmahaRequestAction action(
+      &fake_system_state_, nullptr, std::move(fetcher), false);
   ObjectCollectorAction<OmahaResponse> collector_action;
   BondActions(&action, &collector_action);
   OmahaResponse response;
@@ -364,29 +362,27 @@ TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
 }
 
 TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
-  extern ErrorCode GetErrorCodeForAction(AbstractAction* action,
-                                              ErrorCode code);
   EXPECT_EQ(ErrorCode::kSuccess,
             GetErrorCodeForAction(nullptr, ErrorCode::kSuccess));
 
   FakeSystemState fake_system_state;
-  OmahaRequestAction omaha_request_action(&fake_system_state, nullptr,
-                                          nullptr, false);
+  OmahaRequestAction omaha_request_action(
+      &fake_system_state, nullptr, nullptr, false);
   EXPECT_EQ(ErrorCode::kOmahaRequestError,
             GetErrorCodeForAction(&omaha_request_action, ErrorCode::kError));
   OmahaResponseHandlerAction omaha_response_handler_action(&fake_system_state_);
-  EXPECT_EQ(ErrorCode::kOmahaResponseHandlerError,
-            GetErrorCodeForAction(&omaha_response_handler_action,
-                                  ErrorCode::kError));
+  EXPECT_EQ(
+      ErrorCode::kOmahaResponseHandlerError,
+      GetErrorCodeForAction(&omaha_response_handler_action, ErrorCode::kError));
   FilesystemVerifierAction filesystem_verifier_action;
-  EXPECT_EQ(ErrorCode::kFilesystemVerifierError,
-            GetErrorCodeForAction(&filesystem_verifier_action,
-                                  ErrorCode::kError));
+  EXPECT_EQ(
+      ErrorCode::kFilesystemVerifierError,
+      GetErrorCodeForAction(&filesystem_verifier_action, ErrorCode::kError));
   PostinstallRunnerAction postinstall_runner_action(
       fake_system_state.fake_boot_control(), fake_system_state.fake_hardware());
-  EXPECT_EQ(ErrorCode::kPostinstallRunnerError,
-            GetErrorCodeForAction(&postinstall_runner_action,
-                                  ErrorCode::kError));
+  EXPECT_EQ(
+      ErrorCode::kPostinstallRunnerError,
+      GetErrorCodeForAction(&postinstall_runner_action, ErrorCode::kError));
   MockAction action_mock;
   EXPECT_CALL(action_mock, Type()).WillOnce(Return("MockAction"));
   EXPECT_EQ(ErrorCode::kError,
@@ -400,15 +396,15 @@ TEST_F(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest) {
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_TRUE(attempter_.omaha_request_params_->delta_okay());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
-      .WillOnce(DoAll(
-          SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures - 1),
-          Return(true)));
+      .WillOnce(
+          DoAll(SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures - 1),
+                Return(true)));
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_TRUE(attempter_.omaha_request_params_->delta_okay());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
-      .WillOnce(DoAll(
-          SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
-          Return(true)));
+      .WillOnce(
+          DoAll(SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
+                Return(true)));
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_FALSE(attempter_.omaha_request_params_->delta_okay());
   EXPECT_CALL(*prefs_, GetInt64(_, _)).Times(0);
@@ -421,16 +417,17 @@ TEST_F(UpdateAttempterTest, MarkDeltaUpdateFailureTest) {
       .WillOnce(Return(false))
       .WillOnce(DoAll(SetArgPointee<1>(-1), Return(true)))
       .WillOnce(DoAll(SetArgPointee<1>(1), Return(true)))
-      .WillOnce(DoAll(
-          SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
-          Return(true)));
+      .WillOnce(
+          DoAll(SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
+                Return(true)));
   EXPECT_CALL(*prefs_, SetInt64(Ne(kPrefsDeltaUpdateFailures), _))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures, 1)).Times(2);
   EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures, 2));
-  EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures,
-                               UpdateAttempter::kMaxDeltaUpdateFailures + 1));
-  for (int i = 0; i < 4; i ++)
+  EXPECT_CALL(*prefs_,
+              SetInt64(kPrefsDeltaUpdateFailures,
+                       UpdateAttempter::kMaxDeltaUpdateFailures + 1));
+  for (int i = 0; i < 4; i++)
     attempter_.MarkDeltaUpdateFailure();
 }
 
@@ -456,9 +453,8 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
   EXPECT_CALL(*processor_, StartProcessing());
   ErrorCode err = ErrorCode::kError;
   EXPECT_CALL(*fake_system_state_.mock_payload_state(), UpdateFailed(err));
-  attempter_.error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
-                                               OmahaEvent::kResultError,
-                                               err));
+  attempter_.error_event_.reset(new OmahaEvent(
+      OmahaEvent::kTypeUpdateComplete, OmahaEvent::kResultError, err));
   attempter_.ScheduleErrorEventAction();
   EXPECT_EQ(UpdateStatus::REPORTING_ERROR_EVENT, attempter_.status());
 }
@@ -477,9 +473,10 @@ const string kUpdateActionTypes[] = {  // NOLINT(runtime/string)
     OmahaRequestAction::StaticType()};
 
 // Actions that will be built as part of a user-initiated rollback.
-const string kRollbackActionTypes[] = {  // NOLINT(runtime/string)
-  InstallPlanAction::StaticType(),
-  PostinstallRunnerAction::StaticType(),
+const string kRollbackActionTypes[] = {
+    // NOLINT(runtime/string)
+    InstallPlanAction::StaticType(),
+    PostinstallRunnerAction::StaticType(),
 };
 
 const StagingSchedule kValidStagingSchedule = {
@@ -494,7 +491,8 @@ void UpdateAttempterTest::UpdateTestStart() {
   // point by calling RefreshDevicePolicy.
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy())
-      .Times(testing::AtLeast(1)).WillRepeatedly(Return(true));
+      .Times(testing::AtLeast(1))
+      .WillRepeatedly(Return(true));
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));
 
@@ -521,22 +519,21 @@ void UpdateAttempterTest::UpdateTestVerify() {
   loop_.BreakLoop();
 }
 
-void UpdateAttempterTest::RollbackTestStart(
-    bool enterprise_rollback, bool valid_slot) {
+void UpdateAttempterTest::RollbackTestStart(bool enterprise_rollback,
+                                            bool valid_slot) {
   // Create a device policy so that we can change settings.
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
   fake_system_state_.set_device_policy(device_policy.get());
   if (enterprise_rollback) {
     // We return an empty owner as this is an enterprise.
-    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgPointee<0>(string("")),
-        Return(true)));
+    EXPECT_CALL(*device_policy, GetOwner(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(string("")), Return(true)));
   } else {
     // We return a fake owner as this is an owned consumer device.
-    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgPointee<0>(string("fake.mail@fake.com")),
-        Return(true)));
+    EXPECT_CALL(*device_policy, GetOwner(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(string("fake.mail@fake.com")),
+                              Return(true)));
   }
 
   attempter_.policy_provider_.reset(
@@ -555,7 +552,7 @@ void UpdateAttempterTest::RollbackTestStart(
   // We only allow rollback on devices that are not enterprise enrolled and
   // which have a valid slot to rollback to.
   if (!enterprise_rollback && valid_slot) {
-     is_rollback_allowed = true;
+    is_rollback_allowed = true;
   }
 
   if (is_rollback_allowed) {
@@ -595,7 +592,8 @@ TEST_F(UpdateAttempterTest, RollbackTest) {
   loop_.PostTask(FROM_HERE,
                  base::Bind(&UpdateAttempterTest::RollbackTestStart,
                             base::Unretained(this),
-                            false, true));
+                            false,
+                            true));
   loop_.Run();
 }
 
@@ -603,7 +601,8 @@ TEST_F(UpdateAttempterTest, InvalidSlotRollbackTest) {
   loop_.PostTask(FROM_HERE,
                  base::Bind(&UpdateAttempterTest::RollbackTestStart,
                             base::Unretained(this),
-                            false, false));
+                            false,
+                            false));
   loop_.Run();
 }
 
@@ -611,7 +610,8 @@ TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
   loop_.PostTask(FROM_HERE,
                  base::Bind(&UpdateAttempterTest::RollbackTestStart,
                             base::Unretained(this),
-                            true, true));
+                            true,
+                            true));
   loop_.Run();
 }
 
@@ -661,10 +661,9 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
   EXPECT_EQ(OmahaEvent::kTypeUpdateComplete, attempter_.error_event_->type);
   EXPECT_EQ(OmahaEvent::kResultError, attempter_.error_event_->result);
   EXPECT_EQ(
-      static_cast<ErrorCode>(
-          static_cast<int>(kCode) |
-          static_cast<int>(ErrorCode::kResumedFlag) |
-          static_cast<int>(ErrorCode::kTestOmahaUrlFlag)),
+      static_cast<ErrorCode>(static_cast<int>(kCode) |
+                             static_cast<int>(ErrorCode::kResumedFlag) |
+                             static_cast<int>(ErrorCode::kTestOmahaUrlFlag)),
       attempter_.error_event_->error_code);
 }
 
@@ -827,9 +826,8 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
   fake_system_state_.set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
-      .WillRepeatedly(DoAll(
-          SetArgPointee<0>(scatter_factor_in_seconds),
-          Return(true)));
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(scatter_factor_in_seconds), Return(true)));
 
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));
@@ -866,9 +864,8 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   fake_system_state_.set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
-      .WillRepeatedly(DoAll(
-          SetArgPointee<0>(scatter_factor_in_seconds),
-          Return(true)));
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(scatter_factor_in_seconds), Return(true)));
 
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));
@@ -898,9 +895,11 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
 }
 
 TEST_F(UpdateAttempterTest, NoScatteringDoneDuringManualUpdateTestStart) {
-  loop_.PostTask(FROM_HERE, base::Bind(
-      &UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart,
-      base::Unretained(this)));
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(
+          &UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart,
+          base::Unretained(this)));
   loop_.Run();
 }
 
@@ -927,9 +926,8 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   fake_system_state_.set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
-      .WillRepeatedly(DoAll(
-          SetArgPointee<0>(scatter_factor_in_seconds),
-          Return(true)));
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(scatter_factor_in_seconds), Return(true)));
 
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));

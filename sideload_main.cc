@@ -40,8 +40,8 @@
 
 using std::string;
 using std::vector;
-using update_engine::UpdateStatus;
 using update_engine::UpdateEngineStatus;
+using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
 namespace {

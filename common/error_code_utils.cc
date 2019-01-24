@@ -30,12 +30,15 @@ string ErrorCodeToString(ErrorCode code) {
   // doesn't support any combinations of those.
   if ((static_cast<int>(code) & static_cast<int>(ErrorCode::kSpecialFlags)) &&
       (static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags)))
-    code = static_cast<ErrorCode>(
-        static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags));
+    code = static_cast<ErrorCode>(static_cast<int>(code) &
+                                  ~static_cast<int>(ErrorCode::kSpecialFlags));
   switch (code) {
-    case ErrorCode::kSuccess: return "ErrorCode::kSuccess";
-    case ErrorCode::kError: return "ErrorCode::kError";
-    case ErrorCode::kOmahaRequestError: return "ErrorCode::kOmahaRequestError";
+    case ErrorCode::kSuccess:
+      return "ErrorCode::kSuccess";
+    case ErrorCode::kError:
+      return "ErrorCode::kError";
+    case ErrorCode::kOmahaRequestError:
+      return "ErrorCode::kOmahaRequestError";
     case ErrorCode::kOmahaResponseHandlerError:
       return "ErrorCode::kOmahaResponseHandlerError";
     case ErrorCode::kFilesystemCopierError:

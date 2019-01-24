@@ -90,8 +90,8 @@ class BinderUpdateEngineClient : public UpdateEngineClient {
   bool GetEolStatus(int32_t* eol_status) const override;
 
  private:
-  class StatusUpdateCallback :
-      public android::brillo::BnUpdateEngineStatusCallback {
+  class StatusUpdateCallback
+      : public android::brillo::BnUpdateEngineStatusCallback {
    public:
     explicit StatusUpdateCallback(BinderUpdateEngineClient* client)
         : client_(client) {}

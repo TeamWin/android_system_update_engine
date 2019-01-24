@@ -24,34 +24,34 @@
 
 namespace chromeos_update_engine {
 
-const char *GetHttpResponseDescription(HttpResponseCode code) {
+const char* GetHttpResponseDescription(HttpResponseCode code) {
   static const struct {
     HttpResponseCode code;
     const char* description;
   } http_response_table[] = {
-    { kHttpResponseOk,                  "OK" },
-    { kHttpResponseCreated,             "Created" },
-    { kHttpResponseAccepted,            "Accepted" },
-    { kHttpResponseNonAuthInfo,         "Non-Authoritative Information" },
-    { kHttpResponseNoContent,           "No Content" },
-    { kHttpResponseResetContent,        "Reset Content" },
-    { kHttpResponsePartialContent,      "Partial Content" },
-    { kHttpResponseMultipleChoices,     "Multiple Choices" },
-    { kHttpResponseMovedPermanently,    "Moved Permanently" },
-    { kHttpResponseFound,               "Found" },
-    { kHttpResponseSeeOther,            "See Other" },
-    { kHttpResponseNotModified,         "Not Modified" },
-    { kHttpResponseUseProxy,            "Use Proxy" },
-    { kHttpResponseTempRedirect,        "Temporary Redirect" },
-    { kHttpResponseBadRequest,          "Bad Request" },
-    { kHttpResponseUnauth,              "Unauthorized" },
-    { kHttpResponseForbidden,           "Forbidden" },
-    { kHttpResponseNotFound,            "Not Found" },
-    { kHttpResponseRequestTimeout,      "Request Timeout" },
-    { kHttpResponseInternalServerError, "Internal Server Error" },
-    { kHttpResponseNotImplemented,      "Not Implemented" },
-    { kHttpResponseServiceUnavailable,  "Service Unavailable" },
-    { kHttpResponseVersionNotSupported, "HTTP Version Not Supported" },
+      {kHttpResponseOk, "OK"},
+      {kHttpResponseCreated, "Created"},
+      {kHttpResponseAccepted, "Accepted"},
+      {kHttpResponseNonAuthInfo, "Non-Authoritative Information"},
+      {kHttpResponseNoContent, "No Content"},
+      {kHttpResponseResetContent, "Reset Content"},
+      {kHttpResponsePartialContent, "Partial Content"},
+      {kHttpResponseMultipleChoices, "Multiple Choices"},
+      {kHttpResponseMovedPermanently, "Moved Permanently"},
+      {kHttpResponseFound, "Found"},
+      {kHttpResponseSeeOther, "See Other"},
+      {kHttpResponseNotModified, "Not Modified"},
+      {kHttpResponseUseProxy, "Use Proxy"},
+      {kHttpResponseTempRedirect, "Temporary Redirect"},
+      {kHttpResponseBadRequest, "Bad Request"},
+      {kHttpResponseUnauth, "Unauthorized"},
+      {kHttpResponseForbidden, "Forbidden"},
+      {kHttpResponseNotFound, "Not Found"},
+      {kHttpResponseRequestTimeout, "Request Timeout"},
+      {kHttpResponseInternalServerError, "Internal Server Error"},
+      {kHttpResponseNotImplemented, "Not Implemented"},
+      {kHttpResponseServiceUnavailable, "Service Unavailable"},
+      {kHttpResponseVersionNotSupported, "HTTP Version Not Supported"},
   };
 
   bool is_found = false;
@@ -63,17 +63,16 @@ const char *GetHttpResponseDescription(HttpResponseCode code) {
   return (is_found ? http_response_table[i].description : "(unsupported)");
 }
 
-HttpResponseCode StringToHttpResponseCode(const char *s) {
+HttpResponseCode StringToHttpResponseCode(const char* s) {
   return static_cast<HttpResponseCode>(strtoul(s, nullptr, 10));
 }
 
-
-const char *GetHttpContentTypeString(HttpContentType type) {
+const char* GetHttpContentTypeString(HttpContentType type) {
   static const struct {
     HttpContentType type;
     const char* str;
   } http_content_type_table[] = {
-    { kHttpContentTypeTextXml, "text/xml" },
+      {kHttpContentTypeTextXml, "text/xml"},
   };
 
   bool is_found = false;

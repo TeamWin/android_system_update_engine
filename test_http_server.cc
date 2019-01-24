@@ -48,13 +48,11 @@
 
 #include "update_engine/common/http_common.h"
 
-
 // HTTP end-of-line delimiter; sorry, this needs to be a macro.
 #define EOL "\r\n"
 
 using std::string;
 using std::vector;
-
 
 namespace chromeos_update_engine {
 
@@ -93,8 +91,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
   } while (!base::EndsWith(headers, EOL EOL, base::CompareCase::SENSITIVE));
 
   LOG(INFO) << "got headers:\n--8<------8<------8<------8<----\n"
-            << headers
-            << "\n--8<------8<------8<------8<----";
+            << headers << "\n--8<------8<------8<------8<----";
   request->raw_headers = headers;
 
   // Break header into lines.
@@ -105,7 +102,8 @@ bool ParseRequest(int fd, HttpRequest* request) {
       base::SPLIT_WANT_ALL);
 
   // Decode URL line.
-  vector<string> terms = base::SplitString(lines[0], base::kWhitespaceASCII,
+  vector<string> terms = base::SplitString(lines[0],
+                                           base::kWhitespaceASCII,
                                            base::KEEP_WHITESPACE,
                                            base::SPLIT_WANT_NONEMPTY);
   CHECK_EQ(terms.size(), static_cast<vector<string>::size_type>(3));
@@ -116,12 +114,14 @@ bool ParseRequest(int fd, HttpRequest* request) {
   // Decode remaining lines.
   size_t i;
   for (i = 1; i < lines.size(); i++) {
-    terms = base::SplitString(lines[i], base::kWhitespaceASCII,
-                              base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    terms = base::SplitString(lines[i],
+                              base::kWhitespaceASCII,
+                              base::KEEP_WHITESPACE,
+                              base::SPLIT_WANT_NONEMPTY);
 
     if (terms[0] == "Range:") {
       CHECK_EQ(terms.size(), static_cast<vector<string>::size_type>(2));
-      string &range = terms[1];
+      string& range = terms[1];
       LOG(INFO) << "range attribute: " << range;
       CHECK(base::StartsWith(range, "bytes=", base::CompareCase::SENSITIVE) &&
             range.find('-') != string::npos);
@@ -130,12 +130,13 @@ bool ParseRequest(int fd, HttpRequest* request) {
       if (range.find('-') < range.length() - 1)
         request->end_offset = atoll(range.c_str() + range.find('-') + 1) + 1;
       request->return_code = kHttpResponsePartialContent;
-      string tmp_str = base::StringPrintf("decoded range offsets: "
-                                               "start=%jd end=",
-                                               (intmax_t)request->start_offset);
+      string tmp_str = base::StringPrintf(
+          "decoded range offsets: "
+          "start=%jd end=",
+          (intmax_t)request->start_offset);
       if (request->end_offset > 0)
-        base::StringAppendF(&tmp_str, "%jd (non-inclusive)",
-                            (intmax_t)request->end_offset);
+        base::StringAppendF(
+            &tmp_str, "%jd (non-inclusive)", (intmax_t)request->end_offset);
       else
         base::StringAppendF(&tmp_str, "unspecified");
       LOG(INFO) << tmp_str;
@@ -162,7 +163,7 @@ string Itoa(off_t num) {
 ssize_t WriteString(int fd, const string& str) {
   const size_t total_size = str.size();
   size_t remaining_size = total_size;
-  char const *data = str.data();
+  char const* data = str.data();
 
   while (remaining_size) {
     ssize_t written = write(fd, data, remaining_size);
@@ -179,38 +180,38 @@ ssize_t WriteString(int fd, const string& str) {
 }
 
 // Writes the headers of an HTTP response into a file.
-ssize_t WriteHeaders(int fd, const off_t start_offset, const off_t end_offset,
+ssize_t WriteHeaders(int fd,
+                     const off_t start_offset,
+                     const off_t end_offset,
                      HttpResponseCode return_code) {
   ssize_t written = 0, ret;
 
   ret = WriteString(fd,
                     string("HTTP/1.1 ") + Itoa(return_code) + " " +
-                    GetHttpResponseDescription(return_code) +
-                    EOL
-                    "Content-Type: application/octet-stream" EOL);
+                        GetHttpResponseDescription(return_code) +
+                        EOL "Content-Type: application/octet-stream" EOL);
   if (ret < 0)
     return -1;
   written += ret;
 
   // Compute content legnth.
-  const off_t content_length = end_offset - start_offset;;
+  const off_t content_length = end_offset - start_offset;
 
   // A start offset that equals the end offset indicates that the response
   // should contain the full range of bytes in the requested resource.
   if (start_offset || start_offset == end_offset) {
-    ret = WriteString(fd,
-                      string("Accept-Ranges: bytes" EOL
-                             "Content-Range: bytes ") +
-                      Itoa(start_offset == end_offset ? 0 : start_offset) +
-                      "-" + Itoa(end_offset - 1) + "/" + Itoa(end_offset) +
-                      EOL);
+    ret = WriteString(
+        fd,
+        string("Accept-Ranges: bytes" EOL "Content-Range: bytes ") +
+            Itoa(start_offset == end_offset ? 0 : start_offset) + "-" +
+            Itoa(end_offset - 1) + "/" + Itoa(end_offset) + EOL);
     if (ret < 0)
       return -1;
     written += ret;
   }
 
-  ret = WriteString(fd, string("Content-Length: ") + Itoa(content_length) +
-                    EOL EOL);
+  ret = WriteString(
+      fd, string("Content-Length: ") + Itoa(content_length) + EOL EOL);
   if (ret < 0)
     return -1;
   written += ret;
@@ -221,8 +222,11 @@ ssize_t WriteHeaders(int fd, const off_t start_offset, const off_t end_offset,
 // Writes a predetermined payload of lines of ascending bytes to a file. The
 // first byte of output is appropriately offset with respect to the request line
 // length.  Returns the number of successfully written bytes.
-size_t WritePayload(int fd, const off_t start_offset, const off_t end_offset,
-                    const char first_byte, const size_t line_len) {
+size_t WritePayload(int fd,
+                    const off_t start_offset,
+                    const off_t end_offset,
+                    const char first_byte,
+                    const size_t line_len) {
   CHECK_LE(start_offset, end_offset);
   CHECK_GT(line_len, static_cast<size_t>(0));
 
@@ -248,14 +252,14 @@ size_t WritePayload(int fd, const off_t start_offset, const off_t end_offset,
   if (start_modulo) {
     string partial = line.substr(start_modulo, remaining_len);
     ssize_t ret = WriteString(fd, partial);
-    if ((success = (ret >= 0 && (size_t) ret == partial.length())))
+    if ((success = (ret >= 0 && (size_t)ret == partial.length())))
       remaining_len -= partial.length();
   }
 
   // Output full lines up to the maximal line boundary below the end offset.
   while (success && remaining_len >= line_len) {
     ssize_t ret = WriteString(fd, line);
-    if ((success = (ret >= 0 && (size_t) ret == line_len)))
+    if ((success = (ret >= 0 && (size_t)ret == line_len)))
       remaining_len -= line_len;
   }
 
@@ -263,7 +267,7 @@ size_t WritePayload(int fd, const off_t start_offset, const off_t end_offset,
   if (success && remaining_len) {
     string partial = line.substr(0, remaining_len);
     ssize_t ret = WriteString(fd, partial);
-    if ((success = (ret >= 0 && (size_t) ret == partial.length())))
+    if ((success = (ret >= 0 && (size_t)ret == partial.length())))
       remaining_len -= partial.length();
   }
 
@@ -271,7 +275,8 @@ size_t WritePayload(int fd, const off_t start_offset, const off_t end_offset,
 }
 
 // Write default payload lines of the form 'abcdefghij'.
-inline size_t WritePayload(int fd, const off_t start_offset,
+inline size_t WritePayload(int fd,
+                           const off_t start_offset,
                            const off_t end_offset) {
   return WritePayload(fd, start_offset, end_offset, 'a', 10);
 }
@@ -279,17 +284,19 @@ inline size_t WritePayload(int fd, const off_t start_offset,
 // Send an empty response, then kill the server.
 void HandleQuit(int fd) {
   WriteHeaders(fd, 0, 0, kHttpResponseOk);
-  LOG(INFO) << "pid(" << getpid() <<  "): HTTP server exiting ...";
+  LOG(INFO) << "pid(" << getpid() << "): HTTP server exiting ...";
   exit(RC_OK);
 }
-
 
 // Generates an HTTP response with payload corresponding to requested offsets
 // and length.  Optionally, truncate the payload at a given length and add a
 // pause midway through the transfer.  Returns the total number of bytes
 // delivered or -1 for error.
-ssize_t HandleGet(int fd, const HttpRequest& request, const size_t total_length,
-                  const size_t truncate_length, const int sleep_every,
+ssize_t HandleGet(int fd,
+                  const HttpRequest& request,
+                  const size_t total_length,
+                  const size_t truncate_length,
+                  const int sleep_every,
                   const int sleep_secs) {
   ssize_t ret;
   size_t written = 0;
@@ -301,14 +308,14 @@ ssize_t HandleGet(int fd, const HttpRequest& request, const size_t total_length,
                  << ") exceeds total length (" << total_length
                  << "), generating error response ("
                  << kHttpResponseReqRangeNotSat << ")";
-    return WriteHeaders(fd, total_length, total_length,
-                        kHttpResponseReqRangeNotSat);
+    return WriteHeaders(
+        fd, total_length, total_length, kHttpResponseReqRangeNotSat);
   }
 
   // Obtain end offset, adjust to fit in total payload length and ensure it does
   // not preceded the start offset.
-  size_t end_offset = (request.end_offset > 0 ?
-                       request.end_offset : total_length);
+  size_t end_offset =
+      (request.end_offset > 0 ? request.end_offset : total_length);
   if (end_offset < start_offset) {
     LOG(WARNING) << "end offset (" << end_offset << ") precedes start offset ("
                  << start_offset << "), generating error response";
@@ -324,8 +331,8 @@ ssize_t HandleGet(int fd, const HttpRequest& request, const size_t total_length,
   LOG(INFO) << "generating response header: range=" << start_offset << "-"
             << (end_offset - 1) << "/" << (end_offset - start_offset)
             << ", return code=" << request.return_code;
-  if ((ret = WriteHeaders(fd, start_offset, end_offset,
-                          request.return_code)) < 0)
+  if ((ret = WriteHeaders(fd, start_offset, end_offset, request.return_code)) <
+      0)
     return -1;
   LOG(INFO) << ret << " header bytes written";
   written += ret;
@@ -371,7 +378,8 @@ ssize_t HandleGet(int fd, const HttpRequest& request, const size_t total_length,
   return written;
 }
 
-ssize_t HandleGet(int fd, const HttpRequest& request,
+ssize_t HandleGet(int fd,
+                  const HttpRequest& request,
                   const size_t total_length) {
   return HandleGet(fd, request, total_length, 0, 0, 0);
 }
@@ -388,15 +396,15 @@ void HandleRedirect(int fd, const HttpRequest& request) {
   HttpResponseCode code = StringToHttpResponseCode(url.c_str());
   url.erase(0, url_start);
   url = "http://" + request.host + url;
-  const char *status = GetHttpResponseDescription(code);
+  const char* status = GetHttpResponseDescription(code);
   if (!status)
     CHECK(false) << "Unrecognized redirection code: " << code;
   LOG(INFO) << "Code: " << code << " " << status;
   LOG(INFO) << "New URL: " << url;
 
   ssize_t ret;
-  if ((ret = WriteString(fd, "HTTP/1.1 " + Itoa(code) + " " +
-                         status + EOL)) < 0)
+  if ((ret = WriteString(fd, "HTTP/1.1 " + Itoa(code) + " " + status + EOL)) <
+      0)
     return;
   WriteString(fd, "Location: " + url + EOL);
 }
@@ -425,8 +433,10 @@ ssize_t HandleError(int fd, const HttpRequest& request) {
 // Generate an error response if the requested offset is nonzero, up to a given
 // maximal number of successive failures.  The error generated is an "Internal
 // Server Error" (500).
-ssize_t HandleErrorIfOffset(int fd, const HttpRequest& request,
-                            size_t end_offset, int max_fails) {
+ssize_t HandleErrorIfOffset(int fd,
+                            const HttpRequest& request,
+                            size_t end_offset,
+                            int max_fails) {
   static int num_fails = 0;
 
   if (request.start_offset > 0 && num_fails < max_fails) {
@@ -437,8 +447,8 @@ ssize_t HandleErrorIfOffset(int fd, const HttpRequest& request,
 
     const string data("This is an error page.");
 
-    if ((ret = WriteHeaders(fd, 0, data.size(),
-                            kHttpResponseInternalServerError)) < 0)
+    if ((ret = WriteHeaders(
+             fd, 0, data.size(), kHttpResponseInternalServerError)) < 0)
       return -1;
     written += ret;
 
@@ -464,7 +474,8 @@ void HandleEchoHeaders(int fd, const HttpRequest& request) {
 void HandleHang(int fd) {
   LOG(INFO) << "Hanging until the other side of the connection is closed.";
   char c;
-  while (HANDLE_EINTR(read(fd, &c, 1)) > 0) {}
+  while (HANDLE_EINTR(read(fd, &c, 1)) > 0) {
+  }
 }
 
 void HandleDefault(int fd, const HttpRequest& request) {
@@ -475,36 +486,33 @@ void HandleDefault(int fd, const HttpRequest& request) {
 
   if ((ret = WriteHeaders(fd, start_offset, size, request.return_code)) < 0)
     return;
-  WriteString(fd, (start_offset < static_cast<off_t>(size) ?
-                   data.substr(start_offset) : ""));
+  WriteString(
+      fd,
+      (start_offset < static_cast<off_t>(size) ? data.substr(start_offset)
+                                               : ""));
 }
-
 
 // Break a URL into terms delimited by slashes.
 class UrlTerms {
  public:
-  UrlTerms(const string &url, size_t num_terms) {
+  UrlTerms(const string& url, size_t num_terms) {
     // URL must be non-empty and start with a slash.
     CHECK_GT(url.size(), static_cast<size_t>(0));
     CHECK_EQ(url[0], '/');
 
     // Split it into terms delimited by slashes, omitting the preceding slash.
-    terms = base::SplitString(url.substr(1), "/", base::KEEP_WHITESPACE,
-                              base::SPLIT_WANT_ALL);
+    terms = base::SplitString(
+        url.substr(1), "/", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
 
     // Ensure expected length.
     CHECK_EQ(terms.size(), num_terms);
   }
 
-  inline const string& Get(const off_t index) const {
-    return terms[index];
-  }
-  inline const char *GetCStr(const off_t index) const {
+  inline const string& Get(const off_t index) const { return terms[index]; }
+  inline const char* GetCStr(const off_t index) const {
     return Get(index).c_str();
   }
-  inline int GetInt(const off_t index) const {
-    return atoi(GetCStr(index));
-  }
+  inline int GetInt(const off_t index) const { return atoi(GetCStr(index)); }
   inline size_t GetSizeT(const off_t index) const {
     return static_cast<size_t>(atol(GetCStr(index)));
   }
@@ -517,8 +525,8 @@ void HandleConnection(int fd) {
   HttpRequest request;
   ParseRequest(fd, &request);
 
-  string &url = request.url;
-  LOG(INFO) << "pid(" << getpid() <<  "): handling url " << url;
+  string& url = request.url;
+  LOG(INFO) << "pid(" << getpid() << "): handling url " << url;
   if (url == "/quitquitquit") {
     HandleQuit(fd);
   } else if (base::StartsWith(
@@ -527,14 +535,18 @@ void HandleConnection(int fd) {
     HandleGet(fd, request, terms.GetSizeT(1));
   } else if (base::StartsWith(url, "/flaky/", base::CompareCase::SENSITIVE)) {
     const UrlTerms terms(url, 5);
-    HandleGet(fd, request, terms.GetSizeT(1), terms.GetSizeT(2),
-              terms.GetInt(3), terms.GetInt(4));
+    HandleGet(fd,
+              request,
+              terms.GetSizeT(1),
+              terms.GetSizeT(2),
+              terms.GetInt(3),
+              terms.GetInt(4));
   } else if (url.find("/redirect/") == 0) {
     HandleRedirect(fd, request);
   } else if (url == "/error") {
     HandleError(fd, request);
-  } else if (base::StartsWith(url, "/error-if-offset/",
-                              base::CompareCase::SENSITIVE)) {
+  } else if (base::StartsWith(
+                 url, "/error-if-offset/", base::CompareCase::SENSITIVE)) {
     const UrlTerms terms(url, 3);
     HandleErrorIfOffset(fd, request, terms.GetSizeT(1), terms.GetInt(2));
   } else if (url == "/echo-headers") {
@@ -552,15 +564,14 @@ void HandleConnection(int fd) {
 
 using namespace chromeos_update_engine;  // NOLINT(build/namespaces)
 
-
-void usage(const char *prog_arg) {
-  fprintf(
-      stderr,
-      "Usage: %s [ FILE ]\n"
-      "Once accepting connections, the following is written to FILE (or "
-      "stdout):\n"
-      "\"%sN\" (where N is an integer port number)\n",
-      basename(prog_arg), kListeningMsgPrefix);
+void usage(const char* prog_arg) {
+  fprintf(stderr,
+          "Usage: %s [ FILE ]\n"
+          "Once accepting connections, the following is written to FILE (or "
+          "stdout):\n"
+          "\"%sN\" (where N is an integer port number)\n",
+          basename(prog_arg),
+          kListeningMsgPrefix);
 }
 
 int main(int argc, char** argv) {
@@ -594,15 +605,16 @@ int main(int argc, char** argv) {
   {
     // Get rid of "Address in use" error
     int tr = 1;
-    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &tr,
-                   sizeof(int)) == -1) {
+    if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &tr, sizeof(int)) ==
+        -1) {
       perror("setsockopt");
       exit(RC_ERR_SETSOCKOPT);
     }
   }
 
   // Bind the socket and set for listening.
-  if (bind(listen_fd, reinterpret_cast<struct sockaddr *>(&server_addr),
+  if (bind(listen_fd,
+           reinterpret_cast<struct sockaddr*>(&server_addr),
            sizeof(server_addr)) < 0) {
     perror("bind");
     exit(RC_ERR_BIND);
@@ -615,7 +627,8 @@ int main(int argc, char** argv) {
   // Check the actual port.
   struct sockaddr_in bound_addr = sockaddr_in();
   socklen_t bound_addr_len = sizeof(bound_addr);
-  if (getsockname(listen_fd, reinterpret_cast<struct sockaddr*>(&bound_addr),
+  if (getsockname(listen_fd,
+                  reinterpret_cast<struct sockaddr*>(&bound_addr),
                   &bound_addr_len) < 0) {
     perror("getsockname");
     exit(RC_ERR_GETSOCKNAME);
@@ -638,7 +651,7 @@ int main(int argc, char** argv) {
     close(report_fd);
 
   while (1) {
-    LOG(INFO) << "pid(" << getpid() <<  "): waiting to accept new connection";
+    LOG(INFO) << "pid(" << getpid() << "): waiting to accept new connection";
     int client_fd = accept(listen_fd, nullptr, nullptr);
     LOG(INFO) << "got past accept";
     if (client_fd < 0)

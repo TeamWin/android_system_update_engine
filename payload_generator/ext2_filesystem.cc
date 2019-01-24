@@ -92,11 +92,11 @@ struct UpdateFileAndAppendState {
 
 int UpdateFileAndAppend(ext2_ino_t dir,
                         int entry,
-                        struct ext2_dir_entry *dirent,
+                        struct ext2_dir_entry* dirent,
                         int offset,
                         int blocksize,
-                        char *buf,
-                        void *priv_data) {
+                        char* buf,
+                        void* priv_data) {
   UpdateFileAndAppendState* state =
       static_cast<UpdateFileAndAppendState*>(priv_data);
   uint32_t file_type = dirent->name_len >> 8;
@@ -224,20 +224,21 @@ bool Ext2Filesystem::GetFiles(vector<File>* files) const {
     // and triple indirect blocks (no data blocks). For directories and
     // the journal, all blocks are considered metadata blocks.
     int flags = it_ino < EXT2_GOOD_OLD_FIRST_INO ? 0 : BLOCK_FLAG_DATA_ONLY;
-    error = ext2fs_block_iterate2(filsys_, it_ino, flags,
+    error = ext2fs_block_iterate2(filsys_,
+                                  it_ino,
+                                  flags,
                                   nullptr,  // block_buf
                                   ProcessInodeAllBlocks,
                                   &file.extents);
 
     if (error) {
-      LOG(ERROR) << "Failed to enumerate inode " << it_ino
-                << " blocks (" << error << ")";
+      LOG(ERROR) << "Failed to enumerate inode " << it_ino << " blocks ("
+                 << error << ")";
       continue;
     }
     if (it_ino >= EXT2_GOOD_OLD_FIRST_INO) {
-      ext2fs_block_iterate2(filsys_, it_ino, 0, nullptr,
-                            AddMetadataBlocks,
-                            &inode_blocks);
+      ext2fs_block_iterate2(
+          filsys_, it_ino, 0, nullptr, AddMetadataBlocks, &inode_blocks);
     }
   }
   ext2fs_close_inode_scan(iscan);
@@ -273,9 +274,12 @@ bool Ext2Filesystem::GetFiles(vector<File>* files) const {
     }
     ext2fs_free_mem(&dir_name);
 
-    error = ext2fs_dir_iterate2(
-        filsys_, dir_ino, 0, nullptr /* block_buf */,
-        UpdateFileAndAppend, &priv_data);
+    error = ext2fs_dir_iterate2(filsys_,
+                                dir_ino,
+                                0,
+                                nullptr /* block_buf */,
+                                UpdateFileAndAppend,
+                                &priv_data);
     if (error) {
       LOG(WARNING) << "Failed to enumerate files in directory "
                    << inodes[dir_ino].name << " (error " << error << ")";
@@ -328,9 +332,11 @@ bool Ext2Filesystem::GetFiles(vector<File>* files) const {
 bool Ext2Filesystem::LoadSettings(brillo::KeyValueStore* store) const {
   // First search for the settings inode following symlinks if we find some.
   ext2_ino_t ino_num = 0;
-  errcode_t err = ext2fs_namei_follow(
-      filsys_, EXT2_ROOT_INO /* root */, EXT2_ROOT_INO /* cwd */,
-      "/etc/update_engine.conf", &ino_num);
+  errcode_t err = ext2fs_namei_follow(filsys_,
+                                      EXT2_ROOT_INO /* root */,
+                                      EXT2_ROOT_INO /* cwd */,
+                                      "/etc/update_engine.conf",
+                                      &ino_num);
   if (err != 0)
     return false;
 
@@ -340,7 +346,9 @@ bool Ext2Filesystem::LoadSettings(brillo::KeyValueStore* store) const {
 
   // Load the list of blocks and then the contents of the inodes.
   vector<Extent> extents;
-  err = ext2fs_block_iterate2(filsys_, ino_num, BLOCK_FLAG_DATA_ONLY,
+  err = ext2fs_block_iterate2(filsys_,
+                              ino_num,
+                              BLOCK_FLAG_DATA_ONLY,
                               nullptr,  // block_buf
                               ProcessInodeAllBlocks,
                               &extents);
@@ -352,8 +360,8 @@ bool Ext2Filesystem::LoadSettings(brillo::KeyValueStore* store) const {
   // Sparse holes in the settings file are not supported.
   if (EXT2_I_SIZE(&ino_data) > physical_size)
     return false;
-  if (!utils::ReadExtents(filename_, extents, &blob, physical_size,
-                          filsys_->blocksize))
+  if (!utils::ReadExtents(
+          filename_, extents, &blob, physical_size, filsys_->blocksize))
     return false;
 
   string text(blob.begin(), blob.begin() + EXT2_I_SIZE(&ino_data));

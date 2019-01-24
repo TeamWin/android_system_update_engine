@@ -27,8 +27,8 @@ using chromeos_update_engine::FakePrefs;
 namespace {
 
 void CheckNotNull(const string& key, void* ptr) {
-  EXPECT_NE(nullptr, ptr)
-      << "Called Get*() for key \"" << key << "\" with a null parameter.";
+  EXPECT_NE(nullptr, ptr) << "Called Get*() for key \"" << key
+                          << "\" with a null parameter.";
 }
 
 }  // namespace
@@ -40,25 +40,25 @@ FakePrefs::~FakePrefs() {
 }
 
 // Compile-time type-dependent constants definitions.
-template<>
+template <>
 FakePrefs::PrefType const FakePrefs::PrefConsts<string>::type =
     FakePrefs::PrefType::kString;
-template<>
-string FakePrefs::PrefValue::* const  // NOLINT(runtime/string), not static str.
+template <>
+string FakePrefs::PrefValue::*const  // NOLINT(runtime/string), not static str.
     FakePrefs::PrefConsts<string>::member = &FakePrefs::PrefValue::as_str;
 
-template<>
+template <>
 FakePrefs::PrefType const FakePrefs::PrefConsts<int64_t>::type =
     FakePrefs::PrefType::kInt64;
-template<>
-int64_t FakePrefs::PrefValue::* const FakePrefs::PrefConsts<int64_t>::member =
+template <>
+int64_t FakePrefs::PrefValue::*const FakePrefs::PrefConsts<int64_t>::member =
     &FakePrefs::PrefValue::as_int64;
 
-template<>
+template <>
 FakePrefs::PrefType const FakePrefs::PrefConsts<bool>::type =
     FakePrefs::PrefType::kBool;
-template<>
-bool FakePrefs::PrefValue::* const FakePrefs::PrefConsts<bool>::member =
+template <>
+bool FakePrefs::PrefValue::*const FakePrefs::PrefConsts<bool>::member =
     &FakePrefs::PrefValue::as_bool;
 
 bool FakePrefs::GetString(const string& key, string* value) const {
@@ -124,7 +124,7 @@ void FakePrefs::CheckKeyType(const string& key, PrefType type) const {
       << " but is accessed as a " << GetTypeName(type);
 }
 
-template<typename T>
+template <typename T>
 void FakePrefs::SetValue(const string& key, const T& value) {
   CheckKeyType(key, PrefConsts<T>::type);
   values_[key].type = PrefConsts<T>::type;
@@ -137,7 +137,7 @@ void FakePrefs::SetValue(const string& key, const T& value) {
   }
 }
 
-template<typename T>
+template <typename T>
 bool FakePrefs::GetValue(const string& key, T* value) const {
   CheckKeyType(key, PrefConsts<T>::type);
   auto it = values_.find(key);
@@ -157,8 +157,7 @@ void FakePrefs::RemoveObserver(const string& key, ObserverInterface* observer) {
   auto observer_it =
       std::find(observers_for_key.begin(), observers_for_key.end(), observer);
   EXPECT_NE(observer_it, observers_for_key.end())
-      << "Trying to remove an observer instance not watching the key "
-      << key;
+      << "Trying to remove an observer instance not watching the key " << key;
   if (observer_it != observers_for_key.end())
     observers_for_key.erase(observer_it);
   if (observers_for_key.empty())

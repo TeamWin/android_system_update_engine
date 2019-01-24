@@ -46,15 +46,14 @@ class RealShillProvider : public ShillProvider {
   // Initializes the provider and returns whether it succeeded.
   bool Init();
 
-  Variable<bool>* var_is_connected() override {
-    return &var_is_connected_;
-  }
+  Variable<bool>* var_is_connected() override { return &var_is_connected_; }
 
   Variable<chromeos_update_engine::ConnectionType>* var_conn_type() override {
     return &var_conn_type_;
   }
 
-  Variable<chromeos_update_engine::ConnectionTethering>* var_conn_tethering() override {
+  Variable<chromeos_update_engine::ConnectionTethering>* var_conn_tethering()
+      override {
     return &var_conn_tethering_;
   }
 

@@ -54,8 +54,8 @@ namespace chromeos_update_engine {
 using std::string;
 using std::vector;
 using test_utils::GetBuildArtifactsPath;
-using test_utils::System;
 using test_utils::kRandomString;
+using test_utils::System;
 using testing::_;
 
 extern const char* kUnittestPrivateKeyPath;
@@ -93,6 +93,7 @@ const uint8_t kXzCompressedData[] = {
     0xa8, 0x00, 0x0a, 0xfc, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x59, 0x5a,
 };
 
+// clang-format off
 const uint8_t src_deflates[] = {
   /* raw      0  */ 0x11, 0x22,
   /* deflate  2  */ 0x63, 0x64, 0x62, 0x66, 0x61, 0x05, 0x00,
@@ -109,6 +110,7 @@ const uint8_t dst_deflates[] = {
   /* deflate  9  */ 0x01, 0x05, 0x00, 0xFA, 0xFF, 0x01, 0x02, 0x03, 0x04, 0x05,
   /* deflate  19 */ 0x63, 0x04, 0x00
 };
+// clang-format on
 
 // To generate this patch either:
 // - Use puffin/src/patching_unittest.cc:TestPatching
@@ -124,29 +126,29 @@ const uint8_t dst_deflates[] = {
 //   --patch_file=patch.bin
 // * hexdump -ve '"  " 12/1 "0x%02x, " "\n"' patch.bin
 const uint8_t puffdiff_patch[] = {
-  0x50, 0x55, 0x46, 0x31, 0x00, 0x00, 0x00, 0x51, 0x08, 0x01, 0x12, 0x27,
-  0x0A, 0x04, 0x08, 0x10, 0x10, 0x32, 0x0A, 0x04, 0x08, 0x50, 0x10, 0x0A,
-  0x0A, 0x04, 0x08, 0x60, 0x10, 0x12, 0x12, 0x04, 0x08, 0x10, 0x10, 0x58,
-  0x12, 0x04, 0x08, 0x78, 0x10, 0x28, 0x12, 0x05, 0x08, 0xA8, 0x01, 0x10,
-  0x38, 0x18, 0x1F, 0x1A, 0x24, 0x0A, 0x02, 0x10, 0x32, 0x0A, 0x04, 0x08,
-  0x48, 0x10, 0x50, 0x0A, 0x05, 0x08, 0x98, 0x01, 0x10, 0x12, 0x12, 0x02,
-  0x10, 0x58, 0x12, 0x04, 0x08, 0x70, 0x10, 0x58, 0x12, 0x05, 0x08, 0xC8,
-  0x01, 0x10, 0x38, 0x18, 0x21, 0x42, 0x53, 0x44, 0x49, 0x46, 0x46, 0x34,
-  0x30, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x34, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x42, 0x5A, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0x65,
-  0x29, 0x8C, 0x9B, 0x00, 0x00, 0x03, 0x60, 0x40, 0x7A, 0x0E, 0x08, 0x00,
-  0x40, 0x00, 0x20, 0x00, 0x21, 0x22, 0x9A, 0x3D, 0x4F, 0x50, 0x40, 0x0C,
-  0x3B, 0xC7, 0x9B, 0xB2, 0x21, 0x0E, 0xE9, 0x15, 0x98, 0x7A, 0x7C, 0x5D,
-  0xC9, 0x14, 0xE1, 0x42, 0x41, 0x94, 0xA6, 0x32, 0x6C, 0x42, 0x5A, 0x68,
-  0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0xF1, 0x20, 0x5F, 0x0D, 0x00,
-  0x00, 0x02, 0x41, 0x15, 0x42, 0x08, 0x20, 0x00, 0x40, 0x00, 0x00, 0x02,
-  0x40, 0x00, 0x20, 0x00, 0x22, 0x3D, 0x23, 0x10, 0x86, 0x03, 0x96, 0x54,
-  0x11, 0x16, 0x5F, 0x17, 0x72, 0x45, 0x38, 0x50, 0x90, 0xF1, 0x20, 0x5F,
-  0x0D, 0x42, 0x5A, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0x07,
-  0xD4, 0xCB, 0x6E, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x20, 0x00,
-  0x21, 0x18, 0x46, 0x82, 0xEE, 0x48, 0xA7, 0x0A, 0x12, 0x00, 0xFA, 0x99,
-  0x6D, 0xC0};
+    0x50, 0x55, 0x46, 0x31, 0x00, 0x00, 0x00, 0x51, 0x08, 0x01, 0x12, 0x27,
+    0x0A, 0x04, 0x08, 0x10, 0x10, 0x32, 0x0A, 0x04, 0x08, 0x50, 0x10, 0x0A,
+    0x0A, 0x04, 0x08, 0x60, 0x10, 0x12, 0x12, 0x04, 0x08, 0x10, 0x10, 0x58,
+    0x12, 0x04, 0x08, 0x78, 0x10, 0x28, 0x12, 0x05, 0x08, 0xA8, 0x01, 0x10,
+    0x38, 0x18, 0x1F, 0x1A, 0x24, 0x0A, 0x02, 0x10, 0x32, 0x0A, 0x04, 0x08,
+    0x48, 0x10, 0x50, 0x0A, 0x05, 0x08, 0x98, 0x01, 0x10, 0x12, 0x12, 0x02,
+    0x10, 0x58, 0x12, 0x04, 0x08, 0x70, 0x10, 0x58, 0x12, 0x05, 0x08, 0xC8,
+    0x01, 0x10, 0x38, 0x18, 0x21, 0x42, 0x53, 0x44, 0x49, 0x46, 0x46, 0x34,
+    0x30, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x34, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x42, 0x5A, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0x65,
+    0x29, 0x8C, 0x9B, 0x00, 0x00, 0x03, 0x60, 0x40, 0x7A, 0x0E, 0x08, 0x00,
+    0x40, 0x00, 0x20, 0x00, 0x21, 0x22, 0x9A, 0x3D, 0x4F, 0x50, 0x40, 0x0C,
+    0x3B, 0xC7, 0x9B, 0xB2, 0x21, 0x0E, 0xE9, 0x15, 0x98, 0x7A, 0x7C, 0x5D,
+    0xC9, 0x14, 0xE1, 0x42, 0x41, 0x94, 0xA6, 0x32, 0x6C, 0x42, 0x5A, 0x68,
+    0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0xF1, 0x20, 0x5F, 0x0D, 0x00,
+    0x00, 0x02, 0x41, 0x15, 0x42, 0x08, 0x20, 0x00, 0x40, 0x00, 0x00, 0x02,
+    0x40, 0x00, 0x20, 0x00, 0x22, 0x3D, 0x23, 0x10, 0x86, 0x03, 0x96, 0x54,
+    0x11, 0x16, 0x5F, 0x17, 0x72, 0x45, 0x38, 0x50, 0x90, 0xF1, 0x20, 0x5F,
+    0x0D, 0x42, 0x5A, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0x07,
+    0xD4, 0xCB, 0x6E, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x20, 0x00,
+    0x21, 0x18, 0x46, 0x82, 0xEE, 0x48, 0xA7, 0x0A, 0x12, 0x00, 0xFA, 0x99,
+    0x6D, 0xC0};
 
 }  // namespace
 
@@ -254,8 +256,8 @@ class DeltaPerformerTest : public ::testing::Test {
   brillo::Blob ApplyPayload(const brillo::Blob& payload_data,
                             const string& source_path,
                             bool expect_success) {
-    return ApplyPayloadToData(payload_data, source_path, brillo::Blob(),
-                              expect_success);
+    return ApplyPayloadToData(
+        payload_data, source_path, brillo::Blob(), expect_success);
   }
 
   // Apply the payload provided in |payload_data| reading from the |source_path|
@@ -329,8 +331,10 @@ class DeltaPerformerTest : public ::testing::Test {
                                bool hash_checks_mandatory) {
     // Loads the payload and parses the manifest.
     brillo::Blob payload = GeneratePayload(brillo::Blob(),
-        vector<AnnotatedOperation>(), sign_payload,
-        kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
+                                           vector<AnnotatedOperation>(),
+                                           sign_payload,
+                                           kChromeOSMajorPayloadVersion,
+                                           kFullPayloadMinorVersion);
 
     LOG(INFO) << "Payload size: " << payload.size();
 
@@ -429,8 +433,8 @@ class DeltaPerformerTest : public ::testing::Test {
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   payload_.type = InstallPayloadType::kFull;
-  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
-                                            std::end(kRandomString));
+  brillo::Blob expected_data =
+      brillo::Blob(std::begin(kRandomString), std::end(kRandomString));
   expected_data.resize(4096);  // block size
   vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
@@ -440,16 +444,19 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   aop.op.set_type(InstallOperation::REPLACE);
   aops.push_back(aop);
 
-  brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
-      kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
+  brillo::Blob payload_data = GeneratePayload(expected_data,
+                                              aops,
+                                              false,
+                                              kChromeOSMajorPayloadVersion,
+                                              kFullPayloadMinorVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
 
 TEST_F(DeltaPerformerTest, ShouldCancelTest) {
   payload_.type = InstallPayloadType::kFull;
-  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
-                                            std::end(kRandomString));
+  brillo::Blob expected_data =
+      brillo::Blob(std::begin(kRandomString), std::end(kRandomString));
   expected_data.resize(4096);  // block size
   vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
@@ -459,21 +466,23 @@ TEST_F(DeltaPerformerTest, ShouldCancelTest) {
   aop.op.set_type(InstallOperation::REPLACE);
   aops.push_back(aop);
 
-  brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
-      kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
+  brillo::Blob payload_data = GeneratePayload(expected_data,
+                                              aops,
+                                              false,
+                                              kChromeOSMajorPayloadVersion,
+                                              kFullPayloadMinorVersion);
 
   testing::Mock::VerifyAndClearExpectations(&mock_delegate_);
   EXPECT_CALL(mock_delegate_, ShouldCancel(_))
-      .WillOnce(
-          testing::DoAll(testing::SetArgPointee<0>(ErrorCode::kError),
-                         testing::Return(true)));
+      .WillOnce(testing::DoAll(testing::SetArgPointee<0>(ErrorCode::kError),
+                               testing::Return(true)));
 
   ApplyPayload(payload_data, "/dev/null", false);
 }
 
 TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
-  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
-                                            std::end(kRandomString));
+  brillo::Blob expected_data =
+      brillo::Blob(std::begin(kRandomString), std::end(kRandomString));
   expected_data.resize(4096);  // block size
   vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
@@ -489,8 +498,8 @@ TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
 }
 
 TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
-  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
-                                            std::end(kRandomString));
+  brillo::Blob expected_data =
+      brillo::Blob(std::begin(kRandomString), std::end(kRandomString));
   expected_data.resize(4096);  // block size
   brillo::Blob bz_data;
   EXPECT_TRUE(BzipCompress(expected_data, &bz_data));
@@ -510,7 +519,7 @@ TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
 
 TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
   brillo::Blob xz_data(std::begin(kXzCompressedData),
-                         std::end(kXzCompressedData));
+                       std::end(kXzCompressedData));
   // The compressed xz data contains a single "a" and padded with zero for the
   // rest of the block.
   brillo::Blob expected_data = brillo::Blob(4096, 0);
@@ -533,10 +542,10 @@ TEST_F(DeltaPerformerTest, ZeroOperationTest) {
   brillo::Blob expected_data = existing_data;
   // Blocks 4, 5 and 7 should have zeros instead of 'a' after the operation is
   // applied.
-  std::fill(expected_data.data() + 4096 * 4, expected_data.data() + 4096 * 6,
-            0);
-  std::fill(expected_data.data() + 4096 * 7, expected_data.data() + 4096 * 8,
-            0);
+  std::fill(
+      expected_data.data() + 4096 * 4, expected_data.data() + 4096 * 6, 0);
+  std::fill(
+      expected_data.data() + 4096 * 7, expected_data.data() + 4096 * 8, 0);
 
   AnnotatedOperation aop;
   *(aop.op.add_dst_extents()) = ExtentForRange(4, 2);
@@ -708,10 +717,8 @@ TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
 
   string expected_output = "4096:4096,16384:8192,0:4083";
   string actual_output;
-  EXPECT_TRUE(DeltaPerformer::ExtentsToBsdiffPositionsString(extents,
-                                                             block_size,
-                                                             file_length,
-                                                             &actual_output));
+  EXPECT_TRUE(DeltaPerformer::ExtentsToBsdiffPositionsString(
+      extents, block_size, file_length, &actual_output));
   EXPECT_EQ(expected_output, actual_output);
 }
 
@@ -876,9 +883,8 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
 }
 
 TEST_F(DeltaPerformerTest, BrilloParsePayloadMetadataTest) {
-  brillo::Blob payload_data = GeneratePayload({}, {}, true,
-                                              kBrilloMajorPayloadVersion,
-                                              kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(
+      {}, {}, true, kBrilloMajorPayloadVersion, kSourceMinorPayloadVersion);
   install_plan_.hash_checks_mandatory = true;
   performer_.set_public_key_path(GetBuildArtifactsPath(kUnittestPublicKeyPath));
   ErrorCode error;

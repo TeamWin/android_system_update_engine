@@ -46,7 +46,7 @@ std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
   return std::unique_ptr<ConnectionManagerInterface>(
       new ConnectionManager(new ShillProxy(), system_state));
 }
-}
+}  // namespace connection_manager
 
 ConnectionManager::ConnectionManager(ShillProxyInterface* shill_proxy,
                                      SystemState* system_state)

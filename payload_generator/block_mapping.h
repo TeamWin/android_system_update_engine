@@ -53,7 +53,9 @@ class BlockMapping {
   // from the file descriptor |fd| starting at offset |initial_byte_offset|.
   // Returns whether it succeeded to add all the disk blocks and stores in
   // |block_ids| the block id for each one of the added blocks.
-  bool AddManyDiskBlocks(int fd, off_t initial_byte_offset, size_t num_blocks,
+  bool AddManyDiskBlocks(int fd,
+                         off_t initial_byte_offset,
+                         size_t num_blocks,
                          std::vector<BlockId>* block_ids);
 
  private:

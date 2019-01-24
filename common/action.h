@@ -145,12 +145,12 @@ class AbstractAction {
 };
 
 // Forward declare a couple classes we use.
-template<typename T>
+template <typename T>
 class ActionPipe;
-template<typename T>
+template <typename T>
 class ActionTraits;
 
-template<typename SubClass>
+template <typename SubClass>
 class Action : public AbstractAction {
  public:
   ~Action() override {}
@@ -162,8 +162,9 @@ class Action : public AbstractAction {
   void set_in_pipe(
       // this type is a fancy way of saying: a shared_ptr to an
       // ActionPipe<InputObjectType>.
-      const std::shared_ptr<ActionPipe<
-          typename ActionTraits<SubClass>::InputObjectType>>& in_pipe) {
+      const std::shared_ptr<
+          ActionPipe<typename ActionTraits<SubClass>::InputObjectType>>&
+          in_pipe) {
     in_pipe_ = in_pipe;
   }
 
@@ -174,8 +175,9 @@ class Action : public AbstractAction {
   void set_out_pipe(
       // this type is a fancy way of saying: a shared_ptr to an
       // ActionPipe<OutputObjectType>.
-      const std::shared_ptr<ActionPipe<
-          typename ActionTraits<SubClass>::OutputObjectType>>& out_pipe) {
+      const std::shared_ptr<
+          ActionPipe<typename ActionTraits<SubClass>::OutputObjectType>>&
+          out_pipe) {
     out_pipe_ = out_pipe;
   }
 
@@ -192,9 +194,7 @@ class Action : public AbstractAction {
   }
 
   // Returns true iff there's an output pipe.
-  bool HasOutputPipe() const {
-    return out_pipe_.get();
-  }
+  bool HasOutputPipe() const { return out_pipe_.get(); }
 
   // Copies the object passed into the output pipe. It will be accessible to
   // the next Action via that action's input pipe (which is the same as this

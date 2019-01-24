@@ -120,12 +120,9 @@ bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
 
 bool InstallPlan::Partition::operator==(
     const InstallPlan::Partition& that) const {
-  return (name == that.name &&
-          source_path == that.source_path &&
-          source_size == that.source_size &&
-          source_hash == that.source_hash &&
-          target_path == that.target_path &&
-          target_size == that.target_size &&
+  return (name == that.name && source_path == that.source_path &&
+          source_size == that.source_size && source_hash == that.source_hash &&
+          target_path == that.target_path && target_size == that.target_size &&
           target_hash == that.target_hash &&
           run_postinstall == that.run_postinstall &&
           postinstall_path == that.postinstall_path &&

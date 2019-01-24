@@ -204,36 +204,33 @@ class Policy {
   // Returns the name of a public policy request.
   // IMPORTANT: Be sure to add a conditional for each new public policy that is
   // being added to this class in the future.
-  template<typename R, typename... Args>
-  std::string PolicyRequestName(
-      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                          std::string*, R*,
-                                          Args...) const) const {
+  template <typename R, typename... Args>
+  std::string PolicyRequestName(EvalStatus (Policy::*policy_method)(
+      EvaluationContext*, State*, std::string*, R*, Args...) const) const {
     std::string class_name = PolicyName() + "::";
 
-    if (reinterpret_cast<typeof(&Policy::UpdateCheckAllowed)>(
-            policy_method) == &Policy::UpdateCheckAllowed)
+    if (reinterpret_cast<typeof(&Policy::UpdateCheckAllowed)>(policy_method) ==
+        &Policy::UpdateCheckAllowed)
       return class_name + "UpdateCheckAllowed";
     if (reinterpret_cast<typeof(&Policy::UpdateCanBeApplied)>(policy_method) ==
         &Policy::UpdateCanBeApplied)
       return class_name + "UpdateCanBeApplied";
-    if (reinterpret_cast<typeof(&Policy::UpdateCanStart)>(
-            policy_method) == &Policy::UpdateCanStart)
+    if (reinterpret_cast<typeof(&Policy::UpdateCanStart)>(policy_method) ==
+        &Policy::UpdateCanStart)
       return class_name + "UpdateCanStart";
     if (reinterpret_cast<typeof(&Policy::UpdateDownloadAllowed)>(
             policy_method) == &Policy::UpdateDownloadAllowed)
       return class_name + "UpdateDownloadAllowed";
-    if (reinterpret_cast<typeof(&Policy::P2PEnabled)>(
-            policy_method) == &Policy::P2PEnabled)
+    if (reinterpret_cast<typeof(&Policy::P2PEnabled)>(policy_method) ==
+        &Policy::P2PEnabled)
       return class_name + "P2PEnabled";
-    if (reinterpret_cast<typeof(&Policy::P2PEnabledChanged)>(
-            policy_method) == &Policy::P2PEnabledChanged)
+    if (reinterpret_cast<typeof(&Policy::P2PEnabledChanged)>(policy_method) ==
+        &Policy::P2PEnabledChanged)
       return class_name + "P2PEnabledChanged";
 
     NOTREACHED();
     return class_name + "(unknown)";
   }
-
 
   // List of policy requests. A policy request takes an EvaluationContext as the
   // first argument, a State instance, a returned error message, a returned
@@ -244,9 +241,10 @@ class Policy {
 
   // UpdateCheckAllowed returns whether it is allowed to request an update check
   // to Omaha.
-  virtual EvalStatus UpdateCheckAllowed(
-      EvaluationContext* ec, State* state, std::string* error,
-      UpdateCheckParams* result) const = 0;
+  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+                                        State* state,
+                                        std::string* error,
+                                        UpdateCheckParams* result) const = 0;
 
   // UpdateCanBeApplied returns whether the given |install_plan| can be acted
   // on at this time.  The reason for not applying is returned in |result|.
@@ -265,12 +263,11 @@ class Policy {
   // that need to be persisted has changed, returns
   // EvalStatus::kAskMeAgainLater. Arguments include an |update_state| that
   // encapsulates data pertaining to the current ongoing update process.
-  virtual EvalStatus UpdateCanStart(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
-      UpdateDownloadParams* result,
-      UpdateState update_state) const = 0;
+  virtual EvalStatus UpdateCanStart(EvaluationContext* ec,
+                                    State* state,
+                                    std::string* error,
+                                    UpdateDownloadParams* result,
+                                    UpdateState update_state) const = 0;
 
   // Checks whether downloading of an update is allowed; currently, this checks
   // whether the network connection type is suitable for updating over.  May
@@ -278,26 +275,28 @@ class Policy {
   // Returns |EvalStatus::kSucceeded|, setting |result| according to whether or
   // not the current connection can be used; on error, returns
   // |EvalStatus::kFailed| and sets |error| accordingly.
-  virtual EvalStatus UpdateDownloadAllowed(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
-      bool* result) const = 0;
+  virtual EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
+                                           State* state,
+                                           std::string* error,
+                                           bool* result) const = 0;
 
   // Checks whether P2P is enabled. This may consult device policy and other
   // global settings.
-  virtual EvalStatus P2PEnabled(
-      EvaluationContext* ec, State* state, std::string* error,
-      bool* result) const = 0;
+  virtual EvalStatus P2PEnabled(EvaluationContext* ec,
+                                State* state,
+                                std::string* error,
+                                bool* result) const = 0;
 
   // Checks whether P2P is enabled, but blocks (returns
   // |EvalStatus::kAskMeAgainLater|) until it is different from |prev_result|.
   // If the P2P enabled status is not expected to change, will return
   // immediately with |EvalStatus::kSucceeded|. This internally uses the
   // P2PEnabled() policy above.
-  virtual EvalStatus P2PEnabledChanged(
-      EvaluationContext* ec, State* state, std::string* error,
-      bool* result, bool prev_result) const = 0;
+  virtual EvalStatus P2PEnabledChanged(EvaluationContext* ec,
+                                       State* state,
+                                       std::string* error,
+                                       bool* result,
+                                       bool prev_result) const = 0;
 
  protected:
   Policy() {}

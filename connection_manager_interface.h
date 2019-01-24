@@ -61,7 +61,7 @@ namespace connection_manager {
 // Factory function which creates a ConnectionManager.
 std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
     SystemState* system_state);
-}
+}  // namespace connection_manager
 
 }  // namespace chromeos_update_engine
 

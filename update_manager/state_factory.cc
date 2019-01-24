@@ -76,14 +76,12 @@ State* DefaultStateFactory(
   unique_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));
 
-  if (!(config_provider->Init() &&
-        device_policy_provider->Init() &&
+  if (!(config_provider->Init() && device_policy_provider->Init() &&
         random_provider->Init() &&
 #if USE_SHILL
         shill_provider->Init() &&
 #endif  // USE_SHILL
-        system_provider->Init() &&
-        time_provider->Init() &&
+        system_provider->Init() && time_provider->Init() &&
         updater_provider->Init())) {
     LOG(ERROR) << "Error initializing providers";
     return nullptr;

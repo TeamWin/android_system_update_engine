@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_generator/raw_filesystem.h"
 
+#include <memory>
+
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/update_metadata.pb.h"
@@ -24,8 +26,9 @@ using std::unique_ptr;
 
 namespace chromeos_update_engine {
 
-unique_ptr<RawFilesystem> RawFilesystem::Create(
-      const std::string& filename, uint64_t block_size, uint64_t block_count) {
+unique_ptr<RawFilesystem> RawFilesystem::Create(const std::string& filename,
+                                                uint64_t block_size,
+                                                uint64_t block_count) {
   unique_ptr<RawFilesystem> result(new RawFilesystem());
   result->filename_ = filename;
   result->block_size_ = block_size;
@@ -45,7 +48,7 @@ bool RawFilesystem::GetFiles(std::vector<File>* files) const {
   files->clear();
   File file;
   file.name = filename_;
-  file.extents = { ExtentForRange(0, block_count_) };
+  file.extents = {ExtentForRange(0, block_count_)};
   files->push_back(file);
   return true;
 }

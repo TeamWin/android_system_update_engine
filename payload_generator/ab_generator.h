@@ -48,12 +48,11 @@ class ABGenerator : public OperationsGenerator {
   // order. The operations are stored in |aops| and should be executed in that
   // order. All the offsets in the operations reference the data written to
   // |blob_file|.
-  bool GenerateOperations(
-      const PayloadGenerationConfig& config,
-      const PartitionConfig& old_part,
-      const PartitionConfig& new_part,
-      BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* aops) override;
+  bool GenerateOperations(const PayloadGenerationConfig& config,
+                          const PartitionConfig& old_part,
+                          const PartitionConfig& new_part,
+                          BlobFileWriter* blob_file,
+                          std::vector<AnnotatedOperation>* aops) override;
 
   // Split the operations in the vector of AnnotatedOperations |aops| such that
   // for every operation there is only one dst extent and updates |aops| with

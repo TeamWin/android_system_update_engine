@@ -81,10 +81,10 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   const size_t op_ex2_size = op_ex2_num_blocks * kBlockSize;
   InstallOperation op;
   op.set_type(orig_type);
-  *(op.add_dst_extents()) = ExtentForRange(op_ex1_start_block,
-                                           op_ex1_num_blocks);
-  *(op.add_dst_extents()) = ExtentForRange(op_ex2_start_block,
-                                           op_ex2_num_blocks);
+  *(op.add_dst_extents()) =
+      ExtentForRange(op_ex1_start_block, op_ex1_num_blocks);
+  *(op.add_dst_extents()) =
+      ExtentForRange(op_ex2_start_block, op_ex2_num_blocks);
 
   brillo::Blob op_data;
   op_data.insert(op_data.end(),
@@ -135,8 +135,8 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   EXPECT_FALSE(first_op.has_src_length());
   EXPECT_FALSE(first_op.has_dst_length());
   EXPECT_EQ(1, first_op.dst_extents().size());
-  EXPECT_TRUE(ExtentEquals(first_op.dst_extents(0), op_ex1_start_block,
-                           op_ex1_num_blocks));
+  EXPECT_TRUE(ExtentEquals(
+      first_op.dst_extents(0), op_ex1_start_block, op_ex1_num_blocks));
   // Obtain the expected blob.
   brillo::Blob first_expected_data(
       part_data.begin() + op_ex1_offset,
@@ -165,8 +165,8 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   EXPECT_FALSE(second_op.has_src_length());
   EXPECT_FALSE(second_op.has_dst_length());
   EXPECT_EQ(1, second_op.dst_extents().size());
-  EXPECT_TRUE(ExtentEquals(second_op.dst_extents(0), op_ex2_start_block,
-                           op_ex2_num_blocks));
+  EXPECT_TRUE(ExtentEquals(
+      second_op.dst_extents(0), op_ex2_start_block, op_ex2_num_blocks));
   // Obtain the expected blob.
   brillo::Blob second_expected_data(
       part_data.begin() + op_ex2_offset,
@@ -234,7 +234,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   const size_t first_op_size = first_op_num_blocks * kBlockSize;
   *(first_op.add_dst_extents()) = ExtentForRange(0, first_op_num_blocks);
   brillo::Blob first_op_data(part_data.begin(),
-                               part_data.begin() + first_op_size);
+                             part_data.begin() + first_op_size);
   brillo::Blob first_op_blob;
   if (orig_type == InstallOperation::REPLACE) {
     first_op_blob = first_op_data;
@@ -251,10 +251,10 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
 
   InstallOperation second_op;
   second_op.set_type(orig_type);
-  *(second_op.add_dst_extents()) = ExtentForRange(first_op_num_blocks,
-                                                  second_op_num_blocks);
+  *(second_op.add_dst_extents()) =
+      ExtentForRange(first_op_num_blocks, second_op_num_blocks);
   brillo::Blob second_op_data(part_data.begin() + first_op_size,
-                                part_data.begin() + total_op_size);
+                              part_data.begin() + total_op_size);
   brillo::Blob second_op_blob;
   if (orig_type == InstallOperation::REPLACE) {
     second_op_blob = second_op_data;
@@ -263,8 +263,8 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   }
   second_op.set_data_offset(first_op_blob.size());
   second_op.set_data_length(second_op_blob.size());
-  blob_data.insert(blob_data.end(), second_op_blob.begin(),
-                   second_op_blob.end());
+  blob_data.insert(
+      blob_data.end(), second_op_blob.begin(), second_op_blob.end());
   AnnotatedOperation second_aop;
   second_aop.op = second_op;
   second_aop.name = "second";
@@ -300,7 +300,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
 
   // Check to see if the blob pointed to in the new extent has what we expect.
   brillo::Blob expected_data(part_data.begin(),
-                               part_data.begin() + total_op_size);
+                             part_data.begin() + total_op_size);
   brillo::Blob expected_blob;
   if (compressible) {
     ASSERT_TRUE(BzipCompress(expected_data, &expected_blob));

@@ -40,9 +40,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
       ServiceDelegateAndroidInterface* service_delegate);
   ~BinderUpdateEngineAndroidService() override = default;
 
-  const char* ServiceName() const {
-    return "android.os.UpdateEngineService";
-  }
+  const char* ServiceName() const { return "android.os.UpdateEngineService"; }
 
   // ServiceObserverInterface overrides.
   void SendStatusUpdate(

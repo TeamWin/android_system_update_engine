@@ -119,8 +119,7 @@ class P2PManager {
   //
   // If the file already exists, true is returned. Any on-disk xattr
   // is not updated.
-  virtual bool FileShare(const std::string& file_id,
-                         size_t expected_size) = 0;
+  virtual bool FileShare(const std::string& file_id, size_t expected_size) = 0;
 
   // Gets a fully qualified path for the file identified by |file_id|.
   // If the file has not been shared already using the FileShare()
@@ -148,8 +147,7 @@ class P2PManager {
   // Gets whether the file identified by |file_id| is publicly
   // visible. If |out_result| is not null, the result is returned
   // there. Returns false if an error occurs.
-  virtual bool FileGetVisible(const std::string& file_id,
-                              bool *out_result) = 0;
+  virtual bool FileGetVisible(const std::string& file_id, bool* out_result) = 0;
 
   // Makes the file identified by |file_id| publicly visible
   // (e.g. removes the .tmp extension). If the file is already
@@ -175,8 +173,8 @@ class P2PManager {
   // |max_file_age| parameter specifies the maximum file age after
   // performing housekeeping (pass zero to allow files of any age).
   static P2PManager* Construct(
-      Configuration *configuration,
-      ClockInterface *clock,
+      Configuration* configuration,
+      ClockInterface* clock,
       chromeos_update_manager::UpdateManager* update_manager,
       const std::string& file_extension,
       const int num_files_to_keep,

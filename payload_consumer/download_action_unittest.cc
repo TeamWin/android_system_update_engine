@@ -52,13 +52,13 @@ using base::WriteFile;
 using std::string;
 using std::unique_ptr;
 using test_utils::ScopedTempFile;
+using testing::_;
 using testing::AtLeast;
 using testing::InSequence;
 using testing::Return;
 using testing::SetArgPointee;
-using testing::_;
 
-class DownloadActionTest : public ::testing::Test { };
+class DownloadActionTest : public ::testing::Test {};
 
 namespace {
 
@@ -158,9 +158,8 @@ void TestWithData(const brillo::Blob& data,
   auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
   feeder_action->set_obj(install_plan);
   MockPrefs prefs;
-  MockHttpFetcher* http_fetcher = new MockHttpFetcher(data.data(),
-                                                      data.size(),
-                                                      nullptr);
+  MockHttpFetcher* http_fetcher =
+      new MockHttpFetcher(data.data(), data.size(), nullptr);
   // takes ownership of passed in HttpFetcher
   auto download_action =
       std::make_unique<DownloadAction>(&prefs,
@@ -209,7 +208,7 @@ TEST(DownloadActionTest, SimpleTest) {
   const char* foo = "foo";
   small.insert(small.end(), foo, foo + strlen(foo));
   TestWithData(small,
-               0,  // fail_write
+               0,      // fail_write
                true);  // use_download_delegate
 }
 
@@ -221,7 +220,7 @@ TEST(DownloadActionTest, LargeTest) {
     c = ('9' == c) ? '0' : c + 1;
   }
   TestWithData(big,
-               0,  // fail_write
+               0,      // fail_write
                true);  // use_download_delegate
 }
 
@@ -233,7 +232,7 @@ TEST(DownloadActionTest, FailWriteTest) {
     c = ('9' == c) ? '0' : c + 1;
   }
   TestWithData(big,
-               2,  // fail_write
+               2,      // fail_write
                true);  // use_download_delegate
 }
 
@@ -242,7 +241,7 @@ TEST(DownloadActionTest, NoDownloadDelegateTest) {
   const char* foo = "foofoo";
   small.insert(small.end(), foo, foo + strlen(foo));
   TestWithData(small,
-               0,  // fail_write
+               0,       // fail_write
                false);  // use_download_delegate
 }
 
@@ -352,8 +351,7 @@ void TestTerminateEarly(bool use_download_delegate) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
-  brillo::Blob data(kMockHttpFetcherChunkSize +
-                      kMockHttpFetcherChunkSize / 2);
+  brillo::Blob data(kMockHttpFetcherChunkSize + kMockHttpFetcherChunkSize / 2);
   memset(data.data(), 0, data.size());
 
   ScopedTempFile temp_file;
@@ -414,7 +412,7 @@ TEST(DownloadActionTest, TerminateEarlyNoDownloadDelegateTest) {
 
 class DownloadActionTestAction;
 
-template<>
+template <>
 class ActionTraits<DownloadActionTestAction> {
  public:
   typedef InstallPlan OutputObjectType;
@@ -516,20 +514,15 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 class P2PDownloadActionTest : public testing::Test {
  protected:
   P2PDownloadActionTest()
-    : start_at_offset_(0),
-      fake_um_(fake_system_state_.fake_clock()) {}
+      : start_at_offset_(0), fake_um_(fake_system_state_.fake_clock()) {}
 
   ~P2PDownloadActionTest() override {}
 
   // Derived from testing::Test.
-  void SetUp() override {
-    loop_.SetAsCurrent();
-  }
+  void SetUp() override { loop_.SetAsCurrent(); }
 
   // Derived from testing::Test.
-  void TearDown() override {
-    EXPECT_FALSE(loop_.PendingTasks());
-  }
+  void TearDown() override { EXPECT_FALSE(loop_.PendingTasks()); }
 
   // To be called by tests to setup the download. The
   // |starting_offset| parameter is for where to resume.
@@ -541,10 +534,13 @@ class P2PDownloadActionTest : public testing::Test {
       data_ += 'a' + (i % 25);
 
     // Setup p2p.
-    FakeP2PManagerConfiguration *test_conf = new FakeP2PManagerConfiguration();
-    p2p_manager_.reset(P2PManager::Construct(
-        test_conf, nullptr, &fake_um_, "cros_au", 3,
-        base::TimeDelta::FromDays(5)));
+    FakeP2PManagerConfiguration* test_conf = new FakeP2PManagerConfiguration();
+    p2p_manager_.reset(P2PManager::Construct(test_conf,
+                                             nullptr,
+                                             &fake_um_,
+                                             "cros_au",
+                                             3,
+                                             base::TimeDelta::FromDays(5)));
     fake_system_state_.set_p2p_manager(p2p_manager_.get());
   }
 
@@ -634,8 +630,8 @@ TEST_F(P2PDownloadActionTest, IsWrittenTo) {
   EXPECT_EQ(static_cast<int>(data_.length()),
             p2p_manager_->FileGetExpectedSize(file_id));
   string p2p_file_contents;
-  EXPECT_TRUE(ReadFileToString(p2p_manager_->FileGetPath(file_id),
-                               &p2p_file_contents));
+  EXPECT_TRUE(
+      ReadFileToString(p2p_manager_->FileGetPath(file_id), &p2p_file_contents));
   EXPECT_EQ(data_, p2p_file_contents);
 }
 
@@ -660,8 +656,10 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
   string existing_data;
   for (unsigned int i = 0; i < 1000; i++)
     existing_data += '0' + (i % 10);
-  ASSERT_EQ(WriteFile(p2p_manager_->FileGetPath(file_id), existing_data.c_str(),
-                      1000), 1000);
+  ASSERT_EQ(
+      WriteFile(
+          p2p_manager_->FileGetPath(file_id), existing_data.c_str(), 1000),
+      1000);
 
   StartDownload(true);  // use_p2p_to_share
 
@@ -675,8 +673,8 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
   string p2p_file_contents;
   // Check that the first 1000 bytes wasn't touched and that we
   // appended the remaining as appropriate.
-  EXPECT_TRUE(ReadFileToString(p2p_manager_->FileGetPath(file_id),
-                               &p2p_file_contents));
+  EXPECT_TRUE(
+      ReadFileToString(p2p_manager_->FileGetPath(file_id), &p2p_file_contents));
   EXPECT_EQ(existing_data, p2p_file_contents.substr(0, 1000));
   EXPECT_EQ(data_.substr(1000), p2p_file_contents.substr(1000));
 }
@@ -692,8 +690,10 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
   string existing_data;
   for (unsigned int i = 0; i < 1000; i++)
     existing_data += '0' + (i % 10);
-  ASSERT_EQ(WriteFile(p2p_manager_->FileGetPath(file_id), existing_data.c_str(),
-                      1000), 1000);
+  ASSERT_EQ(
+      WriteFile(
+          p2p_manager_->FileGetPath(file_id), existing_data.c_str(), 1000),
+      1000);
 
   // Check that the file is there.
   EXPECT_EQ(1000, p2p_manager_->FileGetSize(file_id));

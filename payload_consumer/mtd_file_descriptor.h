@@ -20,6 +20,8 @@
 // This module defines file descriptors that deal with NAND media. We are
 // concerned with raw NAND access (as MTD device), and through UBI layer.
 
+#include <memory>
+
 #include <mtdutils.h>
 
 #include "update_engine/payload_consumer/file_descriptor.h"
@@ -86,10 +88,7 @@ class UbiFileDescriptor : public EintrSafeFileDescriptor {
   bool Close() override;
 
  private:
-  enum Mode {
-    kReadOnly,
-    kWriteOnly
-  };
+  enum Mode { kReadOnly, kWriteOnly };
 
   uint64_t usable_eb_blocks_;
   uint64_t eraseblock_size_;

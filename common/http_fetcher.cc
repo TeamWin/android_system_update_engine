@@ -29,7 +29,8 @@ HttpFetcher::~HttpFetcher() {
   CancelProxyResolution();
 }
 
-void HttpFetcher::SetPostData(const void* data, size_t size,
+void HttpFetcher::SetPostData(const void* data,
+                              size_t size,
                               HttpContentType type) {
   post_data_set_ = true;
   post_data_.clear();

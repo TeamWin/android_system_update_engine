@@ -37,7 +37,7 @@ class UmTestUtils {
   }
 
   // Calls GetValue on |variable| and expects its result to be |expected|.
-  template<typename T>
+  template <typename T>
   static void ExpectVariableHasValue(const T& expected, Variable<T>* variable) {
     ASSERT_NE(nullptr, variable);
     std::unique_ptr<const T> value(
@@ -47,7 +47,7 @@ class UmTestUtils {
   }
 
   // Calls GetValue on |variable| and expects its result to be null.
-  template<typename T>
+  template <typename T>
   static void ExpectVariableNotSet(Variable<T>* variable) {
     ASSERT_NE(nullptr, variable);
     std::unique_ptr<const T> value(

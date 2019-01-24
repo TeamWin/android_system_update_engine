@@ -34,8 +34,7 @@ bool DirectFileWriter::Write(const void* bytes, size_t count) {
 
   size_t bytes_written = 0;
   while (bytes_written < count) {
-    ssize_t rc = write(fd_, char_bytes + bytes_written,
-                       count - bytes_written);
+    ssize_t rc = write(fd_, char_bytes + bytes_written, count - bytes_written);
     if (rc < 0)
       return false;
     bytes_written += rc;
