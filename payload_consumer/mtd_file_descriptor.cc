@@ -67,9 +67,8 @@ std::unique_ptr<UbiVolumeInfo> GetUbiVolumeInfo(const string& path) {
     return ret;
   }
 
-  base::TrimWhitespaceASCII(s_reserved_ebs,
-                            base::TRIM_TRAILING,
-                            &s_reserved_ebs);
+  base::TrimWhitespaceASCII(
+      s_reserved_ebs, base::TRIM_TRAILING, &s_reserved_ebs);
   base::TrimWhitespaceASCII(s_eb_size, base::TRIM_TRAILING, &s_eb_size);
 
   uint64_t reserved_ebs, eb_size;
@@ -142,9 +141,8 @@ ssize_t MtdFileDescriptor::Read(void* buf, size_t count) {
 
 ssize_t MtdFileDescriptor::Write(const void* buf, size_t count) {
   CHECK(write_ctx_);
-  ssize_t result = mtd_write_data(write_ctx_.get(),
-                                  static_cast<const char*>(buf),
-                                  count);
+  ssize_t result =
+      mtd_write_data(write_ctx_.get(), static_cast<const char*>(buf), count);
   if (result > 0) {
     nr_written_ += result;
   }
@@ -168,8 +166,8 @@ bool MtdFileDescriptor::Close() {
 bool UbiFileDescriptor::IsUbi(const char* path) {
   base::FilePath device_node(path);
   base::FilePath ubi_name(device_node.BaseName());
-  TEST_AND_RETURN_FALSE(base::StartsWith(ubi_name.MaybeAsASCII(), "ubi",
-                                         base::CompareCase::SENSITIVE));
+  TEST_AND_RETURN_FALSE(base::StartsWith(
+      ubi_name.MaybeAsASCII(), "ubi", base::CompareCase::SENSITIVE));
 
   return static_cast<bool>(GetUbiVolumeInfo(path));
 }

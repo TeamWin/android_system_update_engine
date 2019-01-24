@@ -32,8 +32,8 @@ class FakeConfigProvider : public ConfigProvider {
   }
 
  private:
-  FakeVariable<bool> var_is_oobe_enabled_{  // NOLINT(whitespace/braces)
-      "is_oobe_enabled", kVariableModeConst};
+  FakeVariable<bool> var_is_oobe_enabled_{"is_oobe_enabled",
+                                          kVariableModeConst};
 
   DISALLOW_COPY_AND_ASSIGN(FakeConfigProvider);
 };

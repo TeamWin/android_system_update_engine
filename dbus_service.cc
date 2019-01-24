@@ -34,8 +34,7 @@ using std::vector;
 using update_engine::UpdateEngineStatus;
 
 DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
-    : common_(new UpdateEngineService{system_state}) {
-}
+    : common_(new UpdateEngineService{system_state}) {}
 
 // org::chromium::UpdateEngineInterfaceInterface methods implementation.
 

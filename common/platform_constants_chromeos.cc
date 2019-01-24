@@ -28,8 +28,7 @@ const char kOmahaPlatformName[] = "Chrome OS";
 const char kUpdatePayloadPublicKeyPath[] =
     "/usr/share/update_engine/update-payload-key.pub.pem";
 const char kCACertificatesPath[] = "/usr/share/chromeos-ca-certificates";
-const char kOmahaResponseDeadlineFile[] =
-    "/tmp/update-check-response-deadline";
+const char kOmahaResponseDeadlineFile[] = "/tmp/update-check-response-deadline";
 // This directory is wiped during powerwash.
 const char kNonVolatileDirectory[] = "/var/lib/update_engine";
 const char kPostinstallMountOptions[] = "";

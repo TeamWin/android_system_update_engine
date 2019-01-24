@@ -20,4 +20,4 @@ namespace chromeos_update_engine {
 
 const Vertex::Index Vertex::kInvalidIndex = static_cast<Vertex::Index>(-1);
 
-}  // chromeos_update_engine
+}  // namespace chromeos_update_engine

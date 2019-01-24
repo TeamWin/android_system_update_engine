@@ -26,7 +26,7 @@ namespace chromeos_update_manager {
 
 // A fake typed variable to use while testing policy implementations. The
 // variable can be instructed to return any object of its type.
-template<typename T>
+template <typename T>
 class FakeVariable : public Variable<T> {
  public:
   FakeVariable(const std::string& name, VariableMode mode)
@@ -39,14 +39,10 @@ class FakeVariable : public Variable<T> {
   // returned by GetValue(), the pointer is released and has to be set again.
   // A value of null means that the GetValue() call will fail and return
   // null.
-  void reset(const T* p_value) {
-    ptr_.reset(p_value);
-  }
+  void reset(const T* p_value) { ptr_.reset(p_value); }
 
   // Make the NotifyValueChanged() public for FakeVariables.
-  void NotifyValueChanged() {
-    Variable<T>::NotifyValueChanged();
-  }
+  void NotifyValueChanged() { Variable<T>::NotifyValueChanged(); }
 
  protected:
   // Variable<T> overrides.

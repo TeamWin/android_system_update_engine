@@ -29,11 +29,10 @@ off_t BlobFileWriter::StoreBlob(const brillo::Blob& blob) {
   *blob_file_size_ += blob.size();
 
   stored_blobs_++;
-  if (total_blobs_ > 0 &&
-      (10 * (stored_blobs_ - 1) / total_blobs_) !=
-      (10 * stored_blobs_ / total_blobs_)) {
-    LOG(INFO) << (100 * stored_blobs_ / total_blobs_)
-              << "% complete " << stored_blobs_ << "/" << total_blobs_
+  if (total_blobs_ > 0 && (10 * (stored_blobs_ - 1) / total_blobs_) !=
+                              (10 * stored_blobs_ / total_blobs_)) {
+    LOG(INFO) << (100 * stored_blobs_ / total_blobs_) << "% complete "
+              << stored_blobs_ << "/" << total_blobs_
               << " ops (output size: " << *blob_file_size_ << ")";
   }
   return result;

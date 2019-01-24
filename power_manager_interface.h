@@ -40,7 +40,7 @@ class PowerManagerInterface {
 namespace power_manager {
 // Factory function which create a PowerManager.
 std::unique_ptr<PowerManagerInterface> CreatePowerManager();
-}
+}  // namespace power_manager
 
 }  // namespace chromeos_update_engine
 

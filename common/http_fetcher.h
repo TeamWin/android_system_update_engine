@@ -73,9 +73,7 @@ class HttpFetcher {
   void SetProxies(const std::deque<std::string>& proxies) {
     proxies_ = proxies;
   }
-  const std::string& GetCurrentProxy() const {
-    return proxies_.front();
-  }
+  const std::string& GetCurrentProxy() const { return proxies_.front(); }
   bool HasProxy() const { return !proxies_.empty(); }
   void PopProxy() { proxies_.pop_front(); }
 

@@ -33,8 +33,8 @@ class MockOmahaRequestParams : public OmahaRequestParams {
     // migration from tests using the real RequestParams when they should have
     // use a fake or mock.
     ON_CALL(*this, GetAppId())
-        .WillByDefault(testing::Invoke(
-            this, &MockOmahaRequestParams::FakeGetAppId));
+        .WillByDefault(
+            testing::Invoke(this, &MockOmahaRequestParams::FakeGetAppId));
     ON_CALL(*this, SetTargetChannel(testing::_, testing::_, testing::_))
         .WillByDefault(testing::Invoke(
             this, &MockOmahaRequestParams::FakeSetTargetChannel));
@@ -47,9 +47,10 @@ class MockOmahaRequestParams : public OmahaRequestParams {
   }
 
   MOCK_CONST_METHOD0(GetAppId, std::string(void));
-  MOCK_METHOD3(SetTargetChannel, bool(const std::string& channel,
-                                      bool is_powerwash_allowed,
-                                      std::string* error));
+  MOCK_METHOD3(SetTargetChannel,
+               bool(const std::string& channel,
+                    bool is_powerwash_allowed,
+                    std::string* error));
   MOCK_CONST_METHOD0(target_version_prefix, std::string(void));
   MOCK_METHOD0(UpdateDownloadChannel, void(void));
   MOCK_CONST_METHOD0(IsUpdateUrlOfficial, bool(void));
@@ -58,16 +59,13 @@ class MockOmahaRequestParams : public OmahaRequestParams {
  private:
   // Wrappers to call the parent class and behave like the real object by
   // default. See "Delegating Calls to a Parent Class" in gmock's documentation.
-  std::string FakeGetAppId() const {
-    return OmahaRequestParams::GetAppId();
-  }
+  std::string FakeGetAppId() const { return OmahaRequestParams::GetAppId(); }
 
   bool FakeSetTargetChannel(const std::string& channel,
                             bool is_powerwash_allowed,
                             std::string* error) {
-    return OmahaRequestParams::SetTargetChannel(channel,
-                                                is_powerwash_allowed,
-                                                error);
+    return OmahaRequestParams::SetTargetChannel(
+        channel, is_powerwash_allowed, error);
   }
 
   void FakeUpdateDownloadChannel() {

@@ -89,7 +89,7 @@ bool EintrSafeFileDescriptor::BlkIoctl(int request,
   // operations.
 #ifndef BLKZEROOUT
   return false;
-#else  // defined(BLKZEROOUT)
+#else   // defined(BLKZEROOUT)
   DCHECK(request == BLKDISCARD || request == BLKZEROOUT ||
          request == BLKSECDISCARD);
   // On some devices, the BLKDISCARD will actually read back as zeros, instead

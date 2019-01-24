@@ -34,7 +34,7 @@ void AppendBlockToExtents(std::vector<Extent>* extents, uint64_t block);
 
 // Takes a collection (vector or RepeatedPtrField) of Extent and
 // returns a vector of the blocks referenced, in order.
-template<typename T>
+template <typename T>
 std::vector<uint64_t> ExpandExtents(const T& extents) {
   std::vector<uint64_t> ret;
   for (const auto& extent : extents) {
@@ -42,7 +42,8 @@ std::vector<uint64_t> ExpandExtents(const T& extents) {
       ret.resize(ret.size() + extent.num_blocks(), kSparseHole);
     } else {
       for (uint64_t block = extent.start_block();
-           block < (extent.start_block() + extent.num_blocks()); block++) {
+           block < (extent.start_block() + extent.num_blocks());
+           block++) {
         ret.push_back(block);
       }
     }
@@ -64,8 +65,8 @@ std::string ExtentsToString(const std::vector<Extent>& extents);
 // Takes a pointer to extents |extents| and extents |extents_to_add|, and
 // merges them by adding |extents_to_add| to |extents| and normalizing.
 void ExtendExtents(
-  google::protobuf::RepeatedPtrField<Extent>* extents,
-  const google::protobuf::RepeatedPtrField<Extent>& extents_to_add);
+    google::protobuf::RepeatedPtrField<Extent>* extents,
+    const google::protobuf::RepeatedPtrField<Extent>& extents_to_add);
 
 // Takes a vector of extents and normalizes those extents. Expects the extents
 // to be sorted by start block. E.g. if |extents| is [(1, 2), (3, 5), (10, 2)]
@@ -77,7 +78,8 @@ void NormalizeExtents(std::vector<Extent>* extents);
 // blocks. The returned list skips the first |block_offset| blocks from the
 // |extents| and cotains |block_count| blocks (or less if |extents| is shorter).
 std::vector<Extent> ExtentsSublist(const std::vector<Extent>& extents,
-                                   uint64_t block_offset, uint64_t block_count);
+                                   uint64_t block_offset,
+                                   uint64_t block_count);
 
 bool operator==(const Extent& a, const Extent& b);
 

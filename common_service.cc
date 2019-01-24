@@ -50,7 +50,11 @@ namespace chromeos_update_engine {
 namespace {
 // Log and set the error on the passed ErrorPtr.
 void LogAndSetError(ErrorPtr* error,
+#if BASE_VER < 576279
+                    const tracked_objects::Location& location,
+#else
                     const base::Location& location,
+#endif
                     const string& reason) {
   brillo::Error::AddTo(error,
                        location,
@@ -67,8 +71,7 @@ const char* const UpdateEngineService::kErrorFailed =
     "org.chromium.UpdateEngine.Error.Failed";
 
 UpdateEngineService::UpdateEngineService(SystemState* system_state)
-    : system_state_(system_state) {
-}
+    : system_state_(system_state) {}
 
 // org::chromium::UpdateEngineInterfaceInterface methods implementation.
 

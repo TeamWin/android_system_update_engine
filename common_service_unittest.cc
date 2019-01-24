@@ -43,9 +43,7 @@ class UpdateEngineServiceTest : public ::testing::Test {
       : mock_update_attempter_(fake_system_state_.mock_update_attempter()),
         common_service_(&fake_system_state_) {}
 
-  void SetUp() override {
-    fake_system_state_.set_device_policy(nullptr);
-  }
+  void SetUp() override { fake_system_state_.set_device_policy(nullptr); }
 
   // Fake/mock infrastructure.
   FakeSystemState fake_system_state_;
@@ -133,7 +131,8 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
 TEST_F(UpdateEngineServiceTest, SetChannelWithInvalidChannel) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
   EXPECT_CALL(*fake_system_state_.mock_request_params(),
-              SetTargetChannel("foo-channel", true, _)).WillOnce(Return(false));
+              SetTargetChannel("foo-channel", true, _))
+      .WillOnce(Return(false));
 
   EXPECT_FALSE(common_service_.SetChannel(&error_, "foo-channel", true));
   ASSERT_NE(nullptr, error_);

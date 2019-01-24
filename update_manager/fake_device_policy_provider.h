@@ -64,13 +64,11 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   }
 
   FakeVariable<std::set<chromeos_update_engine::ConnectionType>>*
-      var_allowed_connection_types_for_update() override {
+  var_allowed_connection_types_for_update() override {
     return &var_allowed_connection_types_for_update_;
   }
 
-  FakeVariable<std::string>* var_owner() override {
-    return &var_owner_;
-  }
+  FakeVariable<std::string>* var_owner() override { return &var_owner_; }
 
   FakeVariable<bool>* var_http_downloads_enabled() override {
     return &var_http_downloads_enabled_;
@@ -94,28 +92,27 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   }
 
  private:
-  FakeVariable<bool> var_device_policy_is_loaded_{
-      "policy_is_loaded", kVariableModePoll};
-  FakeVariable<std::string> var_release_channel_{
-      "release_channel", kVariableModePoll};
-  FakeVariable<bool> var_release_channel_delegated_{
-      "release_channel_delegated", kVariableModePoll};
-  FakeVariable<bool> var_update_disabled_{
-      "update_disabled", kVariableModePoll};
-  FakeVariable<std::string> var_target_version_prefix_{
-      "target_version_prefix", kVariableModePoll};
+  FakeVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",
+                                                  kVariableModePoll};
+  FakeVariable<std::string> var_release_channel_{"release_channel",
+                                                 kVariableModePoll};
+  FakeVariable<bool> var_release_channel_delegated_{"release_channel_delegated",
+                                                    kVariableModePoll};
+  FakeVariable<bool> var_update_disabled_{"update_disabled", kVariableModePoll};
+  FakeVariable<std::string> var_target_version_prefix_{"target_version_prefix",
+                                                       kVariableModePoll};
   FakeVariable<RollbackToTargetVersion> var_rollback_to_target_version_{
       "rollback_to_target_version", kVariableModePoll};
   FakeVariable<int> var_rollback_allowed_milestones_{
       "rollback_allowed_milestones", kVariableModePoll};
-  FakeVariable<base::TimeDelta> var_scatter_factor_{
-      "scatter_factor", kVariableModePoll};
+  FakeVariable<base::TimeDelta> var_scatter_factor_{"scatter_factor",
+                                                    kVariableModePoll};
   FakeVariable<std::set<chromeos_update_engine::ConnectionType>>
       var_allowed_connection_types_for_update_{
           "allowed_connection_types_for_update", kVariableModePoll};
   FakeVariable<std::string> var_owner_{"owner", kVariableModePoll};
-  FakeVariable<bool> var_http_downloads_enabled_{
-      "http_downloads_enabled", kVariableModePoll};
+  FakeVariable<bool> var_http_downloads_enabled_{"http_downloads_enabled",
+                                                 kVariableModePoll};
   FakeVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled", kVariableModePoll};
   FakeVariable<bool> var_allow_kiosk_app_control_chrome_version_{
       "allow_kiosk_app_control_chrome_version", kVariableModePoll};

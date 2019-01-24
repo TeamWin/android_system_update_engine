@@ -198,12 +198,10 @@ bool ImageConfig::ValidateDynamicPartitionMetadata() const {
 }
 
 bool ImageConfig::ImageInfoIsEmpty() const {
-  return image_info.board().empty()
-    && image_info.key().empty()
-    && image_info.channel().empty()
-    && image_info.version().empty()
-    && image_info.build_channel().empty()
-    && image_info.build_version().empty();
+  return image_info.board().empty() && image_info.key().empty() &&
+         image_info.channel().empty() && image_info.version().empty() &&
+         image_info.build_channel().empty() &&
+         image_info.build_version().empty();
 }
 
 PayloadVersion::PayloadVersion(uint64_t major_version, uint32_t minor_version) {

@@ -40,12 +40,11 @@ class OperationsGenerator {
   // The operations generated will refer to offsets in the file |blob_file|,
   // where this function stores the output, but not necessarily in the same
   // order as they appear in the |aops|.
-  virtual bool GenerateOperations(
-      const PayloadGenerationConfig& config,
-      const PartitionConfig& old_part,
-      const PartitionConfig& new_part,
-      BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* aops) = 0;
+  virtual bool GenerateOperations(const PayloadGenerationConfig& config,
+                                  const PartitionConfig& old_part,
+                                  const PartitionConfig& new_part,
+                                  BlobFileWriter* blob_file,
+                                  std::vector<AnnotatedOperation>* aops) = 0;
 
  protected:
   OperationsGenerator() = default;

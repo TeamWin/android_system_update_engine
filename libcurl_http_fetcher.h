@@ -151,11 +151,13 @@ class LibcurlHttpFetcher : public HttpFetcher {
   void SetupMessageLoopSources();
 
   // Callback called by libcurl when new data has arrived on the transfer
-  size_t LibcurlWrite(void *ptr, size_t size, size_t nmemb);
-  static size_t StaticLibcurlWrite(void *ptr, size_t size,
-                                   size_t nmemb, void *stream) {
-    return reinterpret_cast<LibcurlHttpFetcher*>(stream)->
-        LibcurlWrite(ptr, size, nmemb);
+  size_t LibcurlWrite(void* ptr, size_t size, size_t nmemb);
+  static size_t StaticLibcurlWrite(void* ptr,
+                                   size_t size,
+                                   size_t nmemb,
+                                   void* stream) {
+    return reinterpret_cast<LibcurlHttpFetcher*>(stream)->LibcurlWrite(
+        ptr, size, nmemb);
   }
 
   // Cleans up the following if they are non-null:

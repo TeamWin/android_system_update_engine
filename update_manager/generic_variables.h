@@ -47,7 +47,7 @@ namespace chromeos_update_manager {
 //    private:
 //     MyType foo_;
 //   };
-template<typename T>
+template <typename T>
 class PollCopyVariable : public Variable<T> {
  public:
   // Creates the variable returning copies of the passed |ref|. The reference to
@@ -55,24 +55,35 @@ class PollCopyVariable : public Variable<T> {
   // method is called. If |is_set_p| is not null, then this flag will be
   // consulted prior to returning the value, and an |errmsg| will be returned if
   // it is not set.
-  PollCopyVariable(const std::string& name, const T& ref, const bool* is_set_p,
+  PollCopyVariable(const std::string& name,
+                   const T& ref,
+                   const bool* is_set_p,
                    const std::string& errmsg)
-      : Variable<T>(name, kVariableModePoll), ref_(ref), is_set_p_(is_set_p),
+      : Variable<T>(name, kVariableModePoll),
+        ref_(ref),
+        is_set_p_(is_set_p),
         errmsg_(errmsg) {}
   PollCopyVariable(const std::string& name, const T& ref, const bool* is_set_p)
       : PollCopyVariable(name, ref, is_set_p, std::string()) {}
   PollCopyVariable(const std::string& name, const T& ref)
       : PollCopyVariable(name, ref, nullptr) {}
 
-  PollCopyVariable(const std::string& name, const base::TimeDelta poll_interval,
-                   const T& ref, const bool* is_set_p,
+  PollCopyVariable(const std::string& name,
+                   const base::TimeDelta poll_interval,
+                   const T& ref,
+                   const bool* is_set_p,
                    const std::string& errmsg)
-      : Variable<T>(name, poll_interval), ref_(ref), is_set_p_(is_set_p),
+      : Variable<T>(name, poll_interval),
+        ref_(ref),
+        is_set_p_(is_set_p),
         errmsg_(errmsg) {}
-  PollCopyVariable(const std::string& name, const base::TimeDelta poll_interval,
-                   const T& ref, const bool* is_set_p)
+  PollCopyVariable(const std::string& name,
+                   const base::TimeDelta poll_interval,
+                   const T& ref,
+                   const bool* is_set_p)
       : PollCopyVariable(name, poll_interval, ref, is_set_p, std::string()) {}
-  PollCopyVariable(const std::string& name, const base::TimeDelta poll_interval,
+  PollCopyVariable(const std::string& name,
+                   const base::TimeDelta poll_interval,
                    const T& ref)
       : PollCopyVariable(name, poll_interval, ref, nullptr) {}
 
@@ -109,7 +120,7 @@ class PollCopyVariable : public Variable<T> {
 
 // Variable class returning a constant value that is cached on the variable when
 // it is created.
-template<typename T>
+template <typename T>
 class ConstCopyVariable : public Variable<T> {
  public:
   // Creates the variable returning copies of the passed |obj|. The value passed
@@ -132,7 +143,7 @@ class ConstCopyVariable : public Variable<T> {
 
 // Variable class returning a copy of a value returned by a given function. The
 // function is called every time the variable is being polled.
-template<typename T>
+template <typename T>
 class CallCopyVariable : public Variable<T> {
  public:
   CallCopyVariable(const std::string& name, base::Callback<T(void)> func)
@@ -160,7 +171,6 @@ class CallCopyVariable : public Variable<T> {
   DISALLOW_COPY_AND_ASSIGN(CallCopyVariable);
 };
 
-
 // A Variable class to implement simple Async variables. It provides two methods
 // SetValue and UnsetValue to modify the current value of the variable and
 // notify the registered observers whenever the value changed.
@@ -168,7 +178,7 @@ class CallCopyVariable : public Variable<T> {
 // The type T needs to be copy-constructible, default-constructible and have an
 // operator== (to determine if the value changed), which makes this class
 // suitable for basic types.
-template<typename T>
+template <typename T>
 class AsyncCopyVariable : public Variable<T> {
  public:
   explicit AsyncCopyVariable(const std::string& name)
@@ -176,7 +186,8 @@ class AsyncCopyVariable : public Variable<T> {
 
   AsyncCopyVariable(const std::string& name, const T value)
       : Variable<T>(name, kVariableModeAsync),
-        has_value_(true), value_(value) {}
+        has_value_(true),
+        value_(value) {}
 
   void SetValue(const T& new_value) {
     bool should_notify = !(has_value_ && new_value == value_);

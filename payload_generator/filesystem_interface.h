@@ -45,9 +45,7 @@ class FilesystemInterface {
   // all sort of files, like symlinks, hardlinks, directories and even a file
   // entry representing the metadata, free space, journaling data, etc.
   struct File {
-    File() {
-      memset(&file_stat, 0, sizeof(file_stat));
-    }
+    File() { memset(&file_stat, 0, sizeof(file_stat)); }
 
     // The stat struct for the file. This is invalid (inode 0) for some
     // pseudo-files.

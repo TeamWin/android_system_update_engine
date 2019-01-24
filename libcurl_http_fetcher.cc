@@ -164,29 +164,26 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   bool is_direct = (GetCurrentProxy() == kNoProxy);
   LOG(INFO) << "Using proxy: " << (is_direct ? "no" : "yes");
   if (is_direct) {
-    CHECK_EQ(curl_easy_setopt(curl_handle_,
-                              CURLOPT_PROXY,
-                              ""), CURLE_OK);
+    CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_PROXY, ""), CURLE_OK);
   } else {
-    CHECK_EQ(curl_easy_setopt(curl_handle_,
-                              CURLOPT_PROXY,
-                              GetCurrentProxy().c_str()), CURLE_OK);
+    CHECK_EQ(curl_easy_setopt(
+                 curl_handle_, CURLOPT_PROXY, GetCurrentProxy().c_str()),
+             CURLE_OK);
     // Curl seems to require us to set the protocol
     curl_proxytype type;
     if (GetProxyType(GetCurrentProxy(), &type)) {
-      CHECK_EQ(curl_easy_setopt(curl_handle_,
-                                CURLOPT_PROXYTYPE,
-                                type), CURLE_OK);
+      CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_PROXYTYPE, type),
+               CURLE_OK);
     }
   }
 
   if (post_data_set_) {
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_POST, 1), CURLE_OK);
-    CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_POSTFIELDS,
-                              post_data_.data()),
-             CURLE_OK);
-    CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_POSTFIELDSIZE,
-                              post_data_.size()),
+    CHECK_EQ(
+        curl_easy_setopt(curl_handle_, CURLOPT_POSTFIELDS, post_data_.data()),
+        CURLE_OK);
+    CHECK_EQ(curl_easy_setopt(
+                 curl_handle_, CURLOPT_POSTFIELDSIZE, post_data_.size()),
              CURLE_OK);
   }
 
@@ -225,7 +222,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
     size_t end_offset = 0;
     if (download_length_) {
       end_offset = static_cast<size_t>(resume_offset_) + download_length_ - 1;
-      CHECK_LE((size_t) resume_offset_, end_offset);
+      CHECK_LE((size_t)resume_offset_, end_offset);
     }
 
     // Create a string representation of the desired range.
@@ -238,30 +235,30 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   }
 
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_WRITEDATA, this), CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_WRITEFUNCTION,
-                            StaticLibcurlWrite), CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_URL, url_.c_str()),
-           CURLE_OK);
+  CHECK_EQ(
+      curl_easy_setopt(curl_handle_, CURLOPT_WRITEFUNCTION, StaticLibcurlWrite),
+      CURLE_OK);
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_URL, url_.c_str()), CURLE_OK);
 
   // If the connection drops under |low_speed_limit_bps_| (10
   // bytes/sec by default) for |low_speed_time_seconds_| (90 seconds,
   // 180 on non-official builds), reconnect.
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_LOW_SPEED_LIMIT,
-                            low_speed_limit_bps_),
+  CHECK_EQ(curl_easy_setopt(
+               curl_handle_, CURLOPT_LOW_SPEED_LIMIT, low_speed_limit_bps_),
            CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_LOW_SPEED_TIME,
-                            low_speed_time_seconds_),
+  CHECK_EQ(curl_easy_setopt(
+               curl_handle_, CURLOPT_LOW_SPEED_TIME, low_speed_time_seconds_),
            CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CONNECTTIMEOUT,
-                            connect_timeout_seconds_),
+  CHECK_EQ(curl_easy_setopt(
+               curl_handle_, CURLOPT_CONNECTTIMEOUT, connect_timeout_seconds_),
            CURLE_OK);
 
   // By default, libcurl doesn't follow redirections. Allow up to
   // |kDownloadMaxRedirects| redirections.
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_FOLLOWLOCATION, 1), CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_MAXREDIRS,
-                            kDownloadMaxRedirects),
-           CURLE_OK);
+  CHECK_EQ(
+      curl_easy_setopt(curl_handle_, CURLOPT_MAXREDIRS, kDownloadMaxRedirects),
+      CURLE_OK);
 
   // Lock down the appropriate curl options for HTTP or HTTPS depending on
   // the url.
@@ -296,9 +293,9 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttp() {
   LOG(INFO) << "Setting up curl options for HTTP";
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_PROTOCOLS, CURLPROTO_HTTP),
            CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_REDIR_PROTOCOLS,
-                            CURLPROTO_HTTP),
-           CURLE_OK);
+  CHECK_EQ(
+      curl_easy_setopt(curl_handle_, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP),
+      CURLE_OK);
 }
 
 // Security lock-down in official builds: makes sure that peer certificate
@@ -306,25 +303,24 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttp() {
 // restricts protocols to HTTPS, restricts ciphers to HIGH.
 void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
   LOG(INFO) << "Setting up curl options for HTTPS";
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYPEER, 1),
-           CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYHOST, 2),
-           CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CAPATH,
-                            constants::kCACertificatesPath),
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYPEER, 1), CURLE_OK);
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYHOST, 2), CURLE_OK);
+  CHECK_EQ(curl_easy_setopt(
+               curl_handle_, CURLOPT_CAPATH, constants::kCACertificatesPath),
            CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS),
            CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_REDIR_PROTOCOLS,
-                            CURLPROTO_HTTPS),
-           CURLE_OK);
+  CHECK_EQ(
+      curl_easy_setopt(curl_handle_, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS),
+      CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CIPHER_LIST, "HIGH:!ADH"),
            CURLE_OK);
   if (server_to_check_ != ServerToCheck::kNone) {
     CHECK_EQ(
         curl_easy_setopt(curl_handle_, CURLOPT_SSL_CTX_DATA, &server_to_check_),
         CURLE_OK);
-    CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CTX_FUNCTION,
+    CHECK_EQ(curl_easy_setopt(curl_handle_,
+                              CURLOPT_SSL_CTX_FUNCTION,
                               CertificateChecker::ProcessSSLContext),
              CURLE_OK);
   }
@@ -344,8 +340,8 @@ void LibcurlHttpFetcher::SetCurlOptionsForFile() {
 void LibcurlHttpFetcher::BeginTransfer(const string& url) {
   CHECK(!transfer_in_progress_);
   url_ = url;
-  auto closure = base::Bind(&LibcurlHttpFetcher::ProxiesResolved,
-                            base::Unretained(this));
+  auto closure =
+      base::Bind(&LibcurlHttpFetcher::ProxiesResolved, base::Unretained(this));
   ResolveProxiesForUrl(url_, closure);
 }
 
@@ -443,8 +439,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
   // update engine performs an update check while the network is not ready
   // (e.g., right after resume). Longer term, we should check if the network
   // is online/offline and return an appropriate error code.
-  if (!sent_byte_ &&
-      http_response_code_ == 0 &&
+  if (!sent_byte_ && http_response_code_ == 0 &&
       no_network_retry_count_ < no_network_max_retries_) {
     no_network_retry_count_++;
     retry_task_id_ = MessageLoop::current()->PostDelayedTask(
@@ -487,8 +482,8 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
   } else if ((transfer_size_ >= 0) && (bytes_downloaded_ < transfer_size_)) {
     if (!ignore_failure_)
       retry_count_++;
-    LOG(INFO) << "Transfer interrupted after downloading "
-              << bytes_downloaded_ << " of " << transfer_size_ << " bytes. "
+    LOG(INFO) << "Transfer interrupted after downloading " << bytes_downloaded_
+              << " of " << transfer_size_ << " bytes. "
               << transfer_size_ - bytes_downloaded_ << " bytes remaining "
               << "after " << retry_count_ << " attempt(s)";
 
@@ -506,8 +501,8 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
                    base::Unretained(this)),
         TimeDelta::FromSeconds(retry_seconds_));
   } else {
-    LOG(INFO) << "Transfer completed (" << http_response_code_
-              << "), " << bytes_downloaded_ << " bytes downloaded";
+    LOG(INFO) << "Transfer completed (" << http_response_code_ << "), "
+              << bytes_downloaded_ << " bytes downloaded";
     if (delegate_) {
       bool success = IsHttpResponseSuccess();
       delegate_->TransferComplete(this, success);
@@ -520,7 +515,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
   ignore_failure_ = false;
 }
 
-size_t LibcurlHttpFetcher::LibcurlWrite(void *ptr, size_t size, size_t nmemb) {
+size_t LibcurlHttpFetcher::LibcurlWrite(void* ptr, size_t size, size_t nmemb) {
   // Update HTTP response first.
   GetHttpResponseCode();
   const size_t payload_size = size * nmemb;
@@ -537,7 +532,8 @@ size_t LibcurlHttpFetcher::LibcurlWrite(void *ptr, size_t size, size_t nmemb) {
     double transfer_size_double;
     CHECK_EQ(curl_easy_getinfo(curl_handle_,
                                CURLINFO_CONTENT_LENGTH_DOWNLOAD,
-                               &transfer_size_double), CURLE_OK);
+                               &transfer_size_double),
+             CURLE_OK);
     off_t new_transfer_size = static_cast<off_t>(transfer_size_double);
     if (new_transfer_size > 0) {
       transfer_size_ = resume_offset_ + new_transfer_size;
@@ -613,8 +609,9 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
 
   // Ask libcurl for the set of file descriptors we should track on its
   // behalf.
-  CHECK_EQ(curl_multi_fdset(curl_multi_handle_, &fd_read, &fd_write,
-                            &fd_exc, &fd_max), CURLM_OK);
+  CHECK_EQ(curl_multi_fdset(
+               curl_multi_handle_, &fd_read, &fd_write, &fd_exc, &fd_max),
+           CURLM_OK);
 
   // We should iterate through all file descriptors up to libcurl's fd_max or
   // the highest one we're tracking, whichever is larger.
@@ -632,12 +629,12 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
     // should always be false.
     bool is_exc = FD_ISSET(fd, &fd_exc) != 0;
     bool must_track[2] = {
-      is_exc || (FD_ISSET(fd, &fd_read) != 0),  // track 0 -- read
-      is_exc || (FD_ISSET(fd, &fd_write) != 0)  // track 1 -- write
+        is_exc || (FD_ISSET(fd, &fd_read) != 0),  // track 0 -- read
+        is_exc || (FD_ISSET(fd, &fd_write) != 0)  // track 1 -- write
     };
     MessageLoop::WatchMode watch_modes[2] = {
-      MessageLoop::WatchMode::kWatchRead,
-      MessageLoop::WatchMode::kWatchWrite,
+        MessageLoop::WatchMode::kWatchRead,
+        MessageLoop::WatchMode::kWatchWrite,
     };
 
     for (size_t t = 0; t < arraysize(fd_task_maps_); ++t) {
@@ -720,9 +717,8 @@ void LibcurlHttpFetcher::CleanUp() {
   for (size_t t = 0; t < arraysize(fd_task_maps_); ++t) {
     for (const auto& fd_taks_pair : fd_task_maps_[t]) {
       if (!MessageLoop::current()->CancelTask(fd_taks_pair.second)) {
-        LOG(WARNING) << "Error canceling the watch task "
-                     << fd_taks_pair.second << " for "
-                     << (t ? "writing" : "reading") << " the fd "
+        LOG(WARNING) << "Error canceling the watch task " << fd_taks_pair.second
+                     << " for " << (t ? "writing" : "reading") << " the fd "
                      << fd_taks_pair.first;
       }
     }

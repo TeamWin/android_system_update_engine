@@ -67,9 +67,8 @@ bool ConvertSignatureToProtobufBlob(const vector<brillo::Blob>& signatures,
   // Serialize protobuf
   string serialized;
   TEST_AND_RETURN_FALSE(out_message.AppendToString(&serialized));
-  out_signature_blob->insert(out_signature_blob->end(),
-                             serialized.begin(),
-                             serialized.end());
+  out_signature_blob->insert(
+      out_signature_blob->end(), serialized.begin(), serialized.end());
   LOG(INFO) << "Signature blob size: " << out_signature_blob->size();
   return true;
 }
@@ -103,7 +102,8 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     // Write metadata signature size in header.
     uint32_t metadata_signature_size_be =
         htobe32(metadata_signature_blob.size());
-    memcpy(payload.data() + manifest_offset, &metadata_signature_size_be,
+    memcpy(payload.data() + manifest_offset,
+           &metadata_signature_size_be,
            sizeof(metadata_signature_size_be));
     manifest_offset += sizeof(metadata_signature_size_be);
     // Replace metadata signature.
@@ -159,8 +159,8 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     LOG(INFO) << "Updated payload size: " << payload.size();
     LOG(INFO) << "Updated metadata size: " << metadata_size;
   }
-  uint64_t signatures_offset = metadata_size + metadata_signature_size +
-                               manifest.signatures_offset();
+  uint64_t signatures_offset =
+      metadata_size + metadata_signature_size + manifest.signatures_offset();
   LOG(INFO) << "Signature Blob Offset: " << signatures_offset;
   payload.resize(signatures_offset);
   payload.insert(payload.begin() + signatures_offset,
@@ -186,9 +186,8 @@ bool CalculateHashFromPayload(const brillo::Blob& payload,
                               brillo::Blob* out_metadata_hash) {
   if (out_metadata_hash) {
     // Calculates the hash on the manifest.
-    TEST_AND_RETURN_FALSE(
-        HashCalculator::RawHashOfBytes(payload.data(), metadata_size,
-                                       out_metadata_hash));
+    TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfBytes(
+        payload.data(), metadata_size, out_metadata_hash));
   }
   if (out_hash_data) {
     // Calculates the hash on the updated payload. Note that we skip metadata
@@ -319,8 +318,8 @@ bool PayloadSigner::SignHashWithKeys(const brillo::Blob& hash_data,
     TEST_AND_RETURN_FALSE(SignHash(hash_data, path, &signature));
     signatures.push_back(signature);
   }
-  TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(signatures,
-                                                       out_signature_blob));
+  TEST_AND_RETURN_FALSE(
+      ConvertSignatureToProtobufBlob(signatures, out_signature_blob));
   return true;
 }
 
@@ -339,9 +338,8 @@ bool PayloadSigner::SignPayload(const string& unsigned_payload_path,
                                                  signatures_offset,
                                                  &hash_data,
                                                  nullptr));
-  TEST_AND_RETURN_FALSE(SignHashWithKeys(hash_data,
-                                         private_key_paths,
-                                         out_signature_blob));
+  TEST_AND_RETURN_FALSE(
+      SignHashWithKeys(hash_data, private_key_paths, out_signature_blob));
   return true;
 }
 
@@ -349,9 +347,8 @@ bool PayloadSigner::SignatureBlobLength(const vector<string>& private_key_paths,
                                         uint64_t* out_length) {
   DCHECK(out_length);
   brillo::Blob x_blob(1, 'x'), hash_blob, sig_blob;
-  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfBytes(x_blob.data(),
-                                                       x_blob.size(),
-                                                       &hash_blob));
+  TEST_AND_RETURN_FALSE(
+      HashCalculator::RawHashOfBytes(x_blob.data(), x_blob.size(), &hash_blob));
   TEST_AND_RETURN_FALSE(
       SignHashWithKeys(hash_blob, private_key_paths, &sig_blob));
   *out_length = sig_blob.size();
@@ -369,8 +366,8 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
     signatures.emplace_back(signature_size, 0);
   }
   brillo::Blob signature_blob;
-  TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(signatures,
-                                                       &signature_blob));
+  TEST_AND_RETURN_FALSE(
+      ConvertSignatureToProtobufBlob(signatures, &signature_blob));
 
   brillo::Blob payload;
   uint64_t metadata_size, signatures_offset;
@@ -397,17 +394,16 @@ bool PayloadSigner::AddSignatureToPayload(
     const vector<brillo::Blob>& payload_signatures,
     const vector<brillo::Blob>& metadata_signatures,
     const string& signed_payload_path,
-    uint64_t *out_metadata_size) {
+    uint64_t* out_metadata_size) {
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.
 
   // Loads the payload and adds the signature op to it.
   brillo::Blob signature_blob, metadata_signature_blob;
-  TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(payload_signatures,
-                                                       &signature_blob));
+  TEST_AND_RETURN_FALSE(
+      ConvertSignatureToProtobufBlob(payload_signatures, &signature_blob));
   if (!metadata_signatures.empty()) {
-    TEST_AND_RETURN_FALSE(
-        ConvertSignatureToProtobufBlob(metadata_signatures,
-                                       &metadata_signature_blob));
+    TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(
+        metadata_signatures, &metadata_signature_blob));
   }
   brillo::Blob payload;
   uint64_t signatures_offset;
@@ -421,9 +417,8 @@ bool PayloadSigner::AddSignatureToPayload(
                                                   &signatures_offset));
 
   LOG(INFO) << "Signed payload size: " << payload.size();
-  TEST_AND_RETURN_FALSE(utils::WriteFile(signed_payload_path.c_str(),
-                                         payload.data(),
-                                         payload.size()));
+  TEST_AND_RETURN_FALSE(utils::WriteFile(
+      signed_payload_path.c_str(), payload.data(), payload.size()));
   return true;
 }
 
@@ -434,14 +429,11 @@ bool PayloadSigner::GetMetadataSignature(const void* const metadata,
   // Calculates the hash on the updated payload. Note that the payload includes
   // the signature op but doesn't include the signature blob at the end.
   brillo::Blob metadata_hash;
-  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfBytes(metadata,
-                                                       metadata_size,
-                                                       &metadata_hash));
+  TEST_AND_RETURN_FALSE(
+      HashCalculator::RawHashOfBytes(metadata, metadata_size, &metadata_hash));
 
   brillo::Blob signature;
-  TEST_AND_RETURN_FALSE(SignHash(metadata_hash,
-                                 private_key_path,
-                                 &signature));
+  TEST_AND_RETURN_FALSE(SignHash(metadata_hash, private_key_path, &signature));
 
   *out_signature = brillo::data_encoding::Base64Encode(signature);
   return true;

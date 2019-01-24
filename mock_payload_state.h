@@ -26,11 +26,9 @@
 
 namespace chromeos_update_engine {
 
-class MockPayloadState: public PayloadStateInterface {
+class MockPayloadState : public PayloadStateInterface {
  public:
-  bool Initialize(SystemState* system_state) {
-    return true;
-  }
+  bool Initialize(SystemState* system_state) { return true; }
 
   // Significant methods.
   MOCK_METHOD1(SetResponse, void(const OmahaResponse& response));

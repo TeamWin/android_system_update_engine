@@ -65,9 +65,10 @@ class DefaultPolicy : public Policy {
   ~DefaultPolicy() override {}
 
   // Policy overrides.
-  EvalStatus UpdateCheckAllowed(
-      EvaluationContext* ec, State* state, std::string* error,
-      UpdateCheckParams* result) const override;
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+                                State* state,
+                                std::string* error,
+                                UpdateCheckParams* result) const override;
 
   EvalStatus UpdateCanBeApplied(
       EvaluationContext* ec,
@@ -76,22 +77,27 @@ class DefaultPolicy : public Policy {
       chromeos_update_engine::ErrorCode* result,
       chromeos_update_engine::InstallPlan* install_plan) const override;
 
-  EvalStatus UpdateCanStart(
-      EvaluationContext* ec, State* state, std::string* error,
-      UpdateDownloadParams* result,
-      UpdateState update_state) const override;
+  EvalStatus UpdateCanStart(EvaluationContext* ec,
+                            State* state,
+                            std::string* error,
+                            UpdateDownloadParams* result,
+                            UpdateState update_state) const override;
 
-  EvalStatus UpdateDownloadAllowed(
-      EvaluationContext* ec, State* state, std::string* error,
-      bool* result) const override;
+  EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
+                                   State* state,
+                                   std::string* error,
+                                   bool* result) const override;
 
-  EvalStatus P2PEnabled(
-      EvaluationContext* ec, State* state, std::string* error,
-      bool* result) const override;
+  EvalStatus P2PEnabled(EvaluationContext* ec,
+                        State* state,
+                        std::string* error,
+                        bool* result) const override;
 
-  EvalStatus P2PEnabledChanged(
-      EvaluationContext* ec, State* state, std::string* error,
-      bool* result, bool prev_result) const override;
+  EvalStatus P2PEnabledChanged(EvaluationContext* ec,
+                               State* state,
+                               std::string* error,
+                               bool* result,
+                               bool prev_result) const override;
 
  protected:
   // Policy override.

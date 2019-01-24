@@ -49,8 +49,7 @@ namespace internal {
 
 class UpdateEngineClientAndroid : public brillo::Daemon {
  public:
-  UpdateEngineClientAndroid(int argc, char** argv) : argc_(argc), argv_(argv) {
-  }
+  UpdateEngineClientAndroid(int argc, char** argv) : argc_(argc), argv_(argv) {}
 
   int ExitWhenIdle(const Status& status);
   int ExitWhenIdle(int return_code);
@@ -83,8 +82,8 @@ class UpdateEngineClientAndroid : public brillo::Daemon {
   brillo::BinderWatcher binder_watcher_;
 };
 
-Status UpdateEngineClientAndroid::UECallback::onStatusUpdate(
-    int status_code, float progress) {
+Status UpdateEngineClientAndroid::UECallback::onStatusUpdate(int status_code,
+                                                             float progress) {
   update_engine::UpdateStatus status =
       static_cast<update_engine::UpdateStatus>(status_code);
   LOG(INFO) << "onStatusUpdate(" << UpdateStatusToString(status) << " ("
@@ -113,10 +112,12 @@ int UpdateEngineClientAndroid::OnInit() {
   DEFINE_string(payload,
                 "http://127.0.0.1:8080/payload",
                 "The URI to the update payload to use.");
-  DEFINE_int64(offset, 0,
+  DEFINE_int64(offset,
+               0,
                "The offset in the payload where the CrAU update starts. "
                "Used when --update is passed.");
-  DEFINE_int64(size, 0,
+  DEFINE_int64(size,
+               0,
                "The size of the CrAU part of the payload. If 0 is passed, it "
                "will be autodetected. Used when --update is passed.");
   DEFINE_string(headers,
@@ -264,7 +265,7 @@ void UpdateEngineClientAndroid::UpdateEngineServiceDied() {
 }  // namespace chromeos_update_engine
 
 int main(int argc, char** argv) {
-  chromeos_update_engine::internal::UpdateEngineClientAndroid client(
-      argc, argv);
+  chromeos_update_engine::internal::UpdateEngineClientAndroid client(argc,
+                                                                     argv);
   return client.Run();
 }

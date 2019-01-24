@@ -50,9 +50,7 @@ class ExtentWriterTest : public ::testing::Test {
     fd_.reset(new EintrSafeFileDescriptor);
     ASSERT_TRUE(fd_->Open(temp_file_.path().c_str(), O_RDWR, 0600));
   }
-  void TearDown() override {
-    fd_->Close();
-  }
+  void TearDown() override { fd_->Close(); }
 
   // Writes data to an extent writer in 'chunk_size' chunks with
   // the first chunk of size first_chunk_size. It calculates what the
@@ -79,8 +77,8 @@ TEST_F(ExtentWriterTest, SimpleTest) {
   EXPECT_TRUE(utils::ReadFile(temp_file_.path(), &result_file));
 
   brillo::Blob expected_file(kBlockSize);
-  expected_file.insert(expected_file.end(),
-                       bytes.data(), bytes.data() + bytes.size());
+  expected_file.insert(
+      expected_file.end(), bytes.data(), bytes.data() + bytes.size());
   ExpectVectorsEq(expected_file, result_file);
 }
 
@@ -135,10 +133,10 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   expected_file.insert(expected_file.end(),
                        data.begin() + kBlockSize,
                        data.begin() + kBlockSize * 2);
-  expected_file.insert(expected_file.end(),
-                       data.begin(), data.begin() + kBlockSize);
-  expected_file.insert(expected_file.end(),
-                       data.begin() + kBlockSize * 2, data.end());
+  expected_file.insert(
+      expected_file.end(), data.begin(), data.begin() + kBlockSize);
+  expected_file.insert(
+      expected_file.end(), data.begin() + kBlockSize * 2, data.end());
   ExpectVectorsEq(expected_file, result_file);
 }
 
@@ -158,8 +156,8 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
 
   size_t bytes_written = 0;
   while (bytes_written < (block_count * kBlockSize)) {
-    size_t bytes_to_write = min(block_count * kBlockSize - bytes_written,
-                                data.size());
+    size_t bytes_to_write =
+        min(block_count * kBlockSize - bytes_written, data.size());
     EXPECT_TRUE(direct_writer.Write(data.data(), bytes_to_write));
     bytes_written += bytes_to_write;
   }
