@@ -77,8 +77,10 @@ class SubprocessTest : public ::testing::Test {
 
 namespace {
 
-void ExpectedResults(int expected_return_code, const string& expected_output,
-                     int return_code, const string& output) {
+void ExpectedResults(int expected_return_code,
+                     const string& expected_output,
+                     int return_code,
+                     const string& output) {
   EXPECT_EQ(expected_return_code, return_code);
   EXPECT_EQ(expected_output, output);
   MessageLoop::current()->BreakLoop();
@@ -88,8 +90,8 @@ void ExpectedEnvVars(int return_code, const string& output) {
   EXPECT_EQ(0, return_code);
   const std::set<string> allowed_envs = {"LD_LIBRARY_PATH", "PATH"};
   for (const string& key_value : brillo::string_utils::Split(output, "\n")) {
-    auto key_value_pair = brillo::string_utils::SplitAtFirst(
-        key_value, "=", true);
+    auto key_value_pair =
+        brillo::string_utils::SplitAtFirst(key_value, "=", true);
     EXPECT_NE(allowed_envs.end(), allowed_envs.find(key_value_pair.first));
   }
   MessageLoop::current()->BreakLoop();
@@ -197,9 +199,7 @@ TEST_F(SubprocessTest, SynchronousTrueSearchsOnPath) {
 
 TEST_F(SubprocessTest, SynchronousEchoTest) {
   vector<string> cmd = {
-      kBinPath "/sh",
-      "-c",
-      "echo -n stdout-here; echo -n stderr-there >&2"};
+      kBinPath "/sh", "-c", "echo -n stdout-here; echo -n stderr-there >&2"};
   int rc = -1;
   string stdout;
   ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
@@ -259,20 +259,24 @@ TEST_F(SubprocessTest, CancelTest) {
                             fifo_fd,
                             MessageLoop::WatchMode::kWatchRead,
                             false,
-                            base::Bind([](int fifo_fd, uint32_t tag) {
-                              char c;
-                              EXPECT_EQ(1, HANDLE_EINTR(read(fifo_fd, &c, 1)));
-                              EXPECT_EQ('X', c);
-                              LOG(INFO) << "Killing tag " << tag;
-                              Subprocess::Get().KillExec(tag);
-                            }, fifo_fd, tag));
+                            base::Bind(
+                                [](int fifo_fd, uint32_t tag) {
+                                  char c;
+                                  EXPECT_EQ(1,
+                                            HANDLE_EINTR(read(fifo_fd, &c, 1)));
+                                  EXPECT_EQ('X', c);
+                                  LOG(INFO) << "Killing tag " << tag;
+                                  Subprocess::Get().KillExec(tag);
+                                },
+                                fifo_fd,
+                                tag));
 
   // This test would leak a callback that runs when the child process exits
   // unless we wait for it to run.
   brillo::MessageLoopRunUntil(
-      &loop_,
-      TimeDelta::FromSeconds(120),
-      base::Bind([] { return Subprocess::Get().subprocess_records_.empty(); }));
+      &loop_, TimeDelta::FromSeconds(120), base::Bind([] {
+        return Subprocess::Get().subprocess_records_.empty();
+      }));
   EXPECT_TRUE(Subprocess::Get().subprocess_records_.empty());
   // Check that there isn't anything else to read from the pipe.
   char c;

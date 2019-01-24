@@ -101,7 +101,7 @@ bool LaunchProcess(const vector<string>& cmd,
 }  // namespace
 
 void Subprocess::Init(
-      brillo::AsynchronousSignalHandlerInterface* async_signal_handler) {
+    brillo::AsynchronousSignalHandlerInterface* async_signal_handler) {
   if (subprocess_singleton_ == this)
     return;
   CHECK(subprocess_singleton_ == nullptr);
@@ -186,9 +186,10 @@ pid_t Subprocess::ExecFlags(const vector<string>& cmd,
   }
 
   pid_t pid = record->proc.pid();
-  CHECK(process_reaper_.WatchForChild(FROM_HERE, pid, base::Bind(
-      &Subprocess::ChildExitedCallback,
-      base::Unretained(this))));
+  CHECK(process_reaper_.WatchForChild(
+      FROM_HERE,
+      pid,
+      base::Bind(&Subprocess::ChildExitedCallback, base::Unretained(this))));
 
   record->stdout_fd = record->proc.GetPipe(STDOUT_FILENO);
   // Capture the subprocess output. Make our end of the pipe non-blocking.
@@ -237,10 +238,7 @@ bool Subprocess::SynchronousExec(const vector<string>& cmd,
   // The default for SynchronousExec is to use kSearchPath since the code relies
   // on that.
   return SynchronousExecFlags(
-      cmd,
-      kRedirectStderrToStdout | kSearchPath,
-      return_code,
-      stdout);
+      cmd, kRedirectStderrToStdout | kSearchPath, return_code, stdout);
 }
 
 bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
@@ -296,7 +294,6 @@ void Subprocess::FlushBufferedLogsAtExit() {
     }
   }
 }
-
 
 Subprocess* Subprocess::subprocess_singleton_ = nullptr;
 

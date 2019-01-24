@@ -31,10 +31,10 @@
 #include "update_engine/payload_generator/squashfs_filesystem.h"
 #include "update_engine/update_metadata.pb.h"
 
-using std::string;
-using std::vector;
 using puffin::BitExtent;
 using puffin::ByteExtent;
+using std::string;
+using std::vector;
 
 namespace chromeos_update_engine {
 namespace deflate_utils {

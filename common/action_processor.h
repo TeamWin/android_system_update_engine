@@ -80,9 +80,7 @@ class ActionProcessor {
 
   // Sets/gets the current delegate. Set to null to remove a delegate.
   ActionProcessorDelegate* delegate() const { return delegate_; }
-  void set_delegate(ActionProcessorDelegate *delegate) {
-    delegate_ = delegate;
-  }
+  void set_delegate(ActionProcessorDelegate* delegate) { delegate_ = delegate; }
 
   // Returns a pointer to the current Action that's processing.
   AbstractAction* current_action() const { return current_action_.get(); }

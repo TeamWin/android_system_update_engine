@@ -36,7 +36,7 @@ base::Time Clock::GetMonotonicTime() {
   }
   struct timeval now_tv;
   now_tv.tv_sec = now_ts.tv_sec;
-  now_tv.tv_usec = now_ts.tv_nsec/base::Time::kNanosecondsPerMicrosecond;
+  now_tv.tv_usec = now_ts.tv_nsec / base::Time::kNanosecondsPerMicrosecond;
   return base::Time::FromTimeVal(now_tv);
 }
 
@@ -51,7 +51,7 @@ base::Time Clock::GetBootTime() {
   }
   struct timeval now_tv;
   now_tv.tv_sec = now_ts.tv_sec;
-  now_tv.tv_usec = now_ts.tv_nsec/base::Time::kNanosecondsPerMicrosecond;
+  now_tv.tv_usec = now_ts.tv_nsec / base::Time::kNanosecondsPerMicrosecond;
   return base::Time::FromTimeVal(now_tv);
 }
 

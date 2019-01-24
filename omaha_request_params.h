@@ -306,11 +306,11 @@ class OmahaRequestParams {
   //   changed and cancel the current download attempt.
   std::string download_channel_;
 
-  std::string hwid_;  // Hardware Qualification ID of the client
+  std::string hwid_;        // Hardware Qualification ID of the client
   std::string fw_version_;  // Chrome OS Firmware Version.
   std::string ec_version_;  // Chrome OS EC Version.
-  bool delta_okay_;  // If this client can accept a delta
-  bool interactive_;   // Whether this is a user-initiated update check
+  bool delta_okay_;         // If this client can accept a delta
+  bool interactive_;        // Whether this is a user-initiated update check
 
   // The URL to send the Omaha request to.
   std::string update_url_;

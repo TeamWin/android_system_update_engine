@@ -85,21 +85,17 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   }
 
   Variable<std::set<chromeos_update_engine::ConnectionType>>*
-      var_allowed_connection_types_for_update() override {
+  var_allowed_connection_types_for_update() override {
     return &var_allowed_connection_types_for_update_;
   }
 
-  Variable<std::string>* var_owner() override {
-    return &var_owner_;
-  }
+  Variable<std::string>* var_owner() override { return &var_owner_; }
 
   Variable<bool>* var_http_downloads_enabled() override {
     return &var_http_downloads_enabled_;
   }
 
-  Variable<bool>* var_au_p2p_enabled() override {
-    return &var_au_p2p_enabled_;
-  }
+  Variable<bool>* var_au_p2p_enabled() override { return &var_au_p2p_enabled_; }
 
   Variable<bool>* var_allow_kiosk_app_control_chrome_version() override {
     return &var_allow_kiosk_app_control_chrome_version_;
@@ -136,16 +132,16 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
 
   // Updates the async variable |var| based on the result value of the method
   // passed, which is a DevicePolicy getter method.
-  template<typename T>
+  template <typename T>
   void UpdateVariable(AsyncCopyVariable<T>* var,
                       bool (policy::DevicePolicy::*getter_method)(T*) const);
 
   // Updates the async variable |var| based on the result value of the getter
   // method passed, which is a wrapper getter on this class.
-  template<typename T>
-  void UpdateVariable(
-      AsyncCopyVariable<T>* var,
-      bool (RealDevicePolicyProvider::*getter_method)(T*) const);
+  template <typename T>
+  void UpdateVariable(AsyncCopyVariable<T>* var,
+                      bool (RealDevicePolicyProvider::*getter_method)(T*)
+                          const);
 
   // Wrapper for DevicePolicy::GetRollbackToTargetVersion() that converts the
   // result to RollbackToTargetVersion.
@@ -182,8 +178,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
 #endif  // USE_DBUS
 
   // Variable exposing whether the policy is loaded.
-  AsyncCopyVariable<bool> var_device_policy_is_loaded_{
-      "policy_is_loaded", false};
+  AsyncCopyVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",
+                                                       false};
 
   // Variables mapping the exposed methods from the policy::DevicePolicy.
   AsyncCopyVariable<std::string> var_release_channel_{"release_channel"};

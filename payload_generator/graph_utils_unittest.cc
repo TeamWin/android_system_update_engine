@@ -56,7 +56,6 @@ TEST(GraphUtilsTest, SimpleTest) {
   EXPECT_EQ(4U, graph_utils::EdgeWeight(graph, make_pair(0, 1)));
 }
 
-
 TEST(GraphUtilsTest, DepsTest) {
   Graph graph(3);
 
@@ -74,8 +73,8 @@ TEST(GraphUtilsTest, DepsTest) {
     EXPECT_EQ(3U, extent.start_block());
     EXPECT_EQ(2U, extent.num_blocks());
   }
-  graph_utils::AddReadBeforeDepExtents(&graph[2], 1,
-    vector<Extent>(1, ExtentForRange(5, 2)));
+  graph_utils::AddReadBeforeDepExtents(
+      &graph[2], 1, vector<Extent>(1, ExtentForRange(5, 2)));
   EXPECT_EQ(1U, graph[2].out_edges.size());
   {
     Extent& extent = graph[2].out_edges[1].extents[0];

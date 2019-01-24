@@ -50,11 +50,10 @@ namespace chromeos_update_engine {
 const size_t kRootFSPartitionSize = static_cast<size_t>(2) * 1024 * 1024 * 1024;
 const size_t kBlockSize = 4096;  // bytes
 
-bool GenerateUpdatePayloadFile(
-    const PayloadGenerationConfig& config,
-    const string& output_path,
-    const string& private_key_path,
-    uint64_t* metadata_size) {
+bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
+                               const string& output_path,
+                               const string& private_key_path,
+                               uint64_t* metadata_size) {
   if (!config.version.Validate()) {
     LOG(ERROR) << "Unsupported major.minor version: " << config.version.major
                << "." << config.version.minor;
@@ -108,11 +107,8 @@ bool GenerateUpdatePayloadFile(
 
       vector<AnnotatedOperation> aops;
       // Generate the operations using the strategy we selected above.
-      TEST_AND_RETURN_FALSE(strategy->GenerateOperations(config,
-                                                         old_part,
-                                                         new_part,
-                                                         &blob_file,
-                                                         &aops));
+      TEST_AND_RETURN_FALSE(strategy->GenerateOperations(
+          config, old_part, new_part, &blob_file, &aops));
 
       // Filter the no-operations. OperationsGenerators should not output this
       // kind of operations normally, but this is an extra step to fix that if
@@ -125,8 +121,8 @@ bool GenerateUpdatePayloadFile(
 
   LOG(INFO) << "Writing payload file...";
   // Write payload file to disk.
-  TEST_AND_RETURN_FALSE(payload.WritePayload(output_path, temp_file_path,
-                                             private_key_path, metadata_size));
+  TEST_AND_RETURN_FALSE(payload.WritePayload(
+      output_path, temp_file_path, private_key_path, metadata_size));
 
   LOG(INFO) << "All done. Successfully created delta file with "
             << "metadata size = " << *metadata_size;

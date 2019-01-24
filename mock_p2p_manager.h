@@ -31,45 +31,41 @@ class MockP2PManager : public P2PManager {
   MockP2PManager() {
     // Delegate all calls to the fake instance
     ON_CALL(*this, SetDevicePolicy(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::SetDevicePolicy));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::SetDevicePolicy));
     ON_CALL(*this, IsP2PEnabled())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::IsP2PEnabled));
+        .WillByDefault(testing::Invoke(&fake_, &FakeP2PManager::IsP2PEnabled));
     ON_CALL(*this, EnsureP2PRunning())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::EnsureP2PRunning));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::EnsureP2PRunning));
     ON_CALL(*this, EnsureP2PNotRunning())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::EnsureP2PNotRunning));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::EnsureP2PNotRunning));
     ON_CALL(*this, PerformHousekeeping())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::PerformHousekeeping));
-    ON_CALL(*this, LookupUrlForFile(testing::_, testing::_, testing::_,
-                                    testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::LookupUrlForFile));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::PerformHousekeeping));
+    ON_CALL(*this,
+            LookupUrlForFile(testing::_, testing::_, testing::_, testing::_))
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::LookupUrlForFile));
     ON_CALL(*this, FileShare(testing::_, testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::FileShare));
+        .WillByDefault(testing::Invoke(&fake_, &FakeP2PManager::FileShare));
     ON_CALL(*this, FileGetPath(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::FileGetPath));
+        .WillByDefault(testing::Invoke(&fake_, &FakeP2PManager::FileGetPath));
     ON_CALL(*this, FileGetSize(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::FileGetSize));
+        .WillByDefault(testing::Invoke(&fake_, &FakeP2PManager::FileGetSize));
     ON_CALL(*this, FileGetExpectedSize(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::FileGetExpectedSize));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::FileGetExpectedSize));
     ON_CALL(*this, FileGetVisible(testing::_, testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::FileGetVisible));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::FileGetVisible));
     ON_CALL(*this, FileMakeVisible(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::FileMakeVisible));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::FileMakeVisible));
     ON_CALL(*this, CountSharedFiles())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeP2PManager::CountSharedFiles));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeP2PManager::CountSharedFiles));
   }
 
   ~MockP2PManager() override {}
@@ -80,10 +76,9 @@ class MockP2PManager : public P2PManager {
   MOCK_METHOD0(EnsureP2PRunning, bool());
   MOCK_METHOD0(EnsureP2PNotRunning, bool());
   MOCK_METHOD0(PerformHousekeeping, bool());
-  MOCK_METHOD4(LookupUrlForFile, void(const std::string&,
-                                      size_t,
-                                      base::TimeDelta,
-                                      LookupCallback));
+  MOCK_METHOD4(
+      LookupUrlForFile,
+      void(const std::string&, size_t, base::TimeDelta, LookupCallback));
   MOCK_METHOD2(FileShare, bool(const std::string&, size_t));
   MOCK_METHOD1(FileGetPath, base::FilePath(const std::string&));
   MOCK_METHOD1(FileGetSize, ssize_t(const std::string&));
@@ -93,9 +88,7 @@ class MockP2PManager : public P2PManager {
   MOCK_METHOD0(CountSharedFiles, int());
 
   // Returns a reference to the underlying FakeP2PManager.
-  FakeP2PManager& fake() {
-    return fake_;
-  }
+  FakeP2PManager& fake() { return fake_; }
 
  private:
   // The underlying FakeP2PManager.

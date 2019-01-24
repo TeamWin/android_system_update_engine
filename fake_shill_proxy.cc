@@ -16,6 +16,8 @@
 
 #include "update_engine/fake_shill_proxy.h"
 
+#include <utility>
+
 using org::chromium::flimflam::ManagerProxyMock;
 using org::chromium::flimflam::ServiceProxyInterface;
 
@@ -31,8 +33,8 @@ ManagerProxyMock* FakeShillProxy::GetManagerProxy() {
 std::unique_ptr<ServiceProxyInterface> FakeShillProxy::GetServiceForPath(
     const dbus::ObjectPath& path) {
   auto it = service_proxy_mocks_.find(path.value());
-  CHECK(it != service_proxy_mocks_.end()) << "No ServiceProxyMock set for "
-                                          << path.value();
+  CHECK(it != service_proxy_mocks_.end())
+      << "No ServiceProxyMock set for " << path.value();
   std::unique_ptr<ServiceProxyInterface> result = std::move(it->second);
   service_proxy_mocks_.erase(it);
   return result;

@@ -49,12 +49,12 @@ using std::set;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using testing::_;
 using testing::DoAll;
 using testing::Mock;
 using testing::Return;
 using testing::ReturnRef;
 using testing::SetArgPointee;
-using testing::_;
 
 namespace chromeos_update_manager {
 
@@ -90,8 +90,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
   }
 
   void SetUpNonExistentDevicePolicy() {
-    ON_CALL(mock_policy_provider_, Reload())
-        .WillByDefault(Return(false));
+    ON_CALL(mock_policy_provider_, Reload()).WillByDefault(Return(false));
     ON_CALL(mock_policy_provider_, device_policy_is_loaded())
         .WillByDefault(Return(false));
     EXPECT_CALL(mock_policy_provider_, GetDevicePolicy()).Times(0);
@@ -99,8 +98,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
 
   void SetUpExistentDevicePolicy() {
     // Setup the default behavior of the mocked PolicyProvider.
-    ON_CALL(mock_policy_provider_, Reload())
-        .WillByDefault(Return(true));
+    ON_CALL(mock_policy_provider_, Reload()).WillByDefault(Return(true));
     ON_CALL(mock_policy_provider_, device_policy_is_loaded())
         .WillByDefault(Return(true));
     ON_CALL(mock_policy_provider_, GetDevicePolicy())

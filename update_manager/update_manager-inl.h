@@ -28,13 +28,13 @@
 
 namespace chromeos_update_manager {
 
-template<typename R, typename... Args>
+template <typename R, typename... Args>
 EvalStatus UpdateManager::EvaluatePolicy(
     EvaluationContext* ec,
-    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                        std::string*, R*,
-                                        Args...) const,
-    R* result, Args... args) {
+    EvalStatus (Policy::*policy_method)(
+        EvaluationContext*, State*, std::string*, R*, Args...) const,
+    R* result,
+    Args... args) {
   // If expiration timeout fired, dump the context and reset expiration.
   // IMPORTANT: We must still proceed with evaluation of the policy in this
   // case, so that the evaluation time (and corresponding reevaluation timeouts)
@@ -53,15 +53,15 @@ EvalStatus UpdateManager::EvaluatePolicy(
 
   // First try calling the actual policy.
   std::string error;
-  EvalStatus status = (policy_.get()->*policy_method)(ec, state_.get(), &error,
-                                                      result, args...);
+  EvalStatus status = (policy_.get()->*policy_method)(
+      ec, state_.get(), &error, result, args...);
   // If evaluating the main policy failed, defer to the default policy.
   if (status == EvalStatus::kFailed) {
     LOG(WARNING) << "Evaluating policy failed: " << error
                  << "\nEvaluation context: " << ec->DumpContext();
     error.clear();
-    status = (default_policy_.*policy_method)(ec, state_.get(), &error, result,
-                                              args...);
+    status = (default_policy_.*policy_method)(
+        ec, state_.get(), &error, result, args...);
     if (status == EvalStatus::kFailed) {
       LOG(WARNING) << "Evaluating default policy failed: " << error;
     } else if (status == EvalStatus::kAskMeAgainLater) {
@@ -76,13 +76,12 @@ EvalStatus UpdateManager::EvaluatePolicy(
   return status;
 }
 
-template<typename R, typename... Args>
+template <typename R, typename... Args>
 void UpdateManager::OnPolicyReadyToEvaluate(
     scoped_refptr<EvaluationContext> ec,
     base::Callback<void(EvalStatus status, const R& result)> callback,
-    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                        std::string*, R*,
-                                        Args...) const,
+    EvalStatus (Policy::*policy_method)(
+        EvaluationContext*, State*, std::string*, R*, Args...) const,
     Args... args) {
   // Evaluate the policy.
   R result;
@@ -95,10 +94,13 @@ void UpdateManager::OnPolicyReadyToEvaluate(
   }
 
   // Re-schedule the policy request based on used variables.
-  base::Closure reeval_callback = base::Bind(
-      &UpdateManager::OnPolicyReadyToEvaluate<R, Args...>,
-      base::Unretained(this), ec, callback,
-      policy_method, args...);
+  base::Closure reeval_callback =
+      base::Bind(&UpdateManager::OnPolicyReadyToEvaluate<R, Args...>,
+                 base::Unretained(this),
+                 ec,
+                 callback,
+                 policy_method,
+                 args...);
   if (ec->RunOnValueChangeOrTimeout(reeval_callback))
     return;  // Reevaluation scheduled successfully.
 
@@ -111,12 +113,12 @@ void UpdateManager::OnPolicyReadyToEvaluate(
   callback.Run(status, result);
 }
 
-template<typename R, typename... ActualArgs, typename... ExpectedArgs>
+template <typename R, typename... ActualArgs, typename... ExpectedArgs>
 EvalStatus UpdateManager::PolicyRequest(
-    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                        std::string*, R*,
-                                        ExpectedArgs...) const,
-    R* result, ActualArgs... args) {
+    EvalStatus (Policy::*policy_method)(
+        EvaluationContext*, State*, std::string*, R*, ExpectedArgs...) const,
+    R* result,
+    ActualArgs... args) {
   scoped_refptr<EvaluationContext> ec(
       new EvaluationContext(clock_, evaluation_timeout_));
   // A PolicyRequest always consists on a single evaluation on a new
@@ -124,8 +126,8 @@ EvalStatus UpdateManager::PolicyRequest(
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate EvaluatePolicy with the latter in lieu of the
   // former.
-  EvalStatus ret = EvaluatePolicy<R, ExpectedArgs...>(ec.get(), policy_method,
-                                                      result, args...);
+  EvalStatus ret = EvaluatePolicy<R, ExpectedArgs...>(
+      ec.get(), policy_method, result, args...);
   // Sync policy requests must not block, if they do then this is an error.
   DCHECK(EvalStatus::kAskMeAgainLater != ret);
   LOG_IF(WARNING, EvalStatus::kAskMeAgainLater == ret)
@@ -133,20 +135,20 @@ EvalStatus UpdateManager::PolicyRequest(
   return ret;
 }
 
-template<typename R, typename... ActualArgs, typename... ExpectedArgs>
+template <typename R, typename... ActualArgs, typename... ExpectedArgs>
 void UpdateManager::AsyncPolicyRequest(
     base::Callback<void(EvalStatus, const R& result)> callback,
-    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                        std::string*, R*,
-                                        ExpectedArgs...) const,
+    EvalStatus (Policy::*policy_method)(
+        EvaluationContext*, State*, std::string*, R*, ExpectedArgs...) const,
     ActualArgs... args) {
-  scoped_refptr<EvaluationContext> ec =
-      new EvaluationContext(
-          clock_, evaluation_timeout_, expiration_timeout_,
-          std::unique_ptr<base::Callback<void(EvaluationContext*)>>(
-              new base::Callback<void(EvaluationContext*)>(
-                  base::Bind(&UpdateManager::UnregisterEvalContext,
-                             weak_ptr_factory_.GetWeakPtr()))));
+  scoped_refptr<EvaluationContext> ec = new EvaluationContext(
+      clock_,
+      evaluation_timeout_,
+      expiration_timeout_,
+      std::unique_ptr<base::Callback<void(EvaluationContext*)>>(
+          new base::Callback<void(EvaluationContext*)>(
+              base::Bind(&UpdateManager::UnregisterEvalContext,
+                         weak_ptr_factory_.GetWeakPtr()))));
   if (!ec_repo_.insert(ec.get()).second) {
     LOG(ERROR) << "Failed to register evaluation context; this is a bug.";
   }
@@ -154,9 +156,13 @@ void UpdateManager::AsyncPolicyRequest(
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate UpdateManager::OnPolicyReadyToEvaluate with the
   // latter in lieu of the former.
-  base::Closure eval_callback = base::Bind(
-      &UpdateManager::OnPolicyReadyToEvaluate<R, ExpectedArgs...>,
-      base::Unretained(this), ec, callback, policy_method, args...);
+  base::Closure eval_callback =
+      base::Bind(&UpdateManager::OnPolicyReadyToEvaluate<R, ExpectedArgs...>,
+                 base::Unretained(this),
+                 ec,
+                 callback,
+                 policy_method,
+                 args...);
   brillo::MessageLoop::current()->PostTask(FROM_HERE, eval_callback);
 }
 

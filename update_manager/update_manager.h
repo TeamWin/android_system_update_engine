@@ -34,7 +34,7 @@
 namespace chromeos_update_manager {
 
 // Comparator for scoped_refptr objects.
-template<typename T>
+template <typename T>
 struct ScopedRefPtrLess {
   bool operator()(const scoped_refptr<T>& first,
                   const scoped_refptr<T>& second) const {
@@ -49,7 +49,8 @@ class UpdateManager {
   // |state|.
   UpdateManager(chromeos_update_engine::ClockInterface* clock,
                 base::TimeDelta evaluation_timeout,
-                base::TimeDelta expiration_timeout, State* state);
+                base::TimeDelta expiration_timeout,
+                State* state);
 
   virtual ~UpdateManager();
 
@@ -68,12 +69,12 @@ class UpdateManager {
   //
   // An example call to this method is:
   //   um.PolicyRequest(&Policy::SomePolicyMethod, &bool_result, arg1, arg2);
-  template<typename R, typename... ActualArgs, typename... ExpectedArgs>
+  template <typename R, typename... ActualArgs, typename... ExpectedArgs>
   EvalStatus PolicyRequest(
-      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                          std::string*, R*,
-                                          ExpectedArgs...) const,
-      R* result, ActualArgs...);
+      EvalStatus (Policy::*policy_method)(
+          EvaluationContext*, State*, std::string*, R*, ExpectedArgs...) const,
+      R* result,
+      ActualArgs...);
 
   // Evaluates the given |policy_method| policy with the provided |args|
   // arguments and calls the |callback| callback with the result when done.
@@ -83,19 +84,16 @@ class UpdateManager {
   // policy until another status is returned. If the policy implementation based
   // its return value solely on const variables, the callback will be called
   // with the EvalStatus::kAskMeAgainLater status (which indicates an error).
-  template<typename R, typename... ActualArgs, typename... ExpectedArgs>
+  template <typename R, typename... ActualArgs, typename... ExpectedArgs>
   void AsyncPolicyRequest(
       base::Callback<void(EvalStatus, const R& result)> callback,
-      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                          std::string*, R*,
-                                          ExpectedArgs...) const,
+      EvalStatus (Policy::*policy_method)(
+          EvaluationContext*, State*, std::string*, R*, ExpectedArgs...) const,
       ActualArgs... args);
 
  protected:
   // The UpdateManager receives ownership of the passed Policy instance.
-  void set_policy(const Policy* policy) {
-    policy_.reset(policy);
-  }
+  void set_policy(const Policy* policy) { policy_.reset(policy); }
 
   // State getter used for testing.
   State* state() { return state_.get(); }
@@ -111,13 +109,13 @@ class UpdateManager {
   // EvaluatePolicy() evaluates the passed |policy_method| method on the current
   // policy with the given |args| arguments. If the method fails, the default
   // policy is used instead.
-  template<typename R, typename... Args>
+  template <typename R, typename... Args>
   EvalStatus EvaluatePolicy(
       EvaluationContext* ec,
-      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                          std::string*, R*,
-                                          Args...) const,
-      R* result, Args... args);
+      EvalStatus (Policy::*policy_method)(
+          EvaluationContext*, State*, std::string*, R*, Args...) const,
+      R* result,
+      Args... args);
 
   // OnPolicyReadyToEvaluate() is called by the main loop when the evaluation
   // of the given |policy_method| should be executed. If the evaluation finishes
@@ -125,13 +123,12 @@ class UpdateManager {
   // returned by the policy. If the evaluation returns an
   // EvalStatus::kAskMeAgainLater state, the |callback| will NOT be called and
   // the evaluation will be re-scheduled to be called later.
-  template<typename R, typename... Args>
+  template <typename R, typename... Args>
   void OnPolicyReadyToEvaluate(
       scoped_refptr<EvaluationContext> ec,
       base::Callback<void(EvalStatus status, const R& result)> callback,
-      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
-                                          std::string*, R*,
-                                          Args...) const,
+      EvalStatus (Policy::*policy_method)(
+          EvaluationContext*, State*, std::string*, R*, Args...) const,
       Args... args);
 
   // Unregisters (removes from repo) a previously created EvaluationContext.
@@ -163,7 +160,8 @@ class UpdateManager {
   // will remove all pending events associated with all outstanding contexts
   // (which should, in turn, trigger their destruction).
   std::set<scoped_refptr<EvaluationContext>,
-           ScopedRefPtrLess<EvaluationContext>> ec_repo_;
+           ScopedRefPtrLess<EvaluationContext>>
+      ec_repo_;
 
   base::WeakPtrFactory<UpdateManager> weak_ptr_factory_;
 

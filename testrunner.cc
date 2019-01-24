@@ -26,7 +26,7 @@
 #include "update_engine/common/terminator.h"
 #include "update_engine/payload_generator/xz.h"
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   LOG(INFO) << "started";
   base::AtExitManager exit_manager;
   // xz-embedded requires to initialize its CRC-32 table once on startup.

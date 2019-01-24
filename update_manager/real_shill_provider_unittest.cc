@@ -41,10 +41,10 @@ using chromeos_update_engine::FakeClock;
 using org::chromium::flimflam::ManagerProxyMock;
 using org::chromium::flimflam::ServiceProxyMock;
 using std::unique_ptr;
+using testing::_;
 using testing::Mock;
 using testing::Return;
 using testing::SetArgPointee;
-using testing::_;
 
 namespace {
 
@@ -99,9 +99,7 @@ class UmRealShillProviderTest : public ::testing::Test {
     return time;
   }
 
-  Time ConnChangedTime() {
-    return InitTime() + TimeDelta::FromSeconds(10);
-  }
+  Time ConnChangedTime() { return InitTime() + TimeDelta::FromSeconds(10); }
 
   // Sets the default_service object path in the response from the
   // ManagerProxyMock instance.
@@ -210,8 +208,9 @@ class UmRealShillProviderTest : public ::testing::Test {
   chromeos_update_engine::FakeShillProxy* fake_shill_proxy_;
 
   // The registered signal handler for the signal Manager.PropertyChanged.
-  chromeos_update_engine::dbus_test_utils::MockSignalHandler<
-      void(const std::string&, const brillo::Any&)> manager_property_changed_;
+  chromeos_update_engine::dbus_test_utils::MockSignalHandler<void(
+      const std::string&, const brillo::Any&)>
+      manager_property_changed_;
 
   unique_ptr<RealShillProvider> provider_;
 };
@@ -269,7 +268,6 @@ ServiceProxyMock* UmRealShillProviderTest::SetServiceReply(
   return service_proxy_mock;
 }
 
-
 // Query the connection status, type and time last changed, as they were set
 // during initialization (no signals).
 TEST_F(UmRealShillProviderTest, ReadBaseValues) {
@@ -315,17 +313,15 @@ TEST_F(UmRealShillProviderTest, ReadConnTypeEthernet) {
 // Test that Wifi connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeWifi) {
   InitWithDefaultService("/");
-  SetupConnectionAndTestType(kFakeWifiServicePath,
-                             shill::kTypeWifi,
-                             ConnectionType::kWifi);
+  SetupConnectionAndTestType(
+      kFakeWifiServicePath, shill::kTypeWifi, ConnectionType::kWifi);
 }
 
 // Test that Wimax connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeWimax) {
   InitWithDefaultService("/");
-  SetupConnectionAndTestType(kFakeWimaxServicePath,
-                             shill::kTypeWimax,
-                             ConnectionType::kWimax);
+  SetupConnectionAndTestType(
+      kFakeWimaxServicePath, shill::kTypeWimax, ConnectionType::kWimax);
 }
 
 // Test that Bluetooth connection is identified correctly.
@@ -347,9 +343,8 @@ TEST_F(UmRealShillProviderTest, ReadConnTypeCellular) {
 // Test that an unknown connection is identified as such.
 TEST_F(UmRealShillProviderTest, ReadConnTypeUnknown) {
   InitWithDefaultService("/");
-  SetupConnectionAndTestType(kFakeUnknownServicePath,
-                             "FooConnectionType",
-                             ConnectionType::kUnknown);
+  SetupConnectionAndTestType(
+      kFakeUnknownServicePath, "FooConnectionType", ConnectionType::kUnknown);
 }
 
 // Tests that VPN connection is identified correctly.
@@ -406,9 +401,8 @@ TEST_F(UmRealShillProviderTest, ConnTypeCacheInvalidated) {
                              shill::kTypeEthernet,
                              ConnectionType::kEthernet);
 
-  SetupConnectionAndTestType(kFakeWifiServicePath,
-                             shill::kTypeWifi,
-                             ConnectionType::kWifi);
+  SetupConnectionAndTestType(
+      kFakeWifiServicePath, shill::kTypeWifi, ConnectionType::kWifi);
 }
 
 // Test that a non-tethering mode is identified correctly.
@@ -438,9 +432,8 @@ TEST_F(UmRealShillProviderTest, ReadConnTetheringConfirmed) {
 // Test that an unknown tethering mode is identified as such.
 TEST_F(UmRealShillProviderTest, ReadConnTetheringUnknown) {
   InitWithDefaultService("/");
-  SetupConnectionAndTestTethering(kFakeWifiServicePath,
-                                  "FooConnTethering",
-                                  ConnectionTethering::kUnknown);
+  SetupConnectionAndTestTethering(
+      kFakeWifiServicePath, "FooConnTethering", ConnectionTethering::kUnknown);
 }
 
 // Ensure that the connection tethering mode is properly cached in the provider.

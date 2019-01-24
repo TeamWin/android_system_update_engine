@@ -30,13 +30,13 @@
 #include <gtest/gtest.h>
 
 using std::string;
-using testing::Eq;
 using testing::_;
+using testing::Eq;
 
 namespace {
 // Test key used along the tests.
 const char kKey[] = "test-key";
-}
+}  // namespace
 
 namespace chromeos_update_engine {
 
@@ -49,7 +49,8 @@ class PrefsTest : public ::testing::Test {
   }
 
   bool SetValue(const string& key, const string& value) {
-    return base::WriteFile(prefs_dir_.Append(key), value.data(),
+    return base::WriteFile(prefs_dir_.Append(key),
+                           value.data(),
                            value.length()) == static_cast<int>(value.length());
   }
 
@@ -143,16 +144,18 @@ TEST_F(PrefsTest, GetInt64BadValue) {
 }
 
 TEST_F(PrefsTest, GetInt64Max) {
-  ASSERT_TRUE(SetValue(kKey, base::StringPrintf(
-      "%" PRIi64, std::numeric_limits<int64_t>::max())));
+  ASSERT_TRUE(SetValue(
+      kKey,
+      base::StringPrintf("%" PRIi64, std::numeric_limits<int64_t>::max())));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
   EXPECT_EQ(std::numeric_limits<int64_t>::max(), value);
 }
 
 TEST_F(PrefsTest, GetInt64Min) {
-  ASSERT_TRUE(SetValue(kKey, base::StringPrintf(
-        "%" PRIi64, std::numeric_limits<int64_t>::min())));
+  ASSERT_TRUE(SetValue(
+      kKey,
+      base::StringPrintf("%" PRIi64, std::numeric_limits<int64_t>::min())));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
   EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);

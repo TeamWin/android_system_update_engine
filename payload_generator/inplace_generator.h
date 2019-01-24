@@ -97,8 +97,7 @@ class InplaceGenerator : public OperationsGenerator {
   // Creates all the edges for the graph. Writers of a block point to
   // readers of the same block. This is because for an edge A->B, B
   // must complete before A executes.
-  static void CreateEdges(Graph* graph,
-                          const std::vector<Block>& blocks);
+  static void CreateEdges(Graph* graph, const std::vector<Block>& blocks);
 
   // Takes |op_indexes|, which is effectively a mapping from order in
   // which the op is performed -> graph vertex index, and produces the
@@ -109,15 +108,14 @@ class InplaceGenerator : public OperationsGenerator {
 
   // Sorts the vector |cuts| by its |cuts[].old_dest| member. Order is
   // determined by the order of elements in op_indexes.
-  static void SortCutsByTopoOrder(
-      const std::vector<Vertex::Index>& op_indexes,
-      std::vector<CutEdgeVertexes>* cuts);
+  static void SortCutsByTopoOrder(const std::vector<Vertex::Index>& op_indexes,
+                                  std::vector<CutEdgeVertexes>* cuts);
 
   // Given a topologically sorted graph |op_indexes| and |graph|, alters
   // |op_indexes| to move all the full operations to the end of the vector.
   // Full operations should not be depended on, so this is safe.
   static void MoveAndSortFullOpsToBack(Graph* graph,
-                                std::vector<Vertex::Index>* op_indexes);
+                                       std::vector<Vertex::Index>* op_indexes);
 
   // Returns true iff there are no extents in the graph that refer to temp
   // blocks. Temp blocks are in the range [kTempBlockStart, kSparseHole).
@@ -227,12 +225,11 @@ class InplaceGenerator : public OperationsGenerator {
   // a delta update with the minor version kInPlaceMinorPayloadVersion.
   // The operations are stored in |aops|. All the offsets in the operations
   // reference the data written to |blob_file|.
-  bool GenerateOperations(
-      const PayloadGenerationConfig& config,
-      const PartitionConfig& old_part,
-      const PartitionConfig& new_part,
-      BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* aops) override;
+  bool GenerateOperations(const PayloadGenerationConfig& config,
+                          const PartitionConfig& old_part,
+                          const PartitionConfig& new_part,
+                          BlobFileWriter* blob_file,
+                          std::vector<AnnotatedOperation>* aops) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(InplaceGenerator);

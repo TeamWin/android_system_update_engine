@@ -37,28 +37,28 @@
 using base::Time;
 using base::TimeDelta;
 using std::string;
+using testing::_;
 using testing::AnyNumber;
 using testing::AtLeast;
 using testing::Mock;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgPointee;
-using testing::_;
 
 namespace chromeos_update_engine {
 
 const char* kCurrentBytesDownloadedFromHttps =
-  "current-bytes-downloaded-from-HttpsServer";
+    "current-bytes-downloaded-from-HttpsServer";
 const char* kTotalBytesDownloadedFromHttps =
-  "total-bytes-downloaded-from-HttpsServer";
+    "total-bytes-downloaded-from-HttpsServer";
 const char* kCurrentBytesDownloadedFromHttp =
-  "current-bytes-downloaded-from-HttpServer";
+    "current-bytes-downloaded-from-HttpServer";
 const char* kTotalBytesDownloadedFromHttp =
-  "total-bytes-downloaded-from-HttpServer";
+    "total-bytes-downloaded-from-HttpServer";
 const char* kCurrentBytesDownloadedFromHttpPeer =
-  "current-bytes-downloaded-from-HttpPeer";
+    "current-bytes-downloaded-from-HttpPeer";
 const char* kTotalBytesDownloadedFromHttpPeer =
-  "total-bytes-downloaded-from-HttpPeer";
+    "total-bytes-downloaded-from-HttpPeer";
 
 static void SetupPayloadStateWith2Urls(string hash,
                                        bool http_enabled,
@@ -103,7 +103,7 @@ static void SetupPayloadStateWith2Urls(string hash,
   EXPECT_EQ(expected_response_sign, stored_response_sign);
 }
 
-class PayloadStateTest : public ::testing::Test { };
+class PayloadStateTest : public ::testing::Test {};
 
 TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   OmahaResponse response;
@@ -111,23 +111,23 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0)).Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateTimestampStart, _))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateDurationUptime, _))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0)).Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -154,27 +154,24 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateTimestampStart, _))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateDurationUptime, _))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
       .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0)).Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateTimestampStart, _))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateDurationUptime, _))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0)).Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   payload_state.SetResponse(response);
@@ -209,23 +206,20 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
       .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0)).Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0)).Times(AtLeast(1));
 
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -259,13 +253,13 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   // Payload attempt should start with 0 and then advance to 1.
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 1))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, _)).Times(AtLeast(2));
 
   // Reboots will be set
@@ -278,7 +272,7 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   // Failure count should be called each times url index is set, so that's
   // 4 times for this test.
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
-    .Times(AtLeast(4));
+      .Times(AtLeast(4));
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
@@ -361,18 +355,18 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
-    .Times(AtLeast(2));
+      .Times(AtLeast(2));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 2))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
-    .Times(AtLeast(2));
+      .Times(AtLeast(2));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 1))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 2))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, _)).Times(AtLeast(4));
 
@@ -380,29 +374,28 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 1)).Times(AtLeast(2));
 
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
-    .Times(AtLeast(7));
+      .Times(AtLeast(7));
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 1))
-    .Times(AtLeast(2));
+      .Times(AtLeast(2));
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 2))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateTimestampStart, _))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsUpdateDurationUptime, _))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, progress_bytes))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kTotalBytesDownloadedFromHttp, progress_bytes))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
       .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, progress_bytes))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kTotalBytesDownloadedFromHttp, progress_bytes))
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0)).Times(AtLeast(1));
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
@@ -507,22 +500,20 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 1))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
-  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, _))
-    .Times(AtLeast(2));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, _)).Times(AtLeast(2));
 
-  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0))
-    .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
@@ -548,21 +539,19 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   // kPrefsFullPayloadAttemptNumber is not incremented for delta payloads.
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
-  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, _))
-    .Times(1);
+  EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, _)).Times(1);
 
-  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0))
-    .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
@@ -607,15 +596,14 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_CALL(*prefs2, Exists(_)).WillRepeatedly(Return(true));
   EXPECT_CALL(*prefs2, GetInt64(_, _)).Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsPayloadAttemptNumber, _))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsFullPayloadAttemptNumber, _))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsCurrentUrlIndex, _))
       .WillRepeatedly(DoAll(SetArgPointee<1>(2), Return(true)));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsCurrentUrlFailureCount, _))
-    .Times(AtLeast(1));
-  EXPECT_CALL(*prefs2, GetInt64(kPrefsUrlSwitchCount, _))
-    .Times(AtLeast(1));
+      .Times(AtLeast(1));
+  EXPECT_CALL(*prefs2, GetInt64(kPrefsUrlSwitchCount, _)).Times(AtLeast(1));
 
   // Note: This will be a different payload object, but the response should
   // have the same hash as before so as to not trivially reset because the
@@ -719,7 +707,7 @@ static void CheckPayloadBackoffState(PayloadState* payload_state,
                                      TimeDelta expected_days) {
   payload_state->DownloadComplete();
   EXPECT_EQ(expected_attempt_number,
-      payload_state->GetFullPayloadAttemptNumber());
+            payload_state->GetFullPayloadAttemptNumber());
   EXPECT_TRUE(payload_state->ShouldBackoffDownload());
   Time backoff_expiry_time = payload_state->GetBackoffExpiryTime();
   // Add 1 hour extra to the 6 hour fuzz check to tolerate edge cases.
@@ -741,16 +729,16 @@ TEST(PayloadStateTest, BackoffPeriodsAreInCorrectRange) {
   SetupPayloadStateWith2Urls(
       "Hash8939", true, false, &payload_state, &response);
 
-  CheckPayloadBackoffState(&payload_state, 1,  TimeDelta::FromDays(1));
-  CheckPayloadBackoffState(&payload_state, 2,  TimeDelta::FromDays(2));
-  CheckPayloadBackoffState(&payload_state, 3,  TimeDelta::FromDays(4));
-  CheckPayloadBackoffState(&payload_state, 4,  TimeDelta::FromDays(8));
-  CheckPayloadBackoffState(&payload_state, 5,  TimeDelta::FromDays(16));
-  CheckPayloadBackoffState(&payload_state, 6,  TimeDelta::FromDays(16));
-  CheckPayloadBackoffState(&payload_state, 7,  TimeDelta::FromDays(16));
-  CheckPayloadBackoffState(&payload_state, 8,  TimeDelta::FromDays(16));
-  CheckPayloadBackoffState(&payload_state, 9,  TimeDelta::FromDays(16));
-  CheckPayloadBackoffState(&payload_state, 10,  TimeDelta::FromDays(16));
+  CheckPayloadBackoffState(&payload_state, 1, TimeDelta::FromDays(1));
+  CheckPayloadBackoffState(&payload_state, 2, TimeDelta::FromDays(2));
+  CheckPayloadBackoffState(&payload_state, 3, TimeDelta::FromDays(4));
+  CheckPayloadBackoffState(&payload_state, 4, TimeDelta::FromDays(8));
+  CheckPayloadBackoffState(&payload_state, 5, TimeDelta::FromDays(16));
+  CheckPayloadBackoffState(&payload_state, 6, TimeDelta::FromDays(16));
+  CheckPayloadBackoffState(&payload_state, 7, TimeDelta::FromDays(16));
+  CheckPayloadBackoffState(&payload_state, 8, TimeDelta::FromDays(16));
+  CheckPayloadBackoffState(&payload_state, 9, TimeDelta::FromDays(16));
+  CheckPayloadBackoffState(&payload_state, 10, TimeDelta::FromDays(16));
 }
 
 TEST(PayloadStateTest, BackoffLogicCanBeDisabled) {
@@ -820,8 +808,8 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(http_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0U, payload_state.GetCurrentBytesDownloaded(
-                 kDownloadSourceHttpsServer));
+  EXPECT_EQ(
+      0U, payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(https_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
@@ -837,8 +825,9 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(http_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(second_chunk, payload_state.GetCurrentBytesDownloaded(
-              kDownloadSourceHttpsServer));
+  EXPECT_EQ(
+      second_chunk,
+      payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(https_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
@@ -854,8 +843,9 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(http_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(second_chunk, payload_state.GetCurrentBytesDownloaded(
-                 kDownloadSourceHttpsServer));
+  EXPECT_EQ(
+      second_chunk,
+      payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(https_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
@@ -880,8 +870,8 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0U, payload_state.GetCurrentBytesDownloaded(
-                 kDownloadSourceHttpsServer));
+  EXPECT_EQ(
+      0U, payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(0, payload_state.GetNumResponsesSeen());
@@ -944,8 +934,8 @@ TEST(PayloadStateTest, RestartingUpdateResetsMetrics) {
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(num_bytes,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0U, payload_state.GetCurrentBytesDownloaded(
-                 kDownloadSourceHttpsServer));
+  EXPECT_EQ(
+      0U, payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
@@ -1033,8 +1023,8 @@ TEST(PayloadStateTest, RollbackVersion) {
   params.Init(rollback_version, "", false);
   fake_system_state.set_request_params(&params);
 
-  EXPECT_CALL(*mock_powerwash_safe_prefs, SetString(kPrefsRollbackVersion,
-                                                    rollback_version));
+  EXPECT_CALL(*mock_powerwash_safe_prefs,
+              SetString(kPrefsRollbackVersion, rollback_version));
   payload_state.Rollback();
 
   EXPECT_EQ(rollback_version, payload_state.GetRollbackVersion());
@@ -1042,11 +1032,10 @@ TEST(PayloadStateTest, RollbackVersion) {
   // Change it up a little and verify we load it correctly.
   rollback_version = "2345.0.1";
   // Let's verify we can reload it correctly.
-  EXPECT_CALL(*mock_powerwash_safe_prefs, GetString(
-      kPrefsRollbackVersion, _)).WillOnce(DoAll(
-          SetArgPointee<1>(rollback_version), Return(true)));
-  EXPECT_CALL(*mock_powerwash_safe_prefs, SetString(kPrefsRollbackVersion,
-                                                    rollback_version));
+  EXPECT_CALL(*mock_powerwash_safe_prefs, GetString(kPrefsRollbackVersion, _))
+      .WillOnce(DoAll(SetArgPointee<1>(rollback_version), Return(true)));
+  EXPECT_CALL(*mock_powerwash_safe_prefs,
+              SetString(kPrefsRollbackVersion, rollback_version));
   payload_state.LoadRollbackVersion();
   EXPECT_EQ(rollback_version, payload_state.GetRollbackVersion());
 
@@ -1570,8 +1559,8 @@ TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
   EXPECT_TRUE(payload_state.P2PAttemptAllowed());
 
   // Set clock to half the deadline - this should work.
-  fake_clock.SetWallclockTime(epoch +
-      TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds) / 2);
+  fake_clock.SetWallclockTime(
+      epoch + TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds) / 2);
   EXPECT_TRUE(payload_state.P2PAttemptAllowed());
 
   // Check that the first attempt timestamp hasn't changed just
@@ -1579,13 +1568,13 @@ TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
   EXPECT_EQ(epoch, payload_state.GetP2PFirstAttemptTimestamp());
 
   // Set clock to _just_ before the deadline - this should work.
-  fake_clock.SetWallclockTime(epoch +
-      TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds - 1));
+  fake_clock.SetWallclockTime(
+      epoch + TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds - 1));
   EXPECT_TRUE(payload_state.P2PAttemptAllowed());
 
   // Set clock to _just_ after the deadline - this should not work.
-  fake_clock.SetWallclockTime(epoch +
-      TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds + 1));
+  fake_clock.SetWallclockTime(
+      epoch + TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds + 1));
   EXPECT_FALSE(payload_state.P2PAttemptAllowed());
 }
 

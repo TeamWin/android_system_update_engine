@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_consumer/extent_reader.h"
 
+#include <algorithm>
+
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -52,8 +54,9 @@ bool DirectExtentReader::Seek(uint64_t offset) {
   }
   // The first item is zero and upper_bound never returns it because it always
   // return the item which is greater than the given value.
-  auto extent_idx = std::upper_bound(
-      extents_upper_bounds_.begin(), extents_upper_bounds_.end(), offset) -
+  auto extent_idx =
+      std::upper_bound(
+          extents_upper_bounds_.begin(), extents_upper_bounds_.end(), offset) -
       extents_upper_bounds_.begin() - 1;
   cur_extent_ = std::next(extents_.begin(), extent_idx);
   offset_ = offset;

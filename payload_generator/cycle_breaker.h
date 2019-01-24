@@ -53,11 +53,11 @@ class CycleBreaker {
   bool Circuit(Vertex::Index vertex, Vertex::Index depth);
   bool StackContainsCutEdge() const;
 
-  std::vector<bool> blocked_;  // "blocked" in the paper
-  Vertex::Index current_vertex_;  // "s" in the paper
+  std::vector<bool> blocked_;         // "blocked" in the paper
+  Vertex::Index current_vertex_;      // "s" in the paper
   std::vector<Vertex::Index> stack_;  // the stack variable in the paper
-  Graph subgraph_;  // "A_K" in the paper
-  Graph blocked_graph_;  // "B" in the paper
+  Graph subgraph_;                    // "A_K" in the paper
+  Graph blocked_graph_;               // "B" in the paper
 
   std::set<Edge> cut_edges_;
 

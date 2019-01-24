@@ -41,10 +41,8 @@ namespace {
 
 struct DeltaObject {
   DeltaObject(const string& in_name, const int in_type, const off_t in_size)
-      : name(in_name),
-        type(in_type),
-        size(in_size) {}
-  bool operator <(const DeltaObject& object) const {
+      : name(in_name), type(in_type), size(in_size) {}
+  bool operator<(const DeltaObject& object) const {
     return (size != object.size) ? (size < object.size) : (name < object.name);
   }
   string name;
@@ -90,8 +88,8 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
                                const vector<AnnotatedOperation>& aops) {
   // Check partitions order for Chrome OS
   if (major_version_ == kChromeOSMajorPayloadVersion) {
-    const vector<const char*> part_order = { kPartitionNameRoot,
-                                             kPartitionNameKernel };
+    const vector<const char*> part_order = {kPartitionNameRoot,
+                                            kPartitionNameKernel};
     TEST_AND_RETURN_FALSE(part_vec_.size() < part_order.size());
     TEST_AND_RETURN_FALSE(new_conf.name == part_order[part_vec_.size()]);
   }
@@ -102,10 +100,10 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
   part.verity = new_conf.verity;
   // Initialize the PartitionInfo objects if present.
   if (!old_conf.path.empty())
-    TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(old_conf,
-                                                              &part.old_info));
-  TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(new_conf,
-                                                            &part.new_info));
+    TEST_AND_RETURN_FALSE(
+        diff_utils::InitializePartitionInfo(old_conf, &part.old_info));
+  TEST_AND_RETURN_FALSE(
+      diff_utils::InitializePartitionInfo(new_conf, &part.new_info));
   part_vec_.push_back(std::move(part));
   return true;
 }
@@ -117,9 +115,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   // Reorder the data blobs with the manifest_.
   string ordered_blobs_path;
   TEST_AND_RETURN_FALSE(utils::MakeTempFile(
-      "CrAU_temp_data.ordered.XXXXXX",
-      &ordered_blobs_path,
-      nullptr));
+      "CrAU_temp_data.ordered.XXXXXX", &ordered_blobs_path, nullptr));
   ScopedPathUnlinker ordered_blobs_unlinker(ordered_blobs_path);
   TEST_AND_RETURN_FALSE(ReorderDataBlobs(data_blobs_path, ordered_blobs_path));
 
@@ -130,8 +126,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
       if (!aop.op.has_data_offset())
         continue;
       if (aop.op.data_offset() != next_blob_offset) {
-        LOG(FATAL) << "bad blob offset! " << aop.op.data_offset() << " != "
-                   << next_blob_offset;
+        LOG(FATAL) << "bad blob offset! " << aop.op.data_offset()
+                   << " != " << next_blob_offset;
       }
       next_blob_offset += aop.op.data_length();
     }
@@ -200,12 +196,13 @@ bool PayloadFile::WritePayload(const string& payload_file,
   // manifest_.
   uint64_t signature_blob_length = 0;
   if (!private_key_path.empty()) {
-    TEST_AND_RETURN_FALSE(
-        PayloadSigner::SignatureBlobLength(vector<string>(1, private_key_path),
-                                           &signature_blob_length));
+    TEST_AND_RETURN_FALSE(PayloadSigner::SignatureBlobLength(
+        vector<string>(1, private_key_path), &signature_blob_length));
     PayloadSigner::AddSignatureToManifest(
-        next_blob_offset, signature_blob_length,
-        major_version_ == kChromeOSMajorPayloadVersion, &manifest_);
+        next_blob_offset,
+        signature_blob_length,
+        major_version_ == kChromeOSMajorPayloadVersion,
+        &manifest_);
   }
 
   // Serialize protobuf
@@ -229,8 +226,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
   TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer, major_version_));
 
   // Write protobuf length
-  TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer,
-                                               serialized_manifest.size()));
+  TEST_AND_RETURN_FALSE(
+      WriteUint64AsBigEndian(&writer, serialized_manifest.size()));
 
   // Write metadata signature size.
   uint32_t metadata_signature_size = 0;
@@ -255,9 +252,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
   if (major_version_ == kBrilloMajorPayloadVersion &&
       !private_key_path.empty()) {
     brillo::Blob metadata_hash, metadata_signature;
-    TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(payload_file,
-                                                             metadata_size,
-                                                             &metadata_hash));
+    TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(
+        payload_file, metadata_size, &metadata_hash));
     TEST_AND_RETURN_FALSE(
         PayloadSigner::SignHashWithKeys(metadata_hash,
                                         vector<string>(1, private_key_path),
@@ -302,9 +298,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
   return true;
 }
 
-bool PayloadFile::ReorderDataBlobs(
-    const string& data_blobs_path,
-    const string& new_data_blobs_path) {
+bool PayloadFile::ReorderDataBlobs(const string& data_blobs_path,
+                                   const string& new_data_blobs_path) {
   int in_fd = open(data_blobs_path.c_str(), O_RDONLY, 0);
   TEST_AND_RETURN_FALSE_ERRNO(in_fd >= 0);
   ScopedFdCloser in_fd_closer(&in_fd);

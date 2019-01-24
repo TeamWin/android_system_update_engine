@@ -39,9 +39,7 @@ class RealTimeProvider : public TimeProvider {
     return var_curr_date_.get();
   }
 
-  Variable<int>* var_curr_hour() override {
-    return var_curr_hour_.get();
-  }
+  Variable<int>* var_curr_hour() override { return var_curr_hour_.get(); }
 
   Variable<int>* var_curr_minute() override { return var_curr_minute_.get(); }
 

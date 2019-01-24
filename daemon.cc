@@ -66,7 +66,7 @@ int UpdateEngineDaemon::OnInit() {
   // Create the Binder Service.
 #if USE_OMAHA
   binder_service_ = new BinderUpdateEngineBrilloService{real_system_state};
-#else  // !USE_OMAHA
+#else   // !USE_OMAHA
   binder_service_ = new BinderUpdateEngineAndroidService{
       daemon_state_android->service_delegate()};
 #endif  // USE_OMAHA
@@ -87,7 +87,7 @@ int UpdateEngineDaemon::OnInit() {
   dbus_adaptor_->RegisterAsync(base::Bind(&UpdateEngineDaemon::OnDBusRegistered,
                                           base::Unretained(this)));
   LOG(INFO) << "Waiting for DBus object to be registered.";
-#else  // !USE_DBUS
+#else   // !USE_DBUS
   daemon_state_->StartUpdater();
 #endif  // USE_DBUS
   return EX_OK;

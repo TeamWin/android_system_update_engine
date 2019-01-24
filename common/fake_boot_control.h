@@ -89,9 +89,7 @@ class FakeBootControl : public BootControlInterface {
     devices_.resize(num_slots_);
   }
 
-  void SetCurrentSlot(BootControlInterface::Slot slot) {
-    current_slot_ = slot;
-  }
+  void SetCurrentSlot(BootControlInterface::Slot slot) { current_slot_ = slot; }
 
   void SetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,

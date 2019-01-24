@@ -60,10 +60,11 @@ class BoxedValue {
 
   // Creates a BoxedValue for the passed pointer |value|. The BoxedValue keeps
   // the ownership of this pointer and can't be released.
-  template<typename T>
+  template <typename T>
   explicit BoxedValue(const T* value)
-    : value_(static_cast<const void*>(value)), deleter_(ValueDeleter<T>),
-      printer_(ValuePrinter<T>) {}
+      : value_(static_cast<const void*>(value)),
+        deleter_(ValueDeleter<T>),
+        printer_(ValuePrinter<T>) {}
 
   // The move constructor takes ownership of the pointer since the semantics of
   // it allows to render the passed BoxedValue undefined. You need to use the
@@ -97,14 +98,14 @@ class BoxedValue {
   }
 
   // Static method to call the destructor of the right type.
-  template<typename T>
+  template <typename T>
   static void ValueDeleter(const void* value) {
     delete reinterpret_cast<const T*>(value);
   }
 
   // Static method to print a type. See boxed_value.cc for common
   // instantiations.
-  template<typename T>
+  template <typename T>
   static std::string ValuePrinter(const void* value);
 
  private:

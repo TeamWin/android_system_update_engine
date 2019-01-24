@@ -47,7 +47,7 @@ class BzipExtentWriter : public ExtentWriter {
 
  private:
   std::unique_ptr<ExtentWriter> next_;  // The underlying ExtentWriter.
-  bz_stream stream_;  // the libbz2 stream
+  bz_stream stream_;                    // the libbz2 stream
   brillo::Blob input_buffer_;
 };
 
