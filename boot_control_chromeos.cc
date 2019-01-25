@@ -24,6 +24,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
+#include <chromeos/constants/imageloader.h>
 #include <rootdev/rootdev.h>
 
 extern "C" {
@@ -43,7 +44,6 @@ const char* kChromeOSPartitionNameRoot = "root";
 const char* kAndroidPartitionNameKernel = "boot";
 const char* kAndroidPartitionNameRoot = "system";
 
-const char kDlcInstallRootDirectoryEncrypted[] = "/home/chronos/dlc";
 const char kPartitionNamePrefixDlc[] = "dlc_";
 const char kPartitionNameDlcA[] = "dlc_a";
 const char kPartitionNameDlcB[] = "dlc_b";
@@ -161,7 +161,7 @@ bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
                  << partition_name;
       return false;
     }
-    *device = base::FilePath(kDlcInstallRootDirectoryEncrypted)
+    *device = base::FilePath(imageloader::kDlcImageRootpath)
                   .Append(dlc_module_id)
                   .Append(slot == 0 ? kPartitionNameDlcA : kPartitionNameDlcB)
                   .Append(kPartitionNameDlcImage)
