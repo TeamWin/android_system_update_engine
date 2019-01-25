@@ -111,9 +111,10 @@ TEST_F(UpdateAttempterAndroidTest, UpdatePrefsBuildVersionChangeOnInit) {
   update_attempter_android_.Init();
   // Check that we reset the metric prefs.
   EXPECT_FALSE(prefs_.Exists(kPrefsNumReboots));
-  EXPECT_FALSE(prefs_.Exists(kPrefsPayloadAttemptNumber));
   EXPECT_FALSE(prefs_.Exists(kPrefsUpdateTimestampStart));
   EXPECT_FALSE(prefs_.Exists(kPrefsSystemUpdatedMarker));
+  // PayloadAttemptNumber should persist across reboots.
+  EXPECT_TRUE(prefs_.Exists(kPrefsPayloadAttemptNumber));
 }
 
 TEST_F(UpdateAttempterAndroidTest, ReportMetricsOnUpdateTerminated) {
