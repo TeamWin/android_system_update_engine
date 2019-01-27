@@ -30,13 +30,13 @@
 //   const int* my_value = ec->GetValue(state->my_provider()->var_my_value());
 //   POLICY_CHECK_VALUE_AND_FAIL(my_value, error);
 //
-#define POLICY_CHECK_VALUE_AND_FAIL(ptr, error) \
-    do { \
-      if ((ptr) == nullptr) { \
-        *(error) = #ptr " is required but is null."; \
-        return EvalStatus::kFailed; \
-      } \
-    } while (false)
+#define POLICY_CHECK_VALUE_AND_FAIL(ptr, error)    \
+  do {                                             \
+    if ((ptr) == nullptr) {                        \
+      *(error) = #ptr " is required but is null."; \
+      return EvalStatus::kFailed;                  \
+    }                                              \
+  } while (false)
 
 namespace chromeos_update_manager {
 

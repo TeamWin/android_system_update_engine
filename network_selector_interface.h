@@ -32,7 +32,6 @@ extern const NetworkId kDefaultNetworkId;
 
 class NetworkSelectorInterface {
  public:
-
   virtual ~NetworkSelectorInterface() = default;
 
   // Set the current process network. All sockets created in the future will be

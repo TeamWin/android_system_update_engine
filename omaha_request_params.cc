@@ -101,8 +101,8 @@ bool OmahaRequestParams::Init(const string& in_app_version,
     // know (i.e. stat() returns some unexpected error), then err on the side of
     // caution and say deltas are not okay.
     struct stat stbuf;
-    delta_okay_ = (stat((root_ + "/.nodelta").c_str(), &stbuf) < 0) &&
-                  (errno == ENOENT);
+    delta_okay_ =
+        (stat((root_ + "/.nodelta").c_str(), &stbuf) < 0) && (errno == ENOENT);
   } else {
     LOG(INFO) << "Disabling deltas as a channel change to "
               << mutable_image_props_.target_channel

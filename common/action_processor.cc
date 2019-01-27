@@ -115,8 +115,8 @@ void ActionProcessor::ActionComplete(AbstractAction* actionptr,
   current_action_.reset();
   LOG(INFO) << "ActionProcessor: finished "
             << (actions_.empty() ? "last action " : "") << old_type
-            << (suspended_ ? " while suspended" : "")
-            << " with code " << utils::ErrorCodeToString(code);
+            << (suspended_ ? " while suspended" : "") << " with code "
+            << utils::ErrorCodeToString(code);
   if (!actions_.empty() && code != ErrorCode::kSuccess) {
     LOG(INFO) << "ActionProcessor: Aborting processing due to failure.";
     actions_.clear();

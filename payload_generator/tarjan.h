@@ -38,6 +38,7 @@ class TarjanAlgorithm {
   void Execute(Vertex::Index vertex,
                Graph* graph,
                std::vector<Vertex::Index>* out);
+
  private:
   void Tarjan(Vertex::Index vertex, Graph* graph);
 

@@ -47,11 +47,9 @@ class FileWriter {
   // in addition if the returned value is false. By default this method
   // returns kActionExitDownloadWriteError as the error code, but subclasses
   // can override if they wish to return more specific error codes.
-  virtual bool Write(const void* bytes,
-                     size_t count,
-                     ErrorCode* error) {
-     *error = ErrorCode::kDownloadWriteError;
-     return Write(bytes, count);
+  virtual bool Write(const void* bytes, size_t count, ErrorCode* error) {
+    *error = ErrorCode::kDownloadWriteError;
+    return Write(bytes, count);
   }
 
   // Wrapper around close. Returns 0 on success or -errno on error.
@@ -92,6 +90,7 @@ class ScopedFileWriterCloser {
       LOG(ERROR) << "FileWriter::Close failed: "
                  << utils::ErrnoNumberAsString(-err);
   }
+
  private:
   FileWriter* writer_;
 

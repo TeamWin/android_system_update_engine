@@ -193,7 +193,7 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
 
   attempt_type_ = attempt_type;
 
-  ClockInterface *clock = system_state_->clock();
+  ClockInterface* clock = system_state_->clock();
   attempt_start_time_boot_ = clock->GetBootTime();
   attempt_start_time_monotonic_ = clock->GetMonotonicTime();
   attempt_num_bytes_downloaded_ = 0;
@@ -257,8 +257,8 @@ void PayloadState::UpdateSucceeded() {
 
 void PayloadState::UpdateFailed(ErrorCode error) {
   ErrorCode base_error = utils::GetBaseErrorCode(error);
-  LOG(INFO) << "Updating payload state for error code: " << base_error
-            << " (" << utils::ErrorCodeToString(base_error) << ")";
+  LOG(INFO) << "Updating payload state for error code: " << base_error << " ("
+            << utils::ErrorCodeToString(base_error) << ")";
 
   if (candidate_urls_.size() == 0) {
     // This means we got this error even before we got a valid Omaha response
@@ -279,7 +279,6 @@ void PayloadState::UpdateFailed(ErrorCode error) {
           metrics::RollbackResult::kFailed);
       break;
   }
-
 
   switch (base_error) {
     // Errors which are good indicators of a problem with a particular URL or
@@ -312,14 +311,14 @@ void PayloadState::UpdateFailed(ErrorCode error) {
       IncrementUrlIndex();
       break;
 
-    // Errors which seem to be just transient network/communication related
-    // failures and do not indicate any inherent problem with the URL itself.
-    // So, we should keep the current URL but just increment the
-    // failure count to give it more chances. This way, while we maximize our
-    // chances of downloading from the URLs that appear earlier in the response
-    // (because download from a local server URL that appears earlier in a
-    // response is preferable than downloading from the next URL which could be
-    // a internet URL and thus could be more expensive).
+      // Errors which seem to be just transient network/communication related
+      // failures and do not indicate any inherent problem with the URL itself.
+      // So, we should keep the current URL but just increment the
+      // failure count to give it more chances. This way, while we maximize our
+      // chances of downloading from the URLs that appear earlier in the
+      // response (because download from a local server URL that appears earlier
+      // in a response is preferable than downloading from the next URL which
+      // could be a internet URL and thus could be more expensive).
 
     case ErrorCode::kError:
     case ErrorCode::kDownloadTransferError:
@@ -369,22 +368,22 @@ void PayloadState::UpdateFailed(ErrorCode error) {
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 
-    case ErrorCode::kSuccess:                            // success code
-    case ErrorCode::kUmaReportedMax:                     // not an error code
-    case ErrorCode::kOmahaRequestHTTPResponseBase:       // aggregated already
-    case ErrorCode::kDevModeFlag:                       // not an error code
-    case ErrorCode::kResumedFlag:                        // not an error code
-    case ErrorCode::kTestImageFlag:                      // not an error code
-    case ErrorCode::kTestOmahaUrlFlag:                   // not an error code
-    case ErrorCode::kSpecialFlags:                       // not an error code
+    case ErrorCode::kSuccess:                       // success code
+    case ErrorCode::kUmaReportedMax:                // not an error code
+    case ErrorCode::kOmahaRequestHTTPResponseBase:  // aggregated already
+    case ErrorCode::kDevModeFlag:                   // not an error code
+    case ErrorCode::kResumedFlag:                   // not an error code
+    case ErrorCode::kTestImageFlag:                 // not an error code
+    case ErrorCode::kTestOmahaUrlFlag:              // not an error code
+    case ErrorCode::kSpecialFlags:                  // not an error code
       // These shouldn't happen. Enumerating these  explicitly here so that we
       // can let the compiler warn about new error codes that are added to
       // action_processor.h but not added here.
       LOG(WARNING) << "Unexpected error code for UpdateFailed";
       break;
 
-    // Note: Not adding a default here so as to let the compiler warn us of
-    // any new enums that were added in the .h but not listed in this switch.
+      // Note: Not adding a default here so as to let the compiler warn us of
+      // any new enums that were added in the .h but not listed in this switch.
   }
 }
 
@@ -531,8 +530,8 @@ void PayloadState::UpdateBackoffExpiryTime() {
   // We don't want all retries to happen exactly at the same time when
   // retrying after backoff. So add some random minutes to fuzz.
   int fuzz_minutes = utils::FuzzInt(0, kMaxBackoffFuzzMinutes);
-  TimeDelta next_backoff_interval = TimeDelta::FromDays(num_days) +
-                                    TimeDelta::FromMinutes(fuzz_minutes);
+  TimeDelta next_backoff_interval =
+      TimeDelta::FromDays(num_days) + TimeDelta::FromMinutes(fuzz_minutes);
   LOG(INFO) << "Incrementing the backoff expiry time by "
             << utils::FormatTimeDelta(next_backoff_interval);
   SetBackoffExpiryTime(Time::Now() + next_backoff_interval);
@@ -600,10 +599,10 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
 
   int64_t payload_bytes_downloaded = attempt_num_bytes_downloaded_;
 
-  ClockInterface *clock = system_state_->clock();
+  ClockInterface* clock = system_state_->clock();
   TimeDelta duration = clock->GetBootTime() - attempt_start_time_boot_;
-  TimeDelta duration_uptime = clock->GetMonotonicTime() -
-      attempt_start_time_monotonic_;
+  TimeDelta duration_uptime =
+      clock->GetMonotonicTime() - attempt_start_time_monotonic_;
 
   int64_t payload_download_speed_bps = 0;
   int64_t usec = duration_uptime.InMicroseconds();
@@ -616,7 +615,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
   DownloadSource download_source = current_download_source_;
 
   metrics::DownloadErrorCode payload_download_error_code =
-    metrics::DownloadErrorCode::kUnset;
+      metrics::DownloadErrorCode::kUnset;
   ErrorCode internal_error_code = ErrorCode::kSuccess;
   metrics::AttemptResult attempt_result = metrics_utils::GetAttemptResult(code);
 
@@ -730,8 +729,8 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
 
   int download_overhead_percentage = 0;
   if (successful_bytes > 0) {
-    download_overhead_percentage = (total_bytes - successful_bytes) * 100ULL /
-                                   successful_bytes;
+    download_overhead_percentage =
+        (total_bytes - successful_bytes) * 100ULL / successful_bytes;
   }
 
   int url_switch_count = static_cast<int>(url_switch_count_);
@@ -887,7 +886,7 @@ void PayloadState::SetFullPayloadAttemptNumber(
   full_payload_attempt_number_ = full_payload_attempt_number;
   LOG(INFO) << "Full Payload Attempt Number = " << full_payload_attempt_number_;
   prefs_->SetInt64(kPrefsFullPayloadAttemptNumber,
-      full_payload_attempt_number_);
+                   full_payload_attempt_number_);
 }
 
 void PayloadState::SetPayloadIndex(size_t payload_index) {
@@ -1007,8 +1006,8 @@ void PayloadState::SetBackoffExpiryTime(const Time& new_time) {
 
 TimeDelta PayloadState::GetUpdateDuration() {
   Time end_time = update_timestamp_end_.is_null()
-    ? system_state_->clock()->GetWallclockTime() :
-      update_timestamp_end_;
+                      ? system_state_->clock()->GetWallclockTime()
+                      : update_timestamp_end_;
   return end_time - update_timestamp_start_;
 }
 
@@ -1038,8 +1037,7 @@ void PayloadState::LoadUpdateTimestampStart() {
   TimeDelta duration_according_to_stored_time = now - stored_time;
   if (duration_according_to_stored_time < -kDurationSlack) {
     LOG(ERROR) << "The UpdateTimestampStart value ("
-               << utils::ToString(stored_time)
-               << ") in persisted state is "
+               << utils::ToString(stored_time) << ") in persisted state is "
                << utils::FormatTimeDelta(duration_according_to_stored_time)
                << " in the future. Resetting.";
     stored_time = now;
@@ -1086,8 +1084,7 @@ void PayloadState::LoadUpdateDurationUptime() {
   if (diff < -kDurationSlack) {
     LOG(ERROR) << "The UpdateDurationUptime value ("
                << utils::FormatTimeDelta(stored_delta)
-               << ") in persisted state is "
-               << utils::FormatTimeDelta(diff)
+               << ") in persisted state is " << utils::FormatTimeDelta(diff)
                << " larger than the wall-clock delta. Resetting.";
     stored_delta = update_duration_current_;
   }
@@ -1129,7 +1126,7 @@ void PayloadState::LoadRollbackVersion() {
 
 void PayloadState::SetRollbackVersion(const string& rollback_version) {
   CHECK(powerwash_safe_prefs_);
-  LOG(INFO) << "Blacklisting version "<< rollback_version;
+  LOG(INFO) << "Blacklisting version " << rollback_version;
   rollback_version_ = rollback_version;
   powerwash_safe_prefs_->SetString(kPrefsRollbackVersion, rollback_version);
 }
@@ -1173,10 +1170,9 @@ void PayloadState::LoadCurrentBytesDownloaded(DownloadSource source) {
   SetCurrentBytesDownloaded(source, GetPersistedValue(key, prefs_), true);
 }
 
-void PayloadState::SetCurrentBytesDownloaded(
-    DownloadSource source,
-    uint64_t current_bytes_downloaded,
-    bool log) {
+void PayloadState::SetCurrentBytesDownloaded(DownloadSource source,
+                                             uint64_t current_bytes_downloaded,
+                                             bool log) {
   CHECK(prefs_);
 
   if (source >= kNumDownloadSources)
@@ -1197,10 +1193,9 @@ void PayloadState::LoadTotalBytesDownloaded(DownloadSource source) {
   SetTotalBytesDownloaded(source, GetPersistedValue(key, prefs_), true);
 }
 
-void PayloadState::SetTotalBytesDownloaded(
-    DownloadSource source,
-    uint64_t total_bytes_downloaded,
-    bool log) {
+void PayloadState::SetTotalBytesDownloaded(DownloadSource source,
+                                           uint64_t total_bytes_downloaded,
+                                           bool log) {
   CHECK(prefs_);
 
   if (source >= kNumDownloadSources)
@@ -1212,9 +1207,8 @@ void PayloadState::SetTotalBytesDownloaded(
   // Persist.
   string prefs_key = GetPrefsKey(kPrefsTotalBytesDownloaded, source);
   prefs_->SetInt64(prefs_key, total_bytes_downloaded);
-  LOG_IF(INFO, log) << "Total bytes downloaded for "
-                    << utils::ToString(source) << " = "
-                    << GetTotalBytesDownloaded(source);
+  LOG_IF(INFO, log) << "Total bytes downloaded for " << utils::ToString(source)
+                    << " = " << GetTotalBytesDownloaded(source);
 }
 
 void PayloadState::LoadNumResponsesSeen() {
@@ -1400,8 +1394,7 @@ void PayloadState::P2PNewAttempt() {
 bool PayloadState::P2PAttemptAllowed() {
   if (p2p_num_attempts_ > kMaxP2PAttempts) {
     LOG(INFO) << "Number of p2p attempts is " << p2p_num_attempts_
-              << " which is greater than "
-              << kMaxP2PAttempts
+              << " which is greater than " << kMaxP2PAttempts
               << " - disallowing p2p.";
     return false;
   }
@@ -1418,8 +1411,8 @@ bool PayloadState::P2PAttemptAllowed() {
       LOG(INFO) << "Time spent attempting p2p is "
                 << utils::FormatTimeDelta(time_spent_attempting_p2p)
                 << " which is greater than "
-                << utils::FormatTimeDelta(TimeDelta::FromSeconds(
-                       kMaxP2PAttemptTimeSeconds))
+                << utils::FormatTimeDelta(
+                       TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds))
                 << " - disallowing p2p.";
       return false;
     }

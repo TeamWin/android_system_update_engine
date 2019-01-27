@@ -28,6 +28,7 @@ cc_defaults {
     name: "ue_defaults",
 
     cflags: [
+        "-DBASE_VER=576279",
         "-DUSE_BINDER=1",
         "-DUSE_CHROME_NETWORK_PROXY=0",
         "-DUSE_CHROME_KIOSK_APP=0",

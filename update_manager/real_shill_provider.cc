@@ -94,8 +94,8 @@ bool RealShillProvider::ProcessDefaultService(
 
   // Update the connection status.
   default_service_path_ = default_service_path;
-  bool is_connected = (default_service_path_.IsValid() &&
-                       default_service_path_.value() != "/");
+  bool is_connected =
+      (default_service_path_.IsValid() && default_service_path_.value() != "/");
   var_is_connected_.SetValue(is_connected);
   var_conn_last_changed_.SetValue(clock_->GetWallclockTime());
 

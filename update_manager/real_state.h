@@ -34,34 +34,24 @@ class RealState : public State {
             ShillProvider* shill_provider,
             SystemProvider* system_provider,
             TimeProvider* time_provider,
-            UpdaterProvider* updater_provider) :
-      config_provider_(config_provider),
-      device_policy_provider_(device_policy_provider),
-      random_provider_(random_provider),
-      shill_provider_(shill_provider),
-      system_provider_(system_provider),
-      time_provider_(time_provider),
-      updater_provider_(updater_provider) {}
+            UpdaterProvider* updater_provider)
+      : config_provider_(config_provider),
+        device_policy_provider_(device_policy_provider),
+        random_provider_(random_provider),
+        shill_provider_(shill_provider),
+        system_provider_(system_provider),
+        time_provider_(time_provider),
+        updater_provider_(updater_provider) {}
 
   // These methods return the given provider.
-  ConfigProvider* config_provider() override {
-    return config_provider_.get();
-  }
+  ConfigProvider* config_provider() override { return config_provider_.get(); }
   DevicePolicyProvider* device_policy_provider() override {
     return device_policy_provider_.get();
   }
-  RandomProvider* random_provider() override {
-    return random_provider_.get();
-  }
-  ShillProvider* shill_provider() override {
-    return shill_provider_.get();
-  }
-  SystemProvider* system_provider() override {
-    return system_provider_.get();
-  }
-  TimeProvider* time_provider() override {
-    return time_provider_.get();
-  }
+  RandomProvider* random_provider() override { return random_provider_.get(); }
+  ShillProvider* shill_provider() override { return shill_provider_.get(); }
+  SystemProvider* system_provider() override { return system_provider_.get(); }
+  TimeProvider* time_provider() override { return time_provider_.get(); }
   UpdaterProvider* updater_provider() override {
     return updater_provider_.get();
   }

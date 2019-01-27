@@ -17,6 +17,7 @@
 #include "update_engine/payload_generator/inplace_generator.h"
 
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -77,11 +78,12 @@ EdgeProperties EdgeWithWriteDep(const vector<Extent>& extents) {
   return ret;
 }
 
-template<typename T>
+template <typename T>
 void DumpVect(const vector<T>& vect) {
   stringstream ss(stringstream::out);
   for (typename vector<T>::const_iterator it = vect.begin(), e = vect.end();
-       it != e; ++it) {
+       it != e;
+       ++it) {
     ss << *it << ", ";
   }
   LOG(INFO) << "{" << ss.str() << "}";
@@ -241,8 +243,8 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   cycle_breaker.BreakCycles(graph, &cut_edges);
 
   EXPECT_EQ(1U, cut_edges.size());
-  EXPECT_TRUE(cut_edges.end() != cut_edges.find(
-      std::pair<Vertex::Index, Vertex::Index>(1, 0)));
+  EXPECT_TRUE(cut_edges.end() !=
+              cut_edges.find(std::pair<Vertex::Index, Vertex::Index>(1, 0)));
 
   vector<CutEdgeVertexes> cuts;
   EXPECT_TRUE(InplaceGenerator::CutEdges(&graph, cut_edges, &cuts));
@@ -274,8 +276,8 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   // Ensure it only depends on the next node and the new temp node
   EXPECT_EQ(2U, graph[0].out_edges.size());
   EXPECT_TRUE(graph[0].out_edges.end() != graph[0].out_edges.find(1));
-  EXPECT_TRUE(graph[0].out_edges.end() != graph[0].out_edges.find(graph.size() -
-                                                                  1));
+  EXPECT_TRUE(graph[0].out_edges.end() !=
+              graph[0].out_edges.find(graph.size() - 1));
 
   // Check second node has unchanged extents
   EXPECT_EQ(2, graph[1].aop.op.src_extents_size());
@@ -737,8 +739,8 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesShrinkData) {
     if (aop.op.type() == InstallOperation::MOVE) {
       move_ops++;
       for (const Extent& extent : aop.op.dst_extents()) {
-        EXPECT_LE(7U, extent.start_block()) << "On dst extents for aop: "
-                                            << aop;
+        EXPECT_LE(7U, extent.start_block())
+            << "On dst extents for aop: " << aop;
       }
     }
   }

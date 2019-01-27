@@ -41,7 +41,6 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
                                const std::string& private_key_path,
                                uint64_t* metadata_size);
 
-
 };  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_

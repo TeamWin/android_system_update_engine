@@ -52,8 +52,7 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
   return nullptr;
 }
 
-bool StringToUpdateStatus(const std::string& s,
-                          UpdateStatus* status) {
+bool StringToUpdateStatus(const std::string& s, UpdateStatus* status) {
   if (s == update_engine::kUpdateStatusIdle) {
     *status = UpdateStatus::IDLE;
     return true;

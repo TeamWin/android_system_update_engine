@@ -37,8 +37,7 @@ namespace chromeos_update_engine {
 
 BinderUpdateEngineAndroidService::BinderUpdateEngineAndroidService(
     ServiceDelegateAndroidInterface* service_delegate)
-    : service_delegate_(service_delegate) {
-}
+    : service_delegate_(service_delegate) {}
 
 void BinderUpdateEngineAndroidService::SendStatusUpdate(
     const UpdateEngineStatus& update_engine_status) {

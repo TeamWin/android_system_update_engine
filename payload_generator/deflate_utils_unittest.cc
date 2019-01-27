@@ -29,9 +29,9 @@
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
 
-using std::vector;
 using puffin::BitExtent;
 using puffin::ByteExtent;
+using std::vector;
 
 namespace chromeos_update_engine {
 namespace deflate_utils {

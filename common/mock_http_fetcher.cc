@@ -32,8 +32,8 @@ using std::min;
 namespace chromeos_update_engine {
 
 MockHttpFetcher::~MockHttpFetcher() {
-  CHECK(timeout_id_ == MessageLoop::kTaskIdNull) <<
-      "Call TerminateTransfer() before dtor.";
+  CHECK(timeout_id_ == MessageLoop::kTaskIdNull)
+      << "Call TerminateTransfer() before dtor.";
 }
 
 void MockHttpFetcher::BeginTransfer(const std::string& url) {

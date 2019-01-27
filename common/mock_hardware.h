@@ -31,29 +31,25 @@ class MockHardware : public HardwareInterface {
   MockHardware() {
     // Delegate all calls to the fake instance
     ON_CALL(*this, IsOfficialBuild())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::IsOfficialBuild));
+        .WillByDefault(testing::Invoke(&fake_, &FakeHardware::IsOfficialBuild));
     ON_CALL(*this, IsNormalBootMode())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::IsNormalBootMode));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::IsNormalBootMode));
     ON_CALL(*this, AreDevFeaturesEnabled())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::AreDevFeaturesEnabled));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::AreDevFeaturesEnabled));
     ON_CALL(*this, IsOOBEEnabled())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::IsOOBEEnabled));
+        .WillByDefault(testing::Invoke(&fake_, &FakeHardware::IsOOBEEnabled));
     ON_CALL(*this, IsOOBEComplete(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::IsOOBEComplete));
+        .WillByDefault(testing::Invoke(&fake_, &FakeHardware::IsOOBEComplete));
     ON_CALL(*this, GetHardwareClass())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetHardwareClass));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::GetHardwareClass));
     ON_CALL(*this, GetFirmwareVersion())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetFirmwareVersion));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::GetFirmwareVersion));
     ON_CALL(*this, GetECVersion())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetECVersion));
+        .WillByDefault(testing::Invoke(&fake_, &FakeHardware::GetECVersion));
     ON_CALL(*this, GetMinKernelKeyVersion())
         .WillByDefault(
             testing::Invoke(&fake_, &FakeHardware::GetMinKernelKeyVersion));
@@ -70,20 +66,20 @@ class MockHardware : public HardwareInterface {
         .WillByDefault(
             testing::Invoke(&fake_, &FakeHardware::SetMaxKernelKeyRollforward));
     ON_CALL(*this, GetPowerwashCount())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetPowerwashCount));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::GetPowerwashCount));
     ON_CALL(*this, GetNonVolatileDirectory(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetNonVolatileDirectory));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::GetNonVolatileDirectory));
     ON_CALL(*this, GetPowerwashSafeDirectory(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetPowerwashSafeDirectory));
+        .WillByDefault(
+            testing::Invoke(&fake_, &FakeHardware::GetPowerwashSafeDirectory));
     ON_CALL(*this, GetFirstActiveOmahaPingSent())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetFirstActiveOmahaPingSent()));
+        .WillByDefault(testing::Invoke(
+            &fake_, &FakeHardware::GetFirstActiveOmahaPingSent()));
     ON_CALL(*this, SetFirstActiveOmahaPingSent())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::SetFirstActiveOmahaPingSent()));
+        .WillByDefault(testing::Invoke(
+            &fake_, &FakeHardware::SetFirstActiveOmahaPingSent()));
   }
 
   ~MockHardware() override = default;
@@ -109,9 +105,7 @@ class MockHardware : public HardwareInterface {
   MOCK_CONST_METHOD0(GetFirstActiveOmahaPingSent, bool());
 
   // Returns a reference to the underlying FakeHardware.
-  FakeHardware& fake() {
-    return fake_;
-  }
+  FakeHardware& fake() { return fake_; }
 
  private:
   // The underlying FakeHardware.
@@ -119,7 +113,6 @@ class MockHardware : public HardwareInterface {
 
   DISALLOW_COPY_AND_ASSIGN(MockHardware);
 };
-
 
 }  // namespace chromeos_update_engine
 

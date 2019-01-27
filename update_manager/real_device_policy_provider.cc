@@ -103,10 +103,9 @@ void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
       TimeDelta::FromMinutes(kDevicePolicyRefreshRateInMinutes));
 }
 
-template<typename T>
+template <typename T>
 void RealDevicePolicyProvider::UpdateVariable(
-    AsyncCopyVariable<T>* var,
-    bool (DevicePolicy::*getter_method)(T*) const) {
+    AsyncCopyVariable<T>* var, bool (DevicePolicy::*getter_method)(T*) const) {
   T new_value;
   if (policy_provider_->device_policy_is_loaded() &&
       (policy_provider_->GetDevicePolicy().*getter_method)(&new_value)) {
@@ -116,7 +115,7 @@ void RealDevicePolicyProvider::UpdateVariable(
   }
 }
 
-template<typename T>
+template <typename T>
 void RealDevicePolicyProvider::UpdateVariable(
     AsyncCopyVariable<T>* var,
     bool (RealDevicePolicyProvider::*getter_method)(T*) const) {
@@ -147,10 +146,10 @@ bool RealDevicePolicyProvider::ConvertRollbackToTargetVersion(
 }
 
 bool RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate(
-      set<ConnectionType>* allowed_types) const {
+    set<ConnectionType>* allowed_types) const {
   set<string> allowed_types_str;
-  if (!policy_provider_->GetDevicePolicy()
-      .GetAllowedConnectionTypesForUpdate(&allowed_types_str)) {
+  if (!policy_provider_->GetDevicePolicy().GetAllowedConnectionTypesForUpdate(
+          &allowed_types_str)) {
     return false;
   }
   allowed_types->clear();
@@ -170,7 +169,7 @@ bool RealDevicePolicyProvider::ConvertScatterFactor(
     TimeDelta* scatter_factor) const {
   int64_t scatter_factor_in_seconds;
   if (!policy_provider_->GetDevicePolicy().GetScatterFactorInSeconds(
-      &scatter_factor_in_seconds)) {
+          &scatter_factor_in_seconds)) {
     return false;
   }
   if (scatter_factor_in_seconds < 0) {

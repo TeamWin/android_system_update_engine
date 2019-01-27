@@ -80,14 +80,10 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
     FakeBootControl* fake_boot_control = fake_system_state_.fake_boot_control();
-    fake_boot_control->SetPartitionDevice(
-        kPartitionNameKernel, 0, "/dev/sdz2");
-    fake_boot_control->SetPartitionDevice(
-        kPartitionNameRoot, 0, "/dev/sdz3");
-    fake_boot_control->SetPartitionDevice(
-        kPartitionNameKernel, 1, "/dev/sdz4");
-    fake_boot_control->SetPartitionDevice(
-        kPartitionNameRoot, 1, "/dev/sdz5");
+    fake_boot_control->SetPartitionDevice(kPartitionNameKernel, 0, "/dev/sdz2");
+    fake_boot_control->SetPartitionDevice(kPartitionNameRoot, 0, "/dev/sdz3");
+    fake_boot_control->SetPartitionDevice(kPartitionNameKernel, 1, "/dev/sdz4");
+    fake_boot_control->SetPartitionDevice(kPartitionNameRoot, 1, "/dev/sdz5");
   }
 
   // Return true iff the OmahaResponseHandlerAction succeeded.

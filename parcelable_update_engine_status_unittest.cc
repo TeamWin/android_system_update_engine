@@ -21,9 +21,9 @@
 #include <gtest/gtest.h>
 
 using android::Parcel;
+using android::status_t;
 using android::String16;
 using android::brillo::ParcelableUpdateEngineStatus;
-using android::status_t;
 using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 

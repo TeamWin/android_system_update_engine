@@ -29,8 +29,7 @@ class BlobFileWriter {
   // Create the BlobFileWriter object that will manage the blobs stored to
   // |blob_fd| in a thread safe way.
   BlobFileWriter(int blob_fd, off_t* blob_file_size)
-    : blob_fd_(blob_fd),
-      blob_file_size_(blob_file_size) {}
+      : blob_fd_(blob_fd), blob_file_size_(blob_file_size) {}
 
   // Store the passed |blob| in the blob file. Returns the offset at which it
   // was stored, or -1 in case of failure.

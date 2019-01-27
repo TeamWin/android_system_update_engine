@@ -18,8 +18,8 @@
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_FILE_DESCRIPTOR_H_
 
 #include <errno.h>
-#include <memory>
 #include <sys/types.h>
+#include <memory>
 
 #include <base/logging.h>
 
@@ -125,12 +125,8 @@ class EintrSafeFileDescriptor : public FileDescriptor {
                 int* result) override;
   bool Flush() override;
   bool Close() override;
-  bool IsSettingErrno() override {
-    return true;
-  }
-  bool IsOpen() override {
-    return (fd_ >= 0);
-  }
+  bool IsSettingErrno() override { return true; }
+  bool IsOpen() override { return (fd_ >= 0); }
 
  protected:
   int fd_;
