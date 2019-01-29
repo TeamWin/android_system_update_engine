@@ -32,6 +32,7 @@
 #include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/mapfile_filesystem.h"
 #include "update_engine/payload_generator/raw_filesystem.h"
+#include "update_engine/payload_generator/squashfs_filesystem.h"
 
 using std::string;
 
@@ -81,6 +82,14 @@ bool PartitionConfig::OpenFilesystem() {
   }
 
   fs_interface = BootImgFilesystem::CreateFromFile(path);
+  if (fs_interface) {
+    TEST_AND_RETURN_FALSE(fs_interface->GetBlockSize() == kBlockSize);
+    return true;
+  }
+
+  fs_interface = SquashfsFilesystem::CreateFromFile(path,
+                                                    /*extract_deflates=*/true,
+                                                    /*load_settings=*/true);
   if (fs_interface) {
     TEST_AND_RETURN_FALSE(fs_interface->GetBlockSize() == kBlockSize);
     return true;

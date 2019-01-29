@@ -112,7 +112,7 @@ class SquashfsFilesystemTest : public ::testing::Test {
 #ifdef __CHROMEOS__
 TEST_F(SquashfsFilesystemTest, EmptyFilesystemTest) {
   unique_ptr<SquashfsFilesystem> fs = SquashfsFilesystem::CreateFromFile(
-      GetBuildArtifactsPath("gen/disk_sqfs_empty.img"), true);
+      GetBuildArtifactsPath("gen/disk_sqfs_empty.img"), true, false);
   CheckSquashfs(fs);
 
   // Even an empty squashfs filesystem is rounded up to 4K.
@@ -133,7 +133,7 @@ TEST_F(SquashfsFilesystemTest, EmptyFilesystemTest) {
 
 TEST_F(SquashfsFilesystemTest, DefaultFilesystemTest) {
   unique_ptr<SquashfsFilesystem> fs = SquashfsFilesystem::CreateFromFile(
-      GetBuildArtifactsPath("gen/disk_sqfs_default.img"), true);
+      GetBuildArtifactsPath("gen/disk_sqfs_default.img"), true, false);
   CheckSquashfs(fs);
 
   vector<FilesystemInterface::File> files;
@@ -147,6 +147,18 @@ TEST_F(SquashfsFilesystemTest, DefaultFilesystemTest) {
   file.extents[0].set_num_blocks(1);
   EXPECT_EQ(files[0].name, file.name);
   EXPECT_EQ(files[0].extents, file.extents);
+}
+
+TEST_F(SquashfsFilesystemTest, UpdateEngineConfigTest) {
+  unique_ptr<SquashfsFilesystem> fs = SquashfsFilesystem::CreateFromFile(
+      GetBuildArtifactsPath("gen/disk_sqfs_unittest.img"), true, true);
+  CheckSquashfs(fs);
+
+  brillo::KeyValueStore kvs;
+  EXPECT_TRUE(fs->LoadSettings(&kvs));
+  string minor_version;
+  EXPECT_TRUE(kvs.GetString("PAYLOAD_MINOR_VERSION", &minor_version));
+  EXPECT_EQ(minor_version, "1234");
 }
 #endif  // __CHROMEOS__
 

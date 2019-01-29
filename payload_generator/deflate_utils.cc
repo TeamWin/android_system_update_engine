@@ -273,8 +273,9 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
       TEST_AND_RETURN_FALSE(
           CopyExtentsToFile(part.path, file.extents, path.value(), kBlockSize));
       // Test if it is actually a Squashfs file.
-      auto sqfs =
-          SquashfsFilesystem::CreateFromFile(path.value(), extract_deflates);
+      auto sqfs = SquashfsFilesystem::CreateFromFile(path.value(),
+                                                     extract_deflates,
+                                                     /*load_settings=*/false);
       if (sqfs) {
         // It is an squashfs file. Get its files to replace with itself.
         vector<FilesystemInterface::File> files;
