@@ -460,22 +460,15 @@ string GetRequestXml(const OmahaEvent* event,
                          system_state);
   }
 
-  string install_source = base::StringPrintf(
-      "installsource=\"%s\" ",
-      (params->interactive() ? "ondemandupdate" : "scheduler"));
-
-  string updater_version = XmlEncodeWithDefault(
-      base::StringPrintf(
-          "%s-%s", constants::kOmahaUpdaterID, kOmahaUpdaterVersion),
-      "");
-  string request_xml =
+  string request_xml = base::StringPrintf(
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<request protocol=\"3.0\" " +
-      ("version=\"" + updater_version +
-       "\" "
-       "updaterversion=\"" +
-       updater_version + "\" " + install_source + "ismachine=\"1\">\n") +
-      os_xml + app_xml + "</request>\n";
+      "<request protocol=\"3.0\" updater=\"%s\" updaterversion=\"%s\""
+      " installsource=\"%s\" ismachine=\"1\">\n%s%s</request>\n",
+      constants::kOmahaUpdaterID,
+      kOmahaUpdaterVersion,
+      params->interactive() ? "ondemandupdate" : "scheduler",
+      os_xml.c_str(),
+      app_xml.c_str());
 
   return request_xml;
 }
