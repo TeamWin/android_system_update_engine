@@ -151,9 +151,9 @@ class UpdateAttempterAndroid
   void UpdatePrefsOnUpdateStart(bool is_resume);
 
   // Prefs to delete:
-  //   |kPrefsNumReboots|, |kPrefsPayloadAttemptNumber|,
+  //   |kPrefsNumReboots|, |kPrefsCurrentBytesDownloaded|
   //   |kPrefsSystemUpdatedMarker|, |kPrefsUpdateTimestampStart|,
-  //   |kPrefsUpdateBootTimestampStart|, |kPrefsCurrentBytesDownloaded|
+  //   |kPrefsUpdateBootTimestampStart|
   void ClearMetricsPrefs();
 
   DaemonStateInterface* daemon_state_;
