@@ -596,6 +596,9 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   CollectAndReportUpdateMetricsOnUpdateFinished(error_code);
   ClearMetricsPrefs();
   if (error_code == ErrorCode::kSuccess) {
+    // We should only reset the PayloadAttemptNumber if the update succeeds, or
+    // we switch to a different payload.
+    prefs_->Delete(kPrefsPayloadAttemptNumber);
     metrics_utils::SetSystemUpdatedMarker(clock_.get(), prefs_);
     // Clear the total bytes downloaded if and only if the update succeeds.
     prefs_->SetInt64(kPrefsTotalBytesDownloaded, 0);
@@ -826,7 +829,6 @@ void UpdateAttempterAndroid::ClearMetricsPrefs() {
   CHECK(prefs_);
   prefs_->Delete(kPrefsCurrentBytesDownloaded);
   prefs_->Delete(kPrefsNumReboots);
-  prefs_->Delete(kPrefsPayloadAttemptNumber);
   prefs_->Delete(kPrefsSystemUpdatedMarker);
   prefs_->Delete(kPrefsUpdateTimestampStart);
   prefs_->Delete(kPrefsUpdateBootTimestampStart);
