@@ -31,13 +31,13 @@ namespace chromeos_update_engine {
 
 class PayloadVerifier {
  public:
-  // Interprets |signature_blob| as a protocol buffer containing the Signatures
+  // Interprets |signature_proto| as a protocol buffer containing the Signatures
   // message and decrypts each signature data using the |pem_public_key|.
   // |pem_public_key| should be a PEM format RSA public key data.
   // Returns whether *any* of the decrypted hashes matches the |hash_data|.
   // In case of any error parsing the signatures or the public key, returns
   // false.
-  static bool VerifySignature(const brillo::Blob& signature_blob,
+  static bool VerifySignature(const std::string& signature_proto,
                               const std::string& pem_public_key,
                               const brillo::Blob& hash_data);
 

@@ -52,38 +52,36 @@ namespace {
 const uint32_t kSignatureMessageLegacyVersion = 1;
 
 // Given raw |signatures|, packs them into a protobuf and serializes it into a
-// binary blob. Returns true on success, false otherwise.
-bool ConvertSignatureToProtobufBlob(const vector<brillo::Blob>& signatures,
-                                    brillo::Blob* out_signature_blob) {
+// string. Returns true on success, false otherwise.
+bool ConvertSignaturesToProtobuf(const vector<brillo::Blob>& signatures,
+                                 string* out_serialized_signature) {
   // Pack it into a protobuf
   Signatures out_message;
   for (const brillo::Blob& signature : signatures) {
-    Signatures_Signature* sig_message = out_message.add_signatures();
+    Signatures::Signature* sig_message = out_message.add_signatures();
     // Set all the signatures with the same version number.
     sig_message->set_version(kSignatureMessageLegacyVersion);
     sig_message->set_data(signature.data(), signature.size());
   }
 
   // Serialize protobuf
-  string serialized;
-  TEST_AND_RETURN_FALSE(out_message.AppendToString(&serialized));
-  out_signature_blob->insert(
-      out_signature_blob->end(), serialized.begin(), serialized.end());
-  LOG(INFO) << "Signature blob size: " << out_signature_blob->size();
+  TEST_AND_RETURN_FALSE(
+      out_message.SerializeToString(out_serialized_signature));
+  LOG(INFO) << "Signature blob size: " << out_serialized_signature->size();
   return true;
 }
 
-// Given an unsigned payload under |payload_path| and the |signature_blob| and
-// |metadata_signature_blob| generates an updated payload that includes the
+// Given an unsigned payload under |payload_path| and the |payload_signature|
+// and |metadata_signature| generates an updated payload that includes the
 // signatures. It populates |out_metadata_size| with the size of the final
 // manifest after adding the dummy signature operation, and
 // |out_signatures_offset| with the expected offset for the new blob, and
-// |out_metadata_signature_size| which will be size of |metadata_signature_blob|
+// |out_metadata_signature_size| which will be size of |metadata_signature|
 // if the payload major version supports metadata signature, 0 otherwise.
 // Returns true on success, false otherwise.
 bool AddSignatureBlobToPayload(const string& payload_path,
-                               const brillo::Blob& signature_blob,
-                               const brillo::Blob& metadata_signature_blob,
+                               const string& payload_signature,
+                               const string& metadata_signature,
                                brillo::Blob* out_payload,
                                uint64_t* out_metadata_size,
                                uint32_t* out_metadata_signature_size,
@@ -100,8 +98,7 @@ bool AddSignatureBlobToPayload(const string& payload_path,
       payload_metadata.GetMetadataSignatureSize();
   if (payload_metadata.GetMajorVersion() == kBrilloMajorPayloadVersion) {
     // Write metadata signature size in header.
-    uint32_t metadata_signature_size_be =
-        htobe32(metadata_signature_blob.size());
+    uint32_t metadata_signature_size_be = htobe32(metadata_signature.size());
     memcpy(payload.data() + manifest_offset,
            &metadata_signature_size_be,
            sizeof(metadata_signature_size_be));
@@ -110,9 +107,9 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     payload.erase(payload.begin() + metadata_size,
                   payload.begin() + metadata_size + metadata_signature_size);
     payload.insert(payload.begin() + metadata_size,
-                   metadata_signature_blob.begin(),
-                   metadata_signature_blob.end());
-    metadata_signature_size = metadata_signature_blob.size();
+                   metadata_signature.begin(),
+                   metadata_signature.end());
+    metadata_signature_size = metadata_signature.size();
     LOG(INFO) << "Metadata signature size: " << metadata_signature_size;
   }
 
@@ -125,10 +122,10 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     // contents. We don't allow the manifest to change if there is already an op
     // present, because that might invalidate previously generated
     // hashes/signatures.
-    if (manifest.signatures_size() != signature_blob.size()) {
+    if (manifest.signatures_size() != payload_signature.size()) {
       LOG(ERROR) << "Attempt to insert different signature sized blob. "
                  << "(current:" << manifest.signatures_size()
-                 << "new:" << signature_blob.size() << ")";
+                 << "new:" << payload_signature.size() << ")";
       return false;
     }
 
@@ -137,7 +134,7 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     // Updates the manifest to include the signature operation.
     PayloadSigner::AddSignatureToManifest(
         payload.size() - metadata_size - metadata_signature_size,
-        signature_blob.size(),
+        payload_signature.size(),
         payload_metadata.GetMajorVersion() == kChromeOSMajorPayloadVersion,
         &manifest);
 
@@ -164,8 +161,8 @@ bool AddSignatureBlobToPayload(const string& payload_path,
   LOG(INFO) << "Signature Blob Offset: " << signatures_offset;
   payload.resize(signatures_offset);
   payload.insert(payload.begin() + signatures_offset,
-                 signature_blob.begin(),
-                 signature_blob.end());
+                 payload_signature.begin(),
+                 payload_signature.end());
 
   *out_payload = std::move(payload);
   *out_metadata_size = metadata_size;
@@ -253,21 +250,19 @@ bool PayloadSigner::VerifySignedPayload(const string& payload_path,
                                                  signatures_offset,
                                                  &payload_hash,
                                                  &metadata_hash));
-  brillo::Blob signature_blob(payload.begin() + signatures_offset,
-                              payload.end());
+  string signature(payload.begin() + signatures_offset, payload.end());
   string public_key;
   TEST_AND_RETURN_FALSE(utils::ReadFile(public_key_path, &public_key));
   TEST_AND_RETURN_FALSE(PayloadVerifier::PadRSA2048SHA256Hash(&payload_hash));
-  TEST_AND_RETURN_FALSE(PayloadVerifier::VerifySignature(
-      signature_blob, public_key, payload_hash));
+  TEST_AND_RETURN_FALSE(
+      PayloadVerifier::VerifySignature(signature, public_key, payload_hash));
   if (metadata_signature_size) {
-    signature_blob.assign(
-        payload.begin() + metadata_size,
-        payload.begin() + metadata_size + metadata_signature_size);
+    signature.assign(payload.begin() + metadata_size,
+                     payload.begin() + metadata_size + metadata_signature_size);
     TEST_AND_RETURN_FALSE(
         PayloadVerifier::PadRSA2048SHA256Hash(&metadata_hash));
-    TEST_AND_RETURN_FALSE(PayloadVerifier::VerifySignature(
-        signature_blob, public_key, metadata_hash));
+    TEST_AND_RETURN_FALSE(
+        PayloadVerifier::VerifySignature(signature, public_key, metadata_hash));
   }
   return true;
 }
@@ -311,7 +306,7 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
 
 bool PayloadSigner::SignHashWithKeys(const brillo::Blob& hash_data,
                                      const vector<string>& private_key_paths,
-                                     brillo::Blob* out_signature_blob) {
+                                     string* out_serialized_signature) {
   vector<brillo::Blob> signatures;
   for (const string& path : private_key_paths) {
     brillo::Blob signature;
@@ -319,7 +314,7 @@ bool PayloadSigner::SignHashWithKeys(const brillo::Blob& hash_data,
     signatures.push_back(signature);
   }
   TEST_AND_RETURN_FALSE(
-      ConvertSignatureToProtobufBlob(signatures, out_signature_blob));
+      ConvertSignaturesToProtobuf(signatures, out_serialized_signature));
   return true;
 }
 
@@ -328,7 +323,7 @@ bool PayloadSigner::SignPayload(const string& unsigned_payload_path,
                                 const uint64_t metadata_size,
                                 const uint32_t metadata_signature_size,
                                 const uint64_t signatures_offset,
-                                brillo::Blob* out_signature_blob) {
+                                string* out_serialized_signature) {
   brillo::Blob payload;
   TEST_AND_RETURN_FALSE(utils::ReadFile(unsigned_payload_path, &payload));
   brillo::Blob hash_data;
@@ -339,16 +334,16 @@ bool PayloadSigner::SignPayload(const string& unsigned_payload_path,
                                                  &hash_data,
                                                  nullptr));
   TEST_AND_RETURN_FALSE(
-      SignHashWithKeys(hash_data, private_key_paths, out_signature_blob));
+      SignHashWithKeys(hash_data, private_key_paths, out_serialized_signature));
   return true;
 }
 
 bool PayloadSigner::SignatureBlobLength(const vector<string>& private_key_paths,
                                         uint64_t* out_length) {
   DCHECK(out_length);
-  brillo::Blob x_blob(1, 'x'), hash_blob, sig_blob;
-  TEST_AND_RETURN_FALSE(
-      HashCalculator::RawHashOfBytes(x_blob.data(), x_blob.size(), &hash_blob));
+  brillo::Blob hash_blob;
+  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfData({'x'}, &hash_blob));
+  string sig_blob;
   TEST_AND_RETURN_FALSE(
       SignHashWithKeys(hash_blob, private_key_paths, &sig_blob));
   *out_length = sig_blob.size();
@@ -365,17 +360,16 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
   for (int signature_size : signature_sizes) {
     signatures.emplace_back(signature_size, 0);
   }
-  brillo::Blob signature_blob;
-  TEST_AND_RETURN_FALSE(
-      ConvertSignatureToProtobufBlob(signatures, &signature_blob));
+  string signature;
+  TEST_AND_RETURN_FALSE(ConvertSignaturesToProtobuf(signatures, &signature));
 
   brillo::Blob payload;
   uint64_t metadata_size, signatures_offset;
   uint32_t metadata_signature_size;
   // Prepare payload for hashing.
   TEST_AND_RETURN_FALSE(AddSignatureBlobToPayload(payload_path,
-                                                  signature_blob,
-                                                  signature_blob,
+                                                  signature,
+                                                  signature,
                                                   &payload,
                                                   &metadata_size,
                                                   &metadata_signature_size,
@@ -398,19 +392,19 @@ bool PayloadSigner::AddSignatureToPayload(
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.
 
   // Loads the payload and adds the signature op to it.
-  brillo::Blob signature_blob, metadata_signature_blob;
+  string payload_signature, metadata_signature;
   TEST_AND_RETURN_FALSE(
-      ConvertSignatureToProtobufBlob(payload_signatures, &signature_blob));
+      ConvertSignaturesToProtobuf(payload_signatures, &payload_signature));
   if (!metadata_signatures.empty()) {
-    TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(
-        metadata_signatures, &metadata_signature_blob));
+    TEST_AND_RETURN_FALSE(
+        ConvertSignaturesToProtobuf(metadata_signatures, &metadata_signature));
   }
   brillo::Blob payload;
   uint64_t signatures_offset;
   uint32_t metadata_signature_size;
   TEST_AND_RETURN_FALSE(AddSignatureBlobToPayload(payload_path,
-                                                  signature_blob,
-                                                  metadata_signature_blob,
+                                                  payload_signature,
+                                                  metadata_signature,
                                                   &payload,
                                                   out_metadata_size,
                                                   &metadata_signature_size,
