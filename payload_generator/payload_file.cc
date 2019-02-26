@@ -365,15 +365,15 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
     const DeltaObject& object = object_count.first;
     // Use printf() instead of LOG(INFO) because timestamp makes it difficult to
     // compare two reports.
-    printf(
-        kFormatString,
-        object.size * 100.0 / total_size,
-        object.size,
-        (object.type >= 0 ? InstallOperationTypeName(
-                                static_cast<InstallOperation_Type>(object.type))
-                          : "-"),
-        object.name.c_str(),
-        object_count.second);
+    printf(kFormatString,
+           object.size * 100.0 / total_size,
+           object.size,
+           (object.type >= 0
+                ? InstallOperationTypeName(
+                      static_cast<InstallOperation::Type>(object.type))
+                : "-"),
+           object.name.c_str(),
+           object_count.second);
   }
   printf(kFormatString, 100.0, total_size, "", "<total>", total_op);
   fflush(stdout);
