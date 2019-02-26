@@ -358,7 +358,10 @@ bool DeltaPerformer::OpenCurrentPartition() {
       install_plan_->partitions[num_previous_partitions + current_partition_];
   // Open source fds if we have a delta payload with minor version >= 2.
   if (payload_->type == InstallPayloadType::kDelta &&
-      GetMinorVersion() != kInPlaceMinorPayloadVersion) {
+      GetMinorVersion() != kInPlaceMinorPayloadVersion &&
+      // With dynamic partitions we could create a new partition in a
+      // delta payload, and we shouldn't open source partition in that case.
+      install_part.source_size > 0) {
     source_path_ = install_part.source_path;
     int err;
     source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
@@ -1167,6 +1170,8 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   if (operation.has_dst_length())
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
+  TEST_AND_RETURN_FALSE(source_fd_ != nullptr);
+
   if (operation.has_src_sha256_hash()) {
     brillo::Blob source_hash;
     brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
@@ -1236,6 +1241,11 @@ bool DeltaPerformer::PerformSourceCopyOperation(
 
 FileDescriptorPtr DeltaPerformer::ChooseSourceFD(
     const InstallOperation& operation, ErrorCode* error) {
+  if (source_fd_ == nullptr) {
+    LOG(ERROR) << "ChooseSourceFD fail: source_fd_ == nullptr";
+    return nullptr;
+  }
+
   if (!operation.has_src_sha256_hash()) {
     // When the operation doesn't include a source hash, we attempt the error
     // corrected device first since we can't verify the block in the raw device
