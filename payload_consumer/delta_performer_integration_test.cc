@@ -596,7 +596,7 @@ static void ApplyDeltaFile(bool full_kernel,
         EXPECT_EQ(2, sigs_message.signatures_size());
       else
         EXPECT_EQ(1, sigs_message.signatures_size());
-      const Signatures_Signature& signature = sigs_message.signatures(0);
+      const Signatures::Signature& signature = sigs_message.signatures(0);
       EXPECT_EQ(1U, signature.version());
 
       uint64_t expected_sig_data_length = 0;

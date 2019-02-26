@@ -1586,8 +1586,7 @@ bool DeltaPerformer::ExtractSignatureMessage() {
   // blob and the signed sha-256 context.
   LOG_IF(WARNING,
          !prefs_->SetString(kPrefsUpdateStateSignatureBlob,
-                            string(signatures_message_data_.begin(),
-                                   signatures_message_data_.end())))
+                            signatures_message_data_))
       << "Unable to store the signature blob.";
 
   LOG(INFO) << "Extracted signature data of size "
@@ -1970,11 +1969,7 @@ bool DeltaPerformer::PrimeUpdateState() {
         signed_hash_calculator_.SetContext(signed_hash_context));
   }
 
-  string signature_blob;
-  if (prefs_->GetString(kPrefsUpdateStateSignatureBlob, &signature_blob)) {
-    signatures_message_data_.assign(signature_blob.begin(),
-                                    signature_blob.end());
-  }
+  prefs_->GetString(kPrefsUpdateStateSignatureBlob, &signatures_message_data_);
 
   string hash_context;
   TEST_AND_RETURN_FALSE(
