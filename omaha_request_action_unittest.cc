@@ -3187,6 +3187,7 @@ TEST_F(OmahaRequestActionTest, PastRollbackVersionsNoEntries) {
 
 TEST_F(OmahaRequestActionTest, PastRollbackVersionsValidEntries) {
   OmahaResponse response;
+  request_params_.set_rollback_allowed_milestones(4);
   fake_update_response_.rollback = true;
   fake_update_response_.rollback_allowed_milestones = 4;
   fake_update_response_.rollback_firmware_version = "4.3";
