@@ -198,14 +198,14 @@ ErrorCode PayloadMetadata::ValidateMetadataSignature(
       utils::HexDumpVector(calculated_metadata_hash);
       return ErrorCode::kDownloadMetadataSignatureMismatch;
     }
-  } else {
-    if (!PayloadVerifier::VerifySignature(metadata_signature_protobuf_blob,
+  } /*else {
+    if (hardware_->IsOfficialBuild() && !PayloadVerifier::VerifySignature(metadata_signature_protobuf_blob,
                                           path_to_public_key.value(),
                                           calculated_metadata_hash)) {
       LOG(ERROR) << "Manifest hash verification failed.";
       return ErrorCode::kDownloadMetadataSignatureMismatch;
-    }
-  }
+   
+  } */
 
   // The autoupdate_CatchBadSignatures test checks for this string in
   // log-files. Keep in sync.

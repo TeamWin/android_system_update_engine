@@ -67,7 +67,6 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kPayloadHashMismatchError:
     case ErrorCode::kPayloadSizeMismatchError:
     case ErrorCode::kDownloadPayloadVerificationError:
-    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
     case ErrorCode::kSignedDeltaPayloadExpectedError:
     case ErrorCode::kDownloadInvalidMetadataMagicString:
     case ErrorCode::kDownloadSignatureMissingInManifest:

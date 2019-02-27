@@ -41,7 +41,6 @@ enum class ErrorCode : int {
   kNewRootfsVerificationError = 15,
   kNewKernelVerificationError = 16,
   kSignedDeltaPayloadExpectedError = 17,
-  kDownloadPayloadPubKeyVerificationError = 18,
   kPostinstallBootedFromFirmwareB = 19,
   kDownloadStateInitializationError = 20,
   kDownloadInvalidMetadataMagicString = 21,

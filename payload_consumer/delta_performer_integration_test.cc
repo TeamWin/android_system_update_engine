@@ -916,9 +916,6 @@ void VerifyPayload(DeltaPerformer* performer,
     case kSignatureNone:
       expected_result = ErrorCode::kSignedDeltaPayloadExpectedError;
       break;
-    case kSignatureGeneratedShellBadKey:
-      expected_result = ErrorCode::kDownloadPayloadPubKeyVerificationError;
-      break;
     default: break;  // appease gcc
   }
 
