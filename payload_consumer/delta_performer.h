@@ -377,7 +377,7 @@ class DeltaPerformer : public FileWriter {
   HashCalculator signed_hash_calculator_;
 
   // Signatures message blob extracted directly from the payload.
-  brillo::Blob signatures_message_data_;
+  std::string signatures_message_data_;
 
   // The public key to be used. Provided as a member so that tests can
   // override with test keys.

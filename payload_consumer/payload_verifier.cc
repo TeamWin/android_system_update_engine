@@ -79,13 +79,12 @@ const uint8_t kRSA2048SHA256Padding[] = {
 
 }  // namespace
 
-bool PayloadVerifier::VerifySignature(const brillo::Blob& signature_blob,
+bool PayloadVerifier::VerifySignature(const string& signature_proto,
                                       const string& pem_public_key,
                                       const brillo::Blob& hash_data) {
   Signatures signatures;
-  LOG(INFO) << "signature blob size = " << signature_blob.size();
-  TEST_AND_RETURN_FALSE(
-      signatures.ParseFromArray(signature_blob.data(), signature_blob.size()));
+  LOG(INFO) << "signature blob size = " << signature_proto.size();
+  TEST_AND_RETURN_FALSE(signatures.ParseFromString(signature_proto));
 
   if (!signatures.signatures_size()) {
     LOG(ERROR) << "No signatures stored in the blob.";
@@ -95,7 +94,7 @@ bool PayloadVerifier::VerifySignature(const brillo::Blob& signature_blob,
   std::vector<brillo::Blob> tested_hashes;
   // Tries every signature in the signature blob.
   for (int i = 0; i < signatures.signatures_size(); i++) {
-    const Signatures_Signature& signature = signatures.signatures(i);
+    const Signatures::Signature& signature = signatures.signatures(i);
     brillo::Blob sig_data(signature.data().begin(), signature.data().end());
     brillo::Blob sig_hash_data;
     if (!GetRawHashFromSignature(sig_data, pem_public_key, &sig_hash_data))
