@@ -760,7 +760,7 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
 bool GenerateBestFullOperation(const brillo::Blob& new_data,
                                const PayloadVersion& version,
                                brillo::Blob* out_blob,
-                               InstallOperation_Type* out_type) {
+                               InstallOperation::Type* out_type) {
   if (new_data.empty())
     return false;
 
@@ -863,7 +863,7 @@ bool ReadExtentsToDiff(const string& old_part,
 
   // Try generating a full operation for the given new data, regardless of the
   // old_data.
-  InstallOperation_Type op_type;
+  InstallOperation::Type op_type;
   TEST_AND_RETURN_FALSE(
       GenerateBestFullOperation(new_data, version, &data_blob, &op_type));
   operation.set_type(op_type);
@@ -892,7 +892,7 @@ bool ReadExtentsToDiff(const string& old_part,
         ScopedPathUnlinker unlinker(patch.value());
 
         std::unique_ptr<bsdiff::PatchWriterInterface> bsdiff_patch_writer;
-        InstallOperation_Type operation_type = InstallOperation::BSDIFF;
+        InstallOperation::Type operation_type = InstallOperation::BSDIFF;
         if (version.OperationAllowed(InstallOperation::BROTLI_BSDIFF)) {
           bsdiff_patch_writer =
               bsdiff::CreateBSDF2PatchWriter(patch.value(),
@@ -1010,13 +1010,13 @@ bool ReadExtentsToDiff(const string& old_part,
   return true;
 }
 
-bool IsAReplaceOperation(InstallOperation_Type op_type) {
+bool IsAReplaceOperation(InstallOperation::Type op_type) {
   return (op_type == InstallOperation::REPLACE ||
           op_type == InstallOperation::REPLACE_BZ ||
           op_type == InstallOperation::REPLACE_XZ);
 }
 
-bool IsNoSourceOperation(InstallOperation_Type op_type) {
+bool IsNoSourceOperation(InstallOperation::Type op_type) {
   return (IsAReplaceOperation(op_type) || op_type == InstallOperation::ZERO ||
           op_type == InstallOperation::DISCARD);
 }
