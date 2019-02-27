@@ -99,7 +99,7 @@ bool ChunkProcessor::ProcessChunk() {
       fd_, buffer_in_.data(), buffer_in_.size(), offset_, &bytes_read));
   TEST_AND_RETURN_FALSE(bytes_read == static_cast<ssize_t>(size_));
 
-  InstallOperation_Type op_type;
+  InstallOperation::Type op_type;
   TEST_AND_RETURN_FALSE(diff_utils::GenerateBestFullOperation(
       buffer_in_, version_, &op_blob, &op_type));
 

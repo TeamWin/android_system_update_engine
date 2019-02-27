@@ -273,7 +273,7 @@ void InplaceGenerator::MoveAndSortFullOpsToBack(
   vector<Vertex::Index> full_ops;
   ret.reserve(op_indexes->size());
   for (auto op_index : *op_indexes) {
-    InstallOperation_Type type = (*graph)[op_index].aop.op.type();
+    InstallOperation::Type type = (*graph)[op_index].aop.op.type();
     if (type == InstallOperation::REPLACE ||
         type == InstallOperation::REPLACE_BZ) {
       full_ops.push_back(op_index);

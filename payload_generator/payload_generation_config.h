@@ -165,7 +165,7 @@ struct PayloadVersion {
   bool Validate() const;
 
   // Return whether the passed |operation| is allowed by this payload.
-  bool OperationAllowed(InstallOperation_Type operation) const;
+  bool OperationAllowed(InstallOperation::Type operation) const;
 
   // Whether this payload version is a delta payload.
   bool IsDelta() const;

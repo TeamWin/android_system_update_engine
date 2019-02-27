@@ -56,7 +56,7 @@ void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
   skipped_ops_ = 0;
 
   for (Graph::size_type i = 0; i < subgraph_.size(); i++) {
-    InstallOperation_Type op_type = graph[i].aop.op.type();
+    InstallOperation::Type op_type = graph[i].aop.op.type();
     if (op_type == InstallOperation::REPLACE ||
         op_type == InstallOperation::REPLACE_BZ) {
       skipped_ops_++;

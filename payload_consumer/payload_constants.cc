@@ -42,7 +42,7 @@ const char kPartitionNameRoot[] = "root";
 
 const char kDeltaMagic[4] = {'C', 'r', 'A', 'U'};
 
-const char* InstallOperationTypeName(InstallOperation_Type op_type) {
+const char* InstallOperationTypeName(InstallOperation::Type op_type) {
   switch (op_type) {
     case InstallOperation::BSDIFF:
       return "BSDIFF";
