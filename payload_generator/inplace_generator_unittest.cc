@@ -55,7 +55,7 @@ void GenVertex(Vertex* out,
                const vector<Extent>& src_extents,
                const vector<Extent>& dst_extents,
                const string& path,
-               InstallOperation_Type type) {
+               InstallOperation::Type type) {
   out->aop.op.set_type(type);
   out->aop.name = path;
   StoreExtents(src_extents, out->aop.op.mutable_src_extents());

@@ -390,7 +390,7 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
     EXPECT_FALSE(data.empty());
 
     EXPECT_TRUE(op.has_type());
-    const InstallOperation_Type expected_type =
+    const InstallOperation::Type expected_type =
         (i == 0 ? InstallOperation::REPLACE : InstallOperation::REPLACE_BZ);
     EXPECT_EQ(expected_type, op.type());
     EXPECT_FALSE(op.has_data_offset());

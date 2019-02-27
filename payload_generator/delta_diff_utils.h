@@ -119,13 +119,13 @@ bool ReadExtentsToDiff(const std::string& old_part,
 bool GenerateBestFullOperation(const brillo::Blob& new_data,
                                const PayloadVersion& version,
                                brillo::Blob* out_blob,
-                               InstallOperation_Type* out_type);
+                               InstallOperation::Type* out_type);
 
 // Returns whether |op_type| is one of the REPLACE full operations.
-bool IsAReplaceOperation(InstallOperation_Type op_type);
+bool IsAReplaceOperation(InstallOperation::Type op_type);
 
 // Returns true if an operation with type |op_type| has no |src_extents|.
-bool IsNoSourceOperation(InstallOperation_Type op_type);
+bool IsNoSourceOperation(InstallOperation::Type op_type);
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).

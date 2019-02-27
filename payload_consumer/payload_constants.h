@@ -77,7 +77,7 @@ extern const char kDeltaMagic[4];
 const uint64_t kSparseHole = std::numeric_limits<uint64_t>::max();
 
 // Return the name of the operation type.
-const char* InstallOperationTypeName(InstallOperation_Type op_type);
+const char* InstallOperationTypeName(InstallOperation::Type op_type);
 
 }  // namespace chromeos_update_engine
 
