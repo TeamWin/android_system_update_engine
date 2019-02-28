@@ -222,7 +222,7 @@ bool PayloadVersion::Validate() const {
   return true;
 }
 
-bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
+bool PayloadVersion::OperationAllowed(InstallOperation::Type operation) const {
   switch (operation) {
     // Full operations:
     case InstallOperation::REPLACE:

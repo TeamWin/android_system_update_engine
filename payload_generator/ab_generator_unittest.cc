@@ -49,7 +49,7 @@ bool ExtentEquals(const Extent& ext,
 }
 
 // Tests splitting of a REPLACE/REPLACE_BZ operation.
-void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
+void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
                                           bool compressible) {
   const size_t op_ex1_start_block = 2;
   const size_t op_ex1_num_blocks = 2;
@@ -124,7 +124,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
       version, aop, part_file.path(), &result_ops, &blob_file));
 
   // Check the result.
-  InstallOperation_Type expected_type =
+  InstallOperation::Type expected_type =
       compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
 
   ASSERT_EQ(2U, result_ops.size());
@@ -200,7 +200,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
 }
 
 // Tests merging of REPLACE/REPLACE_BZ operations.
-void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
+void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
                                            bool compressible) {
   const size_t first_op_num_blocks = 1;
   const size_t second_op_num_blocks = 2;
@@ -287,7 +287,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
       &aops, version, 5, part_file.path(), &blob_file));
 
   // Check the result.
-  InstallOperation_Type expected_op_type =
+  InstallOperation::Type expected_op_type =
       compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
   EXPECT_EQ(1U, aops.size());
   InstallOperation new_op = aops[0].op;
