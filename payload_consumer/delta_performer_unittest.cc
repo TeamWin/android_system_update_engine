@@ -177,19 +177,22 @@ class DeltaPerformerTest : public ::testing::Test {
 
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
                                const vector<AnnotatedOperation>& aops,
-                               bool sign_payload) {
+                               bool sign_payload,
+                               PartitionConfig* old_part = nullptr) {
     return GeneratePayload(blob_data,
                            aops,
                            sign_payload,
                            kMaxSupportedMajorPayloadVersion,
-                           kMaxSupportedMinorPayloadVersion);
+                           kMaxSupportedMinorPayloadVersion,
+                           old_part);
   }
 
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
                                const vector<AnnotatedOperation>& aops,
                                bool sign_payload,
                                uint64_t major_version,
-                               uint32_t minor_version) {
+                               uint32_t minor_version,
+                               PartitionConfig* old_part = nullptr) {
     test_utils::ScopedTempFile blob_file("Blob-XXXXXX");
     EXPECT_TRUE(test_utils::WriteFileVector(blob_file.path(), blob_data));
 
@@ -200,24 +203,29 @@ class DeltaPerformerTest : public ::testing::Test {
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
 
-    PartitionConfig old_part(kPartitionNameRoot);
+    std::unique_ptr<PartitionConfig> old_part_uptr;
+    if (!old_part) {
+      old_part_uptr = std::make_unique<PartitionConfig>(kPartitionNameRoot);
+      old_part = old_part_uptr.get();
+    }
     if (minor_version != kFullPayloadMinorVersion) {
       // When generating a delta payload we need to include the old partition
       // information to mark it as a delta payload.
-      old_part.path = "/dev/null";
-      old_part.size = 0;
+      if (old_part->path.empty()) {
+        old_part->path = "/dev/null";
+      }
     }
     PartitionConfig new_part(kPartitionNameRoot);
     new_part.path = "/dev/zero";
     new_part.size = 1234;
 
-    payload.AddPartition(old_part, new_part, aops);
+    payload.AddPartition(*old_part, new_part, aops);
 
     // We include a kernel partition without operations.
-    old_part.name = kPartitionNameKernel;
+    old_part->name = kPartitionNameKernel;
     new_part.name = kPartitionNameKernel;
     new_part.size = 0;
-    payload.AddPartition(old_part, new_part, {});
+    payload.AddPartition(*old_part, new_part, {});
 
     test_utils::ScopedTempFile payload_file("Payload-XXXXXX");
     string private_key =
@@ -233,7 +241,8 @@ class DeltaPerformerTest : public ::testing::Test {
   }
 
   brillo::Blob GenerateSourceCopyPayload(const brillo::Blob& copied_data,
-                                         bool add_hash) {
+                                         bool add_hash,
+                                         PartitionConfig* old_part = nullptr) {
     PayloadGenerationConfig config;
     const uint64_t kDefaultBlockSize = config.block_size;
     EXPECT_EQ(0U, copied_data.size() % kDefaultBlockSize);
@@ -247,7 +256,7 @@ class DeltaPerformerTest : public ::testing::Test {
     if (add_hash)
       aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-    return GeneratePayload(brillo::Blob(), {aop}, false);
+    return GeneratePayload(brillo::Blob(), {aop}, false, old_part);
   }
 
   // Apply |payload_data| on partition specified in |source_path|.
@@ -571,10 +580,15 @@ TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), {aop}, false);
-
   test_utils::ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), expected_data));
+
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = expected_data.size();
+
+  brillo::Blob payload_data =
+      GeneratePayload(brillo::Blob(), {aop}, false, &old_part);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, source.path(), true));
 }
@@ -594,10 +608,15 @@ TEST_F(DeltaPerformerTest, PuffdiffOperationTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(src, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data = GeneratePayload(puffdiff_payload, {aop}, false);
-
   test_utils::ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), src));
+
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = src.size();
+
+  brillo::Blob payload_data =
+      GeneratePayload(puffdiff_payload, {aop}, false, &old_part);
 
   brillo::Blob dst(std::begin(dst_deflates), std::end(dst_deflates));
   EXPECT_EQ(dst, ApplyPayload(payload_data, source.path(), true));
@@ -617,10 +636,15 @@ TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), {aop}, false);
-
   test_utils::ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), actual_data));
+
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = actual_data.size();
+
+  brillo::Blob payload_data =
+      GeneratePayload(brillo::Blob(), {aop}, false, &old_part);
 
   EXPECT_EQ(actual_data, ApplyPayload(payload_data, source.path(), false));
 }
@@ -640,7 +664,12 @@ TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyFallbackTest) {
   FakeFileDescriptor* fake_fec = SetFakeECCFile(kCopyOperationSize);
   brillo::Blob expected_data = FakeFileDescriptorData(kCopyOperationSize);
 
-  brillo::Blob payload_data = GenerateSourceCopyPayload(expected_data, true);
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = invalid_data.size();
+
+  brillo::Blob payload_data =
+      GenerateSourceCopyPayload(expected_data, true, &old_part);
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, source.path(), true));
   // Verify that the fake_fec was actually used.
   EXPECT_EQ(1U, fake_fec->GetReadOps().size());
@@ -661,8 +690,13 @@ TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyWhenNoHashFallbackTest) {
   // the expected.
   FakeFileDescriptor* fake_fec = SetFakeECCFile(kCopyOperationSize / 2);
 
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = expected_data.size();
+
   // The payload operation doesn't include an operation hash.
-  brillo::Blob payload_data = GenerateSourceCopyPayload(expected_data, false);
+  brillo::Blob payload_data =
+      GenerateSourceCopyPayload(expected_data, false, &old_part);
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, source.path(), true));
   // Verify that the fake_fec was attempted to be used. Since the file
   // descriptor is shorter it can actually do more than one read to realize it
