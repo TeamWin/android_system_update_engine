@@ -98,7 +98,8 @@ void InstallPlan::Dump() const {
 bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
   bool result = true;
   for (Partition& partition : partitions) {
-    if (source_slot != BootControlInterface::kInvalidSlot) {
+    if (source_slot != BootControlInterface::kInvalidSlot &&
+        partition.source_size > 0) {
       result = boot_control->GetPartitionDevice(
                    partition.name, source_slot, &partition.source_path) &&
                result;
