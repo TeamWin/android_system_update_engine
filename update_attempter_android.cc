@@ -457,7 +457,7 @@ bool UpdateAttempterAndroid::SetPerformanceMode(bool enable,
 
   if (performance_mode_ == enable)
     return true;
-  if (set_cpuset_policy(0, enable ? SP_FOREGROUND : SP_BACKGROUND) < 0)
+  if (set_cpuset_policy(0, enable ? SP_TOP_APP : SP_BACKGROUND) < 0)
     return LogAndSetError(error, FROM_HERE, "Could not change policy");
   performance_mode_ = enable;
   return true;
