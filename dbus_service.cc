@@ -19,8 +19,8 @@
 #include <string>
 #include <vector>
 
+#include <dlcservice/proto_bindings/dlcservice.pb.h>
 #include <update_engine/dbus-constants.h>
-#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/dbus_connection.h"
 #include "update_engine/update_status_utils.h"
@@ -65,24 +65,23 @@ bool DBusUpdateEngineService::AttemptUpdateWithFlags(
 bool DBusUpdateEngineService::AttemptInstall(ErrorPtr* error,
                                              const string& dlc_request) {
   // Parse the raw parameters into protobuf.
-  DlcParameters dlc_parameters;
+  dlcservice::DlcModuleList dlc_parameters;
   if (!dlc_parameters.ParseFromString(dlc_request)) {
     *error = brillo::Error::Create(
         FROM_HERE, "update_engine", "INTERNAL", "parameters are invalid.");
     return false;
   }
   // Extract fields from the protobuf.
-  vector<string> dlc_module_ids;
-  for (const auto& dlc_info : dlc_parameters.dlc_infos()) {
-    if (dlc_info.dlc_id().empty()) {
+  vector<string> dlc_ids;
+  for (const auto& dlc_module_info : dlc_parameters.dlc_module_infos()) {
+    if (dlc_module_info.dlc_id().empty()) {
       *error = brillo::Error::Create(
           FROM_HERE, "update_engine", "INTERNAL", "parameters are invalid.");
       return false;
     }
-    dlc_module_ids.push_back(dlc_info.dlc_id());
+    dlc_ids.push_back(dlc_module_info.dlc_id());
   }
-  return common_->AttemptInstall(
-      error, dlc_parameters.omaha_url(), dlc_module_ids);
+  return common_->AttemptInstall(error, dlc_parameters.omaha_url(), dlc_ids);
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,
