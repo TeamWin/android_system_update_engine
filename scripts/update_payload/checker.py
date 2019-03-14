@@ -609,7 +609,7 @@ class PayloadChecker(object):
     """
     self.major_version = self.payload.header.version
 
-    part_sizes = collections.defaultdict(int, part_sizes)
+    part_sizes = part_sizes or collections.defaultdict(int)
     manifest = self.payload.manifest
     report.AddSection('manifest')
 
@@ -1372,7 +1372,7 @@ class PayloadChecker(object):
         new_fs_usable_size = self.new_fs_sizes[part]
         old_fs_usable_size = self.old_fs_sizes[part]
 
-        if part_sizes.get(part, None):
+        if part_sizes is not None and part_sizes.get(part, None):
           new_fs_usable_size = old_fs_usable_size = part_sizes[part]
         # Infer the usable partition size when validating rootfs operations:
         # - If rootfs partition size was provided, use that.

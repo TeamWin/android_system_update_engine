@@ -38,6 +38,29 @@ import update_payload
 _TYPE_FULL = 'full'
 _TYPE_DELTA = 'delta'
 
+def CheckApplyPayload(args):
+  """Whether to check the result after applying the payload.
+
+  Args:
+    args: Parsed command arguments (the return value of
+          ArgumentParser.parse_args).
+
+  Returns:
+    Boolean value whether to check.
+  """
+  return args.dst_part_paths is not None
+
+def ApplyPayload(args):
+  """Whether to apply the payload.
+
+  Args:
+    args: Parsed command arguments (the return value of
+          ArgumentParser.parse_args).
+
+  Returns:
+    Boolean value whether to apply the payload.
+  """
+  return CheckApplyPayload(args) or args.out_dst_part_paths is not None
 
 def ParseArguments(argv):
   """Parse and validate command-line arguments.
@@ -49,9 +72,9 @@ def ParseArguments(argv):
     Returns the arguments returned by the argument parser.
   """
   parser = argparse.ArgumentParser(
-      description=('Applies a Chrome OS update PAYLOAD to src_kern and '
-                   'src_root emitting dst_kern and dst_root, respectively. '
-                   'src_kern and src_root are only needed for delta payloads. '
+      description=('Applies a Chrome OS update PAYLOAD to src_part_paths'
+                   'emitting dst_part_paths, respectively. '
+                   'src_part_paths are only needed for delta payloads. '
                    'When no partitions are provided, verifies the payload '
                    'integrity.'),
       epilog=('Note: a payload may verify correctly but fail to apply, and '
@@ -93,13 +116,6 @@ def ParseArguments(argv):
   check_args.add_argument('-s', '--metadata-size', metavar='NUM', default=0,
                           help='the metadata size to verify with the one in'
                           ' payload')
-  # TODO(tbrindus): deprecated in favour of --part_sizes
-  check_args.add_argument('-p', '--root-part-size', metavar='NUM',
-                          default=0, type=int,
-                          help='override rootfs partition size auto-inference')
-  check_args.add_argument('-P', '--kern-part-size', metavar='NUM',
-                          default=0, type=int,
-                          help='override kernel partition size auto-inference')
   check_args.add_argument('--part_sizes', metavar='NUM', nargs='+', type=int,
                           help='override partition size auto-inference')
 
@@ -113,21 +129,6 @@ def ParseArguments(argv):
                           help='use the specified bspatch binary')
   apply_args.add_argument('--puffpatch-path', metavar='FILE',
                           help='use the specified puffpatch binary')
-  # TODO(tbrindus): deprecated in favour of --dst_part_paths
-  apply_args.add_argument('--dst_kern', metavar='FILE',
-                          help='destination kernel partition file')
-  apply_args.add_argument('--dst_root', metavar='FILE',
-                          help='destination root partition file')
-  # TODO(tbrindus): deprecated in favour of --src_part_paths
-  apply_args.add_argument('--src_kern', metavar='FILE',
-                          help='source kernel partition file')
-  apply_args.add_argument('--src_root', metavar='FILE',
-                          help='source root partition file')
-  # TODO(tbrindus): deprecated in favour of --out_dst_part_paths
-  apply_args.add_argument('--out_dst_kern', metavar='FILE',
-                          help='created destination kernel partition file')
-  apply_args.add_argument('--out_dst_root', metavar='FILE',
-                          help='created destination root partition file')
 
   apply_args.add_argument('--src_part_paths', metavar='FILE', nargs='+',
                           help='source partitition files')
@@ -143,36 +144,28 @@ def ParseArguments(argv):
   # Parse command-line arguments.
   args = parser.parse_args(argv)
 
-  # TODO(tbrindus): temporary workaround to keep old-style flags from breaking
-  # without having to handle both types in our code. Remove after flag usage is
-  # removed from calling scripts.
-  args.part_names = args.part_names or [common.KERNEL, common.ROOTFS]
-  args.part_sizes = args.part_sizes or [args.kern_part_size,
-                                        args.root_part_size]
-  args.src_part_paths = args.src_part_paths or [args.src_kern, args.src_root]
-  args.dst_part_paths = args.dst_part_paths or [args.dst_kern, args.dst_root]
-  args.out_dst_part_paths = args.out_dst_part_paths or [args.out_dst_kern,
-                                                        args.out_dst_root]
-
-  # Make sure we don't have new dependencies on old flags by deleting them from
-  # the namespace here.
-  for old in ['kern_part_size', 'root_part_size', 'src_kern', 'src_root',
-              'dst_kern', 'dst_root', 'out_dst_kern', 'out_dst_root']:
-    delattr(args, old)
-
   # There are several options that imply --check.
   args.check = (args.check or args.report or args.assert_type or
                 args.block_size or args.allow_unhashed or
                 args.disabled_tests or args.meta_sig or args.key or
-                any(args.part_sizes) or args.metadata_size)
+                args.part_sizes is not None or args.metadata_size)
 
+  # Makes sure the following arguments have the same length as |part_names| if
+  # set.
   for arg in ['part_sizes', 'src_part_paths', 'dst_part_paths',
               'out_dst_part_paths']:
+    if getattr(args, arg) is None:
+      # Parameter is not set.
+      continue
     if len(args.part_names) != len(getattr(args, arg, [])):
       parser.error('partitions in --%s do not match --part_names' % arg)
 
-  if all(args.dst_part_paths) or all(args.out_dst_part_paths):
-    if all(args.src_part_paths):
+  def _IsSrcPartPathsProvided(args):
+    return args.src_part_paths is not None
+
+  # Makes sure parameters are coherent with payload type.
+  if ApplyPayload(args):
+    if _IsSrcPartPathsProvided(args):
       if args.assert_type == _TYPE_FULL:
         parser.error('%s payload does not accept source partition arguments'
                      % _TYPE_FULL)
@@ -230,7 +223,8 @@ def main(argv):
               report_file = open(args.report, 'w')
               do_close_report_file = True
 
-          part_sizes = dict(zip(args.part_names, args.part_sizes))
+          part_sizes = (args.part_sizes and
+                        dict(zip(args.part_names, args.part_sizes)))
           metadata_sig_file = args.meta_sig and open(args.meta_sig)
           payload.Check(
               pubkey_file_name=args.key,
@@ -249,7 +243,7 @@ def main(argv):
             report_file.close()
 
       # Apply payload.
-      if all(args.dst_part_paths) or all(args.out_dst_part_paths):
+      if ApplyPayload(args):
         dargs = {'bsdiff_in_place': not args.extract_bsdiff}
         if args.bspatch_path:
           dargs['bspatch_path'] = args.bspatch_path
@@ -260,7 +254,7 @@ def main(argv):
 
         out_dst_parts = {}
         file_handles = []
-        if all(args.out_dst_part_paths):
+        if args.out_dst_part_paths is not None:
           for name, path in zip(args.part_names, args.out_dst_part_paths):
             handle = open(path, 'w+')
             file_handles.append(handle)
@@ -275,7 +269,7 @@ def main(argv):
 
         # If destination kernel and rootfs partitions are not given, then this
         # just becomes an apply operation with no check.
-        if all(args.dst_part_paths):
+        if CheckApplyPayload(args):
           # Prior to comparing, add the unused space past the filesystem
           # boundary in the new target partitions to become the same size as
           # the given partitions. This will truncate to larger size.
