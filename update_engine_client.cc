@@ -321,8 +321,6 @@ int UpdateEngineClient::ProcessFlags() {
               "Show the previous OS version used before the update reboot.");
   DEFINE_bool(last_attempt_error, false, "Show the last attempt error.");
   DEFINE_bool(eol_status, false, "Show the current end-of-life status.");
-  DEFINE_bool(install, false, "Requests an install.");
-  DEFINE_string(dlc_module_ids, "", "colon-separated list of DLC IDs.");
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
@@ -507,30 +505,6 @@ int UpdateEngineClient::ProcessFlags() {
     }
   }
 
-  if (FLAGS_install) {
-    // Parse DLC module IDs.
-    vector<string> dlc_module_ids;
-    if (!FLAGS_dlc_module_ids.empty()) {
-      dlc_module_ids = base::SplitString(FLAGS_dlc_module_ids,
-                                         ":",
-                                         base::TRIM_WHITESPACE,
-                                         base::SPLIT_WANT_ALL);
-    }
-    if (dlc_module_ids.empty()) {
-      LOG(ERROR) << "dlc_module_ids is empty:" << FLAGS_dlc_module_ids;
-      return 1;
-    }
-    if (!client_->AttemptInstall(FLAGS_omaha_url, dlc_module_ids)) {
-      LOG(ERROR) << "AttemptInstall failed.";
-      return 1;
-    }
-    return 0;
-  } else if (!FLAGS_dlc_module_ids.empty()) {
-    LOG(ERROR) << "dlc_module_ids is not empty while install is not set:"
-               << FLAGS_dlc_module_ids;
-    return 1;
-  }
-
   // Initiate an update check, if necessary.
   if (do_update_request) {
     LOG_IF(WARNING, FLAGS_reboot) << "-reboot flag ignored.";
@@ -539,7 +513,7 @@ int UpdateEngineClient::ProcessFlags() {
       app_version = "ForcedUpdate";
       LOG(INFO) << "Forcing an update by setting app_version to ForcedUpdate.";
     }
-    LOG(INFO) << "Initiating update check and install.";
+    LOG(INFO) << "Initiating update check.";
     if (!client_->AttemptUpdate(
             app_version, FLAGS_omaha_url, FLAGS_interactive)) {
       LOG(ERROR) << "Error checking for update.";
