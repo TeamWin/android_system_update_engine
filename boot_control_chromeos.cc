@@ -19,10 +19,12 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <chromeos/constants/imageloader.h>
 #include <rootdev/rootdev.h>
@@ -36,6 +38,7 @@ extern "C" {
 #include "update_engine/common/utils.h"
 
 using std::string;
+using std::vector;
 
 namespace {
 
@@ -44,7 +47,7 @@ const char* kChromeOSPartitionNameRoot = "root";
 const char* kAndroidPartitionNameKernel = "boot";
 const char* kAndroidPartitionNameRoot = "system";
 
-const char kPartitionNamePrefixDlc[] = "dlc_";
+const char kPartitionNamePrefixDlc[] = "dlc";
 const char kPartitionNameDlcA[] = "dlc_a";
 const char kPartitionNameDlcB[] = "dlc_b";
 const char kPartitionNameDlcImage[] = "dlc.img";
@@ -145,6 +148,31 @@ BootControlInterface::Slot BootControlChromeOS::GetCurrentSlot() const {
   return current_slot_;
 }
 
+bool BootControlChromeOS::ParseDlcPartitionName(
+    const std::string partition_name,
+    std::string* dlc_id,
+    std::string* dlc_package) const {
+  CHECK_NE(dlc_id, nullptr);
+  CHECK_NE(dlc_package, nullptr);
+
+  vector<string> tokens = base::SplitString(
+      partition_name, "/", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  if (tokens.size() != 3 || tokens[0] != kPartitionNamePrefixDlc) {
+    LOG(ERROR) << "DLC partition name (" << partition_name
+               << ") is not well formatted.";
+    return false;
+  }
+  if (tokens[1].empty() || tokens[2].empty()) {
+    LOG(ERROR) << " partition name does not contain valid DLC ID (" << tokens[1]
+               << ") or package (" << tokens[2] << ")";
+    return false;
+  }
+
+  *dlc_id = tokens[1];
+  *dlc_package = tokens[2];
+  return true;
+}
+
 bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
                                              unsigned int slot,
                                              string* device) const {
@@ -152,17 +180,13 @@ bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
   if (base::StartsWith(partition_name,
                        kPartitionNamePrefixDlc,
                        base::CompareCase::SENSITIVE)) {
-    // Extract DLC module ID from partition_name (DLC module ID is the string
-    // after |kPartitionNamePrefixDlc| in partition_name).
-    const auto dlc_module_id =
-        partition_name.substr(strlen(kPartitionNamePrefixDlc));
-    if (dlc_module_id.empty()) {
-      LOG(ERROR) << " partition name does not contain DLC module ID:"
-                 << partition_name;
+    string dlc_id, dlc_package;
+    if (!ParseDlcPartitionName(partition_name, &dlc_id, &dlc_package))
       return false;
-    }
+
     *device = base::FilePath(imageloader::kDlcImageRootpath)
-                  .Append(dlc_module_id)
+                  .Append(dlc_id)
+                  .Append(dlc_package)
                   .Append(slot == 0 ? kPartitionNameDlcA : kPartitionNameDlcB)
                   .Append(kPartitionNameDlcImage)
                   .value();
