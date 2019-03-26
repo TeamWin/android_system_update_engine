@@ -1816,9 +1816,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       !signatures_message_data_.empty());
   brillo::Blob hash_data = signed_hash_calculator_.raw_hash();
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
-                      PayloadVerifier::PadRSA2048SHA256Hash(&hash_data));
-  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
-                      !hash_data.empty());
+                      hash_data.size() == kSHA256Size);
 
   if (!PayloadVerifier::VerifySignature(
           signatures_message_data_, public_key, hash_data)) {
