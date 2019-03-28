@@ -135,11 +135,11 @@ BootControlAndroid::GetDynamicPartitionDevice(
     return DynamicPartitionDeviceStatus::ERROR;
   }
 
+  Slot current_slot = GetCurrentSlot();
   if (builder->FindPartition(partition_name_suffix) == nullptr) {
     LOG(INFO) << partition_name_suffix
               << " is not in super partition metadata.";
 
-    Slot current_slot = GetCurrentSlot();
     if (IsSuperBlockDevice(device_dir, current_slot, partition_name_suffix)) {
       LOG(ERROR) << "The static partition " << partition_name_suffix
                  << " is a block device for current metadata ("
@@ -152,36 +152,28 @@ BootControlAndroid::GetDynamicPartitionDevice(
     return DynamicPartitionDeviceStatus::TRY_STATIC;
   }
 
-  DmDeviceState state = dynamic_control_->GetState(partition_name_suffix);
-
-  // Device is mapped in the previous GetPartitionDevice() call. Just return
-  // the path.
-  if (state == DmDeviceState::ACTIVE) {
-    if (dynamic_control_->GetDmDevicePathByName(partition_name_suffix,
-                                                device)) {
-      LOG(INFO) << partition_name_suffix
-                << " is mapped on device mapper: " << *device;
-      return DynamicPartitionDeviceStatus::SUCCESS;
+  if (slot == current_slot) {
+    if (dynamic_control_->GetState(partition_name_suffix) !=
+        DmDeviceState::ACTIVE) {
+      LOG(WARNING) << partition_name_suffix << " is at current slot but it is "
+                   << "not mapped. Now try to map it.";
+    } else {
+      if (dynamic_control_->GetDmDevicePathByName(partition_name_suffix,
+                                                  device)) {
+        LOG(INFO) << partition_name_suffix
+                  << " is mapped on device mapper: " << *device;
+        return DynamicPartitionDeviceStatus::SUCCESS;
+      }
+      LOG(ERROR) << partition_name_suffix << "is mapped but path is unknown.";
+      return DynamicPartitionDeviceStatus::ERROR;
     }
-    LOG(ERROR) << partition_name_suffix << " is mapped but path is unknown.";
-    return DynamicPartitionDeviceStatus::ERROR;
   }
 
-  if (state == DmDeviceState::INVALID) {
-    bool force_writable = slot != GetCurrentSlot();
-    if (dynamic_control_->MapPartitionOnDeviceMapper(super_device,
-                                                     partition_name_suffix,
-                                                     slot,
-                                                     force_writable,
-                                                     device)) {
-      return DynamicPartitionDeviceStatus::SUCCESS;
-    }
-    return DynamicPartitionDeviceStatus::ERROR;
+  bool force_writable = slot != current_slot;
+  if (dynamic_control_->MapPartitionOnDeviceMapper(
+          super_device, partition_name_suffix, slot, force_writable, device)) {
+    return DynamicPartitionDeviceStatus::SUCCESS;
   }
-
-  LOG(ERROR) << partition_name_suffix
-             << " is mapped on device mapper but state is unknown: "
-             << static_cast<std::underlying_type_t<DmDeviceState>>(state);
   return DynamicPartitionDeviceStatus::ERROR;
 }
 

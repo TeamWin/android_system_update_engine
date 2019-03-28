@@ -593,10 +593,19 @@ TEST_P(BootControlAndroidTestP, GetPartitionDeviceWhenResumingUpdate) {
   EXPECT_EQ(GetDmDevice(S("system")), system_device);
 
   EXPECT_CALL(dynamicControl(), GetState(T("system")))
-      .Times(1)
+      .Times(AnyNumber())
       .WillOnce(Return(DmDeviceState::ACTIVE));
+  EXPECT_CALL(dynamicControl(),
+              MapPartitionOnDeviceMapper(
+                  GetSuperDevice(target()), T("system"), target(), _, _))
+      .Times(AnyNumber())
+      .WillRepeatedly(
+          Invoke([](const auto&, const auto& name, auto, auto, auto* device) {
+            *device = "/fake/remapped/" + name;
+            return true;
+          }));
   EXPECT_TRUE(bootctl_.GetPartitionDevice("system", target(), &system_device));
-  EXPECT_EQ(GetDmDevice(T("system")), system_device);
+  EXPECT_EQ("/fake/remapped/" + T("system"), system_device);
 
   // Static partition "bar".
   EXPECT_CALL(dynamicControl(), GetState(S("bar"))).Times(0);
