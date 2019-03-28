@@ -51,6 +51,7 @@
 #include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/omaha_request_builder_xml.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/update_manager/rollback_prefs.h"
 
@@ -1753,27 +1754,6 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
   loop.PostTask(base::Bind(&TerminateTransferTestStarter, &processor));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
-}
-
-TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
-  string output;
-  EXPECT_TRUE(XmlEncode("ab", &output));
-  EXPECT_EQ("ab", output);
-  EXPECT_TRUE(XmlEncode("a<b", &output));
-  EXPECT_EQ("a&lt;b", output);
-  EXPECT_TRUE(XmlEncode("<&>\"\'\\", &output));
-  EXPECT_EQ("&lt;&amp;&gt;&quot;&apos;\\", output);
-  EXPECT_TRUE(XmlEncode("&lt;&amp;&gt;", &output));
-  EXPECT_EQ("&amp;lt;&amp;amp;&amp;gt;", output);
-  // Check that unterminated UTF-8 strings are handled properly.
-  EXPECT_FALSE(XmlEncode("\xc2", &output));
-  // Fail with invalid ASCII-7 chars.
-  EXPECT_FALSE(XmlEncode("This is an 'n' with a tilde: \xc3\xb1", &output));
-}
-
-TEST_F(OmahaRequestActionTest, XmlEncodeWithDefaultTest) {
-  EXPECT_EQ("&lt;&amp;&gt;", XmlEncodeWithDefault("<&>", "something else"));
-  EXPECT_EQ("<not escaped>", XmlEncodeWithDefault("\xc2", "<not escaped>"));
 }
 
 TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {

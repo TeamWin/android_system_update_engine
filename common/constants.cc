@@ -124,4 +124,6 @@ const char kPayloadPropertySwitchSlotOnReboot[] = "SWITCH_SLOT_ON_REBOOT";
 // The default is 1 (always run post install).
 const char kPayloadPropertyRunPostInstall[] = "RUN_POST_INSTALL";
 
+const char kOmahaUpdaterVersion[] = "0.1.0.0";
+
 }  // namespace chromeos_update_engine

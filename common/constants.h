@@ -108,6 +108,8 @@ extern const char kPayloadPropertyNetworkId[];
 extern const char kPayloadPropertySwitchSlotOnReboot[];
 extern const char kPayloadPropertyRunPostInstall[];
 
+extern const char kOmahaUpdaterVersion[];
+
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download
 // the payload.

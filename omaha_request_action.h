@@ -33,6 +33,7 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
+#include "update_engine/omaha_request_builder_xml.h"
 #include "update_engine/omaha_response.h"
 #include "update_engine/system_state.h"
 
@@ -44,56 +45,6 @@ class PolicyProvider;
 }
 
 namespace chromeos_update_engine {
-
-// Encodes XML entities in a given string. Input must be ASCII-7 valid. If
-// the input is invalid, the default value is used instead.
-std::string XmlEncodeWithDefault(const std::string& input,
-                                 const std::string& default_value);
-
-// Escapes text so it can be included as character data and attribute
-// values. The |input| string must be valid ASCII-7, no UTF-8 supported.
-// Returns whether the |input| was valid and escaped properly in |output|.
-bool XmlEncode(const std::string& input, std::string* output);
-
-// This struct encapsulates the Omaha event information. For a
-// complete list of defined event types and results, see
-// http://code.google.com/p/omaha/wiki/ServerProtocol#event
-struct OmahaEvent {
-  // The Type values correspond to EVENT_TYPE values of Omaha.
-  enum Type {
-    kTypeUnknown = 0,
-    kTypeDownloadComplete = 1,
-    kTypeInstallComplete = 2,
-    kTypeUpdateComplete = 3,
-    kTypeUpdateDownloadStarted = 13,
-    kTypeUpdateDownloadFinished = 14,
-    // Chromium OS reserved type sent after the first reboot following an update
-    // completed.
-    kTypeRebootedAfterUpdate = 54,
-  };
-
-  // The Result values correspond to EVENT_RESULT values of Omaha.
-  enum Result {
-    kResultError = 0,
-    kResultSuccess = 1,
-    kResultUpdateDeferred = 9,  // When we ignore/defer updates due to policy.
-  };
-
-  OmahaEvent()
-      : type(kTypeUnknown),
-        result(kResultError),
-        error_code(ErrorCode::kError) {}
-  explicit OmahaEvent(Type in_type)
-      : type(in_type),
-        result(kResultSuccess),
-        error_code(ErrorCode::kSuccess) {}
-  OmahaEvent(Type in_type, Result in_result, ErrorCode in_error_code)
-      : type(in_type), result(in_result), error_code(in_error_code) {}
-
-  Type type;
-  Result result;
-  ErrorCode error_code;
-};
 
 class NoneType;
 class OmahaRequestAction;
@@ -116,7 +67,6 @@ class ActionTraits<OmahaRequestAction> {
 class OmahaRequestAction : public Action<OmahaRequestAction>,
                            public HttpFetcherDelegate {
  public:
-  static const int kNeverPinged = -1;
   static const int kPingTimeJump = -2;
   // We choose this value of 10 as a heuristic for a work day in trying
   // each URL, assuming we check roughly every 45 mins. This is a good time to

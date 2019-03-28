@@ -37,6 +37,7 @@
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/cpu_limiter.h"
 #include "update_engine/common/proxy_resolver.h"
+#include "update_engine/omaha_request_builder_xml.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/payload_consumer/download_action.h"
