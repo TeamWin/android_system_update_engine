@@ -56,6 +56,11 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   std::set<std::string> mapped_devices_;
 
   void CleanupInternal(bool wait);
+  bool MapPartitionInternal(const std::string& super_device,
+                            const std::string& target_partition_name,
+                            uint32_t slot,
+                            bool force_writable,
+                            std::string* path);
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };
