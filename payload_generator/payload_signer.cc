@@ -28,6 +28,7 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 
+#include "update_engine/common/constants.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
@@ -253,14 +254,13 @@ bool PayloadSigner::VerifySignedPayload(const string& payload_path,
   string signature(payload.begin() + signatures_offset, payload.end());
   string public_key;
   TEST_AND_RETURN_FALSE(utils::ReadFile(public_key_path, &public_key));
-  TEST_AND_RETURN_FALSE(PayloadVerifier::PadRSA2048SHA256Hash(&payload_hash));
+  TEST_AND_RETURN_FALSE(payload_hash.size() == kSHA256Size);
   TEST_AND_RETURN_FALSE(
       PayloadVerifier::VerifySignature(signature, public_key, payload_hash));
   if (metadata_signature_size) {
     signature.assign(payload.begin() + metadata_size,
                      payload.begin() + metadata_size + metadata_signature_size);
-    TEST_AND_RETURN_FALSE(
-        PayloadVerifier::PadRSA2048SHA256Hash(&metadata_hash));
+    TEST_AND_RETURN_FALSE(metadata_hash.size() == kSHA256Size);
     TEST_AND_RETURN_FALSE(
         PayloadVerifier::VerifySignature(signature, public_key, metadata_hash));
   }
@@ -272,10 +272,7 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
                              brillo::Blob* out_signature) {
   LOG(INFO) << "Signing hash with private key: " << private_key_path;
   // We expect unpadded SHA256 hash coming in
-  TEST_AND_RETURN_FALSE(hash.size() == 32);
-  brillo::Blob padded_hash(hash);
-  PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash);
-
+  TEST_AND_RETURN_FALSE(hash.size() == kSHA256Size);
   // The code below executes the equivalent of:
   //
   // openssl rsautl -raw -sign -inkey |private_key_path|
@@ -286,6 +283,10 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
   RSA* rsa = PEM_read_RSAPrivateKey(fprikey, nullptr, nullptr, nullptr);
   fclose(fprikey);
   TEST_AND_RETURN_FALSE(rsa != nullptr);
+
+  brillo::Blob padded_hash = hash;
+  PayloadVerifier::PadRSASHA256Hash(&padded_hash, RSA_size(rsa));
+
   brillo::Blob signature(RSA_size(rsa));
   ssize_t signature_size = RSA_private_encrypt(padded_hash.size(),
                                                padded_hash.data(),
