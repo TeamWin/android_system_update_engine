@@ -20,6 +20,7 @@
 
 #include <brillo/data_encoding.h>
 
+#include "update_engine/common/constants.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/payload_constants.h"
@@ -187,16 +188,16 @@ ErrorCode PayloadMetadata::ValidateMetadataSignature(
     return ErrorCode::kDownloadMetadataSignatureMissingError;
   }
 
-  brillo::Blob calculated_metadata_hash;
+  brillo::Blob metadata_hash;
   if (!HashCalculator::RawHashOfBytes(
-          payload.data(), metadata_size_, &calculated_metadata_hash)) {
+          payload.data(), metadata_size_, &metadata_hash)) {
     LOG(ERROR) << "Unable to compute actual hash of manifest";
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
-  PayloadVerifier::PadRSA2048SHA256Hash(&calculated_metadata_hash);
-  if (calculated_metadata_hash.empty()) {
-    LOG(ERROR) << "Computed actual hash of metadata is empty.";
+  if (metadata_hash.size() != kSHA256Size) {
+    LOG(ERROR) << "Computed actual hash of metadata has incorrect size: "
+               << metadata_hash.size();
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
@@ -207,17 +208,25 @@ ErrorCode PayloadMetadata::ValidateMetadataSignature(
       LOG(ERROR) << "Unable to compute expected hash from metadata signature";
       return ErrorCode::kDownloadMetadataSignatureError;
     }
-    if (calculated_metadata_hash != expected_metadata_hash) {
+
+    brillo::Blob padded_metadata_hash = metadata_hash;
+    if (!PayloadVerifier::PadRSASHA256Hash(&padded_metadata_hash,
+                                           expected_metadata_hash.size())) {
+      LOG(ERROR) << "Failed to pad the SHA256 hash to "
+                 << expected_metadata_hash.size() << " bytes.";
+      return ErrorCode::kDownloadMetadataSignatureVerificationError;
+    }
+
+    if (padded_metadata_hash != expected_metadata_hash) {
       LOG(ERROR) << "Manifest hash verification failed. Expected hash = ";
       utils::HexDumpVector(expected_metadata_hash);
       LOG(ERROR) << "Calculated hash = ";
-      utils::HexDumpVector(calculated_metadata_hash);
+      utils::HexDumpVector(padded_metadata_hash);
       return ErrorCode::kDownloadMetadataSignatureMismatch;
     }
   } else {
-    if (!PayloadVerifier::VerifySignature(metadata_signature_protobuf,
-                                          pem_public_key,
-                                          calculated_metadata_hash)) {
+    if (!PayloadVerifier::VerifySignature(
+            metadata_signature_protobuf, pem_public_key, metadata_hash)) {
       LOG(ERROR) << "Manifest hash verification failed.";
       return ErrorCode::kDownloadMetadataSignatureMismatch;
     }

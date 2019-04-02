@@ -16,11 +16,13 @@
 
 #include "update_engine/payload_consumer/payload_verifier.h"
 
+#include <utility>
 #include <vector>
 
 #include <base/logging.h>
 #include <openssl/pem.h>
 
+#include "update_engine/common/constants.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_metadata.pb.h"
@@ -31,57 +33,27 @@ namespace chromeos_update_engine {
 
 namespace {
 
-// The following is a standard PKCS1-v1_5 padding for SHA256 signatures, as
-// defined in RFC3447. It is prepended to the actual signature (32 bytes) to
-// form a sequence of 256 bytes (2048 bits) that is amenable to RSA signing. The
-// padded hash will look as follows:
+// The ASN.1 DigestInfo prefix for encoding SHA256 digest. The complete 51-byte
+// DigestInfo consists of 19-byte SHA256_DIGEST_INFO_PREFIX and 32-byte SHA256
+// digest.
 //
-//    0x00 0x01 0xff ... 0xff 0x00  ASN1HEADER  SHA256HASH
-//   |--------------205-----------||----19----||----32----|
-//
-// where ASN1HEADER is the ASN.1 description of the signed data. The complete 51
-// bytes of actual data (i.e. the ASN.1 header complete with the hash) are
-// packed as follows:
-//
-//  SEQUENCE(2+49) {
+// SEQUENCE(2+49) {
 //   SEQUENCE(2+13) {
-//    OBJECT(2+9) id-sha256
-//    NULL(2+0)
+//     OBJECT(2+9) id-sha256
+//     NULL(2+0)
 //   }
 //   OCTET STRING(2+32) <actual signature bytes...>
-//  }
-// clang-format off
-const uint8_t kRSA2048SHA256Padding[] = {
-    // PKCS1-v1_5 padding
-    0x00, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0x00,
-    // ASN.1 header
-    0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
-    0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
+// }
+const uint8_t kSHA256DigestInfoPrefix[] = {
+    0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+    0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
 };
-// clang-format on
 
 }  // namespace
 
 bool PayloadVerifier::VerifySignature(const string& signature_proto,
                                       const string& pem_public_key,
-                                      const brillo::Blob& hash_data) {
+                                      const brillo::Blob& sha256_hash_data) {
   Signatures signatures;
   LOG(INFO) << "signature blob size = " << signature_proto.size();
   TEST_AND_RETURN_FALSE(signatures.ParseFromString(signature_proto));
@@ -100,7 +72,9 @@ bool PayloadVerifier::VerifySignature(const string& signature_proto,
     if (!GetRawHashFromSignature(sig_data, pem_public_key, &sig_hash_data))
       continue;
 
-    if (hash_data == sig_hash_data) {
+    brillo::Blob padded_hash_data = sha256_hash_data;
+    if (PadRSASHA256Hash(&padded_hash_data, sig_hash_data.size()) &&
+        padded_hash_data == sig_hash_data) {
       LOG(INFO) << "Verified correct signature " << i + 1 << " out of "
                 << signatures.signatures_size() << " signatures.";
       return true;
@@ -108,8 +82,8 @@ bool PayloadVerifier::VerifySignature(const string& signature_proto,
     tested_hashes.push_back(sig_hash_data);
   }
   LOG(ERROR) << "None of the " << signatures.signatures_size()
-             << " signatures is correct. Expected:";
-  utils::HexDumpVector(hash_data);
+             << " signatures is correct. Expected hash before padding:";
+  utils::HexDumpVector(sha256_hash_data);
   LOG(ERROR) << "But found decrypted hashes:";
   for (const auto& sig_hash_data : tested_hashes) {
     utils::HexDumpVector(sig_hash_data);
@@ -150,13 +124,30 @@ bool PayloadVerifier::GetRawHashFromSignature(const brillo::Blob& sig_data,
   return true;
 }
 
-bool PayloadVerifier::PadRSA2048SHA256Hash(brillo::Blob* hash) {
-  TEST_AND_RETURN_FALSE(hash->size() == 32);
-  hash->insert(hash->begin(),
-               reinterpret_cast<const char*>(kRSA2048SHA256Padding),
-               reinterpret_cast<const char*>(kRSA2048SHA256Padding +
-                                             sizeof(kRSA2048SHA256Padding)));
-  TEST_AND_RETURN_FALSE(hash->size() == 256);
+bool PayloadVerifier::PadRSASHA256Hash(brillo::Blob* hash, size_t rsa_size) {
+  TEST_AND_RETURN_FALSE(hash->size() == kSHA256Size);
+  TEST_AND_RETURN_FALSE(rsa_size == 256 || rsa_size == 512);
+
+  // The following is a standard PKCS1-v1_5 padding for SHA256 signatures, as
+  // defined in RFC3447 section 9.2. It is prepended to the actual signature
+  // (32 bytes) to form a sequence of 256|512 bytes (2048|4096 bits) that is
+  // amenable to RSA signing. The padded hash will look as follows:
+  //
+  //    0x00 0x01 0xff ... 0xff 0x00  ASN1HEADER  SHA256HASH
+  //   |-----------205|461----------||----19----||----32----|
+  size_t padding_string_size =
+      rsa_size - hash->size() - sizeof(kSHA256DigestInfoPrefix) - 3;
+  brillo::Blob padded_result = brillo::CombineBlobs({
+      {0x00, 0x01},
+      brillo::Blob(padding_string_size, 0xff),
+      {0x00},
+      brillo::Blob(kSHA256DigestInfoPrefix,
+                   kSHA256DigestInfoPrefix + sizeof(kSHA256DigestInfoPrefix)),
+      *hash,
+  });
+
+  *hash = std::move(padded_result);
+  TEST_AND_RETURN_FALSE(hash->size() == rsa_size);
   return true;
 }
 

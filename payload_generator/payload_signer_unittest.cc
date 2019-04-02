@@ -44,6 +44,8 @@ const char* kUnittestPrivateKeyPath = "unittest_key.pem";
 const char* kUnittestPublicKeyPath = "unittest_key.pub.pem";
 const char* kUnittestPrivateKey2Path = "unittest_key2.pem";
 const char* kUnittestPublicKey2Path = "unittest_key2.pub.pem";
+const char* kUnittestPrivateKeyRSA4096Path = "unittest_key_RSA4096.pem";
+const char* kUnittestPublicKeyRSA4096Path = "unittest_key_RSA4096.pub.pem";
 
 // Some data and its corresponding hash and signature:
 const char kDataToSign[] = "This is some data to sign.";
@@ -101,11 +103,7 @@ void SignSampleData(string* out_signature, const vector<string>& private_keys) {
 
 class PayloadSignerTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash_data_);
-  }
-
-  brillo::Blob padded_hash_data_{std::begin(kDataHash), std::end(kDataHash)};
+  brillo::Blob hash_data_{std::begin(kDataHash), std::end(kDataHash)};
 };
 
 TEST_F(PayloadSignerTest, SignSimpleTextTest) {
@@ -129,18 +127,23 @@ TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
   string signature;
   SignSampleData(&signature,
                  {GetBuildArtifactsPath(kUnittestPrivateKeyPath),
-                  GetBuildArtifactsPath(kUnittestPrivateKey2Path)});
+                  GetBuildArtifactsPath(kUnittestPrivateKey2Path),
+                  GetBuildArtifactsPath(kUnittestPrivateKeyRSA4096Path)});
 
   // Either public key should pass the verification.
   string public_key;
   EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKeyPath),
                               &public_key));
-  EXPECT_TRUE(PayloadVerifier::VerifySignature(
-      signature, public_key, padded_hash_data_));
+  EXPECT_TRUE(
+      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
   EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKey2Path),
                               &public_key));
-  EXPECT_TRUE(PayloadVerifier::VerifySignature(
-      signature, public_key, padded_hash_data_));
+  EXPECT_TRUE(
+      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
+  EXPECT_TRUE(utils::ReadFile(
+      GetBuildArtifactsPath(kUnittestPublicKeyRSA4096Path), &public_key));
+  EXPECT_TRUE(
+      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
 }
 
 TEST_F(PayloadSignerTest, VerifySignatureTest) {
@@ -150,13 +153,13 @@ TEST_F(PayloadSignerTest, VerifySignatureTest) {
   string public_key;
   EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKeyPath),
                               &public_key));
-  EXPECT_TRUE(PayloadVerifier::VerifySignature(
-      signature, public_key, padded_hash_data_));
+  EXPECT_TRUE(
+      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
   // Passing the invalid key should fail the verification.
   EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKey2Path),
                               &public_key));
-  EXPECT_TRUE(PayloadVerifier::VerifySignature(
-      signature, public_key, padded_hash_data_));
+  EXPECT_TRUE(
+      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
 }
 
 TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
