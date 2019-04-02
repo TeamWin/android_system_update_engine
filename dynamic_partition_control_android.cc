@@ -58,7 +58,7 @@ bool DynamicPartitionControlAndroid::IsDynamicPartitionsRetrofit() {
   return GetBoolProperty(kRetrfoitDynamicPartitions, false);
 }
 
-bool DynamicPartitionControlAndroid::MapPartitionOnDeviceMapper(
+bool DynamicPartitionControlAndroid::MapPartitionInternal(
     const std::string& super_device,
     const std::string& target_partition_name,
     uint32_t slot,
@@ -79,6 +79,51 @@ bool DynamicPartitionControlAndroid::MapPartitionOnDeviceMapper(
             << "); device path at " << *path;
   mapped_devices_.insert(target_partition_name);
   return true;
+}
+
+bool DynamicPartitionControlAndroid::MapPartitionOnDeviceMapper(
+    const std::string& super_device,
+    const std::string& target_partition_name,
+    uint32_t slot,
+    bool force_writable,
+    std::string* path) {
+  DmDeviceState state = GetState(target_partition_name);
+  if (state == DmDeviceState::ACTIVE) {
+    if (mapped_devices_.find(target_partition_name) != mapped_devices_.end()) {
+      if (GetDmDevicePathByName(target_partition_name, path)) {
+        LOG(INFO) << target_partition_name
+                  << " is mapped on device mapper: " << *path;
+        return true;
+      }
+      LOG(ERROR) << target_partition_name << " is mapped but path is unknown.";
+      return false;
+    }
+    // If target_partition_name is not in mapped_devices_ but state is ACTIVE,
+    // the device might be mapped incorrectly before. Attempt to unmap it.
+    // Note that for source partitions, if GetState() == ACTIVE, callers (e.g.
+    // BootControlAndroid) should not call MapPartitionOnDeviceMapper, but
+    // should directly call GetDmDevicePathByName.
+    if (!UnmapPartitionOnDeviceMapper(target_partition_name, true /* wait */)) {
+      LOG(ERROR) << target_partition_name
+                 << " is mapped before the update, and it cannot be unmapped.";
+      return false;
+    }
+    state = GetState(target_partition_name);
+    if (state != DmDeviceState::INVALID) {
+      LOG(ERROR) << target_partition_name << " is unmapped but state is "
+                 << static_cast<std::underlying_type_t<DmDeviceState>>(state);
+      return false;
+    }
+  }
+  if (state == DmDeviceState::INVALID) {
+    return MapPartitionInternal(
+        super_device, target_partition_name, slot, force_writable, path);
+  }
+
+  LOG(ERROR) << target_partition_name
+             << " is mapped on device mapper but state is unknown: "
+             << static_cast<std::underlying_type_t<DmDeviceState>>(state);
+  return false;
 }
 
 bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
