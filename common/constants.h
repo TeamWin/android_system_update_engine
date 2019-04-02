@@ -197,6 +197,9 @@ const int kDownloadP2PMaxRetryCount = 5;
 const int kDownloadConnectTimeoutSeconds = 30;
 const int kDownloadP2PConnectTimeoutSeconds = 5;
 
+// Size in bytes of SHA256 hash.
+const int kSHA256Size = 32;
+
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_COMMON_CONSTANTS_H_
