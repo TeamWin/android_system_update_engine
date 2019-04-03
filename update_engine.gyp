@@ -491,6 +491,7 @@
           'sources': [
             'unittest_key.pem',
             'unittest_key2.pem',
+            'unittest_key_RSA4096.pem',
           ],
           'includes': ['../../../platform2/common-mk/openssl_pem.gypi'],
         },
