@@ -248,6 +248,9 @@ declare -A DST_PARTITIONS_MAP
 # List of partition names in order.
 declare -a PARTITIONS_ORDER
 
+# A list of PIDs of the extract_image workers.
+EXTRACT_IMAGE_PIDS=()
+
 # A list of temporary files to remove during cleanup.
 CLEANUP_FILES=()
 
@@ -530,6 +533,7 @@ Disabling deltas for this source version."
     # Extract partitions in background.
     extract_partition_brillo "${image}" "${partitions_array}" "${part}" \
         "${part_file}" "${part_map_file}" &
+    EXTRACT_IMAGE_PIDS+=("$!")
     eval "${partitions_array}[\"${part}\"]=\"${part_file}\""
     eval "${partitions_array}_MAP[\"${part}\"]=\"${part_map_file}\""
   done
@@ -559,8 +563,12 @@ extract_payload_images() {
     extract_image "${FLAGS_source_image}" SRC_PARTITIONS
   fi
   extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
-  # Wait for all subprocesses.
-  wait
+  # Wait for all subprocesses to finish. Not using `wait` since it doesn't die
+  # on non-zero subprocess exit code. Not using `wait ${EXTRACT_IMAGE_PIDS[@]}`
+  # as it gives the status of the last process it has waited for.
+  for pid in ${EXTRACT_IMAGE_PIDS[@]}; do
+    wait ${pid}
+  done
   cleanup_partition_array SRC_PARTITIONS
   cleanup_partition_array SRC_PARTITIONS_MAP
   cleanup_partition_array DST_PARTITIONS
