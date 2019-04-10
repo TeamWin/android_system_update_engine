@@ -63,8 +63,8 @@ void ParseSignatureSizes(const string& signature_sizes_flag,
     bool parsing_successful = base::StringToInt(str, &size);
     LOG_IF(FATAL, !parsing_successful) << "Invalid signature size: " << str;
 
-    LOG_IF(FATAL, size != (2048 / 8))
-        << "Only signature sizes of 256 bytes are supported.";
+    LOG_IF(FATAL, size != 256 && size != 512)
+        << "Only signature sizes of 256 or 512 bytes are supported.";
 
     signature_sizes->push_back(size);
   }
