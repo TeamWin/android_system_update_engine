@@ -981,6 +981,14 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   }
 }
 
+void OmahaRequestAction::ReportUpdateCheckMetrics(
+    metrics::CheckResult result,
+    metrics::CheckReaction reaction,
+    metrics::DownloadErrorCode download_error_code) {
+  system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
+      system_state_, result, reaction, download_error_code);
+}
+
 void OmahaRequestAction::CompleteProcessing() {
   ScopedActionCompleter completer(processor_, this);
   OmahaResponse& output_object = const_cast<OmahaResponse&>(GetOutputObject());
@@ -1376,8 +1384,7 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
       break;
   }
 
-  system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
-      system_state_, result, reaction, download_error_code);
+  ReportUpdateCheckMetrics(result, reaction, download_error_code);
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,

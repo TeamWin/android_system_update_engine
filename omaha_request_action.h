@@ -125,6 +125,11 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
   void TransferComplete(HttpFetcher* fetcher, bool successful) override;
 
+  void ReportUpdateCheckMetrics(
+      metrics::CheckResult result,
+      metrics::CheckReaction reaction,
+      metrics::DownloadErrorCode download_error_code) override;
+
   // Returns true if this is an Event request, false if it's an UpdateCheck.
   bool IsEvent() const { return event_.get() != nullptr; }
 

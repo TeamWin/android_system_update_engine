@@ -29,6 +29,7 @@
 
 #include "update_engine/common/http_common.h"
 #include "update_engine/common/proxy_resolver.h"
+#include "update_engine/metrics_constants.h"
 
 // This class is a simple wrapper around an HTTP library (libcurl). We can
 // easily mock out this interface for testing.
@@ -200,6 +201,13 @@ class HttpFetcherDelegate {
   // situations. It's OK to destroy the |fetcher| object in this callback.
   virtual void TransferComplete(HttpFetcher* fetcher, bool successful) = 0;
   virtual void TransferTerminated(HttpFetcher* fetcher) {}
+
+  // This allows |HttpFetcher| to send UMA metrics for its internal states
+  // (unrecoverable libcurl internal error, etc.).
+  virtual void ReportUpdateCheckMetrics(
+      metrics::CheckResult result,
+      metrics::CheckReaction reaction,
+      metrics::DownloadErrorCode download_error_code) {}
 };
 
 }  // namespace chromeos_update_engine

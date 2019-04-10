@@ -651,6 +651,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
+  update_check_fetcher->set_is_update_check(true);
   auto update_check_action = std::make_unique<OmahaRequestAction>(
       system_state_, nullptr, std::move(update_check_fetcher), false);
   auto response_handler_action =

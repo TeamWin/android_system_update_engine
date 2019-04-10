@@ -407,6 +407,21 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     }
   }
 
+  // When retcode is not |CURLM_OK| at this point, libcurl has an internal error
+  // that it is less likely to recover from (libcurl bug, out-of-memory, etc.).
+  // In case of an update check, we send UMA metrics and log the error.
+  if (is_update_check_ &&
+      (retcode == CURLM_OUT_OF_MEMORY || retcode == CURLM_INTERNAL_ERROR)) {
+    delegate_->ReportUpdateCheckMetrics(
+        metrics::CheckResult::kUnset,
+        metrics::CheckReaction::kUnset,
+        metrics::DownloadErrorCode::kInternalError);
+    LOG(ERROR) << "curl_multi_perform is in an unrecoverable error condition: "
+               << retcode;
+  } else if (retcode != CURLM_OK) {
+    LOG(ERROR) << "curl_multi_perform returns error: " << retcode;
+  }
+
   // If the transfer completes while paused, we should ignore the failure once
   // the fetcher is unpaused.
   if (running_handles == 0 && transfer_paused_ && !ignore_failure_) {
@@ -431,6 +446,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     no_network_retry_count_ = 0;
   } else {
     LOG(ERROR) << "Unable to get http response code.";
+    LogCurlHandleInfo();
   }
 
   // we're done!
@@ -756,6 +772,39 @@ void LibcurlHttpFetcher::GetHttpResponseCode() {
                                CURLINFO_RESPONSE_CODE,
                                &http_response_code) == CURLE_OK) {
     http_response_code_ = static_cast<int>(http_response_code);
+  } else {
+    LOG(ERROR) << "Unable to get http response code from curl_easy_getinfo";
+  }
+}
+
+void LibcurlHttpFetcher::LogCurlHandleInfo() {
+  while (true) {
+    // Repeated calls to |curl_multi_info_read| will return a new struct each
+    // time, until a NULL is returned as a signal that there is no more to get
+    // at this point.
+    int msgs_in_queue;
+    CURLMsg* curl_msg =
+        curl_multi_info_read(curl_multi_handle_, &msgs_in_queue);
+    if (curl_msg == nullptr)
+      break;
+    // When |curl_msg| is |CURLMSG_DONE|, a transfer of an easy handle is done,
+    // and then data contains the return code for this transfer.
+    if (curl_msg->msg == CURLMSG_DONE) {
+      // Make sure |curl_multi_handle_| has one and only one easy handle
+      // |curl_handle_|.
+      CHECK_EQ(curl_handle_, curl_msg->easy_handle);
+      // Transfer return code reference:
+      // https://curl.haxx.se/libcurl/c/libcurl-errors.html
+      LOG(ERROR) << "Return code for the transfer: " << curl_msg->data.result;
+    }
+  }
+
+  // Gets connection error if exists.
+  long connect_error = 0;  // NOLINT(runtime/int) - curl needs long.
+  CURLcode res =
+      curl_easy_getinfo(curl_handle_, CURLINFO_OS_ERRNO, &connect_error);
+  if (res == CURLE_OK && connect_error) {
+    LOG(ERROR) << "Connect error code from the OS: " << connect_error;
   }
 }
 

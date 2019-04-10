@@ -106,6 +106,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
     max_retry_count_ = max_retry_count;
   }
 
+  void set_is_update_check(bool is_update_check) {
+    is_update_check_ = is_update_check;
+  }
+
  private:
   // libcurl's CURLOPT_CLOSESOCKETFUNCTION callback function. Called when
   // closing a socket created with the CURLOPT_OPENSOCKETFUNCTION callback.
@@ -117,6 +121,11 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   // Asks libcurl for the http response code and stores it in the object.
   void GetHttpResponseCode();
+
+  // Logs curl handle info.
+  // This can be called only when an http request failed to avoid spamming the
+  // logs. This must be called after |ResumeTransfer| and before |CleanUp|.
+  void LogCurlHandleInfo();
 
   // Checks whether stored HTTP response is within the success range.
   inline bool IsHttpResponseSuccess() {
@@ -264,6 +273,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // certificate check needs to be performed, this should be set to
   // ServerToCheck::kNone.
   ServerToCheck server_to_check_{ServerToCheck::kNone};
+
+  // True if this object is for update check.
+  bool is_update_check_{false};
 
   int low_speed_limit_bps_{kDownloadLowSpeedLimitBps};
   int low_speed_time_seconds_{kDownloadLowSpeedTimeSeconds};
