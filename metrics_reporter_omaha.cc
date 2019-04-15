@@ -144,10 +144,6 @@ std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
 MetricsReporterOmaha::MetricsReporterOmaha()
     : metrics_lib_(new MetricsLibrary()) {}
 
-void MetricsReporterOmaha::Initialize() {
-  metrics_lib_->Init();
-}
-
 void MetricsReporterOmaha::ReportDailyMetrics(base::TimeDelta os_age) {
   string metric = metrics::kMetricDailyOSAgeDays;
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(os_age) << " for metric "

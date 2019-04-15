@@ -42,8 +42,6 @@ class MetricsReporterInterface {
  public:
   virtual ~MetricsReporterInterface() = default;
 
-  virtual void Initialize() = 0;
-
   // Helper function to report metrics related to user-initiated rollback. The
   // following metrics are reported:
   //

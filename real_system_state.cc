@@ -54,8 +54,6 @@ RealSystemState::~RealSystemState() {
 }
 
 bool RealSystemState::Initialize() {
-  metrics_reporter_.Initialize();
-
   boot_control_ = boot_control::CreateBootControl();
   if (!boot_control_) {
     LOG(WARNING) << "Unable to create BootControl instance, using stub "

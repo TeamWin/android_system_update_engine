@@ -31,8 +31,6 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
 
   ~MetricsReporterAndroid() override = default;
 
-  void Initialize() override {}
-
   void ReportRollbackMetrics(metrics::RollbackResult result) override {}
 
   void ReportEnterpriseRollbackMetrics(
