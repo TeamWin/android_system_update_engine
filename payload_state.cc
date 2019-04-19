@@ -287,6 +287,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kPayloadHashMismatchError:
     case ErrorCode::kPayloadSizeMismatchError:
     case ErrorCode::kDownloadPayloadVerificationError:
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
     case ErrorCode::kSignedDeltaPayloadExpectedError:
     case ErrorCode::kDownloadInvalidMetadataMagicString:
     case ErrorCode::kDownloadSignatureMissingInManifest:

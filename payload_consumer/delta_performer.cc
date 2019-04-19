@@ -1448,6 +1448,13 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     }
   }
 
+  if (manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
+    LOG(ERROR) << "The current OS build timestamp ("
+               << hardware_->GetBuildTimestamp()
+               << ") is newer than the maximum timestamp in the manifest ("
+               << manifest_.max_timestamp() << ")";
+    return ErrorCode::kPayloadTimestampError;
+  }
 
   // TODO(garnold) we should be adding more and more manifest checks, such as
   // partition boundaries etc (see chromium-os:37661).
@@ -1563,6 +1570,18 @@ ErrorCode DeltaPerformer::VerifyPayload(
   TEST_AND_RETURN_VAL(ErrorCode::kSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());
   brillo::Blob hash_data = signed_hash_calculator_.raw_hash();
+  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
+                      PayloadVerifier::PadRSA2048SHA256Hash(&hash_data));
+  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
+                      !hash_data.empty());
+
+  if (!PayloadVerifier::VerifySignature(
+      signatures_message_data_, path_to_public_key.value(), hash_data)) {
+    // The autoupdate_CatchBadSignatures test checks for this string
+    // in log-files. Keep in sync.
+    LOG(ERROR) << "Public key verification failed, thus update failed.";
+    return ErrorCode::kDownloadPayloadPubKeyVerificationError;
+  }
 
   LOG(INFO) << "Payload hash matches value in payload.";
 

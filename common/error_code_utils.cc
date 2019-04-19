@@ -66,6 +66,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kNewKernelVerificationError";
     case ErrorCode::kSignedDeltaPayloadExpectedError:
       return "ErrorCode::kSignedDeltaPayloadExpectedError";
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
+      return "ErrorCode::kDownloadPayloadPubKeyVerificationError";
     case ErrorCode::kPostinstallBootedFromFirmwareB:
       return "ErrorCode::kPostinstallBootedFromFirmwareB";
     case ErrorCode::kDownloadStateInitializationError:

@@ -77,6 +77,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kPayloadHashMismatchError:
     case ErrorCode::kDownloadPayloadVerificationError:
     case ErrorCode::kSignedDeltaPayloadExpectedError:
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
     case ErrorCode::kPayloadTimestampError:
       return metrics::AttemptResult::kPayloadVerificationFailed;
 
@@ -181,6 +182,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kNewRootfsVerificationError:
     case ErrorCode::kNewKernelVerificationError:
     case ErrorCode::kSignedDeltaPayloadExpectedError:
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
     case ErrorCode::kPostinstallBootedFromFirmwareB:
     case ErrorCode::kDownloadStateInitializationError:
     case ErrorCode::kDownloadInvalidMetadataMagicString:
