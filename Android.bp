@@ -293,7 +293,10 @@ cc_binary {
     ],
 
     static_libs: ["libupdate_engine_android"],
-    required: ["cacerts_google"],
+    required: [
+        "cacerts_google",
+        "update_engine_payload_key",
+    ],
 
     srcs: ["main.cc"],
     init_rc: ["update_engine.rc"],
@@ -366,7 +369,10 @@ cc_binary {
         },
     },
 
-    required: ["android.hardware.boot@1.0-impl-wrapper.recovery"],
+    required: [
+        "android.hardware.boot@1.0-impl-wrapper.recovery",
+        "update_engine_payload_key.recovery",
+    ],
 }
 
 // libupdate_engine_client (type: shared_library)
