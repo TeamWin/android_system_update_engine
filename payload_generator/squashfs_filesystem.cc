@@ -261,6 +261,14 @@ bool SquashfsFilesystem::Init(const string& map,
                 return a.offset < b.offset;
               });
 
+    // Sometimes a squashfs can have a two files that are hard linked. In this
+    // case both files will have the same starting offset in the image and hence
+    // the same zlib blocks. So we need to remove these duplicates to eliminate
+    // further potential probems. As a matter of fact the next statement will
+    // fail if there are duplicates (there will be overlap between two blocks).
+    auto last = std::unique(zlib_blks.begin(), zlib_blks.end());
+    zlib_blks.erase(last, zlib_blks.end());
+
     // Sanity check. Make sure zlib blocks are not overlapping.
     auto result = std::adjacent_find(
         zlib_blks.begin(),
