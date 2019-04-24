@@ -427,6 +427,14 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   omaha_request_params_->set_dlc_module_ids(dlc_module_ids_);
   omaha_request_params_->set_is_install(is_install_);
 
+  // Set Quick Fix Build token if policy is set.
+  string token;
+  if (system_state_ && system_state_->device_policy()) {
+    if (!system_state_->device_policy()->GetDeviceQuickFixBuildToken(&token))
+      token.clear();
+  }
+  omaha_request_params_->set_autoupdate_token(token);
+
   LOG(INFO) << "target_version_prefix = "
             << omaha_request_params_->target_version_prefix()
             << ", rollback_allowed = "

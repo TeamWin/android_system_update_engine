@@ -1463,6 +1463,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   request_params_.set_current_channel("unittest_track&lt;");
   request_params_.set_target_channel("unittest_track&lt;");
   request_params_.set_hwid("<OEM MODEL>");
+  request_params_.set_autoupdate_token("autoupdate_token>");
   fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
   fake_prefs_.SetString(
@@ -1489,6 +1490,8 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   // Values from Prefs that are too big are removed from the XML instead of
   // encoded.
   EXPECT_EQ(string::npos, post_str.find("cohortname="));
+  EXPECT_NE(string::npos, post_str.find("autoupdate_token&gt;"));
+  EXPECT_EQ(string::npos, post_str.find("autoupdate_token>"));
 }
 
 TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
@@ -1690,6 +1693,21 @@ TEST_F(OmahaRequestActionTest, OmahaEventTest) {
   EXPECT_EQ(OmahaEvent::kTypeUpdateDownloadFinished, error_event.type);
   EXPECT_EQ(OmahaEvent::kResultError, error_event.result);
   EXPECT_EQ(ErrorCode::kError, error_event.error_code);
+}
+
+TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsSetTest) {
+  constexpr char autoupdate_token[] = "autoupdate_token";
+
+  tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+  request_params_.set_autoupdate_token(autoupdate_token);
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_NE(post_str.find("        <updatecheck token=\"" +
+                          string(autoupdate_token) + "\"></updatecheck>\n"),
+            string::npos);
 }
 
 void OmahaRequestActionTest::PingTest(bool ping_only) {

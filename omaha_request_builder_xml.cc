@@ -122,6 +122,13 @@ string GetAppBody(const OmahaEvent* event,
             app_body += " rollback_allowed=\"true\"";
           }
         }
+        string autoupdate_token = params->autoupdate_token();
+        if (!autoupdate_token.empty()) {
+          app_body += base::StringPrintf(
+              " token=\"%s\"",
+              XmlEncodeWithDefault(autoupdate_token, "").c_str());
+        }
+
         app_body += "></updatecheck>\n";
       }
 

@@ -193,6 +193,13 @@ class OmahaRequestParams {
   inline void set_is_install(bool is_install) { is_install_ = is_install; }
   inline bool is_install() const { return is_install_; }
 
+  inline void set_autoupdate_token(const std::string& token) {
+    autoupdate_token_ = token;
+  }
+  inline const std::string& autoupdate_token() const {
+    return autoupdate_token_;
+  }
+
   // Returns the app id corresponding to the current value of the
   // download channel.
   virtual std::string GetAppId() const;
@@ -370,6 +377,11 @@ class OmahaRequestParams {
   // partition. At the moment, this is used for installing DLC modules on the
   // current active partition instead of the inactive partition.
   bool is_install_;
+
+  // Token used when making an update request for a specific build.
+  // For example: Token for a Quick Fix Build:
+  // https://www.chromium.org/administrators/policy-list-3#DeviceQuickFixBuildToken.
+  std::string autoupdate_token_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestParams);
 };
