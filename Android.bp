@@ -550,8 +550,6 @@ cc_test {
 
     gtest: false,
     stem: "delta_generator",
-    relative_install_path: "update_engine_unittests",
-    no_named_install_directory: true,
 }
 
 // test_http_server (type: executable)
@@ -566,8 +564,6 @@ cc_test {
     ],
 
     gtest: false,
-    relative_install_path: "update_engine_unittests",
-    no_named_install_directory: true,
 }
 
 // test_subprocess (type: executable)
@@ -579,8 +575,6 @@ cc_test {
     srcs: ["test_subprocess.cc"],
 
     gtest: false,
-    relative_install_path: "update_engine_unittests",
-    no_named_install_directory: true,
 }
 
 // Public keys for unittests.
@@ -628,11 +622,6 @@ cc_test {
         "libpayload_generator_exports",
         "libupdate_engine_android_exports",
     ],
-    required: [
-        "test_http_server",
-        "test_subprocess",
-        "ue_unittest_delta_generator",
-    ],
 
     static_libs: [
         "libpayload_generator",
@@ -646,6 +635,9 @@ cc_test {
     ],
 
     data: [
+        ":test_http_server",
+        ":test_subprocess",
+        ":ue_unittest_delta_generator",
         ":ue_unittest_disk_imgs",
         ":ue_unittest_keys",
         "unittest_key.pem",
@@ -653,6 +645,11 @@ cc_test {
         "unittest_key_RSA4096.pem",
         "update_engine.conf",
     ],
+
+    // We cannot use the default generated AndroidTest.xml because of the use of helper modules
+    // (i.e. test_http_server, test_subprocess, ue_unittest_delta_generator).
+    test_config: "test_config.xml",
+    test_suites: ["device-tests"],
 
     srcs: [
         "boot_control_android_unittest.cc",
