@@ -38,6 +38,7 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
+#include "update_engine/payload_generator/payload_properties.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_generator/xz.h"
 #include "update_engine/update_metadata.pb.h"
@@ -52,6 +53,9 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
+
+constexpr char kPayloadPropertiesFormatKeyValue[] = "key-value";
+constexpr char kPayloadPropertiesFormatJson[] = "json";
 
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<int>* signature_sizes) {
@@ -268,14 +272,24 @@ bool ApplyPayload(const string& payload_file,
   return true;
 }
 
-int ExtractProperties(const string& payload_path, const string& props_file) {
-  brillo::KeyValueStore properties;
-  TEST_AND_RETURN_FALSE(
-      PayloadSigner::ExtractPayloadProperties(payload_path, &properties));
-  if (props_file == "-") {
-    printf("%s", properties.SaveToString().c_str());
+bool ExtractProperties(const string& payload_path,
+                       const string& props_file,
+                       const string& props_format) {
+  string properties;
+  PayloadProperties payload_props(payload_path);
+  if (props_format == kPayloadPropertiesFormatKeyValue) {
+    TEST_AND_RETURN_FALSE(payload_props.GetPropertiesAsKeyValue(&properties));
+  } else if (props_format == kPayloadPropertiesFormatJson) {
+    TEST_AND_RETURN_FALSE(payload_props.GetPropertiesAsJson(&properties));
   } else {
-    properties.Save(base::FilePath(props_file));
+    LOG(FATAL) << "Invalid option " << props_format
+               << " for --properties_format flag.";
+  }
+  if (props_file == "-") {
+    printf("%s", properties.c_str());
+  } else {
+    utils::WriteFile(
+        props_file.c_str(), properties.c_str(), properties.length());
     LOG(INFO) << "Generated properties file at " << props_file;
   }
   return true;
@@ -362,7 +376,11 @@ int Main(int argc, char** argv) {
   DEFINE_string(properties_file,
                 "",
                 "If passed, dumps the payload properties of the payload passed "
-                "in --in_file and exits.");
+                "in --in_file and exits. Look at --properties_format.");
+  DEFINE_string(properties_format,
+                kPayloadPropertiesFormatKeyValue,
+                "Defines the format of the --properties_file. The acceptable "
+                "values are: key-value (default) and json");
   DEFINE_int64(max_timestamp,
                0,
                "The maximum timestamp of the OS allowed to apply this "
@@ -467,7 +485,10 @@ int Main(int argc, char** argv) {
     return VerifySignedPayload(FLAGS_in_file, FLAGS_public_key);
   }
   if (!FLAGS_properties_file.empty()) {
-    return ExtractProperties(FLAGS_in_file, FLAGS_properties_file) ? 0 : 1;
+    return ExtractProperties(
+               FLAGS_in_file, FLAGS_properties_file, FLAGS_properties_format)
+               ? 0
+               : 1;
   }
 
   // A payload generation was requested. Convert the flags to a

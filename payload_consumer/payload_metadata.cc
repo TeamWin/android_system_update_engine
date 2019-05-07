@@ -25,6 +25,8 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_verifier.h"
 
+using std::string;
+
 namespace chromeos_update_engine {
 
 const uint64_t PayloadMetadata::kDeltaVersionOffset = sizeof(kDeltaMagic);
@@ -222,6 +224,35 @@ ErrorCode PayloadMetadata::ValidateMetadataSignature(
   // log-files. Keep in sync.
   LOG(INFO) << "Metadata hash signature matches value in Omaha response.";
   return ErrorCode::kSuccess;
+}
+
+bool PayloadMetadata::ParsePayloadFile(const string& payload_path,
+                                       DeltaArchiveManifest* manifest,
+                                       Signatures* metadata_signatures) {
+  brillo::Blob payload;
+  TEST_AND_RETURN_FALSE(
+      utils::ReadFileChunk(payload_path, 0, kMaxPayloadHeaderSize, &payload));
+  TEST_AND_RETURN_FALSE(ParsePayloadHeader(payload));
+
+  if (manifest != nullptr) {
+    TEST_AND_RETURN_FALSE(
+        utils::ReadFileChunk(payload_path,
+                             kMaxPayloadHeaderSize,
+                             GetMetadataSize() - kMaxPayloadHeaderSize,
+                             &payload));
+    TEST_AND_RETURN_FALSE(GetManifest(payload, manifest));
+  }
+
+  if (metadata_signatures != nullptr &&
+      GetMajorVersion() >= kBrilloMajorPayloadVersion) {
+    payload.clear();
+    TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
+        payload_path, GetMetadataSize(), GetMetadataSignatureSize(), &payload));
+    TEST_AND_RETURN_FALSE(
+        metadata_signatures->ParseFromArray(payload.data(), payload.size()));
+  }
+
+  return true;
 }
 
 }  // namespace chromeos_update_engine

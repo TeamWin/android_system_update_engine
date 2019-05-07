@@ -439,35 +439,4 @@ bool PayloadSigner::GetMetadataSignature(const void* const metadata,
   return true;
 }
 
-bool PayloadSigner::ExtractPayloadProperties(
-    const string& payload_path, brillo::KeyValueStore* properties) {
-  brillo::Blob payload;
-  TEST_AND_RETURN_FALSE(
-      utils::ReadFileChunk(payload_path, 0, kMaxPayloadHeaderSize, &payload));
-
-  PayloadMetadata payload_metadata;
-  TEST_AND_RETURN_FALSE(payload_metadata.ParsePayloadHeader(payload));
-  uint64_t metadata_size = payload_metadata.GetMetadataSize();
-
-  uint64_t file_size = utils::FileSize(payload_path);
-  properties->SetString(kPayloadPropertyFileSize, std::to_string(file_size));
-  properties->SetString(kPayloadPropertyMetadataSize,
-                        std::to_string(metadata_size));
-
-  brillo::Blob file_hash, metadata_hash;
-  TEST_AND_RETURN_FALSE(
-      HashCalculator::RawHashOfFile(payload_path, file_size, &file_hash) ==
-      static_cast<off_t>(file_size));
-
-  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(
-                            payload_path, metadata_size, &metadata_hash) ==
-                        static_cast<off_t>(metadata_size));
-
-  properties->SetString(kPayloadPropertyFileHash,
-                        brillo::data_encoding::Base64Encode(file_hash));
-  properties->SetString(kPayloadPropertyMetadataHash,
-                        brillo::data_encoding::Base64Encode(metadata_hash));
-  return true;
-}
-
 }  // namespace chromeos_update_engine

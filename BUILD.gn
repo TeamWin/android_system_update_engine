@@ -350,6 +350,7 @@ static_library("libpayload_generator") {
     "payload_generator/payload_file.cc",
     "payload_generator/payload_generation_config.cc",
     "payload_generator/payload_generation_config_chromeos.cc",
+    "payload_generator/payload_properties.cc",
     "payload_generator/payload_signer.cc",
     "payload_generator/raw_filesystem.cc",
     "payload_generator/squashfs_filesystem.cc",

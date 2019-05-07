@@ -119,9 +119,6 @@ class PayloadSigner {
                                    const std::string& private_key_path,
                                    std::string* out_signature);
 
-  static bool ExtractPayloadProperties(const std::string& payload_path,
-                                       brillo::KeyValueStore* properties);
-
  private:
   // This should never be constructed
   DISALLOW_IMPLICIT_CONSTRUCTORS(PayloadSigner);

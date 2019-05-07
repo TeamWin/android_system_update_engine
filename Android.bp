@@ -498,6 +498,7 @@ cc_library_static {
         "payload_generator/payload_file.cc",
         "payload_generator/payload_generation_config_android.cc",
         "payload_generator/payload_generation_config.cc",
+        "payload_generator/payload_properties.cc",
         "payload_generator/payload_signer.cc",
         "payload_generator/raw_filesystem.cc",
         "payload_generator/squashfs_filesystem.cc",
