@@ -81,6 +81,27 @@ const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
 
 const char* kActivePingKey = "first_active_omaha_ping_sent";
 
+const char* kOemRequisitionKey = "oem_device_requisition";
+
+// Gets a string value from the vpd for a given key using the `vpd_get_value`
+// shell command. Returns true on success.
+int GetVpdValue(string key, string* result) {
+  int exit_code = 0;
+  string value;
+  vector<string> cmd = {"vpd_get_value", key};
+  if (!chromeos_update_engine::Subprocess::SynchronousExec(
+          cmd, &exit_code, &value) ||
+      exit_code) {
+    LOG(ERROR) << "Failed to get vpd key for " << value
+               << " with exit code: " << exit_code;
+    return false;
+  }
+
+  base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
+  *result = value;
+  return true;
+}
+
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -188,6 +209,11 @@ string HardwareChromeOS::GetECVersion() const {
   }
 
   return utils::ParseECVersion(input_line);
+}
+
+string HardwareChromeOS::GetDeviceRequisition() const {
+  string requisition;
+  return GetVpdValue(kOemRequisitionKey, &requisition) ? requisition : "";
 }
 
 int HardwareChromeOS::GetMinKernelKeyVersion() const {
@@ -311,17 +337,11 @@ void HardwareChromeOS::LoadConfig(const string& root_prefix, bool normal_mode) {
 }
 
 bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
-  int exit_code = 0;
   string active_ping_str;
-  vector<string> cmd = {"vpd_get_value", kActivePingKey};
-  if (!Subprocess::SynchronousExec(cmd, &exit_code, &active_ping_str) ||
-      exit_code) {
-    LOG(ERROR) << "Failed to get vpd key for " << kActivePingKey
-               << " with exit code: " << exit_code;
+  if (!GetVpdValue(kActivePingKey, &active_ping_str)) {
     return false;
   }
 
-  base::TrimWhitespaceASCII(active_ping_str, base::TRIM_ALL, &active_ping_str);
   int active_ping;
   if (active_ping_str.empty() ||
       !base::StringToInt(active_ping_str, &active_ping)) {

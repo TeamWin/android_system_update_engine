@@ -95,6 +95,7 @@ bool OmahaRequestParams::Init(const string& in_app_version,
     fw_version_ = system_state_->hardware()->GetFirmwareVersion();
     ec_version_ = system_state_->hardware()->GetECVersion();
   }
+  device_requisition_ = system_state_->hardware()->GetDeviceRequisition();
 
   if (image_props_.current_channel == mutable_image_props_.target_channel) {
     // deltas are only okay if the /.nodelta file does not exist.  if we don't

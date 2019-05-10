@@ -70,6 +70,10 @@ class HardwareInterface {
   // running a custom chrome os ec.
   virtual std::string GetECVersion() const = 0;
 
+  // Returns the OEM device requisition or an empty string if the system does
+  // not have a requisition, or if not running Chrome OS.
+  virtual std::string GetDeviceRequisition() const = 0;
+
   // Returns the minimum kernel key version that verified boot on Chrome OS
   // will allow to boot. This is the value of crossystem tpm_kernver. Returns
   // -1 on error, or if not running on Chrome OS.

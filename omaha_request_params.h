@@ -85,6 +85,7 @@ class OmahaRequestParams {
   inline std::string hwid() const { return hwid_; }
   inline std::string fw_version() const { return fw_version_; }
   inline std::string ec_version() const { return ec_version_; }
+  inline std::string device_requisition() const { return device_requisition_; }
 
   inline void set_app_version(const std::string& version) {
     image_props_.version = version;
@@ -265,6 +266,9 @@ class OmahaRequestParams {
   void set_is_powerwash_allowed(bool powerwash_allowed) {
     mutable_image_props_.is_powerwash_allowed = powerwash_allowed;
   }
+  void set_device_requisition(const std::string& requisition) {
+    device_requisition_ = requisition;
+  }
 
  private:
   FRIEND_TEST(OmahaRequestParamsTest, ChannelIndexTest);
@@ -334,6 +338,9 @@ class OmahaRequestParams {
   std::string hwid_;        // Hardware Qualification ID of the client
   std::string fw_version_;  // Chrome OS Firmware Version.
   std::string ec_version_;  // Chrome OS EC Version.
+  // TODO(b:133324571) tracks removal of this field once it is no longer
+  // needed in AU requests. Remove by October 1st 2019.
+  std::string device_requisition_;  // Chrome OS Requisition type.
   bool delta_okay_;         // If this client can accept a delta
   bool interactive_;        // Whether this is a user-initiated update check
 

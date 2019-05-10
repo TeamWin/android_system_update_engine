@@ -121,6 +121,11 @@ string HardwareAndroid::GetECVersion() const {
   return GetProperty(kPropBootBaseband, "");
 }
 
+string HardwareAndroid::GetDeviceRequisition() const {
+  LOG(WARNING) << "STUB: Getting requisition is not supported.";
+  return "";
+}
+
 int HardwareAndroid::GetMinKernelKeyVersion() const {
   LOG(WARNING) << "STUB: No Kernel key version is available.";
   return -1;

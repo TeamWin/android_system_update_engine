@@ -77,6 +77,10 @@ class FakeHardware : public HardwareInterface {
 
   std::string GetECVersion() const override { return ec_version_; }
 
+  std::string GetDeviceRequisition() const override {
+    return device_requisition_;
+  }
+
   int GetMinKernelKeyVersion() const override {
     return min_kernel_key_version_;
   }
@@ -173,6 +177,10 @@ class FakeHardware : public HardwareInterface {
 
   void SetECVersion(const std::string& ec_version) { ec_version_ = ec_version; }
 
+  void SetDeviceRequisition(const std::string& requisition) {
+    device_requisition_ = requisition;
+  }
+
   void SetMinKernelKeyVersion(int min_kernel_key_version) {
     min_kernel_key_version_ = min_kernel_key_version;
   }
@@ -207,6 +215,7 @@ class FakeHardware : public HardwareInterface {
   std::string hardware_class_{"Fake HWID BLAH-1234"};
   std::string firmware_version_{"Fake Firmware v1.0.1"};
   std::string ec_version_{"Fake EC v1.0a"};
+  std::string device_requisition_{"fake_requisition"};
   int min_kernel_key_version_{kMinKernelKeyVersion};
   int min_firmware_key_version_{kMinFirmwareKeyVersion};
   int kernel_max_rollforward_{kKernelMaxRollforward};

@@ -313,6 +313,13 @@ string GetAppXml(const OmahaEvent* event,
     }
   }
 
+  string requisition_arg;
+  if (!params->device_requisition().empty()) {
+    requisition_arg = "requisition=\"" +
+                      XmlEncodeWithDefault(params->device_requisition(), "") +
+                      "\" ";
+  }
+
   // clang-format off
   string app_xml = "    <app "
       "appid=\"" + XmlEncodeWithDefault(app_data.id, "") + "\" " +
@@ -329,6 +336,7 @@ string GetAppXml(const OmahaEvent* event,
       "fw_version=\"" + XmlEncodeWithDefault(params->fw_version(), "") + "\" " +
       "ec_version=\"" + XmlEncodeWithDefault(params->ec_version(), "") + "\" " +
       install_date_in_days_str +
+      requisition_arg +
       ">\n" +
          app_body +
       "    </app>\n";

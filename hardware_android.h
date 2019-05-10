@@ -42,6 +42,7 @@ class HardwareAndroid final : public HardwareInterface {
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
+  std::string GetDeviceRequisition() const override;
   int GetMinKernelKeyVersion() const override;
   int GetMinFirmwareKeyVersion() const override;
   int GetMaxFirmwareKeyRollforward() const override;

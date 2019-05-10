@@ -2762,4 +2762,18 @@ TEST_F(OmahaRequestActionTest, MismatchNumberOfVersions) {
             response.past_rollback_key_version.kernel);
 }
 
+TEST_F(OmahaRequestActionTest, IncludeRequisitionTest) {
+  request_params_.set_device_requisition("remora");
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  ASSERT_TRUE(TestUpdateCheck());
+  EXPECT_NE(string::npos, post_str.find("requisition=\"remora\""));
+}
+
+TEST_F(OmahaRequestActionTest, NoIncludeRequisitionTest) {
+  request_params_.set_device_requisition("");
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  ASSERT_TRUE(TestUpdateCheck());
+  EXPECT_EQ(string::npos, post_str.find("requisition"));
+}
+
 }  // namespace chromeos_update_engine
