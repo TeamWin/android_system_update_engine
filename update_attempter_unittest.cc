@@ -188,7 +188,7 @@ class UpdateAttempterTest : public ::testing::Test {
   void P2PEnabledInteractiveStart();
   void P2PEnabledStartingFailsStart();
   void P2PEnabledHousekeepingFailsStart();
-  void UpdateToQuickFixBuildStart();
+  void UpdateToQuickFixBuildStart(bool set_token);
   void ResetRollbackHappenedStart(bool is_consumer,
                                   bool is_policy_available,
                                   bool expected_reset);
@@ -1583,28 +1583,42 @@ TEST_F(UpdateAttempterTest,
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
 }
 
-void UpdateAttempterTest::UpdateToQuickFixBuildStart() {
-  // Tests that checks if device_quick_fix_build_token arrives when
-  // policy is set.
-  const char kToken[] = "some_token";
-
+void UpdateAttempterTest::UpdateToQuickFixBuildStart(bool set_token) {
+  // Tests that checks if |device_quick_fix_build_token| arrives when
+  // policy is set and the device is enterprise enrolled based on |set_token|.
+  string token = set_token ? "some_token" : "";
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   fake_system_state_.set_device_policy(device_policy.get());
-
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(*device_policy, GetDeviceQuickFixBuildToken(_))
-      .WillOnce(DoAll(SetArgPointee<0>(string(kToken)), Return(true)));
+
+  if (set_token)
+    EXPECT_CALL(*device_policy, GetDeviceQuickFixBuildToken(_))
+        .WillOnce(DoAll(SetArgPointee<0>(token), Return(true)));
+  else
+    EXPECT_CALL(*device_policy, GetDeviceQuickFixBuildToken(_))
+        .WillOnce(Return(false));
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));
   attempter_.Update("", "", "", "", false, false, 0, false, false);
 
+  EXPECT_EQ(token, attempter_.omaha_request_params_->autoupdate_token());
   ScheduleQuitMainLoop();
 }
 
-TEST_F(UpdateAttempterTest, UpdateToQuickFixBuildStart) {
+TEST_F(UpdateAttempterTest,
+       QuickFixTokenWhenDeviceIsEnterpriseEnrolledAndPolicyIsSet) {
   loop_.PostTask(FROM_HERE,
                  base::Bind(&UpdateAttempterTest::UpdateToQuickFixBuildStart,
-                            base::Unretained(this)));
+                            base::Unretained(this),
+                            /*set_token=*/true));
+  loop_.Run();
+}
+
+TEST_F(UpdateAttempterTest, EmptyQuickFixToken) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::UpdateToQuickFixBuildStart,
+                            base::Unretained(this),
+                            /*set_token=*/false));
   loop_.Run();
 }
 

@@ -428,7 +428,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   omaha_request_params_->set_dlc_module_ids(dlc_module_ids_);
   omaha_request_params_->set_is_install(is_install_);
 
-  // Set Quick Fix Build token if policy is set.
+  // Set Quick Fix Build token if policy is set and the device is enterprise
+  // enrolled.
   string token;
   if (system_state_ && system_state_->device_policy()) {
     if (!system_state_->device_policy()->GetDeviceQuickFixBuildToken(&token))
