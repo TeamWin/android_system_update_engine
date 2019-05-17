@@ -416,7 +416,11 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
         metrics::CheckResult::kUnset,
         metrics::CheckReaction::kUnset,
         metrics::DownloadErrorCode::kInternalError);
-    LOG(ERROR) << "curl_multi_perform is in an unrecoverable error condition: "
+    // According to https://curl.haxx.se/libcurl/c/libcurl-errors.html:
+    // CURLM_INTERNAL_ERROR and CURLM_OUT_OF_MEMORY are two libcurl error codes
+    // that caller has no way to recover on its own. Thus, we exit and let the
+    // system respawn update_engine to start from a fresh state and recover.
+    LOG(FATAL) << "curl_multi_perform is in an unrecoverable error condition: "
                << retcode;
   } else if (retcode != CURLM_OK) {
     LOG(ERROR) << "curl_multi_perform returns error: " << retcode;
