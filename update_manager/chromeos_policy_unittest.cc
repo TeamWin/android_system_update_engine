@@ -284,12 +284,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAndRestoreIfPossible) {
       true, RollbackToTargetVersion::kRollbackAndRestoreIfPossible));
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackOnlyIfRestorePossible) {
-  // We're not allowed to do rollback until we support data save and restore.
-  EXPECT_FALSE(TestRollbackAllowed(
-      true, RollbackToTargetVersion::kRollbackOnlyIfRestorePossible));
-}
-
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackDisabled) {
   EXPECT_FALSE(TestRollbackAllowed(true, RollbackToTargetVersion::kDisabled));
 }

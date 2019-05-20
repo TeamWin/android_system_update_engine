@@ -104,15 +104,6 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
           result->rollback_allowed = true;
           result->rollback_data_save_requested = true;
           break;
-        case RollbackToTargetVersion::kRollbackOnlyIfRestorePossible:
-          // TODO(crbug.com/947621): Remove this policy option until we know
-          // how it could be supported correctly.
-          LOG(INFO) << "Policy only allows rollbacks if restore is possible.";
-          // We don't support restore yet, policy doesn't allow rollback in this
-          // case.
-          result->rollback_allowed = false;
-          result->rollback_data_save_requested = false;
-          break;
         case RollbackToTargetVersion::kMaxValue:
           NOTREACHED();
           // Don't add a default case to let the compiler warn about newly

@@ -31,9 +31,8 @@ enum class RollbackToTargetVersion {
   kDisabled = 1,
   kRollbackAndPowerwash = 2,
   kRollbackAndRestoreIfPossible = 3,
-  kRollbackOnlyIfRestorePossible = 4,
   // This value must be the last entry.
-  kMaxValue = 5
+  kMaxValue = 4
 };
 
 }  // namespace chromeos_update_manager
