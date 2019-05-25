@@ -30,6 +30,8 @@ class UpdateBootFlagsAction : public AbstractAction {
 
   void PerformAction() override;
 
+  void TerminateProcessing() override;
+
   static std::string StaticType() { return "UpdateBootFlagsAction"; }
   std::string Type() const override { return StaticType(); }
 
