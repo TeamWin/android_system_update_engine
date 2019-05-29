@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/compiler_specific.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
@@ -624,8 +625,10 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
     case StagingCase::kNoSavedValue:
       prefs_->SetInt64(kPrefsWallClockStagingWaitPeriod,
                        staging_wait_time_.InDays());
+      FALLTHROUGH;
     case StagingCase::kSetStagingFromPref:
       omaha_request_params_->set_waiting_period(staging_wait_time_);
+      FALLTHROUGH;
     case StagingCase::kNoAction:
       // Staging is on, enable wallclock based wait so that its values get used.
       omaha_request_params_->set_wall_clock_based_wait_enabled(true);
