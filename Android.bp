@@ -370,7 +370,6 @@ cc_binary {
     },
 
     required: [
-        "android.hardware.boot@1.0-impl-wrapper.recovery",
         "update_engine_payload_key.recovery",
     ],
 }
