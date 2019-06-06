@@ -405,13 +405,21 @@ cc_library_shared {
     ],
 
     srcs: [
-        "binder_bindings/android/brillo/IUpdateEngine.aidl",
-        "binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl",
+        ":libupdate_engine_client_aidl",
         "client_library/client.cc",
         "client_library/client_binder.cc",
         "parcelable_update_engine_status.cc",
         "update_status_utils.cc",
     ],
+}
+
+filegroup {
+    name: "libupdate_engine_client_aidl",
+    srcs: [
+        "binder_bindings/android/brillo/IUpdateEngine.aidl",
+        "binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl",
+    ],
+    path: "binder_bindings",
 }
 
 // update_engine_client (type: executable)
