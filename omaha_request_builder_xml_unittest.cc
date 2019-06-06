@@ -17,10 +17,14 @@
 #include "update_engine/omaha_request_builder_xml.h"
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
+using std::pair;
 using std::string;
+using std::vector;
 
 namespace chromeos_update_engine {
 
@@ -28,14 +32,17 @@ class OmahaRequestBuilderXmlTest : public ::testing::Test {};
 
 TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeTest) {
   string output;
-  EXPECT_TRUE(XmlEncode("ab", &output));
-  EXPECT_EQ("ab", output);
-  EXPECT_TRUE(XmlEncode("a<b", &output));
-  EXPECT_EQ("a&lt;b", output);
-  EXPECT_TRUE(XmlEncode("<&>\"\'\\", &output));
-  EXPECT_EQ("&lt;&amp;&gt;&quot;&apos;\\", output);
-  EXPECT_TRUE(XmlEncode("&lt;&amp;&gt;", &output));
-  EXPECT_EQ("&amp;lt;&amp;amp;&amp;gt;", output);
+  vector<pair<string, string>> xml_encode_pairs = {
+      {"ab", "ab"},
+      {"a<b", "a&lt;b"},
+      {"<&>\"\'\\", "&lt;&amp;&gt;&quot;&apos;\\"},
+      {"&lt;&amp;&gt;", "&amp;lt;&amp;amp;&amp;gt;"}};
+  for (const auto& xml_encode_pair : xml_encode_pairs) {
+    const auto& before_encoding = xml_encode_pair.first;
+    const auto& after_encoding = xml_encode_pair.second;
+    EXPECT_TRUE(XmlEncode(before_encoding, &output));
+    EXPECT_EQ(after_encoding, output);
+  }
   // Check that unterminated UTF-8 strings are handled properly.
   EXPECT_FALSE(XmlEncode("\xc2", &output));
   // Fail with invalid ASCII-7 chars.
@@ -43,6 +50,7 @@ TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeTest) {
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeWithDefaultTest) {
+  EXPECT_EQ("", XmlEncodeWithDefault(""));
   EXPECT_EQ("&lt;&amp;&gt;", XmlEncodeWithDefault("<&>", "something else"));
   EXPECT_EQ("<not escaped>", XmlEncodeWithDefault("\xc2", "<not escaped>"));
 }

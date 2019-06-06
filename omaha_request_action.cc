@@ -422,14 +422,15 @@ void OmahaRequestAction::PerformAction() {
     return;
   }
 
-  string request_post(GetRequestXml(event_.get(),
-                                    params_,
-                                    ping_only_,
-                                    ShouldPing(),  // include_ping
-                                    ping_active_days_,
-                                    ping_roll_call_days_,
-                                    GetInstallDate(system_state_),
-                                    system_state_));
+  OmahaRequestBuilderXml omaha_request(event_.get(),
+                                       params_,
+                                       ping_only_,
+                                       ShouldPing(),  // include_ping
+                                       ping_active_days_,
+                                       ping_roll_call_days_,
+                                       GetInstallDate(system_state_),
+                                       system_state_->prefs());
+  string request_post = omaha_request.GetRequest();
 
   // Set X-Goog-Update headers.
   http_fetcher_->SetHeader(kXGoogleUpdateInteractivity,

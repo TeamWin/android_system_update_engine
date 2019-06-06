@@ -36,9 +36,6 @@
 #include "update_engine/omaha_response.h"
 #include "update_engine/system_state.h"
 
-// TODO(ahassani): Make the xml builder into a class of its own so we don't have
-// to pass all these parameters around.
-
 namespace chromeos_update_engine {
 
 extern const int kNeverPinged;
@@ -87,74 +84,98 @@ struct OmahaAppData {
   std::string id;
   std::string version;
   std::string product_components;
+  bool skip_update;
 };
 
 // Encodes XML entities in a given string. Input must be ASCII-7 valid. If
 // the input is invalid, the default value is used instead.
 std::string XmlEncodeWithDefault(const std::string& input,
-                                 const std::string& default_value);
+                                 const std::string& default_value = "");
 
 // Escapes text so it can be included as character data and attribute
 // values. The |input| string must be valid ASCII-7, no UTF-8 supported.
 // Returns whether the |input| was valid and escaped properly in |output|.
 bool XmlEncode(const std::string& input, std::string* output);
 
-// Returns an XML ping element attribute assignment with attribute
-// |name| and value |ping_days| if |ping_days| has a value that needs
-// to be sent, or an empty string otherwise.
-std::string GetPingAttribute(const std::string& name, int ping_days);
-
-// Returns an XML ping element if any of the elapsed days need to be
-// sent, or an empty string otherwise.
-std::string GetPingXml(int ping_active_days, int ping_roll_call_days);
-
-// Returns an XML that goes into the body of the <app> element of the Omaha
-// request based on the given parameters.
-std::string GetAppBody(const OmahaEvent* event,
-                       OmahaRequestParams* params,
-                       bool ping_only,
-                       bool include_ping,
-                       bool skip_updatecheck,
-                       int ping_active_days,
-                       int ping_roll_call_days,
-                       PrefsInterface* prefs);
-
-// Returns the cohort* argument to include in the <app> tag for the passed
-// |arg_name| and |prefs_key|, if any. The return value is suitable to
-// concatenate to the list of arguments and includes a space at the end.
-std::string GetCohortArgXml(PrefsInterface* prefs,
-                            const std::string arg_name,
-                            const std::string prefs_key);
-
+// Returns a boolean based on examining each character on whether it's a valid
+// component (meaning all characters are an alphanum excluding '-', '_', '.').
 bool IsValidComponentID(const std::string& id);
 
-// Returns an XML that corresponds to the entire <app> node of the Omaha
-// request based on the given parameters.
-std::string GetAppXml(const OmahaEvent* event,
-                      OmahaRequestParams* params,
-                      const OmahaAppData& app_data,
-                      bool ping_only,
-                      bool include_ping,
-                      bool skip_updatecheck,
-                      int ping_active_days,
-                      int ping_roll_call_days,
-                      int install_date_in_days,
-                      SystemState* system_state);
+class OmahaRequestBuilder {
+ public:
+  OmahaRequestBuilder() = default;
+  virtual ~OmahaRequestBuilder() = default;
 
-// Returns an XML that corresponds to the entire <os> node of the Omaha
-// request based on the given parameters.
-std::string GetOsXml(OmahaRequestParams* params);
+  virtual std::string GetRequest() const = 0;
 
-// Returns an XML that corresponds to the entire Omaha request based on the
-// given parameters.
-std::string GetRequestXml(const OmahaEvent* event,
-                          OmahaRequestParams* params,
-                          bool ping_only,
-                          bool include_ping,
-                          int ping_active_days,
-                          int ping_roll_call_days,
-                          int install_date_in_days,
-                          SystemState* system_state);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(OmahaRequestBuilder);
+};
+
+class OmahaRequestBuilderXml : OmahaRequestBuilder {
+ public:
+  OmahaRequestBuilderXml(const OmahaEvent* event,
+                         OmahaRequestParams* params,
+                         bool ping_only,
+                         bool include_ping,
+                         int ping_active_days,
+                         int ping_roll_call_days,
+                         int install_date_in_days,
+                         PrefsInterface* prefs)
+      : event_(event),
+        params_(params),
+        ping_only_(ping_only),
+        include_ping_(include_ping),
+        ping_active_days_(ping_active_days),
+        ping_roll_call_days_(ping_roll_call_days),
+        install_date_in_days_(install_date_in_days),
+        prefs_(prefs) {}
+
+  ~OmahaRequestBuilderXml() override = default;
+
+  // Returns an XML that corresponds to the entire Omaha request.
+  std::string GetRequest() const override;
+
+ private:
+  // Returns an XML that corresponds to the entire <os> node of the Omaha
+  // request based on the member variables.
+  std::string GetOs() const;
+
+  // Returns an XML that corresponds to all <app> nodes of the Omaha
+  // request based on the given parameters.
+  std::string GetApps() const;
+
+  // Returns an XML that corresponds to the single <app> node of the Omaha
+  // request based on the given parameters.
+  std::string GetApp(const OmahaAppData& app_data) const;
+
+  // Returns an XML that goes into the body of the <app> element of the Omaha
+  // request based on the given parameters.
+  // The skip_updatecheck argument if set to true will omit the emission of
+  // the updatecheck xml tag in the body of the <app> element.
+  std::string GetAppBody(bool skip_updatecheck) const;
+
+  // Returns the cohort* argument to include in the <app> tag for the passed
+  // |arg_name| and |prefs_key|, if any. The return value is suitable to
+  // concatenate to the list of arguments and includes a space at the end.
+  std::string GetCohortArg(const std::string arg_name,
+                           const std::string prefs_key) const;
+
+  // Returns an XML ping element if any of the elapsed days need to be
+  // sent, or an empty string otherwise.
+  std::string GetPing() const;
+
+  const OmahaEvent* event_;
+  OmahaRequestParams* params_;
+  bool ping_only_;
+  bool include_ping_;
+  int ping_active_days_;
+  int ping_roll_call_days_;
+  int install_date_in_days_;
+  PrefsInterface* prefs_;
+
+  DISALLOW_COPY_AND_ASSIGN(OmahaRequestBuilderXml);
+};
 
 }  // namespace chromeos_update_engine
 
