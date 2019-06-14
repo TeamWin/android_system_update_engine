@@ -20,7 +20,10 @@
 #include <utility>
 #include <vector>
 
+#include <base/guid.h>
 #include <gtest/gtest.h>
+
+#include "update_engine/fake_system_state.h"
 
 using std::pair;
 using std::string;
@@ -28,7 +31,29 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-class OmahaRequestBuilderXmlTest : public ::testing::Test {};
+namespace {
+// Helper to find key and extract value from the given string |xml|, instead
+// of using a full parser. The attribute key will be followed by "=\"" as xml
+// attribute values must be within double quotes (not single quotes).
+static string FindAttributeKeyValueInXml(const string& xml,
+                                         const string& key,
+                                         const size_t val_size) {
+  string key_with_quotes = key + "=\"";
+  const size_t val_start_pos = xml.find(key);
+  if (val_start_pos == string::npos)
+    return "";
+  return xml.substr(val_start_pos + key_with_quotes.size(), val_size);
+}
+}  // namespace
+
+class OmahaRequestBuilderXmlTest : public ::testing::Test {
+ protected:
+  void SetUp() override {}
+  void TearDown() override {}
+
+  FakeSystemState fake_system_state_;
+  static constexpr size_t kGuidSize = 36;
+};
 
 TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeTest) {
   string output;
@@ -53,6 +78,26 @@ TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeWithDefaultTest) {
   EXPECT_EQ("", XmlEncodeWithDefault(""));
   EXPECT_EQ("&lt;&amp;&gt;", XmlEncodeWithDefault("<&>", "something else"));
   EXPECT_EQ("<not escaped>", XmlEncodeWithDefault("\xc2", "<not escaped>"));
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
+  OmahaEvent omaha_event;
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  OmahaRequestBuilderXml omaha_request{&omaha_event,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs()};
+  const string request_xml = omaha_request.GetRequest();
+  const string key = "requestid";
+  const string request_id =
+      FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
+  // A valid |request_id| is either a GUID version 4 or empty string.
+  if (!request_id.empty())
+    EXPECT_TRUE(base::IsValidGUID(request_id));
 }
 
 }  // namespace chromeos_update_engine
