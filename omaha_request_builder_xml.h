@@ -121,7 +121,8 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
                          int ping_active_days,
                          int ping_roll_call_days,
                          int install_date_in_days,
-                         PrefsInterface* prefs)
+                         PrefsInterface* prefs,
+                         const std::string& session_id)
       : event_(event),
         params_(params),
         ping_only_(ping_only),
@@ -129,7 +130,8 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
         ping_active_days_(ping_active_days),
         ping_roll_call_days_(ping_roll_call_days),
         install_date_in_days_(install_date_in_days),
-        prefs_(prefs) {}
+        prefs_(prefs),
+        session_id_(session_id) {}
 
   ~OmahaRequestBuilderXml() override = default;
 
@@ -173,6 +175,7 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
   int ping_roll_call_days_;
   int install_date_in_days_;
   PrefsInterface* prefs_;
+  std::string session_id_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestBuilderXml);
 };

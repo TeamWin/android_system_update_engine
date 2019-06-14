@@ -337,10 +337,11 @@ string OmahaRequestBuilderXml::GetRequest() const {
 
   string request_xml = base::StringPrintf(
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<request requestid=\"%s\""
+      "<request requestid=\"%s\" sessionid=\"%s\""
       " protocol=\"3.0\" updater=\"%s\" updaterversion=\"%s\""
       " installsource=\"%s\" ismachine=\"1\">\n%s%s</request>\n",
       base::GenerateGUID().c_str() /* requestid */,
+      session_id_.c_str(),
       constants::kOmahaUpdaterID,
       kOmahaUpdaterVersion,
       params_->interactive() ? "ondemandupdate" : "scheduler",

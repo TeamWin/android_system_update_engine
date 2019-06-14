@@ -26,6 +26,7 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/guid.h>
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
@@ -268,6 +269,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackSuccess);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestOnUpdateCheck);
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestEnforceEmptyStrPingOmaha);
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestOnOmahaRequestActions);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
@@ -522,6 +526,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // If this is not TimeDelta(), then that means staging is turned on.
   base::TimeDelta staging_wait_time_;
   chromeos_update_manager::StagingSchedule staging_schedule_;
+
+  // This is the session ID used to track update flow to Omaha.
+  std::string session_id_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

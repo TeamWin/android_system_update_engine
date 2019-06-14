@@ -84,6 +84,7 @@ const char kCurrentVersion[] = "0.1.0.0";
 const char kTestAppId[] = "test-app-id";
 const char kTestAppId2[] = "test-app2-id";
 const char kTestAppIdSkipUpdatecheck[] = "test-app-id-skip-updatecheck";
+const char kTestSessionId[] = "12341234-1234-1234-1234-1234123412341234";
 
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
@@ -296,6 +297,8 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
                   fetcher->GetHeader("X-Goog-Update-Interactivity"));
         EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-Goog-Update-AppId"));
         EXPECT_NE("", fetcher->GetHeader("X-Goog-Update-Updater"));
+        EXPECT_EQ(kTestSessionId,
+                  fetcher->GetHeader("X-Goog-Update-SessionId"));
       }
       post_data_ = fetcher->post_data();
     } else if (action->Type() ==
@@ -327,6 +330,7 @@ struct TestUpdateCheckParams {
   metrics::CheckResult expected_check_result;
   metrics::CheckReaction expected_check_reaction;
   metrics::DownloadErrorCode expected_download_error_code;
+  string session_id;
 };
 
 class OmahaRequestActionTest : public ::testing::Test {
@@ -366,6 +370,7 @@ class OmahaRequestActionTest : public ::testing::Test {
         .expected_check_result = metrics::CheckResult::kUpdateAvailable,
         .expected_check_reaction = metrics::CheckReaction::kUpdating,
         .expected_download_error_code = metrics::DownloadErrorCode::kUnset,
+        .session_id = kTestSessionId,
     };
   }
 
@@ -439,8 +444,12 @@ bool OmahaRequestActionTest::TestUpdateCheck() {
   // are not using the default request_params_.
   EXPECT_EQ(&request_params_, fake_system_state_.request_params());
 
-  auto omaha_request_action = std::make_unique<OmahaRequestAction>(
-      &fake_system_state_, nullptr, std::move(fetcher), tuc_params_.ping_only);
+  auto omaha_request_action =
+      std::make_unique<OmahaRequestAction>(&fake_system_state_,
+                                           nullptr,
+                                           std::move(fetcher),
+                                           tuc_params_.ping_only,
+                                           tuc_params_.session_id);
 
   auto mock_policy_provider =
       std::make_unique<NiceMock<policy::MockPolicyProvider>>();
@@ -510,7 +519,8 @@ void OmahaRequestActionTest::TestEvent(OmahaEvent* event,
       event,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
-      false);
+      false,
+      "");
   ActionProcessor processor;
   processor.set_delegate(&delegate_);
   processor.EnqueueAction(std::move(action));
@@ -1311,7 +1321,8 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
       nullptr,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
-      false);
+      false,
+      "");
   ActionProcessor processor;
   processor.set_delegate(&delegate_);
   processor.EnqueueAction(std::move(action));
@@ -1445,7 +1456,8 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
       nullptr,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
-      false);
+      false,
+      "");
   TerminateEarlyTestProcessorDelegate delegate;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
@@ -1580,7 +1592,8 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
       nullptr,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
-      false);
+      false,
+      "");
   EXPECT_FALSE(update_check_action.IsEvent());
 
   OmahaRequestAction event_action(
@@ -1588,7 +1601,8 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
-      false);
+      false,
+      "");
   EXPECT_TRUE(event_action.IsEvent());
 }
 

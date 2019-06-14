@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <unordered_set>
 
 #include <base/files/file_util.h>
 #include <base/message_loop/message_loop.h>
@@ -59,11 +60,13 @@ using chromeos_update_manager::UpdateCheckParams;
 using policy::DevicePolicy;
 using std::string;
 using std::unique_ptr;
+using std::unordered_set;
 using std::vector;
 using testing::_;
 using testing::DoAll;
 using testing::Field;
 using testing::InSequence;
+using testing::Invoke;
 using testing::Ne;
 using testing::NiceMock;
 using testing::Pointee;
@@ -109,13 +112,13 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
     }
     return true;
   }
-  void EnableScheduleUpdates() { do_schedule_updates_ = true; }
+
   void DisableScheduleUpdates() { do_schedule_updates_ = false; }
 
-  // Indicates whether ScheduleUpdates() was called.
+  // Indicates whether |ScheduleUpdates()| was called.
   bool schedule_updates_called() const { return schedule_updates_called_; }
 
-  // Need to expose forced_omaha_url_ so we can test it.
+  // Need to expose |forced_omaha_url_| so we can test it.
   const string& forced_omaha_url() const { return forced_omaha_url_; }
 
  private:
@@ -144,6 +147,7 @@ class UpdateAttempterTest : public ::testing::Test {
 
   void SetUp() override {
     EXPECT_NE(nullptr, attempter_.system_state_);
+    EXPECT_NE(nullptr, attempter_.system_state_->update_manager());
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(UpdateStatus::IDLE, attempter_.status_);
     EXPECT_EQ(0.0, attempter_.download_progress_);
@@ -154,7 +158,7 @@ class UpdateAttempterTest : public ::testing::Test {
     attempter_.processor_.reset(processor_);  // Transfers ownership.
     prefs_ = fake_system_state_.mock_prefs();
 
-    // Set up store/load semantics of P2P properties via the mock PayloadState.
+    // Setup store/load semantics of P2P properties via the mock |PayloadState|.
     actual_using_p2p_for_downloading_ = false;
     EXPECT_CALL(*fake_system_state_.mock_payload_state(),
                 SetUsingP2PForDownloading(_))
@@ -188,6 +192,9 @@ class UpdateAttempterTest : public ::testing::Test {
   void P2PEnabledInteractiveStart();
   void P2PEnabledStartingFailsStart();
   void P2PEnabledHousekeepingFailsStart();
+  void SessionIdTestChange();
+  void SessionIdTestEnforceEmptyStrPingOmaha();
+  void SessionIdTestConsistencyInUpdateFlow();
   void UpdateToQuickFixBuildStart(bool set_token);
   void ResetRollbackHappenedStart(bool is_consumer,
                                   bool is_policy_available,
@@ -214,7 +221,8 @@ class UpdateAttempterTest : public ::testing::Test {
   MockDlcService mock_dlcservice_;
 
   NiceMock<MockActionProcessor>* processor_;
-  NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
+  NiceMock<MockPrefs>*
+      prefs_;  // Shortcut to |fake_system_state_->mock_prefs()|.
   NiceMock<MockConnectionManager> mock_connection_manager;
 
   bool actual_using_p2p_for_downloading_;
@@ -226,6 +234,75 @@ void UpdateAttempterTest::ScheduleQuitMainLoop() {
       FROM_HERE,
       base::Bind([](brillo::BaseMessageLoop* loop) { loop->BreakLoop(); },
                  base::Unretained(&loop_)));
+}
+
+void UpdateAttempterTest::SessionIdTestChange() {
+  EXPECT_NE(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
+  const auto old_session_id = attempter_.session_id_;
+  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  EXPECT_NE(old_session_id, attempter_.session_id_);
+  ScheduleQuitMainLoop();
+}
+
+TEST_F(UpdateAttempterTest, SessionIdTestChange) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::SessionIdTestChange,
+                            base::Unretained(this)));
+  loop_.Run();
+}
+
+void UpdateAttempterTest::SessionIdTestEnforceEmptyStrPingOmaha() {
+  // The |session_id_| should not be changed and should remain as an empty
+  // string when |status_| is |UPDATED_NEED_REBOOT| (only for consistency)
+  // and |PingOmaha()| is called.
+  attempter_.DisableScheduleUpdates();
+  attempter_.status_ = UpdateStatus::UPDATED_NEED_REBOOT;
+  const auto old_session_id = attempter_.session_id_;
+  auto CheckIfEmptySessionId = [](AbstractAction* aa) {
+    if (aa->Type() == OmahaRequestAction::StaticType()) {
+      EXPECT_TRUE(static_cast<OmahaRequestAction*>(aa)->session_id_.empty());
+    }
+  };
+  EXPECT_CALL(*processor_, EnqueueAction(Pointee(_)))
+      .WillRepeatedly(Invoke(CheckIfEmptySessionId));
+  EXPECT_CALL(*processor_, StartProcessing());
+  attempter_.PingOmaha();
+  EXPECT_EQ(old_session_id, attempter_.session_id_);
+  EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status_);
+  ScheduleQuitMainLoop();
+}
+
+TEST_F(UpdateAttempterTest, SessionIdTestEnforceEmptyStrPingOmaha) {
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempterTest::SessionIdTestEnforceEmptyStrPingOmaha,
+                 base::Unretained(this)));
+  loop_.Run();
+}
+
+void UpdateAttempterTest::SessionIdTestConsistencyInUpdateFlow() {
+  // All session IDs passed into |OmahaRequestActions| should be enforced to
+  // have the same value in |BuildUpdateActions()|.
+  unordered_set<string> session_ids;
+  // Gather all the session IDs being passed to |OmahaRequestActions|.
+  auto CheckSessionId = [&session_ids](AbstractAction* aa) {
+    if (aa->Type() == OmahaRequestAction::StaticType())
+      session_ids.insert(static_cast<OmahaRequestAction*>(aa)->session_id_);
+  };
+  EXPECT_CALL(*processor_, EnqueueAction(Pointee(_)))
+      .WillRepeatedly(Invoke(CheckSessionId));
+  attempter_.BuildUpdateActions(false);
+  // Validate that all the session IDs are the same.
+  EXPECT_EQ(1, session_ids.size());
+  ScheduleQuitMainLoop();
+}
+
+TEST_F(UpdateAttempterTest, SessionIdTestConsistencyInUpdateFlow) {
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempterTest::SessionIdTestConsistencyInUpdateFlow,
+                 base::Unretained(this)));
+  loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
@@ -269,7 +346,7 @@ TEST_F(UpdateAttempterTest, DownloadProgressAccumulationTest) {
 
   EXPECT_EQ(0.0, attempter_.download_progress_);
   // This is set via inspecting the InstallPlan payloads when the
-  // OmahaResponseAction is completed
+  // |OmahaResponseAction| is completed.
   attempter_.new_payload_size_ = bytes_total;
   NiceMock<MockServiceObserver> observer;
   EXPECT_CALL(observer,
@@ -293,14 +370,14 @@ TEST_F(UpdateAttempterTest, DownloadProgressAccumulationTest) {
 }
 
 TEST_F(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest) {
-  // The transition into UpdateStatus::DOWNLOADING happens when the
+  // The transition into |UpdateStatus::DOWNLOADING| happens when the
   // first bytes are received.
   uint64_t bytes_progressed = 1024 * 1024;    // 1MB
   uint64_t bytes_received = 2 * 1024 * 1024;  // 2MB
   uint64_t bytes_total = 20 * 1024 * 1024;    // 300MB
   attempter_.status_ = UpdateStatus::CHECKING_FOR_UPDATE;
   // This is set via inspecting the InstallPlan payloads when the
-  // OmahaResponseAction is completed
+  // |OmahaResponseAction| is completed.
   attempter_.new_payload_size_ = bytes_total;
   EXPECT_EQ(0.0, attempter_.download_progress_);
   NiceMock<MockServiceObserver> observer;
@@ -315,8 +392,7 @@ TEST_F(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest) {
 
 TEST_F(UpdateAttempterTest, BroadcastCompleteDownloadTest) {
   // There is a special case to ensure that at 100% downloaded,
-  // download_progress_ is updated and that value broadcast. This test confirms
-  // that.
+  // |download_progress_| is updated and broadcastest.
   uint64_t bytes_progressed = 0;              // ignored
   uint64_t bytes_received = 5 * 1024 * 1024;  // ignored
   uint64_t bytes_total = 5 * 1024 * 1024;     // 300MB
@@ -338,7 +414,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(500);  // Sets the HTTP response code.
   OmahaRequestAction action(
-      &fake_system_state_, nullptr, std::move(fetcher), false);
+      &fake_system_state_, nullptr, std::move(fetcher), false, "");
   ObjectCollectorAction<OmahaResponse> collector_action;
   BondActions(&action, &collector_action);
   OmahaResponse response;
@@ -368,7 +444,7 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
 
   FakeSystemState fake_system_state;
   OmahaRequestAction omaha_request_action(
-      &fake_system_state, nullptr, nullptr, false);
+      &fake_system_state, nullptr, nullptr, false, "");
   EXPECT_EQ(ErrorCode::kOmahaRequestError,
             GetErrorCodeForAction(&omaha_request_action, ErrorCode::kError));
   OmahaResponseHandlerAction omaha_response_handler_action(&fake_system_state_);
@@ -488,8 +564,8 @@ const StagingSchedule kValidStagingSchedule = {
 void UpdateAttempterTest::UpdateTestStart() {
   attempter_.set_http_response_code(200);
 
-  // Expect that the device policy is loaded by the UpdateAttempter at some
-  // point by calling RefreshDevicePolicy.
+  // Expect that the device policy is loaded by the |UpdateAttempter| at some
+  // point by calling |RefreshDevicePolicy()|.
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy())
       .Times(testing::AtLeast(1))
@@ -628,7 +704,7 @@ void UpdateAttempterTest::PingOmahaTestStart() {
 TEST_F(UpdateAttempterTest, PingOmahaTest) {
   EXPECT_FALSE(attempter_.waiting_for_scheduled_check_);
   EXPECT_FALSE(attempter_.schedule_updates_called());
-  // Disable scheduling of subsequnet checks; we're using the DefaultPolicy in
+  // Disable scheduling of subsequnet checks; we're using the |DefaultPolicy| in
   // testing, which is more permissive than we want to handle here.
   attempter_.DisableScheduleUpdates();
   loop_.PostTask(FROM_HERE,
@@ -702,7 +778,7 @@ TEST_F(UpdateAttempterTest, P2PNotEnabled) {
 
 void UpdateAttempterTest::P2PNotEnabledStart() {
   // If P2P is not enabled, check that we do not attempt housekeeping
-  // and do not convey that p2p is to be used.
+  // and do not convey that P2P is to be used.
   MockP2PManager mock_p2p_manager;
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
@@ -721,8 +797,8 @@ TEST_F(UpdateAttempterTest, P2PEnabledStartingFails) {
 }
 
 void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
-  // If p2p is enabled, but starting it fails ensure we don't do
-  // any housekeeping and do not convey that p2p should be used.
+  // If P2P is enabled, but starting it fails ensure we don't do
+  // any housekeeping and do not convey that P2P should be used.
   MockP2PManager mock_p2p_manager;
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
@@ -744,8 +820,8 @@ TEST_F(UpdateAttempterTest, P2PEnabledHousekeepingFails) {
 }
 
 void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
-  // If p2p is enabled, starting it works but housekeeping fails, ensure
-  // we do not convey p2p is to be used.
+  // If P2P is enabled, starting it works but housekeeping fails, ensure
+  // we do not convey P2P is to be used.
   MockP2PManager mock_p2p_manager;
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
@@ -769,7 +845,7 @@ void UpdateAttempterTest::P2PEnabledStart() {
   MockP2PManager mock_p2p_manager;
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   // If P2P is enabled and starting it works, check that we performed
-  // housekeeping and that we convey p2p should be used.
+  // housekeeping and that we convey P2P should be used.
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
@@ -792,7 +868,7 @@ void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   // For an interactive check, if P2P is enabled and starting it
   // works, check that we performed housekeeping and that we convey
-  // p2p should be used for sharing but NOT for downloading.
+  // P2P should be used for sharing but NOT for downloading.
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);

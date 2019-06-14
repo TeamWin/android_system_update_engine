@@ -648,6 +648,10 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
 
+  // The session ID needs to be kept throughout the update flow. The value
+  // of the session ID will reset/update only when it is a new update flow.
+  session_id_ = base::GenerateGUID();
+
   // Actions:
   auto update_check_fetcher = std::make_unique<LibcurlHttpFetcher>(
       GetProxyResolver(), system_state_->hardware());
@@ -656,8 +660,12 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
   update_check_fetcher->set_is_update_check(true);
-  auto update_check_action = std::make_unique<OmahaRequestAction>(
-      system_state_, nullptr, std::move(update_check_fetcher), false);
+  auto update_check_action =
+      std::make_unique<OmahaRequestAction>(system_state_,
+                                           nullptr,
+                                           std::move(update_check_fetcher),
+                                           false,
+                                           session_id_);
   auto response_handler_action =
       std::make_unique<OmahaResponseHandlerAction>(system_state_);
   auto update_boot_flags_action =
@@ -667,7 +675,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
 
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
@@ -688,7 +697,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
   auto filesystem_verifier_action =
       std::make_unique<FilesystemVerifierAction>();
   auto update_complete_action = std::make_unique<OmahaRequestAction>(
@@ -696,7 +706,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
 
   auto postinstall_runner_action = std::make_unique<PostinstallRunnerAction>(
       system_state_->boot_control(), system_state_->hardware());
@@ -1450,7 +1461,8 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
       error_event_.release(),  // Pass ownership.
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
   processor_->EnqueueAction(std::move(error_event_action));
   SetStatusAndNotify(UpdateStatus::REPORTING_ERROR_EVENT);
   processor_->StartProcessing();
@@ -1493,7 +1505,8 @@ void UpdateAttempter::PingOmaha() {
         nullptr,
         std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                              system_state_->hardware()),
-        true);
+        true,
+        "" /* session_id */);
     processor_->set_delegate(nullptr);
     processor_->EnqueueAction(std::move(ping_action));
     // Call StartProcessing() synchronously here to avoid any race conditions

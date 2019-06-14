@@ -90,7 +90,8 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs()};
+                                       fake_system_state_.prefs(),
+                                       ""};
   const string request_xml = omaha_request.GetRequest();
   const string key = "requestid";
   const string request_id =
@@ -98,6 +99,30 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
   // A valid |request_id| is either a GUID version 4 or empty string.
   if (!request_id.empty())
     EXPECT_TRUE(base::IsValidGUID(request_id));
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
+  const string gen_session_id = base::GenerateGUID();
+  OmahaEvent omaha_event;
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  OmahaRequestBuilderXml omaha_request{&omaha_event,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       gen_session_id};
+  const string request_xml = omaha_request.GetRequest();
+  const string key = "sessionid";
+  const string session_id =
+      FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
+  // A valid |session_id| is either a GUID version 4 or empty string.
+  if (!session_id.empty()) {
+    EXPECT_TRUE(base::IsValidGUID(session_id));
+  }
+  EXPECT_EQ(gen_session_id, session_id);
 }
 
 }  // namespace chromeos_update_engine

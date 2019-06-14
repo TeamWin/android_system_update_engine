@@ -104,7 +104,8 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   OmahaRequestAction(SystemState* system_state,
                      OmahaEvent* event,
                      std::unique_ptr<HttpFetcher> http_fetcher,
-                     bool ping_only);
+                     bool ping_only,
+                     const std::string& session_id);
   ~OmahaRequestAction() override;
   typedef ActionTraits<OmahaRequestAction>::InputObjectType InputObjectType;
   typedef ActionTraits<OmahaRequestAction>::OutputObjectType OutputObjectType;
@@ -143,6 +144,9 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
               GetInstallDateWhenOOBECompletedWithValidDate);
   FRIEND_TEST(OmahaRequestActionTest,
               GetInstallDateWhenOOBECompletedDateChanges);
+  friend class UpdateAttempterTest;
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestEnforceEmptyStrPingOmaha);
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestConsistencyInUpdateFlow);
 
   // Enumeration used in PersistInstallDate().
   enum InstallDateProvisioningSource {
@@ -306,6 +310,8 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // are sent to Omaha.
   int ping_active_days_;
   int ping_roll_call_days_;
+
+  std::string session_id_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestAction);
 };

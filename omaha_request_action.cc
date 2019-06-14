@@ -111,6 +111,7 @@ constexpr char kValNoUpdate[] = "noupdate";
 constexpr char kXGoogleUpdateInteractivity[] = "X-Goog-Update-Interactivity";
 constexpr char kXGoogleUpdateAppId[] = "X-Goog-Update-AppId";
 constexpr char kXGoogleUpdateUpdater[] = "X-Goog-Update-Updater";
+constexpr char kXGoogleUpdateSessionId[] = "X-Goog-Update-SessionId";
 
 // updatecheck attributes (without the underscore prefix).
 constexpr char kAttrEol[] = "eol";
@@ -285,7 +286,8 @@ OmahaRequestAction::OmahaRequestAction(
     SystemState* system_state,
     OmahaEvent* event,
     std::unique_ptr<HttpFetcher> http_fetcher,
-    bool ping_only)
+    bool ping_only,
+    const string& session_id)
     : system_state_(system_state),
       params_(system_state->request_params()),
       event_(event),
@@ -293,7 +295,8 @@ OmahaRequestAction::OmahaRequestAction(
       policy_provider_(std::make_unique<policy::PolicyProvider>()),
       ping_only_(ping_only),
       ping_active_days_(0),
-      ping_roll_call_days_(0) {
+      ping_roll_call_days_(0),
+      session_id_(session_id) {
   policy_provider_->Reload();
 }
 
@@ -429,7 +432,8 @@ void OmahaRequestAction::PerformAction() {
                                        ping_active_days_,
                                        ping_roll_call_days_,
                                        GetInstallDate(system_state_),
-                                       system_state_->prefs());
+                                       system_state_->prefs(),
+                                       session_id_);
   string request_post = omaha_request.GetRequest();
 
   // Set X-Goog-Update headers.
@@ -440,6 +444,7 @@ void OmahaRequestAction::PerformAction() {
       kXGoogleUpdateUpdater,
       base::StringPrintf(
           "%s-%s", constants::kOmahaUpdaterID, kOmahaUpdaterVersion));
+  http_fetcher_->SetHeader(kXGoogleUpdateSessionId, session_id_);
 
   http_fetcher_->SetPostData(
       request_post.data(), request_post.size(), kHttpContentTypeTextXml);
