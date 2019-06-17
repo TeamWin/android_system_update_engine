@@ -555,8 +555,9 @@ EvalStatus ChromeOSPolicy::P2PEnabled(EvaluationContext* ec,
     if (policy_au_p2p_enabled_p) {
       enabled = *policy_au_p2p_enabled_p;
     } else {
-      const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
-      if (!policy_owner_p || policy_owner_p->empty())
+      const bool* policy_has_owner_p =
+          ec->GetValue(dp_provider->var_has_owner());
+      if (!policy_has_owner_p || !*policy_has_owner_p)
         enabled = true;
     }
   }

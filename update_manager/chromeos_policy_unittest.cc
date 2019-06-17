@@ -1365,7 +1365,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   // Override specific device policy attributes.
   fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(nullptr);
-  fake_state_.device_policy_provider()->var_owner()->reset(nullptr);
+  fake_state_.device_policy_provider()->var_has_owner()->reset(new bool(false));
   fake_state_.device_policy_provider()->var_http_downloads_enabled()->reset(
       new bool(false));
 
@@ -1610,7 +1610,7 @@ TEST_F(UmChromeOSPolicyTest, P2PEnabledAllowedByUpdater) {
 
 TEST_F(UmChromeOSPolicyTest, P2PEnabledAllowedDeviceEnterpriseEnrolled) {
   fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(nullptr);
-  fake_state_.device_policy_provider()->var_owner()->reset(nullptr);
+  fake_state_.device_policy_provider()->var_has_owner()->reset(new bool(false));
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::P2PEnabled, &result);

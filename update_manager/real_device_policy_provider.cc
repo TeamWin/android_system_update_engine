@@ -104,11 +104,12 @@ void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
 }
 
 template <typename T>
-void RealDevicePolicyProvider::UpdateVariable(
-    AsyncCopyVariable<T>* var, bool (DevicePolicy::*getter_method)(T*) const) {
+void RealDevicePolicyProvider::UpdateVariable(AsyncCopyVariable<T>* var,
+                                              bool (DevicePolicy::*getter)(T*)
+                                                  const) {
   T new_value;
   if (policy_provider_->device_policy_is_loaded() &&
-      (policy_provider_->GetDevicePolicy().*getter_method)(&new_value)) {
+      (policy_provider_->GetDevicePolicy().*getter)(&new_value)) {
     var->SetValue(new_value);
   } else {
     var->UnsetValue();
@@ -118,10 +119,10 @@ void RealDevicePolicyProvider::UpdateVariable(
 template <typename T>
 void RealDevicePolicyProvider::UpdateVariable(
     AsyncCopyVariable<T>* var,
-    bool (RealDevicePolicyProvider::*getter_method)(T*) const) {
+    bool (RealDevicePolicyProvider::*getter)(T*) const) {
   T new_value;
   if (policy_provider_->device_policy_is_loaded() &&
-      (this->*getter_method)(&new_value)) {
+      (this->*getter)(&new_value)) {
     var->SetValue(new_value);
   } else {
     var->UnsetValue();
@@ -198,6 +199,15 @@ bool RealDevicePolicyProvider::ConvertDisallowedTimeIntervals(
   return true;
 }
 
+bool RealDevicePolicyProvider::ConvertHasOwner(bool* has_owner) const {
+  string owner;
+  if (!policy_provider_->GetDevicePolicy().GetOwner(&owner)) {
+    return false;
+  }
+  *has_owner = !owner.empty();
+  return true;
+}
+
 void RealDevicePolicyProvider::RefreshDevicePolicy() {
   if (!policy_provider_->Reload()) {
     LOG(INFO) << "No device policies/settings present.";
@@ -225,7 +235,7 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(
       &var_allowed_connection_types_for_update_,
       &RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate);
-  UpdateVariable(&var_owner_, &DevicePolicy::GetOwner);
+  UpdateVariable(&var_has_owner_, &RealDevicePolicyProvider::ConvertHasOwner);
   UpdateVariable(&var_http_downloads_enabled_,
                  &DevicePolicy::GetHttpDownloadsEnabled);
   UpdateVariable(&var_au_p2p_enabled_, &DevicePolicy::GetAuP2PEnabled);
