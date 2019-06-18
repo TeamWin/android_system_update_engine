@@ -417,6 +417,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // will only be reported for enterprise enrolled devices.
   void ReportTimeToUpdateAppliedMetric();
 
+  // Resets interactivity and forced update flags.
+  void ResetInteractivityFlags();
+
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.

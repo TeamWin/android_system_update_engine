@@ -835,7 +835,7 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
   if (interactive && status_ != UpdateStatus::IDLE) {
     // An update check is either in-progress, or an update has completed and the
     // system is in UPDATED_NEED_REBOOT.  Either way, don't do an interactive
-    // update at this time
+    // update at this time.
     LOG(INFO) << "Refusing to do an interactive update with an update already "
                  "in progress";
     return false;
@@ -1031,17 +1031,12 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
 
-  // reset the state that's only valid for a single update pass
-  current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
-
-  if (forced_update_pending_callback_.get())
-    // Clear prior interactive requests once the processor is done.
-    forced_update_pending_callback_->Run(false, false);
+  ResetInteractivityFlags();
 
   if (status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
 
-    // Inform scheduler of new status;
+    // Inform scheduler of new status.
     SetStatusAndNotify(UpdateStatus::IDLE);
     ScheduleUpdates();
 
@@ -1138,9 +1133,9 @@ void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
   download_progress_ = 0.0;
-  if (forced_update_pending_callback_.get())
-    // Clear prior interactive requests once the processor is done.
-    forced_update_pending_callback_->Run(false, false);
+
+  ResetInteractivityFlags();
+
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
   error_event_.reset(nullptr);
@@ -1292,6 +1287,15 @@ void UpdateAttempter::ProgressUpdate(double progress) {
     download_progress_ = progress;
     BroadcastStatus();
   }
+}
+
+void UpdateAttempter::ResetInteractivityFlags() {
+  // Reset the state that's only valid for a single update pass.
+  current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
+
+  if (forced_update_pending_callback_.get())
+    // Clear prior interactive requests once the processor is done.
+    forced_update_pending_callback_->Run(false, false);
 }
 
 bool UpdateAttempter::ResetStatus() {
@@ -1500,6 +1504,8 @@ void UpdateAttempter::MarkDeltaUpdateFailure() {
 
 void UpdateAttempter::PingOmaha() {
   if (!processor_->IsRunning()) {
+    ResetInteractivityFlags();
+
     auto ping_action = std::make_unique<OmahaRequestAction>(
         system_state_,
         nullptr,
