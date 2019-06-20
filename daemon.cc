@@ -64,12 +64,8 @@ int UpdateEngineDaemon::OnInit() {
 
 #if USE_BINDER
   // Create the Binder Service.
-#if USE_OMAHA
-  binder_service_ = new BinderUpdateEngineBrilloService{real_system_state};
-#else   // !USE_OMAHA
   binder_service_ = new BinderUpdateEngineAndroidService{
       daemon_state_android->service_delegate()};
-#endif  // USE_OMAHA
   auto binder_wrapper = android::BinderWrapper::Get();
   if (!binder_wrapper->RegisterService(binder_service_->ServiceName(),
                                        binder_service_)) {
