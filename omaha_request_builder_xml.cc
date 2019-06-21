@@ -118,12 +118,6 @@ string OmahaRequestBuilderXml::GetAppBody(bool skip_updatecheck) const {
             app_body += " rollback_allowed=\"true\"";
           }
         }
-        string autoupdate_token = params_->autoupdate_token();
-        if (!autoupdate_token.empty()) {
-          app_body += base::StringPrintf(
-              " token=\"%s\"", XmlEncodeWithDefault(autoupdate_token).c_str());
-        }
-
         app_body += "></updatecheck>\n";
       }
 
@@ -172,14 +166,20 @@ string OmahaRequestBuilderXml::GetAppBody(bool skip_updatecheck) const {
 }
 
 string OmahaRequestBuilderXml::GetCohortArg(const string arg_name,
-                                            const string prefs_key) const {
-  // There's nothing wrong with not having a given cohort setting, so we check
-  // existence first to avoid the warning log message.
-  if (!prefs_->Exists(prefs_key))
-    return "";
+                                            const string prefs_key,
+                                            const string override_value) const {
   string cohort_value;
-  if (!prefs_->GetString(prefs_key, &cohort_value) || cohort_value.empty())
-    return "";
+  if (!override_value.empty()) {
+    // |override_value| take precedence over pref value.
+    cohort_value = override_value;
+  } else {
+    // There's nothing wrong with not having a given cohort setting, so we check
+    // existence first to avoid the warning log message.
+    if (!prefs_->Exists(prefs_key))
+      return "";
+    if (!prefs_->GetString(prefs_key, &cohort_value) || cohort_value.empty())
+      return "";
+  }
   // This is a sanity check to avoid sending a huge XML file back to Ohama due
   // to a compromised stateful partition making the update check fail in low
   // network environments envent after a reboot.
@@ -246,8 +246,13 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
 
   string app_cohort_args;
   app_cohort_args += GetCohortArg("cohort", kPrefsOmahaCohort);
-  app_cohort_args += GetCohortArg("cohorthint", kPrefsOmahaCohortHint);
   app_cohort_args += GetCohortArg("cohortname", kPrefsOmahaCohortName);
+
+  // Policy provided value overrides pref.
+  string autoupdate_token = params_->autoupdate_token();
+  app_cohort_args += GetCohortArg("cohorthint",
+                                  kPrefsOmahaCohortHint,
+                                  autoupdate_token /* override_value */);
 
   string fingerprint_arg;
   if (!params_->os_build_fingerprint().empty()) {

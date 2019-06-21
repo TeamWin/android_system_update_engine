@@ -1471,7 +1471,6 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   request_params_.set_current_channel("unittest_track&lt;");
   request_params_.set_target_channel("unittest_track&lt;");
   request_params_.set_hwid("<OEM MODEL>");
-  request_params_.set_autoupdate_token("autoupdate_token>");
   fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
   fake_prefs_.SetString(
@@ -1498,8 +1497,6 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   // Values from Prefs that are too big are removed from the XML instead of
   // encoded.
   EXPECT_EQ(string::npos, post_str.find("cohortname="));
-  EXPECT_NE(string::npos, post_str.find("autoupdate_token&gt;"));
-  EXPECT_EQ(string::npos, post_str.find("autoupdate_token>"));
 }
 
 TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
@@ -1706,18 +1703,44 @@ TEST_F(OmahaRequestActionTest, OmahaEventTest) {
 }
 
 TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsSetTest) {
-  constexpr char autoupdate_token[] = "autoupdate_token";
+  // If DeviceQuickFixBuildToken value is set it takes precedence over pref
+  // value.
+  constexpr char autoupdate_token[] = "autoupdate_token>";
+  constexpr char xml_encoded_autoupdate_token[] = "autoupdate_token&gt;";
+  constexpr char omaha_cohort_hint[] = "cohort_hint";
 
   tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
   request_params_.set_autoupdate_token(autoupdate_token);
+  fake_prefs_.SetString(kPrefsOmahaCohortHint, omaha_cohort_hint);
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_NE(post_str.find("        <updatecheck token=\"" +
-                          string(autoupdate_token) + "\"></updatecheck>\n"),
-            string::npos);
+  EXPECT_NE(string::npos,
+            post_str.find("cohorthint=\"" +
+                          string(xml_encoded_autoupdate_token) + "\""));
+  EXPECT_EQ(string::npos, post_str.find(autoupdate_token));
+  EXPECT_EQ(string::npos, post_str.find(omaha_cohort_hint));
+}
+
+TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsNotSetTest) {
+  // If DeviceQuickFixBuildToken is not set, pref value will be provided in
+  // cohorthint attribute.
+  constexpr char omaha_cohort_hint[] = "evil_string>";
+  constexpr char xml_encoded_cohort_hint[] = "evil_string&gt;";
+
+  tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+  fake_prefs_.SetString(kPrefsOmahaCohortHint, omaha_cohort_hint);
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_NE(
+      string::npos,
+      post_str.find("cohorthint=\"" + string(xml_encoded_cohort_hint) + "\""));
+  EXPECT_EQ(string::npos, post_str.find(omaha_cohort_hint));
 }
 
 void OmahaRequestActionTest::PingTest(bool ping_only) {

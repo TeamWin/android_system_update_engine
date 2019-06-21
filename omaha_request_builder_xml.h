@@ -161,7 +161,8 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
   // |arg_name| and |prefs_key|, if any. The return value is suitable to
   // concatenate to the list of arguments and includes a space at the end.
   std::string GetCohortArg(const std::string arg_name,
-                           const std::string prefs_key) const;
+                           const std::string prefs_key,
+                           const std::string override_value = "") const;
 
   // Returns an XML ping element if any of the elapsed days need to be
   // sent, or an empty string otherwise.
