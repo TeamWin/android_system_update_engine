@@ -92,13 +92,8 @@ bool DBusUpdateEngineClient::AttemptInstall(const string& omaha_url,
         dlc_parameters.add_dlc_module_infos();
     dlc_module_info->set_dlc_id(dlc_id);
   }
-  string dlc_request;
-  if (dlc_parameters.SerializeToString(&dlc_request)) {
-    return proxy_->AttemptInstall(dlc_request, nullptr /* brillo::ErrorPtr* */);
-  } else {
-    LOG(ERROR) << "Fail to serialize a protobuf to a string.";
-    return false;
-  }
+  return proxy_->AttemptInstall(dlc_parameters,
+                                nullptr /* brillo::ErrorPtr* */);
 }
 
 bool DBusUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,

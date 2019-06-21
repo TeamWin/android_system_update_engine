@@ -16,11 +16,13 @@
 
 #include "update_engine/dlcservice_chromeos.h"
 
-#include <dlcservice/dbus-proxies.h>
 #include <dlcservice/proto_bindings/dlcservice.pb.h>
+// NOLINTNEXTLINE(build/include_alpha) "dbus-proxies.h" needs "dlcservice.pb.h"
+#include <dlcservice/dbus-proxies.h>
 
 #include "update_engine/dbus_connection.h"
 
+using dlcservice::DlcModuleList;
 using std::string;
 using std::vector;
 
@@ -35,14 +37,10 @@ bool DlcServiceChromeOS::GetInstalled(vector<string>* dlc_module_ids) {
     return false;
   org::chromium::DlcServiceInterfaceProxy dlcservice_proxy(
       DBusConnection::Get()->GetDBus());
-  string dlc_module_list_str;
-  if (!dlcservice_proxy.GetInstalled(&dlc_module_list_str, nullptr)) {
-    LOG(ERROR) << "dlcservice does not return installed DLC module list.";
-    return false;
-  }
+
   dlcservice::DlcModuleList dlc_module_list;
-  if (!dlc_module_list.ParseFromString(dlc_module_list_str)) {
-    LOG(ERROR) << "Errors parsing DlcModuleList protobuf.";
+  if (!dlcservice_proxy.GetInstalled(&dlc_module_list, nullptr)) {
+    LOG(ERROR) << "dlcservice does not return installed DLC module list.";
     return false;
   }
   for (const auto& dlc_module_info : dlc_module_list.dlc_module_infos()) {

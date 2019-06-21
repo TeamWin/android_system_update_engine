@@ -35,7 +35,13 @@
       <arg type="i" name="flags" direction="in" />
     </method>
     <method name="AttemptInstall">
-      <arg type="s" name="dlc_request" direction="in" />
+      <arg type="ay" name="request" direction="in">
+        <tp:docstring>
+          The information about DLC modules that needs to be installed.
+        </tp:docstring>
+        <annotation name="org.chromium.DBus.Argument.ProtobufClass"
+                    value="dlcservice::DlcModuleList"/>
+      </arg>
     </method>
     <method name="AttemptRollback">
       <arg type="b" name="powerwash" direction="in" />

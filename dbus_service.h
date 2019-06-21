@@ -24,6 +24,7 @@
 
 #include <base/memory/ref_counted.h>
 #include <brillo/errors/error.h>
+#include <dlcservice/proto_bindings/dlcservice.pb.h>
 #include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/common_service.h"
@@ -51,7 +52,7 @@ class DBusUpdateEngineService
                               int32_t in_flags_as_int) override;
 
   bool AttemptInstall(brillo::ErrorPtr* error,
-                      const std::string& dlc_request) override;
+                      const dlcservice::DlcModuleList& request) override;
 
   bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash) override;
 

@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <dlcservice/proto_bindings/dlcservice.pb.h>
 #include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/client_library/include/update_engine/client.h"
