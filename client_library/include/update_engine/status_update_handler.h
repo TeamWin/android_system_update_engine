@@ -14,7 +14,9 @@
 // limitations under the License.
 //
 
+// NOLINTNEXTLINE(whitespace/line_length)
 #ifndef UPDATE_ENGINE_CLIENT_LIBRARY_INCLUDE_UPDATE_ENGINE_STATUS_UPDATE_HANDLER_H_
+// NOLINTNEXTLINE(whitespace/line_length)
 #define UPDATE_ENGINE_CLIENT_LIBRARY_INCLUDE_UPDATE_ENGINE_STATUS_UPDATE_HANDLER_H_
 
 #include <string>
@@ -35,13 +37,10 @@ class StatusUpdateHandler {
   virtual void IPCError(const std::string& error) = 0;
 
   // Runs every time update_engine reports a status change.
-  virtual void HandleStatusUpdate(int64_t last_checked_time,
-                                  double progress,
-                                  UpdateStatus current_operation,
-                                  const std::string& new_version,
-                                  int64_t new_size) = 0;
+  virtual void HandleStatusUpdate(const UpdateEngineStatus& status) = 0;
 };
 
 }  // namespace update_engine
 
+// NOLINTNEXTLINE(whitespace/line_length)
 #endif  // UPDATE_ENGINE_CLIENT_LIBRARY_INCLUDE_UPDATE_ENGINE_STATUS_UPDATE_HANDLER_H_

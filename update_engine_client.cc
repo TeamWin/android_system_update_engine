@@ -46,6 +46,7 @@ using chromeos_update_engine::utils::ErrorCodeToString;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 
 namespace {
@@ -132,42 +133,24 @@ class WatchingStatusUpdateHandler : public ExitingStatusUpdateHandler {
  public:
   ~WatchingStatusUpdateHandler() override = default;
 
-  void HandleStatusUpdate(int64_t last_checked_time,
-                          double progress,
-                          UpdateStatus current_operation,
-                          const string& new_version,
-                          int64_t new_size) override;
+  void HandleStatusUpdate(const UpdateEngineStatus& status) override;
 };
 
 void WatchingStatusUpdateHandler::HandleStatusUpdate(
-    int64_t last_checked_time,
-    double progress,
-    UpdateStatus current_operation,
-    const string& new_version,
-    int64_t new_size) {
+    const UpdateEngineStatus& status) {
   LOG(INFO) << "Got status update:";
-  LOG(INFO) << "  last_checked_time: " << last_checked_time;
-  LOG(INFO) << "  progress: " << progress;
-  LOG(INFO) << "  current_operation: "
-            << UpdateStatusToString(current_operation);
-  LOG(INFO) << "  new_version: " << new_version;
-  LOG(INFO) << "  new_size: " << new_size;
+  LOG(INFO) << "  last_checked_time: " << status.last_checked_time;
+  LOG(INFO) << "  progress: " << status.progress;
+  LOG(INFO) << "  current_operation: " << UpdateStatusToString(status.status);
+  LOG(INFO) << "  new_version: " << status.new_version;
+  LOG(INFO) << "  new_size: " << status.new_size_bytes;
 }
 
 bool UpdateEngineClient::ShowStatus() {
-  int64_t last_checked_time = 0;
-  double progress = 0.0;
-  UpdateStatus current_op;
-  string new_version;
-  int64_t new_size = 0;
-
+  UpdateEngineStatus status;
   int retry_count = kShowStatusRetryCount;
   while (retry_count > 0) {
-    if (client_->GetStatus(&last_checked_time,
-                           &progress,
-                           &current_op,
-                           &new_version,
-                           &new_size)) {
+    if (client_->GetStatus(&status)) {
       break;
     }
     if (--retry_count == 0) {
@@ -181,31 +164,22 @@ bool UpdateEngineClient::ShowStatus() {
   printf("LAST_CHECKED_TIME=%" PRIi64
          "\nPROGRESS=%f\nCURRENT_OP=%s\n"
          "NEW_VERSION=%s\nNEW_SIZE=%" PRIi64 "\n",
-         last_checked_time,
-         progress,
-         UpdateStatusToString(current_op),
-         new_version.c_str(),
-         new_size);
+         status.last_checked_time,
+         status.progress,
+         UpdateStatusToString(status.status),
+         status.new_version.c_str(),
+         status.new_size_bytes);
 
   return true;
 }
 
 int UpdateEngineClient::GetNeedReboot() {
-  int64_t last_checked_time = 0;
-  double progress = 0.0;
-  UpdateStatus current_op;
-  string new_version;
-  int64_t new_size = 0;
-
-  if (!client_->GetStatus(&last_checked_time,
-                          &progress,
-                          &current_op,
-                          &new_version,
-                          &new_size)) {
+  UpdateEngineStatus status;
+  if (!client_->GetStatus(&status)) {
     return 1;
   }
 
-  if (current_op == UpdateStatus::UPDATED_NEED_REBOOT) {
+  if (status.status == UpdateStatus::UPDATED_NEED_REBOOT) {
     return 0;
   }
 
@@ -220,35 +194,26 @@ class UpdateWaitHandler : public ExitingStatusUpdateHandler {
 
   ~UpdateWaitHandler() override = default;
 
-  void HandleStatusUpdate(int64_t last_checked_time,
-                          double progress,
-                          UpdateStatus current_operation,
-                          const string& new_version,
-                          int64_t new_size) override;
+  void HandleStatusUpdate(const UpdateEngineStatus& status) override;
 
  private:
   bool exit_on_error_;
   update_engine::UpdateEngineClient* client_;
 };
 
-void UpdateWaitHandler::HandleStatusUpdate(int64_t /* last_checked_time */,
-                                           double /* progress */,
-                                           UpdateStatus current_operation,
-                                           const string& /* new_version */,
-                                           int64_t /* new_size */) {
-  if (exit_on_error_ && current_operation == UpdateStatus::IDLE) {
+void UpdateWaitHandler::HandleStatusUpdate(const UpdateEngineStatus& status) {
+  if (exit_on_error_ && status.status == UpdateStatus::IDLE) {
     int last_attempt_error;
     ErrorCode code = ErrorCode::kSuccess;
     if (client_ && client_->GetLastAttemptError(&last_attempt_error))
       code = static_cast<ErrorCode>(last_attempt_error);
 
     LOG(ERROR) << "Update failed, current operation is "
-               << UpdateStatusToString(current_operation)
-               << ", last error code is " << ErrorCodeToString(code) << "("
-               << last_attempt_error << ")";
+               << UpdateStatusToString(status.status) << ", last error code is "
+               << ErrorCodeToString(code) << "(" << last_attempt_error << ")";
     exit(1);
   }
-  if (current_operation == UpdateStatus::UPDATED_NEED_REBOOT) {
+  if (status.status == UpdateStatus::UPDATED_NEED_REBOOT) {
     LOG(INFO) << "Update succeeded -- reboot needed.";
     exit(0);
   }

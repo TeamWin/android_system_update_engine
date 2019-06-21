@@ -24,6 +24,7 @@
 
 #include <base/memory/ref_counted.h>
 #include <brillo/errors/error.h>
+#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/common_service.h"
 #include "update_engine/service_observer_interface.h"
@@ -71,6 +72,11 @@ class DBusUpdateEngineService
                  std::string* out_current_operation,
                  std::string* out_new_version,
                  int64_t* out_new_size) override;
+
+  // Similar to Above, but returns a protobuffer instead. In the future it will
+  // have more features and is easily extendable.
+  bool GetStatusAdvanced(brillo::ErrorPtr* error,
+                         update_engine::StatusResult* out_status) override;
 
   // Reboots the device if an update is applied and a reboot is required.
   bool RebootIfNeeded(brillo::ErrorPtr* error) override;

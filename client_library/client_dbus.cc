@@ -45,6 +45,19 @@ unique_ptr<UpdateEngineClient> UpdateEngineClient::CreateInstance() {
 
 namespace internal {
 
+namespace {
+// This converts the status from Protobuf |StatusResult| to The internal
+// |UpdateEngineStatus| struct.
+bool ConvertToUpdateEngineStatus(const StatusResult& status,
+                                 UpdateEngineStatus* out_status) {
+  out_status->last_checked_time = status.last_checked_time();
+  out_status->progress = status.progress();
+  out_status->new_version = status.new_version();
+  out_status->new_size_bytes = status.new_size();
+  return StringToUpdateStatus(status.current_operation(), &out_status->status);
+}
+}  // namespace
+
 bool DBusUpdateEngineClient::Init() {
   Bus::Options options;
   options.bus_type = Bus::SYSTEM;
@@ -93,18 +106,25 @@ bool DBusUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
                                        UpdateStatus* out_update_status,
                                        string* out_new_version,
                                        int64_t* out_new_size) const {
-  string status_as_string;
-  const bool success = proxy_->GetStatus(out_last_checked_time,
-                                         out_progress,
-                                         &status_as_string,
-                                         out_new_version,
-                                         out_new_size,
-                                         nullptr);
-  if (!success) {
+  StatusResult status;
+  if (!proxy_->GetStatusAdvanced(&status, nullptr)) {
     return false;
   }
 
-  return StringToUpdateStatus(status_as_string, out_update_status);
+  *out_last_checked_time = status.last_checked_time();
+  *out_progress = status.progress();
+  *out_new_version = status.new_version();
+  *out_new_size = status.new_size();
+  return StringToUpdateStatus(status.current_operation(), out_update_status);
+}
+
+bool DBusUpdateEngineClient::GetStatus(UpdateEngineStatus* out_status) const {
+  StatusResult status;
+  if (!proxy_->GetStatusAdvanced(&status, nullptr)) {
+    return false;
+  }
+
+  return ConvertToUpdateEngineStatus(status, out_status);
 }
 
 bool DBusUpdateEngineClient::SetCohortHint(const string& cohort_hint) {
@@ -173,40 +193,25 @@ void DBusUpdateEngineClient::DBusStatusHandlersRegistered(
 
 void DBusUpdateEngineClient::StatusUpdateHandlersRegistered(
     StatusUpdateHandler* handler) const {
-  int64_t last_checked_time;
-  double progress;
-  UpdateStatus update_status;
-  string new_version;
-  int64_t new_size;
-
-  if (!GetStatus(&last_checked_time,
-                 &progress,
-                 &update_status,
-                 &new_version,
-                 &new_size)) {
+  UpdateEngineStatus status;
+  if (!GetStatus(&status)) {
     handler->IPCError("Could not query current status");
     return;
   }
 
   std::vector<update_engine::StatusUpdateHandler*> just_handler = {handler};
   for (auto h : handler ? just_handler : handlers_) {
-    h->HandleStatusUpdate(
-        last_checked_time, progress, update_status, new_version, new_size);
+    h->HandleStatusUpdate(status);
   }
 }
 
 void DBusUpdateEngineClient::RunStatusUpdateHandlers(
-    int64_t last_checked_time,
-    double progress,
-    const string& current_operation,
-    const string& new_version,
-    int64_t new_size) {
-  UpdateStatus status;
-  StringToUpdateStatus(current_operation, &status);
+    const StatusResult& status) {
+  UpdateEngineStatus ue_status;
+  ConvertToUpdateEngineStatus(status, &ue_status);
 
   for (auto handler : handlers_) {
-    handler->HandleStatusUpdate(
-        last_checked_time, progress, status, new_version, new_size);
+    handler->HandleStatusUpdate(ue_status);
   }
 }
 
@@ -235,7 +240,7 @@ bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
     return true;
   }
 
-  proxy_->RegisterStatusUpdateSignalHandler(
+  proxy_->RegisterStatusUpdateAdvancedSignalHandler(
       base::Bind(&DBusUpdateEngineClient::RunStatusUpdateHandlers,
                  base::Unretained(this)),
       base::Bind(&DBusUpdateEngineClient::DBusStatusHandlersRegistered,

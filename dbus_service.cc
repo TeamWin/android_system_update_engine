@@ -23,6 +23,7 @@
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/dbus_connection.h"
+#include "update_engine/proto_bindings/update_engine.pb.h"
 #include "update_engine/update_status_utils.h"
 
 namespace chromeos_update_engine {
@@ -31,7 +32,20 @@ using brillo::ErrorPtr;
 using chromeos_update_engine::UpdateEngineService;
 using std::string;
 using std::vector;
+using update_engine::StatusResult;
 using update_engine::UpdateEngineStatus;
+
+namespace {
+// Converts the internal |UpdateEngineStatus| to the protobuf |StatusResult|.
+void ConvertToStatusResult(const UpdateEngineStatus& ue_status,
+                           StatusResult* out_status) {
+  out_status->set_last_checked_time(ue_status.last_checked_time);
+  out_status->set_progress(ue_status.progress);
+  out_status->set_current_operation(UpdateStatusToString(ue_status.status));
+  out_status->set_new_version(ue_status.new_version);
+  out_status->set_new_size(ue_status.new_size_bytes);
+}
+}  // namespace
 
 DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
     : common_(new UpdateEngineService{system_state}) {}
@@ -113,6 +127,17 @@ bool DBusUpdateEngineService::GetStatus(ErrorPtr* error,
   *out_current_operation = UpdateStatusToString(status.status);
   *out_new_version = status.new_version;
   *out_new_size = status.new_size_bytes;
+  return true;
+}
+
+bool DBusUpdateEngineService::GetStatusAdvanced(ErrorPtr* error,
+                                                StatusResult* out_status) {
+  UpdateEngineStatus status;
+  if (!common_->GetStatus(error, &status)) {
+    return false;
+  }
+
+  ConvertToStatusResult(status, out_status);
   return true;
 }
 
@@ -216,11 +241,18 @@ bool UpdateEngineAdaptor::RequestOwnership() {
 
 void UpdateEngineAdaptor::SendStatusUpdate(
     const UpdateEngineStatus& update_engine_status) {
-  SendStatusUpdateSignal(update_engine_status.last_checked_time,
-                         update_engine_status.progress,
-                         UpdateStatusToString(update_engine_status.status),
-                         update_engine_status.new_version,
-                         update_engine_status.new_size_bytes);
+  StatusResult status;
+  ConvertToStatusResult(update_engine_status, &status);
+
+  // TODO(crbug.com/977320): Deprecate |StatusUpdate| signal.
+  SendStatusUpdateSignal(status.last_checked_time(),
+                         status.progress(),
+                         status.current_operation(),
+                         status.new_version(),
+                         status.new_size());
+
+  // Send |StatusUpdateAdvanced| signal.
+  SendStatusUpdateAdvancedSignal(status);
 }
 
 }  // namespace chromeos_update_engine

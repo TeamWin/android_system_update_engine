@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/client_library/include/update_engine/client.h"
 #include "update_engine/dbus-proxies.h"
@@ -49,6 +50,8 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
                  UpdateStatus* out_update_status,
                  std::string* out_new_version,
                  int64_t* out_new_size) const override;
+
+  bool GetStatus(UpdateEngineStatus* out_status) const override;
 
   bool SetCohortHint(const std::string& cohort_hint) override;
   bool GetCohortHint(std::string* cohort_hint) const override;
@@ -93,11 +96,7 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
   // registered handlers receive the event.
   void StatusUpdateHandlersRegistered(StatusUpdateHandler* handler) const;
 
-  void RunStatusUpdateHandlers(int64_t last_checked_time,
-                               double progress,
-                               const std::string& current_operation,
-                               const std::string& new_version,
-                               int64_t new_size);
+  void RunStatusUpdateHandlers(const StatusResult& status);
 
   std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
   std::vector<update_engine::StatusUpdateHandler*> handlers_;
