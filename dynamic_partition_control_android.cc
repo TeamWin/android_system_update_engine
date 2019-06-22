@@ -103,7 +103,7 @@ bool DynamicPartitionControlAndroid::MapPartitionOnDeviceMapper(
     // Note that for source partitions, if GetState() == ACTIVE, callers (e.g.
     // BootControlAndroid) should not call MapPartitionOnDeviceMapper, but
     // should directly call GetDmDevicePathByName.
-    if (!UnmapPartitionOnDeviceMapper(target_partition_name, true /* wait */)) {
+    if (!UnmapPartitionOnDeviceMapper(target_partition_name)) {
       LOG(ERROR) << target_partition_name
                  << " is mapped before the update, and it cannot be unmapped.";
       return false;
@@ -127,12 +127,10 @@ bool DynamicPartitionControlAndroid::MapPartitionOnDeviceMapper(
 }
 
 bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
-    const std::string& target_partition_name, bool wait) {
+    const std::string& target_partition_name) {
   if (DeviceMapper::Instance().GetState(target_partition_name) !=
       DmDeviceState::INVALID) {
-    if (!DestroyLogicalPartition(
-            target_partition_name,
-            std::chrono::milliseconds(wait ? kMapTimeoutMillis : 0))) {
+    if (!DestroyLogicalPartition(target_partition_name)) {
       LOG(ERROR) << "Cannot unmap " << target_partition_name
                  << " from device mapper.";
       return false;
@@ -150,7 +148,7 @@ void DynamicPartitionControlAndroid::CleanupInternal(bool wait) {
   std::set<std::string> mapped = mapped_devices_;
   LOG(INFO) << "Destroying [" << Join(mapped, ", ") << "] from device mapper";
   for (const auto& partition_name : mapped) {
-    ignore_result(UnmapPartitionOnDeviceMapper(partition_name, wait));
+    ignore_result(UnmapPartitionOnDeviceMapper(partition_name));
   }
 }
 

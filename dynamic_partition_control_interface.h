@@ -57,7 +57,7 @@ class DynamicPartitionControlInterface {
   // If |wait| is set, wait until the device is unmapped.
   // Returns true if unmapped successfully.
   virtual bool UnmapPartitionOnDeviceMapper(
-      const std::string& target_partition_name, bool wait) = 0;
+      const std::string& target_partition_name) = 0;
 
   // Do necessary cleanups before destroying the object.
   virtual void Cleanup() = 0;
