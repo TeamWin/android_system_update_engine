@@ -299,7 +299,6 @@ executable("update_engine") {
 # update_engine client library.
 static_library("libupdate_engine_client") {
   sources = [
-    "client_library/client.cc",
     "client_library/client_dbus.cc",
     "update_status_utils.cc",
   ]

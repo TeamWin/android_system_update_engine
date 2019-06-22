@@ -369,46 +369,6 @@ cc_binary {
     required: ["android.hardware.boot@1.0-impl-wrapper.recovery"],
 }
 
-// libupdate_engine_client (type: shared_library)
-// ========================================================
-cc_library_shared {
-    name: "libupdate_engine_client",
-
-    cflags: [
-        "-Wall",
-        "-Werror",
-        "-Wno-unused-parameter",
-        "-DUSE_BINDER=1",
-    ],
-    export_include_dirs: ["client_library/include"],
-    include_dirs: [
-        // TODO(deymo): Remove "external/cros/system_api/dbus" when dbus is not used.
-        "external/cros/system_api/dbus",
-        "system",
-    ],
-
-    aidl: {
-        local_include_dirs: ["binder_bindings"],
-    },
-
-    shared_libs: [
-        "libchrome",
-        "libbrillo",
-        "libbinder",
-        "libbrillo-binder",
-        "libutils",
-    ],
-
-    srcs: [
-        "binder_bindings/android/brillo/IUpdateEngine.aidl",
-        "binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl",
-        "client_library/client.cc",
-        "client_library/client_binder.cc",
-        "parcelable_update_engine_status.cc",
-        "update_status_utils.cc",
-    ],
-}
-
 // update_engine_client (type: executable)
 // ========================================================
 // update_engine console client.

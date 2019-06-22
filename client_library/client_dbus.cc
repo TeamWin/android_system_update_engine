@@ -18,6 +18,8 @@
 
 #include <base/message_loop/message_loop.h>
 
+#include <memory>
+
 #include <dbus/bus.h>
 #include <dlcservice/proto_bindings/dlcservice.pb.h>
 #include <update_engine/dbus-constants.h>
@@ -28,9 +30,19 @@ using chromeos_update_engine::StringToUpdateStatus;
 using dbus::Bus;
 using org::chromium::UpdateEngineInterfaceProxy;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace update_engine {
+
+unique_ptr<UpdateEngineClient> UpdateEngineClient::CreateInstance() {
+  auto ret = std::make_unique<internal::DBusUpdateEngineClient>();
+  if (!ret->Init()) {
+    ret.reset();
+  }
+  return ret;
+}
+
 namespace internal {
 
 bool DBusUpdateEngineClient::Init() {
