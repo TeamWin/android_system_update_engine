@@ -1203,7 +1203,6 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
           new InstallPlan(omaha_response_handler_action->install_plan()));
       UpdateLastCheckedTime();
       new_version_ = install_plan_->version;
-      new_system_version_ = install_plan_->system_version;
       new_payload_size_ = 0;
       for (const auto& payload : install_plan_->payloads)
         new_payload_size_ += payload.size;
@@ -1351,11 +1350,9 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   out_status->last_checked_time = last_checked_time_;
   out_status->status = status_;
   out_status->current_version = omaha_request_params_->app_version();
-  out_status->current_system_version = omaha_request_params_->system_version();
   out_status->progress = download_progress_;
   out_status->new_size_bytes = new_payload_size_;
   out_status->new_version = new_version_;
-  out_status->new_system_version = new_system_version_;
   return true;
 }
 

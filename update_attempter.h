@@ -472,7 +472,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int64_t last_checked_time_ = 0;
   std::string prev_version_;
   std::string new_version_ = "0.0.0.0";
-  std::string new_system_version_;
   uint64_t new_payload_size_ = 0;
   // Flags influencing all periodic update checks
   UpdateAttemptFlags update_attempt_flags_ = UpdateAttemptFlags::kNone;

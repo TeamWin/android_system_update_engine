@@ -1378,8 +1378,6 @@ TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
     EXPECT_EQ(UpdateStatus::UPDATE_AVAILABLE, status.status);
     EXPECT_TRUE(attempter_.install_plan_);
     EXPECT_EQ(attempter_.install_plan_->version, status.new_version);
-    EXPECT_EQ(attempter_.install_plan_->system_version,
-              status.new_system_version);
     EXPECT_EQ(attempter_.install_plan_->payloads[0].size,
               status.new_size_bytes);
   }
@@ -1400,8 +1398,6 @@ TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
     attempter_.GetStatus(&status);
     EXPECT_EQ(UpdateStatus::REPORTING_ERROR_EVENT, status.status);
     EXPECT_EQ(response_action.install_plan_.version, status.new_version);
-    EXPECT_EQ(response_action.install_plan_.system_version,
-              status.new_system_version);
     EXPECT_EQ(response_action.install_plan_.payloads[0].size,
               status.new_size_bytes);
   }

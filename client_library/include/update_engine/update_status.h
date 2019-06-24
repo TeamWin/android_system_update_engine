@@ -64,16 +64,12 @@ struct UpdateEngineStatus {
   UpdateStatus status;
   // the current product version (oem bundle id)
   std::string current_version;
-  // the current system version
-  std::string current_system_version;
   // The current progress (0.0f-1.0f).
   double progress;
   // the size of the update (bytes)
   uint64_t new_size_bytes;
   // the new product version
   std::string new_version;
-  // the new system version, if there is one (empty, otherwise)
-  std::string new_system_version;
 };
 
 }  // namespace update_engine
