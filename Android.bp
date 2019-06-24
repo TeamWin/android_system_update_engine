@@ -29,12 +29,10 @@ cc_defaults {
 
     cflags: [
         "-DBASE_VER=576279",
-        "-DUSE_BINDER=1",
         "-DUSE_CHROME_NETWORK_PROXY=0",
         "-DUSE_CHROME_KIOSK_APP=0",
         "-DUSE_HWID_OVERRIDE=0",
         "-DUSE_MTD=0",
-        "-DUSE_OMAHA=0",
         "-D_FILE_OFFSET_BITS=64",
         "-D_POSIX_C_SOURCE=199309L",
         "-Wa,--noexecstack",
@@ -269,7 +267,7 @@ cc_library_static {
         ":libupdate_engine_aidl",
         "binder_service_android.cc",
         "certificate_checker.cc",
-        "daemon.cc",
+        "daemon_android.cc",
         "daemon_state_android.cc",
         "hardware_android.cc",
         "libcurl_http_fetcher.cc",

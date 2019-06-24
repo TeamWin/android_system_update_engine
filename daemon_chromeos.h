@@ -14,37 +14,26 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_DAEMON_H_
-#define UPDATE_ENGINE_DAEMON_H_
+#ifndef UPDATE_ENGINE_DAEMON_CHROMEOS_H_
+#define UPDATE_ENGINE_DAEMON_CHROMEOS_H_
 
 #include <memory>
-#include <string>
 
-#if USE_BINDER
-#include <brillo/binder_watcher.h>
-#endif  // USE_BINDER
-#include <brillo/daemons/daemon.h>
-
-#if USE_BINDER
-#include "update_engine/binder_service_android.h"
-#endif  // USE_BINDER
 #include "update_engine/common/subprocess.h"
+#include "update_engine/daemon_base.h"
 #include "update_engine/daemon_state_interface.h"
-#if USE_DBUS
 #include "update_engine/dbus_service.h"
-#endif  // USE_DBUS
 
 namespace chromeos_update_engine {
 
-class UpdateEngineDaemon : public brillo::Daemon {
+class DaemonChromeOS : public DaemonBase {
  public:
-  UpdateEngineDaemon() = default;
+  DaemonChromeOS() = default;
 
  protected:
   int OnInit() override;
 
  private:
-#if USE_DBUS
   // Run from the main loop when the |dbus_adaptor_| object is registered. At
   // this point we can request ownership of the DBus service name and continue
   // initialization.
@@ -52,25 +41,19 @@ class UpdateEngineDaemon : public brillo::Daemon {
 
   // Main D-Bus service adaptor.
   std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
-#endif  // USE_DBUS
 
   // The Subprocess singleton class requires a brillo::MessageLoop in the
   // current thread, so we need to initialize it from this class instead of
   // the main() function.
   Subprocess subprocess_;
 
-#if USE_BINDER
-  brillo::BinderWatcher binder_watcher_;
-  android::sp<BinderUpdateEngineAndroidService> binder_service_;
-#endif  // USE_BINDER
-
   // The daemon state with all the required daemon classes for the configured
   // platform.
   std::unique_ptr<DaemonStateInterface> daemon_state_;
 
-  DISALLOW_COPY_AND_ASSIGN(UpdateEngineDaemon);
+  DISALLOW_COPY_AND_ASSIGN(DaemonChromeOS);
 };
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_DAEMON_H_
+#endif  // UPDATE_ENGINE_DAEMON_CHROMEOS_H_

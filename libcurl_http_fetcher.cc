@@ -269,11 +269,11 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
     } else if (base::StartsWith(
                    url_, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForHttps();
-#if !USE_OMAHA
+#ifdef __ANDROID__
     } else if (base::StartsWith(
                    url_, "file://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForFile();
-#endif
+#endif  // __ANDROID__
     } else {
       LOG(ERROR) << "Received invalid URI: " << url_;
       // Lock down to no protocol supported for the transfer.

@@ -14,25 +14,25 @@
 // limitations under the License.
 //
 
-#include "update_engine/daemon.h"
+#include "update_engine/daemon_chromeos.h"
 
 #include <sysexits.h>
 
 #include <base/bind.h>
 #include <base/location.h>
-#if USE_BINDER
-#include <binderwrapper/binder_wrapper.h>
-#endif  // USE_BINDER
 
-#if USE_OMAHA
 #include "update_engine/real_system_state.h"
-#else  // !USE_OMAHA
-#include "update_engine/daemon_state_android.h"
-#endif  // USE_OMAHA
+
+using brillo::Daemon;
+using std::unique_ptr;
 
 namespace chromeos_update_engine {
 
-int UpdateEngineDaemon::OnInit() {
+unique_ptr<DaemonBase> DaemonBase::CreateInstance() {
+  return std::make_unique<DaemonChromeOS>();
+}
+
+int DaemonChromeOS::OnInit() {
   // Register the |subprocess_| singleton with this Daemon as the signal
   // handler.
   subprocess_.Init(this);
@@ -41,12 +41,6 @@ int UpdateEngineDaemon::OnInit() {
   if (exit_code != EX_OK)
     return exit_code;
 
-#if USE_BINDER
-  android::BinderWrapper::Create();
-  binder_watcher_.Init();
-#endif  // USE_BINDER
-
-#if USE_OMAHA
   // Initialize update engine global state but continue if something fails.
   // TODO(deymo): Move the daemon_state_ initialization to a factory method
   // avoiding the explicit re-usage of the |bus| instance, shared between
@@ -55,42 +49,18 @@ int UpdateEngineDaemon::OnInit() {
   daemon_state_.reset(real_system_state);
   LOG_IF(ERROR, !real_system_state->Initialize())
       << "Failed to initialize system state.";
-#else  // !USE_OMAHA
-  DaemonStateAndroid* daemon_state_android = new DaemonStateAndroid();
-  daemon_state_.reset(daemon_state_android);
-  LOG_IF(ERROR, !daemon_state_android->Initialize())
-      << "Failed to initialize system state.";
-#endif  // USE_OMAHA
 
-#if USE_BINDER
-  // Create the Binder Service.
-  binder_service_ = new BinderUpdateEngineAndroidService{
-      daemon_state_android->service_delegate()};
-  auto binder_wrapper = android::BinderWrapper::Get();
-  if (!binder_wrapper->RegisterService(binder_service_->ServiceName(),
-                                       binder_service_)) {
-    LOG(ERROR) << "Failed to register binder service.";
-  }
-
-  daemon_state_->AddObserver(binder_service_.get());
-#endif  // USE_BINDER
-
-#if USE_DBUS
   // Create the DBus service.
   dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state));
   daemon_state_->AddObserver(dbus_adaptor_.get());
 
-  dbus_adaptor_->RegisterAsync(base::Bind(&UpdateEngineDaemon::OnDBusRegistered,
-                                          base::Unretained(this)));
+  dbus_adaptor_->RegisterAsync(
+      base::Bind(&DaemonChromeOS::OnDBusRegistered, base::Unretained(this)));
   LOG(INFO) << "Waiting for DBus object to be registered.";
-#else   // !USE_DBUS
-  daemon_state_->StartUpdater();
-#endif  // USE_DBUS
   return EX_OK;
 }
 
-#if USE_DBUS
-void UpdateEngineDaemon::OnDBusRegistered(bool succeeded) {
+void DaemonChromeOS::OnDBusRegistered(bool succeeded) {
   if (!succeeded) {
     LOG(ERROR) << "Registering the UpdateEngineAdaptor";
     QuitWithExitCode(1);
@@ -108,6 +78,5 @@ void UpdateEngineDaemon::OnDBusRegistered(bool succeeded) {
   }
   daemon_state_->StartUpdater();
 }
-#endif  // USE_DBUS
 
 }  // namespace chromeos_update_engine
