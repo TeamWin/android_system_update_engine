@@ -22,6 +22,7 @@
 #include <utility>
 
 #include <android-base/properties.h>
+#include <android-base/unique_fd.h>
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
@@ -55,6 +56,7 @@
 #include "update_engine/libcurl_http_fetcher.h"
 #endif
 
+using android::base::unique_fd;
 using base::Bind;
 using base::Time;
 using base::TimeDelta;
@@ -286,6 +288,19 @@ bool UpdateAttempterAndroid::ApplyPayload(
 
   ScheduleProcessingStart();
   return true;
+}
+
+bool UpdateAttempterAndroid::ApplyPayload(
+    int fd,
+    int64_t payload_offset,
+    int64_t payload_size,
+    const vector<string>& key_value_pair_headers,
+    brillo::ErrorPtr* error) {
+  payload_fd_.reset(dup(fd));
+  const string payload_url = "fd://" + std::to_string(payload_fd_.get());
+
+  return ApplyPayload(
+      payload_url, payload_offset, payload_size, key_value_pair_headers, error);
 }
 
 bool UpdateAttempterAndroid::SuspendUpdate(brillo::ErrorPtr* error) {
@@ -583,6 +598,7 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
                                          : UpdateStatus::IDLE);
   SetStatusAndNotify(new_status);
+  payload_fd_.reset();
 
   // The network id is only applicable to one download attempt and once it's
   // done the network id should not be re-used anymore.

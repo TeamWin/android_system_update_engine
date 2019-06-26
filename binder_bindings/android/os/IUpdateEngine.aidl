@@ -26,6 +26,11 @@ interface IUpdateEngine {
                     in long payload_size,
                     in String[] headerKeyValuePairs);
   /** @hide */
+  void applyPayloadFd(in FileDescriptor fd,
+                      in long payload_offset,
+                      in long payload_size,
+                      in String[] headerKeyValuePairs);
+  /** @hide */
   boolean bind(IUpdateEngineCallback callback);
   /** @hide */
   boolean unbind(IUpdateEngineCallback callback);
