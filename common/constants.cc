@@ -126,4 +126,10 @@ const char kPayloadPropertyRunPostInstall[] = "RUN_POST_INSTALL";
 
 const char kOmahaUpdaterVersion[] = "0.1.0.0";
 
+// X-Goog-Update headers.
+const char kXGoogleUpdateInteractivity[] = "X-Goog-Update-Interactivity";
+const char kXGoogleUpdateAppId[] = "X-Goog-Update-AppId";
+const char kXGoogleUpdateUpdater[] = "X-Goog-Update-Updater";
+const char kXGoogleUpdateSessionId[] = "X-Goog-SessionId";
+
 }  // namespace chromeos_update_engine

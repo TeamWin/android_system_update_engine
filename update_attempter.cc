@@ -683,6 +683,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   download_fetcher->set_server_to_check(ServerToCheck::kDownload);
   if (interactive)
     download_fetcher->set_max_retry_count(kDownloadMaxRetryCountInteractive);
+  download_fetcher->SetHeader(kXGoogleUpdateSessionId, session_id_);
   auto download_action =
       std::make_unique<DownloadAction>(prefs_,
                                        system_state_->boot_control(),

@@ -31,6 +31,7 @@
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
 
+#include "update_engine/common/constants.h"
 #include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
@@ -43,6 +44,7 @@
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/mock_service_observer.h"
@@ -195,6 +197,7 @@ class UpdateAttempterTest : public ::testing::Test {
   void SessionIdTestChange();
   void SessionIdTestEnforceEmptyStrPingOmaha();
   void SessionIdTestConsistencyInUpdateFlow();
+  void SessionIdTestInDownloadAction();
   void UpdateToQuickFixBuildStart(bool set_token);
   void ResetRollbackHappenedStart(bool is_consumer,
                                   bool is_policy_available,
@@ -302,6 +305,32 @@ TEST_F(UpdateAttempterTest, SessionIdTestConsistencyInUpdateFlow) {
       FROM_HERE,
       base::Bind(&UpdateAttempterTest::SessionIdTestConsistencyInUpdateFlow,
                  base::Unretained(this)));
+  loop_.Run();
+}
+
+void UpdateAttempterTest::SessionIdTestInDownloadAction() {
+  // The session ID passed into |DownloadAction|'s |LibcurlHttpFetcher| should
+  // be enforced to be included in the HTTP header as X-Goog-Update-SessionId.
+  string header_value;
+  auto CheckSessionIdInDownloadAction = [&header_value](AbstractAction* aa) {
+    if (aa->Type() == DownloadAction::StaticType()) {
+      DownloadAction* da = static_cast<DownloadAction*>(aa);
+      EXPECT_TRUE(da->http_fetcher()->GetHeader(kXGoogleUpdateSessionId,
+                                                &header_value));
+    }
+  };
+  EXPECT_CALL(*processor_, EnqueueAction(Pointee(_)))
+      .WillRepeatedly(Invoke(CheckSessionIdInDownloadAction));
+  attempter_.BuildUpdateActions(false);
+  // Validate that X-Goog-Update_SessionId is set correctly in HTTP Header.
+  EXPECT_EQ(attempter_.session_id_, header_value);
+  ScheduleQuitMainLoop();
+}
+
+TEST_F(UpdateAttempterTest, SessionIdTestInDownloadAction) {
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::SessionIdTestInDownloadAction,
+                            base::Unretained(this)));
   loop_.Run();
 }
 

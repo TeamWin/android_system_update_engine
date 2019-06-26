@@ -110,6 +110,12 @@ extern const char kPayloadPropertyRunPostInstall[];
 
 extern const char kOmahaUpdaterVersion[];
 
+// X-Goog-Update headers.
+extern const char kXGoogleUpdateInteractivity[];
+extern const char kXGoogleUpdateAppId[];
+extern const char kXGoogleUpdateUpdater[];
+extern const char kXGoogleUpdateSessionId[];
+
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download
 // the payload.

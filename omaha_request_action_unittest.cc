@@ -84,7 +84,6 @@ const char kCurrentVersion[] = "0.1.0.0";
 const char kTestAppId[] = "test-app-id";
 const char kTestAppId2[] = "test-app2-id";
 const char kTestAppIdSkipUpdatecheck[] = "test-app-id-skip-updatecheck";
-const char kTestSessionId[] = "12341234-1234-1234-1234-1234123412341234";
 
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
@@ -297,8 +296,6 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
                   fetcher->GetHeader("X-Goog-Update-Interactivity"));
         EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-Goog-Update-AppId"));
         EXPECT_NE("", fetcher->GetHeader("X-Goog-Update-Updater"));
-        EXPECT_EQ(kTestSessionId,
-                  fetcher->GetHeader("X-Goog-Update-SessionId"));
       }
       post_data_ = fetcher->post_data();
     } else if (action->Type() ==
@@ -370,7 +367,6 @@ class OmahaRequestActionTest : public ::testing::Test {
         .expected_check_result = metrics::CheckResult::kUpdateAvailable,
         .expected_check_reaction = metrics::CheckReaction::kUpdating,
         .expected_download_error_code = metrics::DownloadErrorCode::kUnset,
-        .session_id = kTestSessionId,
     };
   }
 

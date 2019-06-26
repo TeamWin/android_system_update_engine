@@ -100,6 +100,14 @@ class HttpFetcher {
   virtual void SetHeader(const std::string& header_name,
                          const std::string& header_value) = 0;
 
+  // Only used for testing.
+  // If |header_name| is set, the value will be set into |header_value|.
+  // On success the boolean true will be returned, hoewever on failture to find
+  // the |header_name| in the header the return value will be false. The state
+  // in which |header_value| is left in for failures is an empty string.
+  virtual bool GetHeader(const std::string& header_name,
+                         std::string* header_value) const = 0;
+
   // If data is coming in too quickly, you can call Pause() to pause the
   // transfer. The delegate will not have ReceivedBytes() called while
   // an HttpFetcher is paused.

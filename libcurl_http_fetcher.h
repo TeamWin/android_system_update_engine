@@ -61,6 +61,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   void SetHeader(const std::string& header_name,
                  const std::string& header_value) override;
 
+  bool GetHeader(const std::string& header_name,
+                 std::string* header_value) const override;
+
   // Suspend the transfer by calling curl_easy_pause(CURLPAUSE_ALL).
   void Pause() override;
 

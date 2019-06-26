@@ -622,6 +622,7 @@ cc_test {
         "common/terminator_unittest.cc",
         "common/test_utils.cc",
         "common/utils_unittest.cc",
+        "libcurl_http_fetcher_unittest.cc",
         "payload_consumer/bzip_extent_writer_unittest.cc",
         "payload_consumer/cached_file_descriptor_unittest.cc",
         "payload_consumer/delta_performer_integration_test.cc",

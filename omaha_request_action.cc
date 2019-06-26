@@ -107,12 +107,6 @@ constexpr char kAttrStatus[] = "status";
 constexpr char kValPostInstall[] = "postinstall";
 constexpr char kValNoUpdate[] = "noupdate";
 
-// X-Goog-Update headers.
-constexpr char kXGoogleUpdateInteractivity[] = "X-Goog-Update-Interactivity";
-constexpr char kXGoogleUpdateAppId[] = "X-Goog-Update-AppId";
-constexpr char kXGoogleUpdateUpdater[] = "X-Goog-Update-Updater";
-constexpr char kXGoogleUpdateSessionId[] = "X-Goog-Update-SessionId";
-
 // updatecheck attributes (without the underscore prefix).
 constexpr char kAttrEol[] = "eol";
 constexpr char kAttrRollback[] = "rollback";
@@ -444,7 +438,6 @@ void OmahaRequestAction::PerformAction() {
       kXGoogleUpdateUpdater,
       base::StringPrintf(
           "%s-%s", constants::kOmahaUpdaterID, kOmahaUpdaterVersion));
-  http_fetcher_->SetHeader(kXGoogleUpdateSessionId, session_id_);
 
   http_fetcher_->SetPostData(
       request_post.data(), request_post.size(), kHttpContentTypeTextXml);

@@ -26,6 +26,7 @@
 #include <base/format_macros.h>
 #include <base/location.h>
 #include <base/logging.h>
+#include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
@@ -390,6 +391,37 @@ void LibcurlHttpFetcher::SetHeader(const string& header_name,
   TEST_AND_RETURN(header_line.find('\n') == string::npos);
   TEST_AND_RETURN(header_name.find(':') == string::npos);
   extra_headers_[base::ToLowerASCII(header_name)] = header_line;
+}
+
+// Inputs: header_name, header_value
+// Example:
+//   extra_headers_ = { {"foo":"foo: 123"}, {"bar":"bar:"} }
+//   string tmp = "gibberish";
+//   Case 1:
+//     GetHeader("foo", &tmp) -> tmp = "123", return true.
+//   Case 2:
+//     GetHeader("bar", &tmp) -> tmp = "", return true.
+//   Case 3:
+//     GetHeader("moo", &tmp) -> tmp = "", return false.
+bool LibcurlHttpFetcher::GetHeader(const string& header_name,
+                                   string* header_value) const {
+  // Initially clear |header_value| to handle both success and failures without
+  // leaving |header_value| in a unclear state.
+  header_value->clear();
+  auto header_key = base::ToLowerASCII(header_name);
+  auto header_line_itr = extra_headers_.find(header_key);
+  // If the |header_name| was never set, indicate so by returning false.
+  if (header_line_itr == extra_headers_.end())
+    return false;
+  // From |SetHeader()| the check for |header_name| to not include ":" is
+  // verified, so finding the first index of ":" is a safe operation.
+  auto header_line = header_line_itr->second;
+  *header_value = header_line.substr(header_line.find(':') + 1);
+  // The following is neccessary to remove the leading ' ' before the header
+  // value that was place only if |header_value| passed to |SetHeader()| was
+  // a non-empty string.
+  header_value->erase(0, 1);
+  return true;
 }
 
 void LibcurlHttpFetcher::CurlPerformOnce() {
