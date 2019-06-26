@@ -8,3 +8,6 @@ senj@google.com
 benchan@google.com
 ahassani@google.com
 xiaochu@google.com
+
+# Chromium OS only:
+# COMPONENT: Internals>Installer
