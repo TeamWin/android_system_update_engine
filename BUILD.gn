@@ -77,7 +77,6 @@ pkg_config("target_defaults") {
     "USE_HWID_OVERRIDE=${use.hwid_override}",
     "USE_CHROME_KIOSK_APP=${use.chrome_kiosk_app}",
     "USE_CHROME_NETWORK_PROXY=${use.chrome_network_proxy}",
-    "USE_MTD=${use.mtd}",
     "USE_SHILL=1",
   ]
   include_dirs = [
@@ -179,11 +178,6 @@ static_library("libpayload_consumer") {
   deps = [
     ":update_metadata-protos",
   ]
-
-  if (use.mtd) {
-    sources += [ "payload_consumer/mtd_file_descriptor.cc" ]
-    libs += [ "mtdutils" ]
-  }
 }
 
 # The main daemon static_library with all the code used to check for updates

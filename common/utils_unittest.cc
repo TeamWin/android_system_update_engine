@@ -123,23 +123,11 @@ TEST(UtilsTest, SplitPartitionNameTest) {
   EXPECT_EQ("/dev/mmcblk0", disk);
   EXPECT_EQ(3, part_num);
 
-  EXPECT_TRUE(utils::SplitPartitionName("/dev/ubiblock3_2", &disk, &part_num));
-  EXPECT_EQ("/dev/ubiblock", disk);
-  EXPECT_EQ(3, part_num);
-
   EXPECT_TRUE(utils::SplitPartitionName("/dev/loop10", &disk, &part_num));
   EXPECT_EQ("/dev/loop", disk);
   EXPECT_EQ(10, part_num);
 
   EXPECT_TRUE(utils::SplitPartitionName("/dev/loop28p11", &disk, &part_num));
-  EXPECT_EQ("/dev/loop28", disk);
-  EXPECT_EQ(11, part_num);
-
-  EXPECT_TRUE(utils::SplitPartitionName("/dev/loop10_0", &disk, &part_num));
-  EXPECT_EQ("/dev/loop", disk);
-  EXPECT_EQ(10, part_num);
-
-  EXPECT_TRUE(utils::SplitPartitionName("/dev/loop28p11_0", &disk, &part_num));
   EXPECT_EQ("/dev/loop28", disk);
   EXPECT_EQ(11, part_num);
 
@@ -157,29 +145,6 @@ TEST(UtilsTest, MakePartitionNameTest) {
   EXPECT_EQ("/dev/mmcblk0p2", utils::MakePartitionName("/dev/mmcblk0", 2));
   EXPECT_EQ("/dev/loop8", utils::MakePartitionName("/dev/loop", 8));
   EXPECT_EQ("/dev/loop12p2", utils::MakePartitionName("/dev/loop12", 2));
-  EXPECT_EQ("/dev/ubi5_0", utils::MakePartitionName("/dev/ubiblock", 5));
-  EXPECT_EQ("/dev/mtd4", utils::MakePartitionName("/dev/ubiblock", 4));
-  EXPECT_EQ("/dev/ubi3_0", utils::MakePartitionName("/dev/ubiblock", 3));
-  EXPECT_EQ("/dev/mtd2", utils::MakePartitionName("/dev/ubiblock", 2));
-  EXPECT_EQ("/dev/ubi1_0", utils::MakePartitionName("/dev/ubiblock", 1));
-}
-
-TEST(UtilsTest, MakePartitionNameForMountTest) {
-  EXPECT_EQ("/dev/sda4", utils::MakePartitionNameForMount("/dev/sda4"));
-  EXPECT_EQ("/dev/sda123", utils::MakePartitionNameForMount("/dev/sda123"));
-  EXPECT_EQ("/dev/mmcblk2", utils::MakePartitionNameForMount("/dev/mmcblk2"));
-  EXPECT_EQ("/dev/mmcblk0p2",
-            utils::MakePartitionNameForMount("/dev/mmcblk0p2"));
-  EXPECT_EQ("/dev/loop0", utils::MakePartitionNameForMount("/dev/loop0"));
-  EXPECT_EQ("/dev/loop8", utils::MakePartitionNameForMount("/dev/loop8"));
-  EXPECT_EQ("/dev/loop12p2", utils::MakePartitionNameForMount("/dev/loop12p2"));
-  EXPECT_EQ("/dev/ubiblock5_0",
-            utils::MakePartitionNameForMount("/dev/ubiblock5_0"));
-  EXPECT_EQ("/dev/mtd4", utils::MakePartitionNameForMount("/dev/ubi4_0"));
-  EXPECT_EQ("/dev/ubiblock3_0",
-            utils::MakePartitionNameForMount("/dev/ubiblock3"));
-  EXPECT_EQ("/dev/mtd2", utils::MakePartitionNameForMount("/dev/ubi2"));
-  EXPECT_EQ("/dev/ubi1_0", utils::MakePartitionNameForMount("/dev/ubiblock1"));
 }
 
 TEST(UtilsTest, FuzzIntTest) {

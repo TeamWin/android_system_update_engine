@@ -54,9 +54,6 @@
 #endif  // USE_FEC
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
 #include "update_engine/payload_consumer/mount_history.h"
-#if USE_MTD
-#include "update_engine/payload_consumer/mtd_file_descriptor.h"
-#endif  // USE_MTD
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_consumer/xz_extent_writer.h"
@@ -76,39 +73,8 @@ const uint64_t DeltaPerformer::kCheckpointFrequencySeconds = 1;
 namespace {
 const int kUpdateStateOperationInvalid = -1;
 const int kMaxResumedUpdateFailures = 10;
-#if USE_MTD
-const int kUbiVolumeAttachTimeout = 5 * 60;
-#endif
 
 const uint64_t kCacheSize = 1024 * 1024;  // 1MB
-
-FileDescriptorPtr CreateFileDescriptor(const char* path) {
-  FileDescriptorPtr ret;
-#if USE_MTD
-  if (strstr(path, "/dev/ubi") == path) {
-    if (!UbiFileDescriptor::IsUbi(path)) {
-      // The volume might not have been attached at boot time.
-      int volume_no;
-      if (utils::SplitPartitionName(path, nullptr, &volume_no)) {
-        utils::TryAttachingUbiVolume(volume_no, kUbiVolumeAttachTimeout);
-      }
-    }
-    if (UbiFileDescriptor::IsUbi(path)) {
-      LOG(INFO) << path << " is a UBI device.";
-      ret.reset(new UbiFileDescriptor);
-    }
-  } else if (MtdFileDescriptor::IsMtd(path)) {
-    LOG(INFO) << path << " is an MTD device.";
-    ret.reset(new MtdFileDescriptor);
-  } else {
-    LOG(INFO) << path << " is not an MTD nor a UBI device.";
-#endif
-    ret.reset(new EintrSafeFileDescriptor);
-#if USE_MTD
-  }
-#endif
-  return ret;
-}
 
 // Opens path for read/write. On success returns an open FileDescriptor
 // and sets *err to 0. On failure, sets *err to errno and returns nullptr.
@@ -121,18 +87,11 @@ FileDescriptorPtr OpenFile(const char* path,
   bool read_only = (mode & O_ACCMODE) == O_RDONLY;
   utils::SetBlockDeviceReadOnly(path, read_only);
 
-  FileDescriptorPtr fd = CreateFileDescriptor(path);
+  FileDescriptorPtr fd(new EintrSafeFileDescriptor());
   if (cache_writes && !read_only) {
     fd = FileDescriptorPtr(new CachedFileDescriptor(fd, kCacheSize));
     LOG(INFO) << "Caching writes.";
   }
-#if USE_MTD
-  // On NAND devices, we can either read, or write, but not both. So here we
-  // use O_WRONLY.
-  if (UbiFileDescriptor::IsUbi(path) || MtdFileDescriptor::IsMtd(path)) {
-    mode = O_WRONLY;
-  }
-#endif
   if (!fd->Open(path, mode, 000)) {
     *err = errno;
     PLOG(ERROR) << "Unable to open file " << path;

@@ -32,7 +32,6 @@ cc_defaults {
         "-DUSE_CHROME_NETWORK_PROXY=0",
         "-DUSE_CHROME_KIOSK_APP=0",
         "-DUSE_HWID_OVERRIDE=0",
-        "-DUSE_MTD=0",
         "-D_FILE_OFFSET_BITS=64",
         "-D_POSIX_C_SOURCE=199309L",
         "-Wa,--noexecstack",
