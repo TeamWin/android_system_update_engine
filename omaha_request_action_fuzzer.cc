@@ -38,7 +38,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           nullptr,
           std::make_unique<chromeos_update_engine::MockHttpFetcher>(
               data, size, nullptr),
-          false);
+          false,
+          "" /* session_id */);
   auto collector_action =
       std::make_unique<chromeos_update_engine::ObjectCollectorAction<
           chromeos_update_engine::OmahaResponse>>();
