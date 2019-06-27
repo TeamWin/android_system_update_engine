@@ -14,6 +14,9 @@
 # limitations under the License.
 #
 
+# Stop linter from complaining XXX_unittest.cc naming.
+# gnlint: disable=GnLintSourceFileNames
+
 import("//common-mk/generate-dbus-adaptors.gni")
 import("//common-mk/generate-dbus-proxies.gni")
 import("//common-mk/openssl_pem.gni")
