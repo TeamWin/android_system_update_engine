@@ -42,8 +42,27 @@ struct ScopedRefPtrLess {
   }
 };
 
+// Please do not move this class into a new file for simplicity.
+// This pure virtual class is purely created for purpose of testing. The reason
+// was that |UpdateManager|'s member functions are templatized, which does not
+// play nicely when testing (mocking + faking). Whenever a specialized member of
+// |UpdateManager| must be tested, please add a specialized template member
+// function within this class for testing.
+class SpecializedPolicyRequestInterface {
+ public:
+  virtual ~SpecializedPolicyRequestInterface() = default;
+
+  virtual void AsyncPolicyRequestUpdateCheckAllowed(
+      base::Callback<void(EvalStatus, const UpdateCheckParams& result)>
+          callback,
+      EvalStatus (Policy::*policy_method)(EvaluationContext*,
+                                          State*,
+                                          std::string*,
+                                          UpdateCheckParams*) const) = 0;
+};
+
 // The main Update Manager singleton class.
-class UpdateManager {
+class UpdateManager : public SpecializedPolicyRequestInterface {
  public:
   // Creates the UpdateManager instance, assuming ownership on the provided
   // |state|.
@@ -90,6 +109,14 @@ class UpdateManager {
       EvalStatus (Policy::*policy_method)(
           EvaluationContext*, State*, std::string*, R*, ExpectedArgs...) const,
       ActualArgs... args);
+
+  void AsyncPolicyRequestUpdateCheckAllowed(
+      base::Callback<void(EvalStatus, const UpdateCheckParams& result)>
+          callback,
+      EvalStatus (Policy::*policy_method)(EvaluationContext*,
+                                          State*,
+                                          std::string*,
+                                          UpdateCheckParams*) const) override;
 
  protected:
   // The UpdateManager receives ownership of the passed Policy instance.

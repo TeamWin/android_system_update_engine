@@ -53,10 +53,12 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_boot_flags_action.h"
+#include "update_engine/update_manager/mock_update_manager.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_manager::EvalStatus;
+using chromeos_update_manager::MockUpdateManager;
 using chromeos_update_manager::StagingSchedule;
 using chromeos_update_manager::UpdateCheckParams;
 using policy::DevicePolicy;
@@ -137,6 +139,7 @@ class UpdateAttempterTest : public ::testing::Test {
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
     fake_system_state_.set_dlcservice(&mock_dlcservice_);
+    fake_system_state_.set_update_manager(&mock_update_manager_);
     loop_.SetAsCurrent();
 
     certificate_checker_.Init();
@@ -222,6 +225,7 @@ class UpdateAttempterTest : public ::testing::Test {
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
   MockDlcService mock_dlcservice_;
+  MockUpdateManager mock_update_manager_;
 
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>*

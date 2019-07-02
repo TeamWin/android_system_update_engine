@@ -50,6 +50,13 @@ UpdateManager::~UpdateManager() {
     ec->RemoveObserversAndTimeout();
 }
 
+void UpdateManager::AsyncPolicyRequestUpdateCheckAllowed(
+    base::Callback<void(EvalStatus, const UpdateCheckParams& result)> callback,
+    EvalStatus (Policy::*policy_method)(
+        EvaluationContext*, State*, std::string*, UpdateCheckParams*) const) {
+  AsyncPolicyRequest(callback, policy_method);
+}
+
 void UpdateManager::UnregisterEvalContext(EvaluationContext* ec) {
   if (!ec_repo_.erase(ec)) {
     LOG(ERROR) << "Unregistering an unknown evaluation context, this is a bug.";

@@ -163,7 +163,8 @@ bool UpdateAttempter::ScheduleUpdates() {
       Bind(&UpdateAttempter::OnUpdateScheduled, base::Unretained(this));
   // We limit the async policy request to a reasonably short time, to avoid a
   // starvation due to a transient bug.
-  update_manager->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
+  update_manager->AsyncPolicyRequestUpdateCheckAllowed(
+      callback, &Policy::UpdateCheckAllowed);
   waiting_for_scheduled_check_ = true;
   return true;
 }
