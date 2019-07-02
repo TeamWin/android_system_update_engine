@@ -645,17 +645,25 @@ int Main(int argc, char** argv) {
       payload_config.version.minor = kInPlaceMinorPayloadVersion;
       brillo::KeyValueStore store;
       uint32_t minor_version;
+      bool minor_version_found = false;
       for (const PartitionConfig& part : payload_config.source.partitions) {
         if (part.fs_interface && part.fs_interface->LoadSettings(&store) &&
             utils::GetMinorVersion(store, &minor_version)) {
           payload_config.version.minor = minor_version;
+          minor_version_found = true;
+          LOG(INFO) << "Auto-detected minor_version="
+                    << payload_config.version.minor;
           break;
         }
       }
+      LOG_IF(WARNING, !minor_version_found)
+          << "Failed to detect minor version defaulting to minor_version="
+          << payload_config.version.minor;
     } else {
       payload_config.version.minor = kFullPayloadMinorVersion;
+      LOG(INFO) << "Using non-delta minor_version="
+                << payload_config.version.minor;
     }
-    LOG(INFO) << "Auto-detected minor_version=" << payload_config.version.minor;
   } else {
     payload_config.version.minor = FLAGS_minor_version;
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
