@@ -103,6 +103,16 @@ struct CheckForUpdateTestParams {
   bool expected_result = true;
 };
 
+struct OnUpdateScheduledTestParams {
+  // Setups + Inputs:
+  UpdateCheckParams params = {};
+  EvalStatus status = EvalStatus::kFailed;
+  // Expects:
+  UpdateStatus exit_status = UpdateStatus::IDLE;
+  bool should_schedule_updates_be_called = false;
+  bool should_update_be_called = false;
+};
+
 class MockDlcService : public DlcServiceInterface {
  public:
   MOCK_METHOD1(GetInstalled, bool(vector<string>*));
@@ -120,28 +130,67 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   explicit UpdateAttempterUnderTest(SystemState* system_state)
       : UpdateAttempter(system_state, nullptr) {}
 
+  void Update(const std::string& app_version,
+              const std::string& omaha_url,
+              const std::string& target_channel,
+              const std::string& target_version_prefix,
+              bool rollback_allowed,
+              bool rollback_data_save_requested,
+              int rollback_allowed_milestones,
+              bool obey_proxies,
+              bool interactive) override {
+    update_called_ = true;
+    if (do_update_) {
+      UpdateAttempter::Update(app_version,
+                              omaha_url,
+                              target_channel,
+                              target_version_prefix,
+                              rollback_allowed,
+                              rollback_data_save_requested,
+                              rollback_allowed_milestones,
+                              obey_proxies,
+                              interactive);
+      return;
+    }
+    LOG(INFO) << "[TEST] Update() disabled.";
+    status_ = UpdateStatus::CHECKING_FOR_UPDATE;
+  }
+
+  void DisableUpdate() { do_update_ = false; }
+
+  bool WasUpdateCalled() const { return update_called_; }
+
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
   bool ScheduleUpdates() override {
     schedule_updates_called_ = true;
-    if (do_schedule_updates_) {
-      UpdateAttempter::ScheduleUpdates();
-    } else {
-      LOG(INFO) << "[TEST] Update scheduling disabled.";
-    }
+    if (do_schedule_updates_)
+      return UpdateAttempter::ScheduleUpdates();
+    LOG(INFO) << "[TEST] Update scheduling disabled.";
+    waiting_for_scheduled_check_ = true;
     return true;
   }
 
   void DisableScheduleUpdates() { do_schedule_updates_ = false; }
 
   // Indicates whether |ScheduleUpdates()| was called.
-  bool schedule_updates_called() const { return schedule_updates_called_; }
+  bool WasScheduleUpdatesCalled() const { return schedule_updates_called_; }
 
   // Need to expose following private members of |UpdateAttempter| for tests.
   const string& forced_app_version() const { return forced_app_version_; }
   const string& forced_omaha_url() const { return forced_omaha_url_; }
 
+  // Need to expose |waiting_for_scheduled_check_| for testing.
+  void SetWaitingForScheduledCheck(bool waiting) {
+    waiting_for_scheduled_check_ = waiting;
+  }
+
  private:
+  // Used for overrides of |Update()|.
+  bool update_called_ = false;
+  bool do_update_ = true;
+
+  // Used for overrides of |ScheduleUpdates()|.
   bool schedule_updates_called_ = false;
   bool do_schedule_updates_ = true;
 };
@@ -236,6 +285,9 @@ class UpdateAttempterTest : public ::testing::Test {
   // |CheckForUpdate()| related member functions.
   void TestCheckForUpdate();
 
+  // |OnUpdateScheduled()| related member functions.
+  void TestOnUpdateScheduled();
+
   base::MessageLoopForIO base_loop_;
   brillo::BaseMessageLoop loop_{&base_loop_};
 
@@ -253,6 +305,9 @@ class UpdateAttempterTest : public ::testing::Test {
 
   // |CheckForUpdate()| test params.
   CheckForUpdateTestParams cfu_params_;
+
+  // |OnUpdateScheduled()| test params.
+  OnUpdateScheduledTestParams ous_params_;
 
   bool actual_using_p2p_for_downloading_;
   bool actual_using_p2p_for_sharing_;
@@ -779,7 +834,7 @@ void UpdateAttempterTest::PingOmahaTestStart() {
 
 TEST_F(UpdateAttempterTest, PingOmahaTest) {
   EXPECT_FALSE(attempter_.waiting_for_scheduled_check_);
-  EXPECT_FALSE(attempter_.schedule_updates_called());
+  EXPECT_FALSE(attempter_.WasScheduleUpdatesCalled());
   // Disable scheduling of subsequnet checks; we're using the |DefaultPolicy| in
   // testing, which is more permissive than we want to handle here.
   attempter_.DisableScheduleUpdates();
@@ -788,7 +843,7 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
                             base::Unretained(this)));
   brillo::MessageLoopRunMaxIterations(&loop_, 100);
   EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
-  EXPECT_TRUE(attempter_.schedule_updates_called());
+  EXPECT_TRUE(attempter_.WasScheduleUpdatesCalled());
 }
 
 TEST_F(UpdateAttempterTest, CreatePendingErrorEventTest) {
@@ -1629,6 +1684,7 @@ TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
 }
 
 TEST_F(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable) {
+  // Default construction for |waiting_for_scheduled_check_| is false.
   EXPECT_FALSE(attempter_.IsUpdateRunningOrScheduled());
   // Verify in-progress update with UPDATE_AVAILABLE is running
   attempter_.status_ = UpdateStatus::UPDATE_AVAILABLE;
@@ -1917,6 +1973,91 @@ TEST_F(UpdateAttempterTest, EmptyQuickFixToken) {
                             base::Unretained(this),
                             /*set_token=*/false));
   loop_.Run();
+}
+
+TEST_F(UpdateAttempterTest, ScheduleUpdateSpamHandlerTest) {
+  EXPECT_CALL(mock_update_manager_, AsyncPolicyRequestUpdateCheckAllowed(_, _))
+      .Times(1);
+  EXPECT_TRUE(attempter_.ScheduleUpdates());
+  // Now there is an update scheduled which means that all subsequent
+  // |ScheduleUpdates()| should fail.
+  EXPECT_FALSE(attempter_.ScheduleUpdates());
+  EXPECT_FALSE(attempter_.ScheduleUpdates());
+  EXPECT_FALSE(attempter_.ScheduleUpdates());
+}
+
+// Critical tests to always make sure that an update is scheduled. The following
+// unittest(s) try and cover the correctness in synergy between
+// |UpdateAttempter| and |UpdateManager|. Also it is good to remember the
+// actions that happen in the flow when |UpdateAttempter| get callbacked on
+// |OnUpdateScheduled()| -> (various cases which leads to) -> |ProcessingDone()|
+void UpdateAttempterTest::TestOnUpdateScheduled() {
+  // Setup
+  attempter_.SetWaitingForScheduledCheck(true);
+  attempter_.DisableUpdate();
+  attempter_.DisableScheduleUpdates();
+
+  // Invocation
+  attempter_.OnUpdateScheduled(ous_params_.status, ous_params_.params);
+
+  // Verify
+  EXPECT_EQ(ous_params_.exit_status, attempter_.status());
+  EXPECT_EQ(ous_params_.should_schedule_updates_be_called,
+            attempter_.WasScheduleUpdatesCalled());
+  EXPECT_EQ(ous_params_.should_update_be_called, attempter_.WasUpdateCalled());
+}
+
+TEST_F(UpdateAttempterTest, OnUpdatesScheduledFailed) {
+  // GIVEN failed status.
+
+  // THEN update should be scheduled.
+  ous_params_.should_schedule_updates_be_called = true;
+
+  TestOnUpdateScheduled();
+}
+
+TEST_F(UpdateAttempterTest, OnUpdatesScheduledAskMeAgainLater) {
+  // GIVEN ask me again later status.
+  ous_params_.status = EvalStatus::kAskMeAgainLater;
+
+  // THEN update should be scheduled.
+  ous_params_.should_schedule_updates_be_called = true;
+
+  TestOnUpdateScheduled();
+}
+
+TEST_F(UpdateAttempterTest, OnUpdatesScheduledContinue) {
+  // GIVEN continue status.
+  ous_params_.status = EvalStatus::kContinue;
+
+  // THEN update should be scheduled.
+  ous_params_.should_schedule_updates_be_called = true;
+
+  TestOnUpdateScheduled();
+}
+
+TEST_F(UpdateAttempterTest, OnUpdatesScheduledSucceededButUpdateDisabledFails) {
+  // GIVEN updates disabled.
+  ous_params_.params = {.updates_enabled = false};
+  // GIVEN succeeded status.
+  ous_params_.status = EvalStatus::kSucceeded;
+
+  // THEN update should not be scheduled.
+
+  TestOnUpdateScheduled();
+}
+
+TEST_F(UpdateAttempterTest, OnUpdatesScheduledSucceeded) {
+  // GIVEN updates enabled.
+  ous_params_.params = {.updates_enabled = true};
+  // GIVEN succeeded status.
+  ous_params_.status = EvalStatus::kSucceeded;
+
+  // THEN update should be called indicating status change.
+  ous_params_.exit_status = UpdateStatus::CHECKING_FOR_UPDATE;
+  ous_params_.should_update_be_called = true;
+
+  TestOnUpdateScheduled();
 }
 
 }  // namespace chromeos_update_engine

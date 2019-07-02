@@ -869,7 +869,7 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
     // of the previously set ones.
     current_update_attempt_flags_ = flags;
     // Note: The caching for non-interactive update checks happens in
-    // OnUpdateScheduled().
+    // |OnUpdateScheduled()|.
   }
 
   if (forced_update_pending_callback_.get()) {
