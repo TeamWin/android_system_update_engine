@@ -100,6 +100,7 @@ struct CheckForUpdateTestParams {
   // Expects:
   string expected_forced_app_version = "";
   string expected_forced_omaha_url = "";
+  bool should_schedule_updates_be_called = true;
   bool expected_result = true;
 };
 
@@ -332,6 +333,8 @@ void UpdateAttempterTest::TestCheckForUpdate() {
             attempter_.forced_app_version());
   EXPECT_EQ(cfu_params_.expected_forced_omaha_url,
             attempter_.forced_omaha_url());
+  EXPECT_EQ(cfu_params_.should_schedule_updates_be_called,
+            attempter_.WasScheduleUpdatesCalled());
 }
 
 void UpdateAttempterTest::ScheduleQuitMainLoop() {
@@ -1391,6 +1394,8 @@ TEST_F(UpdateAttempterTest, CheckForUpdateInteractiveNotIdleFails) {
   cfu_params_.status = UpdateStatus::CHECKING_FOR_UPDATE;
   // GIVEN a interactive update.
 
+  // THEN |ScheduleUpdates()| should not be called.
+  cfu_params_.should_schedule_updates_be_called = false;
   // THEN result should indicate failure.
   cfu_params_.expected_result = false;
 
@@ -1560,6 +1565,34 @@ TEST_F(UpdateAttempterTest, CheckForUpdateNonInteractiveUnofficialBuildAUTest) {
   cfu_params_.expected_forced_app_version = cfu_params_.app_version;
   // THEN forced omaha url changes to default constant.
   cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateMissingForcedCallback1) {
+  // GIVEN a official build.
+  // GIVEN forced callback is not set.
+  attempter_.set_forced_update_pending_callback(nullptr);
+
+  // THEN we except forced app version + forced omaha url to be cleared.
+  // THEN |ScheduleUpdates()| should not be called.
+  cfu_params_.should_schedule_updates_be_called = false;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateMissingForcedCallback2) {
+  // GIVEN a non offical build with dev features enabled.
+  cfu_params_.is_official_build = false;
+  cfu_params_.are_dev_features_enabled = true;
+  // GIVEN forced callback is not set.
+  attempter_.set_forced_update_pending_callback(nullptr);
+
+  // THEN the forced app version + forced omaha url changes based on input.
+  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
+  cfu_params_.expected_forced_omaha_url = cfu_params_.omaha_url;
+  // THEN |ScheduleUpdates()| should not be called.
+  cfu_params_.should_schedule_updates_be_called = false;
 
   TestCheckForUpdate();
 }

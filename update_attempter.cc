@@ -872,16 +872,17 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
     // |OnUpdateScheduled()|.
   }
 
+  // |forced_update_pending_callback_| should always be set, but even in the
+  // case that it is not, we still return true indicating success because the
+  // scheduled periodic check will pick up these changes.
   if (forced_update_pending_callback_.get()) {
-    if (!system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
-      dlc_module_ids_.clear();
-    }
-    // Make sure that a scheduling request is made prior to calling the forced
-    // update pending callback.
+    // Always call |ScheduleUpdates()| before forcing an update. This is because
+    // we need an update to be scheduled for the
+    // |forced_update_pending_callback_| to have an effect. Here we don't need
+    // to care about the return value from |ScheduleUpdate()|.
     ScheduleUpdates();
     forced_update_pending_callback_->Run(true, interactive);
   }
-
   return true;
 }
 
@@ -903,15 +904,16 @@ bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
     forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
   }
 
-  if (!ScheduleUpdates()) {
-    if (forced_update_pending_callback_.get()) {
-      // Make sure that a scheduling request is made prior to calling the forced
-      // update pending callback.
-      ScheduleUpdates();
-      forced_update_pending_callback_->Run(true, true);
-      return true;
-    }
-    return false;
+  // |forced_update_pending_callback_| should always be set, but even in the
+  // case that it is not, we still return true indicating success because the
+  // scheduled periodic check will pick up these changes.
+  if (forced_update_pending_callback_.get()) {
+    // Always call |ScheduleUpdates()| before forcing an update. This is because
+    // we need an update to be scheduled for the
+    // |forced_update_pending_callback_| to have an effect. Here we don't need
+    // to care about the return value from |ScheduleUpdate()|.
+    ScheduleUpdates();
+    forced_update_pending_callback_->Run(true, true);
   }
   return true;
 }
