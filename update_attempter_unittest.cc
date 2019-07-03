@@ -88,6 +88,21 @@ namespace chromeos_update_engine {
 
 namespace {
 
+struct CheckForUpdateTestParams {
+  // Setups + Inputs:
+  UpdateStatus status = UpdateStatus::IDLE;
+  string app_version = "fake_app_version";
+  string omaha_url = "fake_omaha_url";
+  UpdateAttemptFlags flags = UpdateAttemptFlags::kNone;
+  bool is_official_build = true;
+  bool are_dev_features_enabled = false;
+
+  // Expects:
+  string expected_forced_app_version = "";
+  string expected_forced_omaha_url = "";
+  bool expected_result = true;
+};
+
 class MockDlcService : public DlcServiceInterface {
  public:
   MOCK_METHOD1(GetInstalled, bool(vector<string>*));
@@ -122,7 +137,8 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   // Indicates whether |ScheduleUpdates()| was called.
   bool schedule_updates_called() const { return schedule_updates_called_; }
 
-  // Need to expose |forced_omaha_url_| so we can test it.
+  // Need to expose following private members of |UpdateAttempter| for tests.
+  const string& forced_app_version() const { return forced_app_version_; }
   const string& forced_omaha_url() const { return forced_omaha_url_; }
 
  private:
@@ -217,6 +233,9 @@ class UpdateAttempterTest : public ::testing::Test {
   }
   bool actual_using_p2p_for_sharing() { return actual_using_p2p_for_sharing_; }
 
+  // |CheckForUpdate()| related member functions.
+  void TestCheckForUpdate();
+
   base::MessageLoopForIO base_loop_;
   brillo::BaseMessageLoop loop_{&base_loop_};
 
@@ -232,9 +251,33 @@ class UpdateAttempterTest : public ::testing::Test {
       prefs_;  // Shortcut to |fake_system_state_->mock_prefs()|.
   NiceMock<MockConnectionManager> mock_connection_manager;
 
+  // |CheckForUpdate()| test params.
+  CheckForUpdateTestParams cfu_params_;
+
   bool actual_using_p2p_for_downloading_;
   bool actual_using_p2p_for_sharing_;
 };
+
+void UpdateAttempterTest::TestCheckForUpdate() {
+  // Setup
+  attempter_.status_ = cfu_params_.status;
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(
+      cfu_params_.is_official_build);
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(
+      cfu_params_.are_dev_features_enabled);
+
+  // Invocation
+  EXPECT_EQ(
+      cfu_params_.expected_result,
+      attempter_.CheckForUpdate(
+          cfu_params_.app_version, cfu_params_.omaha_url, cfu_params_.flags));
+
+  // Verify
+  EXPECT_EQ(cfu_params_.expected_forced_app_version,
+            attempter_.forced_app_version());
+  EXPECT_EQ(cfu_params_.expected_forced_omaha_url,
+            attempter_.forced_omaha_url());
+}
 
 void UpdateAttempterTest::ScheduleQuitMainLoop() {
   loop_.PostTask(
@@ -1288,33 +1331,182 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
-TEST_F(UpdateAttempterTest, CheckForUpdateAUDlcTest) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
+TEST_F(UpdateAttempterTest, CheckForUpdateInteractiveNotIdleFails) {
+  // GIVEN an update is in progress.
+  cfu_params_.status = UpdateStatus::CHECKING_FOR_UPDATE;
+  // GIVEN a interactive update.
 
-  const string dlc_module_id = "a_dlc_module_id";
-  vector<string> dlc_module_ids = {dlc_module_id};
-  ON_CALL(mock_dlcservice_, GetInstalled(testing::_))
-      .WillByDefault(DoAll(testing::SetArgPointee<0>(dlc_module_ids),
-                           testing::Return(true)));
+  // THEN result should indicate failure.
+  cfu_params_.expected_result = false;
 
-  attempter_.CheckForUpdate("", "autest", UpdateAttemptFlags::kNone);
-  EXPECT_EQ(attempter_.dlc_module_ids_.size(), 1);
-  EXPECT_EQ(attempter_.dlc_module_ids_[0], dlc_module_id);
+  TestCheckForUpdate();
 }
 
-TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
-  attempter_.CheckForUpdate("", "autest", UpdateAttemptFlags::kNone);
-  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+// TODO(b/137217982): Currently, since the logic is to flow through, the app
+// version and omaha url are cleared.
+TEST_F(UpdateAttempterTest,
+       CheckForUpdateNonInteractiveNotIdleOfficialBuildSucceeds) {
+  // GIVEN an update is in progress.
+  cfu_params_.status = UpdateStatus::CHECKING_FOR_UPDATE;
+  // GIVEN a non interactive update.
+  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
+
+  // THEN we except forced app version + forced omaha url to be cleared.
+
+  TestCheckForUpdate();
 }
 
-TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
-  attempter_.CheckForUpdate("", "autest-scheduled", UpdateAttemptFlags::kNone);
-  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+// TODO(b/137217982): Currently, since the logic is to flow through, the app
+// version and omaha url are set based on inputs.
+TEST_F(UpdateAttempterTest,
+       CheckForUpdateNonInteractiveNotIdleUnofficialBuildSucceeds) {
+  // GIVEN an update is in progress.
+  cfu_params_.status = UpdateStatus::CHECKING_FOR_UPDATE;
+  // GIVEN a non interactive update.
+  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
+  // GIVEN a non offical build with dev features enabled.
+  cfu_params_.is_official_build = false;
+  cfu_params_.are_dev_features_enabled = true;
+
+  // THEN the forced app version + forced omaha url changes based on input.
+  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
+  cfu_params_.expected_forced_omaha_url = cfu_params_.omaha_url;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateOfficalBuildClearsSource) {
+  // GIVEN a official build.
+
+  // THEN we except forced app version + forced omaha url to be cleared.
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateUnofficialBuildChangesSource) {
+  // GIVEN a non offical build with dev features enabled.
+  cfu_params_.is_official_build = false;
+  cfu_params_.are_dev_features_enabled = true;
+
+  // THEN the forced app version + forced omaha url changes based on input.
+  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
+  cfu_params_.expected_forced_omaha_url = cfu_params_.omaha_url;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateOfficialBuildScheduledAUTest) {
+  // GIVEN a scheduled autest omaha url.
+  cfu_params_.omaha_url = "autest-scheduled";
+
+  // THEN forced app version is cleared.
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateUnofficialBuildScheduledAUTest) {
+  // GIVEN a scheduled autest omaha url.
+  cfu_params_.omaha_url = "autest-scheduled";
+  // GIVEN a non offical build with dev features enabled.
+  cfu_params_.is_official_build = false;
+  cfu_params_.are_dev_features_enabled = true;
+
+  // THEN forced app version changes based on input.
+  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateOfficialBuildAUTest) {
+  // GIVEN a autest omaha url.
+  cfu_params_.omaha_url = "autest";
+
+  // THEN forced app version is cleared.
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateUnofficialBuildAUTest) {
+  // GIVEN a autest omha url.
+  cfu_params_.omaha_url = "autest";
+  // GIVEN a non offical build with dev features enabled.
+  cfu_params_.is_official_build = false;
+  cfu_params_.are_dev_features_enabled = true;
+
+  // THEN forced app version changes based on input.
+  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest,
+       CheckForUpdateNonInteractiveOfficialBuildScheduledAUTest) {
+  // GIVEN a scheduled autest omaha url.
+  cfu_params_.omaha_url = "autest-scheduled";
+  // GIVEN a non interactive update.
+  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
+
+  // THEN forced app version is cleared.
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest,
+       CheckForUpdateNonInteractiveUnofficialBuildScheduledAUTest) {
+  // GIVEN a scheduled autest omaha url.
+  cfu_params_.omaha_url = "autest-scheduled";
+  // GIVEN a non interactive update.
+  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
+  // GIVEN a non offical build with dev features enabled.
+  cfu_params_.is_official_build = false;
+  cfu_params_.are_dev_features_enabled = true;
+
+  // THEN forced app version changes based on input.
+  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateNonInteractiveOfficialBuildAUTest) {
+  // GIVEN a autest omaha url.
+  cfu_params_.omaha_url = "autest";
+  // GIVEN a non interactive update.
+  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
+
+  // THEN forced app version is cleared.
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateNonInteractiveUnofficialBuildAUTest) {
+  // GIVEN a autest omaha url.
+  cfu_params_.omaha_url = "autest";
+  // GIVEN a non interactive update.
+  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
+  // GIVEN a non offical build with dev features enabled.
+  cfu_params_.is_official_build = false;
+  cfu_params_.are_dev_features_enabled = true;
+
+  // THEN forced app version changes based on input.
+  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
+  // THEN forced omaha url changes to default constant.
+  cfu_params_.expected_forced_omaha_url = constants::kOmahaDefaultAUTestURL;
+
+  TestCheckForUpdate();
 }
 
 TEST_F(UpdateAttempterTest, CheckForInstallTest) {
