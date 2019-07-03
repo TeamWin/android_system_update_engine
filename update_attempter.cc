@@ -425,7 +425,14 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     // target channel.
     omaha_request_params_->UpdateDownloadChannel();
   }
-  // Set the DLC module ID list.
+
+  // Set the |dlc_module_ids_| only for an update. This is required to get the
+  // currently installed DLC(s).
+  if (!is_install_ &&
+      !system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
+    LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
+                 "state of dlcservice, will not update DLC modules.";
+  }
   omaha_request_params_->set_dlc_module_ids(dlc_module_ids_);
   omaha_request_params_->set_is_install(is_install_);
 
@@ -838,7 +845,6 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
   }
 
   bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
-  dlc_module_ids_.clear();
   is_install_ = false;
 
   LOG(INFO) << "Forced update check requested.";
@@ -903,9 +909,9 @@ bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
   if (IsAnyUpdateSourceAllowed()) {
     forced_omaha_url_ = omaha_url;
   }
-  if (omaha_url == kScheduledAUTestURLRequest) {
-    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
-  } else if (omaha_url == kAUTestURLRequest) {
+
+  if (omaha_url == kScheduledAUTestURLRequest ||
+      omaha_url == kAUTestURLRequest) {
     forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
   }
 

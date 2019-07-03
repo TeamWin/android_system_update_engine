@@ -33,6 +33,10 @@ class DlcServiceChromeOS : public DlcServiceInterface {
   ~DlcServiceChromeOS() = default;
 
   // BootControlInterface overrides.
+  // Will clear the |dlc_module_ids|, passed to be modified. Clearing by
+  // default has the added benefit of avoiding indeterminate behavior in the
+  // case that |dlc_module_ids| wasn't empty to begin which would lead to
+  // possible duplicates and cases when error was not checked it's still safe.
   bool GetInstalled(std::vector<std::string>* dlc_module_ids) override;
 
  private:

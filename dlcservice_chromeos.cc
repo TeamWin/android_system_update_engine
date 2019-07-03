@@ -35,6 +35,8 @@ std::unique_ptr<DlcServiceInterface> CreateDlcService() {
 bool DlcServiceChromeOS::GetInstalled(vector<string>* dlc_module_ids) {
   if (!dlc_module_ids)
     return false;
+  dlc_module_ids->clear();
+
   org::chromium::DlcServiceInterfaceProxy dlcservice_proxy(
       DBusConnection::Get()->GetDBus());
 
