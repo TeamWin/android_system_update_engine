@@ -436,6 +436,7 @@ if (use.test) {
       "common/http_common.cc",
       "test_http_server.cc",
     ]
+
     # //common-mk:test should be on the top.
     # TODO(crbug.com/887845): Remove this after library odering issue is fixed.
     configs += [
@@ -449,6 +450,7 @@ if (use.test) {
     sources = [
       "test_subprocess.cc",
     ]
+
     # //common-mk:test should be on the top.
     # TODO(crbug.com/887845): Remove this after library odering issue is fixed.
     configs += [
@@ -542,6 +544,7 @@ if (use.test) {
       "update_manager/variable_unittest.cc",
       "update_manager/weekly_time_unittest.cc",
     ]
+
     # //common-mk:test should be on the top.
     # TODO(crbug.com/887845): Remove this after library odering issue is fixed.
     configs += [
