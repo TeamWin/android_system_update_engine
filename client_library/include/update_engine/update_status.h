@@ -21,6 +21,11 @@
 
 #include <brillo/enum_flags.h>
 
+// NOTE: Keep this file in sync with
+// platform2/system_api/dbus/update_engine/update_engine.proto especially:
+// - |UpdateStatus| <-> |Operation|
+// - |UpdateEngineStatus| <-> |StatusResult|
+
 namespace update_engine {
 
 // ATTENTION:
@@ -43,6 +48,13 @@ enum class UpdateStatus {
   // Broadcast this state when an update aborts because user preferences do not
   // allow updates, e.g. over cellular network.
   NEED_PERMISSION_TO_UPDATE = 10,
+
+  // This value is exclusively used in Chrome. DO NOT define nor use it.
+  // TODO(crbug.com/977320): Remove this value from chrome by refactoring the
+  // Chrome code and evantually from here. This is not really an operation or
+  // state that the update engine stays on. This is the result of an internal
+  // failure and should be reflected differently.
+  // ERROR = -1,
 };
 
 // Enum of bit-wise flags for controlling how updates are attempted.

@@ -26,7 +26,6 @@
 
 #include "update_engine/update_status_utils.h"
 
-using chromeos_update_engine::StringToUpdateStatus;
 using dbus::Bus;
 using org::chromium::UpdateEngineInterfaceProxy;
 using std::string;
@@ -48,13 +47,13 @@ namespace internal {
 namespace {
 // This converts the status from Protobuf |StatusResult| to The internal
 // |UpdateEngineStatus| struct.
-bool ConvertToUpdateEngineStatus(const StatusResult& status,
+void ConvertToUpdateEngineStatus(const StatusResult& status,
                                  UpdateEngineStatus* out_status) {
   out_status->last_checked_time = status.last_checked_time();
   out_status->progress = status.progress();
   out_status->new_version = status.new_version();
   out_status->new_size_bytes = status.new_size();
-  return StringToUpdateStatus(status.current_operation(), &out_status->status);
+  out_status->status = static_cast<UpdateStatus>(status.current_operation());
 }
 }  // namespace
 
@@ -110,7 +109,8 @@ bool DBusUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
   *out_progress = status.progress();
   *out_new_version = status.new_version();
   *out_new_size = status.new_size();
-  return StringToUpdateStatus(status.current_operation(), out_update_status);
+  *out_update_status = static_cast<UpdateStatus>(status.current_operation());
+  return true;
 }
 
 bool DBusUpdateEngineClient::GetStatus(UpdateEngineStatus* out_status) const {
@@ -119,7 +119,8 @@ bool DBusUpdateEngineClient::GetStatus(UpdateEngineStatus* out_status) const {
     return false;
   }
 
-  return ConvertToUpdateEngineStatus(status, out_status);
+  ConvertToUpdateEngineStatus(status, out_status);
+  return true;
 }
 
 bool DBusUpdateEngineClient::SetCohortHint(const string& cohort_hint) {

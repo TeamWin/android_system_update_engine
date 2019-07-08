@@ -25,9 +25,6 @@ namespace chromeos_update_engine {
 
 const char* UpdateStatusToString(const update_engine::UpdateStatus& status);
 
-bool StringToUpdateStatus(const std::string& update_status_as_string,
-                          update_engine::UpdateStatus* status);
-
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_UPDATE_STATUS_UTILS_H_

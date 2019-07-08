@@ -33,8 +33,10 @@ using chromeos_update_engine::UpdateEngineService;
 using dlcservice::DlcModuleList;
 using std::string;
 using std::vector;
+using update_engine::Operation;
 using update_engine::StatusResult;
 using update_engine::UpdateEngineStatus;
+using update_engine::UpdateStatus;
 
 namespace {
 // Converts the internal |UpdateEngineStatus| to the protobuf |StatusResult|.
@@ -42,7 +44,7 @@ void ConvertToStatusResult(const UpdateEngineStatus& ue_status,
                            StatusResult* out_status) {
   out_status->set_last_checked_time(ue_status.last_checked_time);
   out_status->set_progress(ue_status.progress);
-  out_status->set_current_operation(UpdateStatusToString(ue_status.status));
+  out_status->set_current_operation(static_cast<Operation>(ue_status.status));
   out_status->set_new_version(ue_status.new_version);
   out_status->set_new_size(ue_status.new_size_bytes);
 }
@@ -240,7 +242,8 @@ void UpdateEngineAdaptor::SendStatusUpdate(
   // TODO(crbug.com/977320): Deprecate |StatusUpdate| signal.
   SendStatusUpdateSignal(status.last_checked_time(),
                          status.progress(),
-                         status.current_operation(),
+                         UpdateStatusToString(static_cast<UpdateStatus>(
+                             status.current_operation())),
                          status.new_version(),
                          status.new_size());
 
