@@ -784,12 +784,11 @@ TEST_P(BootControlAndroidGroupTestP, GroupTooBig) {
 
 TEST_P(BootControlAndroidGroupTestP, AddPartitionToGroup) {
   ExpectStoreMetadata(PartitionMetadata{
-      .groups = {
-          {.name = T("android"),
-           .size = 3_GiB,
-           .partitions = {{.name = T("system"), .size = 2_GiB},
-                          {.name = T("product_services"), .size = 1_GiB}}}}});
-  ExpectUnmap({T("system"), T("vendor"), T("product_services")});
+      .groups = {{.name = T("android"),
+                  .size = 3_GiB,
+                  .partitions = {{.name = T("system"), .size = 2_GiB},
+                                 {.name = T("system_ext"), .size = 1_GiB}}}}});
+  ExpectUnmap({T("system"), T("vendor"), T("system_ext")});
 
   EXPECT_TRUE(bootctl_.InitPartitionMetadata(
       target(),
@@ -797,8 +796,7 @@ TEST_P(BootControlAndroidGroupTestP, AddPartitionToGroup) {
           .groups = {{.name = "android",
                       .size = 3_GiB,
                       .partitions = {{.name = "system", .size = 2_GiB},
-                                     {.name = "product_services",
-                                      .size = 1_GiB}}},
+                                     {.name = "system_ext", .size = 1_GiB}}},
                      SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}},
       true));
 }
