@@ -127,8 +127,7 @@ void Subprocess::OnStdoutReady(SubprocessRecord* record) {
     if (!ok || eof) {
       // There was either an error or an EOF condition, so we are done watching
       // the file descriptor.
-      MessageLoop::current()->CancelTask(record->stdout_task_id);
-      record->stdout_task_id = MessageLoop::kTaskIdNull;
+      record->stdout_controller.reset();
       return;
     }
   } while (bytes_read);
@@ -143,8 +142,7 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
   // Make sure we read any remaining process output and then close the pipe.
   OnStdoutReady(record);
 
-  MessageLoop::current()->CancelTask(record->stdout_task_id);
-  record->stdout_task_id = MessageLoop::kTaskIdNull;
+  record->stdout_controller.reset();
 
   // Don't print any log if the subprocess exited with exit code 0.
   if (info.si_code != CLD_EXITED) {
@@ -199,12 +197,9 @@ pid_t Subprocess::ExecFlags(const vector<string>& cmd,
                << record->stdout_fd << ".";
   }
 
-  record->stdout_task_id = MessageLoop::current()->WatchFileDescriptor(
-      FROM_HERE,
+  record->stdout_controller = base::FileDescriptorWatcher::WatchReadable(
       record->stdout_fd,
-      MessageLoop::WatchMode::kWatchRead,
-      true,
-      base::Bind(&Subprocess::OnStdoutReady, record.get()));
+      base::BindRepeating(&Subprocess::OnStdoutReady, record.get()));
 
   subprocess_records_[pid] = std::move(record);
   return pid;

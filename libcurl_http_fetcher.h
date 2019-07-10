@@ -24,6 +24,7 @@
 
 #include <curl/curl.h>
 
+#include <base/files/file_descriptor_watcher_posix.h>
 #include <base/logging.h>
 #include <base/macros.h>
 #include <brillo/message_loops/message_loop.h>
@@ -215,7 +216,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
   }
 
   // Cleans up the following if they are non-null:
-  // curl(m) handles, fd_task_maps_, timeout_id_.
+  // curl(m) handles, fd_controller_maps_, timeout_id_.
   void CleanUp();
 
   // Force terminate the transfer. This will invoke the delegate's (if any)
@@ -252,7 +253,8 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // the message loop. libcurl may open/close descriptors and switch their
   // directions so maintain two separate lists so that watch conditions can be
   // set appropriately.
-  std::map<int, brillo::MessageLoop::TaskId> fd_task_maps_[2];
+  std::map<int, std::unique_ptr<base::FileDescriptorWatcher::Controller>>
+      fd_controller_maps_[2];
 
   // The TaskId of the timer we're waiting on. kTaskIdNull if we are not waiting
   // on it.

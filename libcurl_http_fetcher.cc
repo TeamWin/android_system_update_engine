@@ -80,16 +80,8 @@ int LibcurlHttpFetcher::LibcurlCloseSocketCallback(void* clientp,
 #endif  // __ANDROID__
   LibcurlHttpFetcher* fetcher = static_cast<LibcurlHttpFetcher*>(clientp);
   // Stop watching the socket before closing it.
-  for (size_t t = 0; t < arraysize(fetcher->fd_task_maps_); ++t) {
-    const auto fd_task_pair = fetcher->fd_task_maps_[t].find(item);
-    if (fd_task_pair != fetcher->fd_task_maps_[t].end()) {
-      if (!MessageLoop::current()->CancelTask(fd_task_pair->second)) {
-        LOG(WARNING) << "Error canceling the watch task "
-                     << fd_task_pair->second << " for "
-                     << (t ? "writing" : "reading") << " the fd " << item;
-      }
-      fetcher->fd_task_maps_[t].erase(item);
-    }
+  for (size_t t = 0; t < arraysize(fetcher->fd_controller_maps_); ++t) {
+    fetcher->fd_controller_maps_[t].erase(item);
   }
 
   // Documentation for this callback says to return 0 on success or 1 on error.
@@ -701,15 +693,15 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
 
   // We should iterate through all file descriptors up to libcurl's fd_max or
   // the highest one we're tracking, whichever is larger.
-  for (size_t t = 0; t < arraysize(fd_task_maps_); ++t) {
-    if (!fd_task_maps_[t].empty())
-      fd_max = max(fd_max, fd_task_maps_[t].rbegin()->first);
+  for (size_t t = 0; t < arraysize(fd_controller_maps_); ++t) {
+    if (!fd_controller_maps_[t].empty())
+      fd_max = max(fd_max, fd_controller_maps_[t].rbegin()->first);
   }
 
   // For each fd, if we're not tracking it, track it. If we are tracking it, but
   // libcurl doesn't care about it anymore, stop tracking it. After this loop,
-  // there should be exactly as many tasks scheduled in fd_task_maps_[0|1] as
-  // there are read/write fds that we're tracking.
+  // there should be exactly as many tasks scheduled in
+  // fd_controller_maps_[0|1] as there are read/write fds that we're tracking.
   for (int fd = 0; fd <= fd_max; ++fd) {
     // Note that fd_exc is unused in the current version of libcurl so is_exc
     // should always be false.
@@ -718,21 +710,14 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
         is_exc || (FD_ISSET(fd, &fd_read) != 0),  // track 0 -- read
         is_exc || (FD_ISSET(fd, &fd_write) != 0)  // track 1 -- write
     };
-    MessageLoop::WatchMode watch_modes[2] = {
-        MessageLoop::WatchMode::kWatchRead,
-        MessageLoop::WatchMode::kWatchWrite,
-    };
 
-    for (size_t t = 0; t < arraysize(fd_task_maps_); ++t) {
-      auto fd_task_it = fd_task_maps_[t].find(fd);
-      bool tracked = fd_task_it != fd_task_maps_[t].end();
+    for (size_t t = 0; t < arraysize(fd_controller_maps_); ++t) {
+      bool tracked =
+          fd_controller_maps_[t].find(fd) != fd_controller_maps_[t].end();
 
       if (!must_track[t]) {
         // If we have an outstanding io_channel, remove it.
-        if (tracked) {
-          MessageLoop::current()->CancelTask(fd_task_it->second);
-          fd_task_maps_[t].erase(fd_task_it);
-        }
+        fd_controller_maps_[t].erase(fd);
         continue;
       }
 
@@ -741,14 +726,21 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
         continue;
 
       // Track a new fd.
-      fd_task_maps_[t][fd] = MessageLoop::current()->WatchFileDescriptor(
-          FROM_HERE,
-          fd,
-          watch_modes[t],
-          true,  // persistent
-          base::Bind(&LibcurlHttpFetcher::CurlPerformOnce,
-                     base::Unretained(this)));
-
+      switch (t) {
+        case 0:  // Read
+          fd_controller_maps_[t][fd] =
+              base::FileDescriptorWatcher::WatchReadable(
+                  fd,
+                  base::BindRepeating(&LibcurlHttpFetcher::CurlPerformOnce,
+                                      base::Unretained(this)));
+          break;
+        case 1:  // Write
+          fd_controller_maps_[t][fd] =
+              base::FileDescriptorWatcher::WatchWritable(
+                  fd,
+                  base::BindRepeating(&LibcurlHttpFetcher::CurlPerformOnce,
+                                      base::Unretained(this)));
+      }
       static int io_counter = 0;
       io_counter++;
       if (io_counter % 50 == 0) {
@@ -800,15 +792,8 @@ void LibcurlHttpFetcher::CleanUp() {
   MessageLoop::current()->CancelTask(timeout_id_);
   timeout_id_ = MessageLoop::kTaskIdNull;
 
-  for (size_t t = 0; t < arraysize(fd_task_maps_); ++t) {
-    for (const auto& fd_taks_pair : fd_task_maps_[t]) {
-      if (!MessageLoop::current()->CancelTask(fd_taks_pair.second)) {
-        LOG(WARNING) << "Error canceling the watch task " << fd_taks_pair.second
-                     << " for " << (t ? "writing" : "reading") << " the fd "
-                     << fd_taks_pair.first;
-      }
-    }
-    fd_task_maps_[t].clear();
+  for (size_t t = 0; t < arraysize(fd_controller_maps_); ++t) {
+    fd_controller_maps_[t].clear();
   }
 
   if (curl_http_headers_) {
