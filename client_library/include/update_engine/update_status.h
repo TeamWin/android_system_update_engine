@@ -23,10 +23,12 @@
 
 namespace update_engine {
 
-// ATTENTION: When adding a new enum value here, always append at the end and
-// make sure to make proper adjustments in UpdateAttempter:ActionCompleted(). If
-// any enum memeber is deprecated, the assigned value of other members should
-// not change. See b/62842358.
+// ATTENTION:
+// When adding a new enum value:
+// - always append at the end with proper adjustments in |ActionCompleted()|.
+// - always update |kNonIdleUpdateStatues| in update_attempter_unittest.cc.
+// When deprecating an old enum value:
+// - other enum values should not change their old values. See b/62842358.
 enum class UpdateStatus {
   IDLE = 0,
   CHECKING_FOR_UPDATE = 1,

@@ -830,18 +830,16 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
 bool UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      UpdateAttemptFlags flags) {
-  dlc_module_ids_.clear();
-  is_install_ = false;
-  bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
-
-  if (interactive && status_ != UpdateStatus::IDLE) {
-    // An update check is either in-progress, or an update has completed and the
-    // system is in UPDATED_NEED_REBOOT.  Either way, don't do an interactive
-    // update at this time.
-    LOG(INFO) << "Refusing to do an interactive update with an update already "
-                 "in progress";
+  if (status_ != UpdateStatus::IDLE) {
+    LOG(INFO) << "Refusing to do an update as there is an "
+              << (is_install_ ? "install" : "update")
+              << " already in progress.";
     return false;
   }
+
+  bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
+  dlc_module_ids_.clear();
+  is_install_ = false;
 
   LOG(INFO) << "Forced update check requested.";
   forced_app_version_.clear();
@@ -888,6 +886,13 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
 
 bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
                                       const string& omaha_url) {
+  if (status_ != UpdateStatus::IDLE) {
+    LOG(INFO) << "Refusing to do an install as there is an "
+              << (is_install_ ? "install" : "update")
+              << " already in progress.";
+    return false;
+  }
+
   dlc_module_ids_ = dlc_module_ids;
   is_install_ = true;
   forced_omaha_url_.clear();

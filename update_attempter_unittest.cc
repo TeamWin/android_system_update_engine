@@ -88,6 +88,19 @@ namespace chromeos_update_engine {
 
 namespace {
 
+const UpdateStatus kNonIdleUpdateStatuses[] = {
+    UpdateStatus::CHECKING_FOR_UPDATE,
+    UpdateStatus::UPDATE_AVAILABLE,
+    UpdateStatus::DOWNLOADING,
+    UpdateStatus::VERIFYING,
+    UpdateStatus::FINALIZING,
+    UpdateStatus::UPDATED_NEED_REBOOT,
+    UpdateStatus::REPORTING_ERROR_EVENT,
+    UpdateStatus::ATTEMPTING_ROLLBACK,
+    UpdateStatus::DISABLED,
+    UpdateStatus::NEED_PERMISSION_TO_UPDATE,
+};
+
 struct CheckForUpdateTestParams {
   // Setups + Inputs:
   UpdateStatus status = UpdateStatus::IDLE;
@@ -1389,50 +1402,29 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
-TEST_F(UpdateAttempterTest, CheckForUpdateInteractiveNotIdleFails) {
-  // GIVEN an update is in progress.
-  cfu_params_.status = UpdateStatus::CHECKING_FOR_UPDATE;
-  // GIVEN a interactive update.
+// TODO(kimjae): Follow testing pattern with params for |CheckForInstall()|.
+// When adding, remove older tests related to |CheckForInstall()|.
+TEST_F(UpdateAttempterTest, CheckForInstallNotIdleFails) {
+  for (const auto status : kNonIdleUpdateStatuses) {
+    // GIVEN a non-idle status.
+    attempter_.status_ = status;
 
-  // THEN |ScheduleUpdates()| should not be called.
-  cfu_params_.should_schedule_updates_be_called = false;
-  // THEN result should indicate failure.
-  cfu_params_.expected_result = false;
-
-  TestCheckForUpdate();
+    EXPECT_FALSE(attempter_.CheckForInstall({}, ""));
+  }
 }
 
-// TODO(b/137217982): Currently, since the logic is to flow through, the app
-// version and omaha url are cleared.
-TEST_F(UpdateAttempterTest,
-       CheckForUpdateNonInteractiveNotIdleOfficialBuildSucceeds) {
-  // GIVEN an update is in progress.
-  cfu_params_.status = UpdateStatus::CHECKING_FOR_UPDATE;
-  // GIVEN a non interactive update.
-  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
+TEST_F(UpdateAttempterTest, CheckForUpdateNotIdleFails) {
+  for (const auto status : kNonIdleUpdateStatuses) {
+    // GIVEN a non-idle status.
+    cfu_params_.status = status;
 
-  // THEN we except forced app version + forced omaha url to be cleared.
+    // THEN |ScheduleUpdates()| should not be called.
+    cfu_params_.should_schedule_updates_be_called = false;
+    // THEN result should indicate failure.
+    cfu_params_.expected_result = false;
 
-  TestCheckForUpdate();
-}
-
-// TODO(b/137217982): Currently, since the logic is to flow through, the app
-// version and omaha url are set based on inputs.
-TEST_F(UpdateAttempterTest,
-       CheckForUpdateNonInteractiveNotIdleUnofficialBuildSucceeds) {
-  // GIVEN an update is in progress.
-  cfu_params_.status = UpdateStatus::CHECKING_FOR_UPDATE;
-  // GIVEN a non interactive update.
-  cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
-  // GIVEN a non offical build with dev features enabled.
-  cfu_params_.is_official_build = false;
-  cfu_params_.are_dev_features_enabled = true;
-
-  // THEN the forced app version + forced omaha url changes based on input.
-  cfu_params_.expected_forced_app_version = cfu_params_.app_version;
-  cfu_params_.expected_forced_omaha_url = cfu_params_.omaha_url;
-
-  TestCheckForUpdate();
+    TestCheckForUpdate();
+  }
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateOfficalBuildClearsSource) {
@@ -1444,7 +1436,7 @@ TEST_F(UpdateAttempterTest, CheckForUpdateOfficalBuildClearsSource) {
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateUnofficialBuildChangesSource) {
-  // GIVEN a non offical build with dev features enabled.
+  // GIVEN a nonofficial build with dev features enabled.
   cfu_params_.is_official_build = false;
   cfu_params_.are_dev_features_enabled = true;
 
@@ -1469,7 +1461,7 @@ TEST_F(UpdateAttempterTest, CheckForUpdateOfficialBuildScheduledAUTest) {
 TEST_F(UpdateAttempterTest, CheckForUpdateUnofficialBuildScheduledAUTest) {
   // GIVEN a scheduled autest omaha url.
   cfu_params_.omaha_url = "autest-scheduled";
-  // GIVEN a non offical build with dev features enabled.
+  // GIVEN a nonofficial build with dev features enabled.
   cfu_params_.is_official_build = false;
   cfu_params_.are_dev_features_enabled = true;
 
@@ -1495,7 +1487,7 @@ TEST_F(UpdateAttempterTest, CheckForUpdateOfficialBuildAUTest) {
 TEST_F(UpdateAttempterTest, CheckForUpdateUnofficialBuildAUTest) {
   // GIVEN a autest omha url.
   cfu_params_.omaha_url = "autest";
-  // GIVEN a non offical build with dev features enabled.
+  // GIVEN a nonofficial build with dev features enabled.
   cfu_params_.is_official_build = false;
   cfu_params_.are_dev_features_enabled = true;
 
@@ -1511,7 +1503,7 @@ TEST_F(UpdateAttempterTest,
        CheckForUpdateNonInteractiveOfficialBuildScheduledAUTest) {
   // GIVEN a scheduled autest omaha url.
   cfu_params_.omaha_url = "autest-scheduled";
-  // GIVEN a non interactive update.
+  // GIVEN a noninteractive update.
   cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
 
   // THEN forced app version is cleared.
@@ -1525,9 +1517,9 @@ TEST_F(UpdateAttempterTest,
        CheckForUpdateNonInteractiveUnofficialBuildScheduledAUTest) {
   // GIVEN a scheduled autest omaha url.
   cfu_params_.omaha_url = "autest-scheduled";
-  // GIVEN a non interactive update.
+  // GIVEN a noninteractive update.
   cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
-  // GIVEN a non offical build with dev features enabled.
+  // GIVEN a nonofficial build with dev features enabled.
   cfu_params_.is_official_build = false;
   cfu_params_.are_dev_features_enabled = true;
 
@@ -1542,7 +1534,7 @@ TEST_F(UpdateAttempterTest,
 TEST_F(UpdateAttempterTest, CheckForUpdateNonInteractiveOfficialBuildAUTest) {
   // GIVEN a autest omaha url.
   cfu_params_.omaha_url = "autest";
-  // GIVEN a non interactive update.
+  // GIVEN a noninteractive update.
   cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
 
   // THEN forced app version is cleared.
@@ -1555,9 +1547,9 @@ TEST_F(UpdateAttempterTest, CheckForUpdateNonInteractiveOfficialBuildAUTest) {
 TEST_F(UpdateAttempterTest, CheckForUpdateNonInteractiveUnofficialBuildAUTest) {
   // GIVEN a autest omaha url.
   cfu_params_.omaha_url = "autest";
-  // GIVEN a non interactive update.
+  // GIVEN a noninteractive update.
   cfu_params_.flags = UpdateAttemptFlags::kFlagNonInteractive;
-  // GIVEN a non offical build with dev features enabled.
+  // GIVEN a nonofficial build with dev features enabled.
   cfu_params_.is_official_build = false;
   cfu_params_.are_dev_features_enabled = true;
 
@@ -1582,7 +1574,7 @@ TEST_F(UpdateAttempterTest, CheckForUpdateMissingForcedCallback1) {
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateMissingForcedCallback2) {
-  // GIVEN a non offical build with dev features enabled.
+  // GIVEN a nonofficial build with dev features enabled.
   cfu_params_.is_official_build = false;
   cfu_params_.are_dev_features_enabled = true;
   // GIVEN forced callback is not set.
