@@ -16,6 +16,8 @@
 
 #include "update_engine/libcurl_http_fetcher.h"
 
+#include <netinet/in.h>
+#include <resolv.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -480,13 +482,44 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
   if (http_response_code_) {
     LOG(INFO) << "HTTP response code: " << http_response_code_;
     no_network_retry_count_ = 0;
+    unresolved_host_state_machine_.UpdateState(false);
   } else {
     LOG(ERROR) << "Unable to get http response code.";
-    LogCurlHandleInfo();
+    CURLcode curl_code = GetCurlCode();
+    LOG(ERROR) << "Return code for the transfer: " << curl_code;
+    if (curl_code == CURLE_COULDNT_RESOLVE_HOST) {
+      LOG(ERROR) << "libcurl can not resolve host.";
+      unresolved_host_state_machine_.UpdateState(true);
+      if (delegate_) {
+        delegate_->ReportUpdateCheckMetrics(
+            metrics::CheckResult::kUnset,
+            metrics::CheckReaction::kUnset,
+            metrics::DownloadErrorCode::kUnresolvedHost);
+      }
+    }
   }
 
   // we're done!
   CleanUp();
+
+  if (unresolved_host_state_machine_.getState() ==
+      UnresolvedHostStateMachine::State::kRetry) {
+    // Based on
+    // https://curl.haxx.se/docs/todo.html#updated_DNS_server_while_running,
+    // update_engine process should call res_init() and unconditionally retry.
+    res_init();
+    no_network_max_retries_++;
+    LOG(INFO) << "Will retry after reloading resolv.conf because last attempt "
+                 "failed to resolve host.";
+  } else if (unresolved_host_state_machine_.getState() ==
+             UnresolvedHostStateMachine::State::kRetriedSuccess) {
+    if (delegate_) {
+      delegate_->ReportUpdateCheckMetrics(
+          metrics::CheckResult::kUnset,
+          metrics::CheckReaction::kUnset,
+          metrics::DownloadErrorCode::kUnresolvedHostRecovered);
+    }
+  }
 
   // TODO(petkov): This temporary code tries to deal with the case where the
   // update engine performs an update check while the network is not ready
@@ -813,7 +846,8 @@ void LibcurlHttpFetcher::GetHttpResponseCode() {
   }
 }
 
-void LibcurlHttpFetcher::LogCurlHandleInfo() {
+CURLcode LibcurlHttpFetcher::GetCurlCode() {
+  CURLcode curl_code = CURLE_OK;
   while (true) {
     // Repeated calls to |curl_multi_info_read| will return a new struct each
     // time, until a NULL is returned as a signal that there is no more to get
@@ -831,7 +865,7 @@ void LibcurlHttpFetcher::LogCurlHandleInfo() {
       CHECK_EQ(curl_handle_, curl_msg->easy_handle);
       // Transfer return code reference:
       // https://curl.haxx.se/libcurl/c/libcurl-errors.html
-      LOG(ERROR) << "Return code for the transfer: " << curl_msg->data.result;
+      curl_code = curl_msg->data.result;
     }
   }
 
@@ -841,6 +875,32 @@ void LibcurlHttpFetcher::LogCurlHandleInfo() {
       curl_easy_getinfo(curl_handle_, CURLINFO_OS_ERRNO, &connect_error);
   if (res == CURLE_OK && connect_error) {
     LOG(ERROR) << "Connect error code from the OS: " << connect_error;
+  }
+
+  return curl_code;
+}
+
+void UnresolvedHostStateMachine::UpdateState(bool failed_to_resolve_host) {
+  switch (state_) {
+    case State::kInit:
+      if (failed_to_resolve_host) {
+        state_ = State::kRetry;
+      }
+      break;
+    case State::kRetry:
+      if (failed_to_resolve_host) {
+        state_ = State::kNotRetry;
+      } else {
+        state_ = State::kRetriedSuccess;
+      }
+      break;
+    case State::kNotRetry:
+      break;
+    case State::kRetriedSuccess:
+      break;
+    default:
+      NOTREACHED();
+      break;
   }
 }
 

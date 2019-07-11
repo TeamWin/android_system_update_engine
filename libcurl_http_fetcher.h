@@ -37,6 +37,48 @@
 
 namespace chromeos_update_engine {
 
+// |UnresolvedHostStateMachine| is a representation of internal state machine of
+// |LibcurlHttpFetcher|.
+class UnresolvedHostStateMachine {
+ public:
+  UnresolvedHostStateMachine() = default;
+  enum class State {
+    kInit = 0,
+    kRetry = 1,
+    kRetriedSuccess = 2,
+    kNotRetry = 3,
+  };
+
+  State getState() { return state_; }
+
+  // Updates the following internal state machine:
+  //
+  // |kInit|
+  //   |
+  //   |
+  //   \/
+  // (Try, host Unresolved)
+  //   |
+  //   |
+  //   \/
+  // |kRetry| --> (Retry, host resolved)
+  //   |                                  |
+  //   |                                  |
+  //   \/                                 \/
+  // (Retry, host Unresolved)    |kRetriedSuccess|
+  //   |
+  //   |
+  //   \/
+  // |kNotRetry|
+  //
+  void UpdateState(bool failed_to_resolve_host);
+
+ private:
+  State state_ = {State::kInit};
+
+  DISALLOW_COPY_AND_ASSIGN(UnresolvedHostStateMachine);
+};
+
 class LibcurlHttpFetcher : public HttpFetcher {
  public:
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
@@ -88,6 +130,8 @@ class LibcurlHttpFetcher : public HttpFetcher {
     no_network_max_retries_ = retries;
   }
 
+  int get_no_network_max_retries() { return no_network_max_retries_; }
+
   void set_server_to_check(ServerToCheck server_to_check) {
     server_to_check_ = server_to_check;
   }
@@ -125,10 +169,8 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // Asks libcurl for the http response code and stores it in the object.
   void GetHttpResponseCode();
 
-  // Logs curl handle info.
-  // This can be called only when an http request failed to avoid spamming the
-  // logs. This must be called after |ResumeTransfer| and before |CleanUp|.
-  void LogCurlHandleInfo();
+  // Returns the last |CURLcode|.
+  CURLcode GetCurlCode();
 
   // Checks whether stored HTTP response is within the success range.
   inline bool IsHttpResponseSuccess() {
@@ -279,6 +321,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   // True if this object is for update check.
   bool is_update_check_{false};
+
+  // Internal state machine.
+  UnresolvedHostStateMachine unresolved_host_state_machine_;
 
   int low_speed_limit_bps_{kDownloadLowSpeedLimitBps};
   int low_speed_time_seconds_{kDownloadLowSpeedTimeSeconds};

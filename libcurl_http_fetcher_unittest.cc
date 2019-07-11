@@ -43,6 +43,7 @@ class LibcurlHttpFetcherTest : public ::testing::Test {
   brillo::FakeMessageLoop loop_{nullptr};
   FakeHardware fake_hardware_;
   LibcurlHttpFetcher libcurl_fetcher_{nullptr, &fake_hardware_};
+  UnresolvedHostStateMachine state_machine_;
 };
 
 TEST_F(LibcurlHttpFetcherTest, GetEmptyHeaderValueTest) {
@@ -76,6 +77,62 @@ TEST_F(LibcurlHttpFetcherTest, GetHeaderEdgeCaseTest) {
   libcurl_fetcher_.SetHeader(kHeaderName, header_value);
   EXPECT_TRUE(libcurl_fetcher_.GetHeader(kHeaderName, &actual_header_value));
   EXPECT_EQ(header_value, actual_header_value);
+}
+
+TEST_F(LibcurlHttpFetcherTest, InvalidURLTest) {
+  int no_network_max_retries = 1;
+  libcurl_fetcher_.set_no_network_max_retries(no_network_max_retries);
+
+  libcurl_fetcher_.BeginTransfer("not-an-URL");
+  while (loop_.PendingTasks()) {
+    loop_.RunOnce(true);
+  }
+
+  EXPECT_EQ(libcurl_fetcher_.get_no_network_max_retries(),
+            no_network_max_retries);
+}
+
+TEST_F(LibcurlHttpFetcherTest, CouldntResolveHostTest) {
+  int no_network_max_retries = 1;
+  libcurl_fetcher_.set_no_network_max_retries(no_network_max_retries);
+
+  // This test actually sends request to internet but according to
+  // https://tools.ietf.org/html/rfc2606#section-2, .invalid domain names are
+  // reserved and sure to be invalid. Ideally we should mock libcurl or
+  // reorganize LibcurlHttpFetcher so the part that sends request can be mocked
+  // easily.
+  // TODO(xiaochu) Refactor LibcurlHttpFetcher (and its relates) so it's
+  // easier to mock the part that depends on internet connectivity.
+  libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
+  while (loop_.PendingTasks()) {
+    loop_.RunOnce(true);
+  }
+
+  // If libcurl fails to resolve the name, we call res_init() to reload
+  // resolv.conf and retry exactly once more. See crbug.com/982813 for details.
+  EXPECT_EQ(libcurl_fetcher_.get_no_network_max_retries(),
+            no_network_max_retries + 1);
+}
+
+TEST_F(LibcurlHttpFetcherTest, HttpFetcherStateMachineRetryFailedTest) {
+  state_machine_.UpdateState(true);
+  state_machine_.UpdateState(true);
+  EXPECT_EQ(state_machine_.getState(),
+            UnresolvedHostStateMachine::State::kNotRetry);
+}
+
+TEST_F(LibcurlHttpFetcherTest, HttpFetcherStateMachineRetrySucceedTest) {
+  state_machine_.UpdateState(true);
+  state_machine_.UpdateState(false);
+  EXPECT_EQ(state_machine_.getState(),
+            UnresolvedHostStateMachine::State::kRetriedSuccess);
+}
+
+TEST_F(LibcurlHttpFetcherTest, HttpFetcherStateMachineNoRetryTest) {
+  state_machine_.UpdateState(false);
+  state_machine_.UpdateState(false);
+  EXPECT_EQ(state_machine_.getState(),
+            UnresolvedHostStateMachine::State::kInit);
 }
 
 }  // namespace chromeos_update_engine
