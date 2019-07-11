@@ -127,6 +127,19 @@ struct OnUpdateScheduledTestParams {
   bool should_update_be_called = false;
 };
 
+struct ProcessingDoneTestParams {
+  // Setups + Inputs:
+  bool is_install = false;
+  UpdateStatus status = UpdateStatus::CHECKING_FOR_UPDATE;
+  ActionProcessor* processor = nullptr;
+  ErrorCode code = ErrorCode::kSuccess;
+
+  // Expects:
+  const bool kExpectedIsInstall = false;
+  bool should_schedule_updates_be_called = true;
+  UpdateStatus expected_exit_status = UpdateStatus::IDLE;
+};
+
 class MockDlcService : public DlcServiceInterface {
  public:
   MOCK_METHOD1(GetInstalled, bool(vector<string>*));
@@ -302,6 +315,9 @@ class UpdateAttempterTest : public ::testing::Test {
   // |OnUpdateScheduled()| related member functions.
   void TestOnUpdateScheduled();
 
+  // |ProcessingDone()| related member functions.
+  void TestProcessingDone();
+
   base::MessageLoopForIO base_loop_;
   brillo::BaseMessageLoop loop_{&base_loop_};
 
@@ -322,6 +338,9 @@ class UpdateAttempterTest : public ::testing::Test {
 
   // |OnUpdateScheduled()| test params.
   OnUpdateScheduledTestParams ous_params_;
+
+  // |ProcessingDone()| test params.
+  ProcessingDoneTestParams pd_params_;
 
   bool actual_using_p2p_for_downloading_;
   bool actual_using_p2p_for_sharing_;
@@ -348,6 +367,22 @@ void UpdateAttempterTest::TestCheckForUpdate() {
             attempter_.forced_omaha_url());
   EXPECT_EQ(cfu_params_.should_schedule_updates_be_called,
             attempter_.WasScheduleUpdatesCalled());
+}
+
+void UpdateAttempterTest::TestProcessingDone() {
+  // Setup
+  attempter_.DisableScheduleUpdates();
+  attempter_.is_install_ = pd_params_.is_install;
+  attempter_.status_ = pd_params_.status;
+
+  // Invocation
+  attempter_.ProcessingDone(pd_params_.processor, pd_params_.code);
+
+  // Verify
+  EXPECT_EQ(pd_params_.kExpectedIsInstall, attempter_.is_install_);
+  EXPECT_EQ(pd_params_.should_schedule_updates_be_called,
+            attempter_.WasScheduleUpdatesCalled());
+  EXPECT_EQ(pd_params_.expected_exit_status, attempter_.status_);
 }
 
 void UpdateAttempterTest::ScheduleQuitMainLoop() {
@@ -1959,6 +1994,106 @@ TEST_F(UpdateAttempterTest,
               ReportEnterpriseUpdateSeenToDownloadDays(false, kDaysToUpdate))
       .Times(1);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneUpdated) {
+  // GIVEN an update finished.
+
+  // THEN need reboot since update applied.
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  // THEN install indication should be false.
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneInstalled) {
+  // GIVEN an install finished.
+  pd_params_.is_install = true;
+
+  // THEN go idle.
+  // THEN install indication should be false.
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneInstallReportingError) {
+  // GIVEN an install finished.
+  pd_params_.is_install = true;
+  // GIVEN a reporting error occurred.
+  pd_params_.status = UpdateStatus::REPORTING_ERROR_EVENT;
+
+  // THEN go idle.
+  // THEN install indication should be false.
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneNoUpdate) {
+  // GIVEN an update finished.
+  // GIVEN an action error occured.
+  pd_params_.code = ErrorCode::kNoUpdate;
+
+  // THEN go idle.
+  // THEN install indication should be false.
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneNoInstall) {
+  // GIVEN an install finished.
+  pd_params_.is_install = true;
+  // GIVEN an action error occured.
+  pd_params_.code = ErrorCode::kNoUpdate;
+
+  // THEN go idle.
+  // THEN install indication should be false.
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneUpdateError) {
+  // GIVEN an update finished.
+  // GIVEN an action error occured.
+  pd_params_.code = ErrorCode::kError;
+  // GIVEN an event error is set.
+  attempter_.error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
+                                               OmahaEvent::kResultError,
+                                               ErrorCode::kError));
+
+  // THEN indicate a error event.
+  pd_params_.expected_exit_status = UpdateStatus::REPORTING_ERROR_EVENT;
+  // THEN install indication should be false.
+
+  // THEN expect critical actions of |ScheduleErrorEventAction()|.
+  EXPECT_CALL(*processor_, EnqueueAction(Pointee(_))).Times(1);
+  EXPECT_CALL(*processor_, StartProcessing()).Times(1);
+  // THEN |ScheduleUpdates()| will be called next |ProcessingDone()| so skip.
+  pd_params_.should_schedule_updates_be_called = false;
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneInstallError) {
+  // GIVEN an install finished.
+  pd_params_.is_install = true;
+  // GIVEN an action error occured.
+  pd_params_.code = ErrorCode::kError;
+  // GIVEN an event error is set.
+  attempter_.error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
+                                               OmahaEvent::kResultError,
+                                               ErrorCode::kError));
+
+  // THEN indicate a error event.
+  pd_params_.expected_exit_status = UpdateStatus::REPORTING_ERROR_EVENT;
+  // THEN install indication should be false.
+
+  // THEN expect critical actions of |ScheduleErrorEventAction()|.
+  EXPECT_CALL(*processor_, EnqueueAction(Pointee(_))).Times(1);
+  EXPECT_CALL(*processor_, StartProcessing()).Times(1);
+  // THEN |ScheduleUpdates()| will be called next |ProcessingDone()| so skip.
+  pd_params_.should_schedule_updates_be_called = false;
+
+  TestProcessingDone();
 }
 
 void UpdateAttempterTest::UpdateToQuickFixBuildStart(bool set_token) {

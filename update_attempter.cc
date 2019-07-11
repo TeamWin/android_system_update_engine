@@ -1038,11 +1038,8 @@ void UpdateAttempter::UpdateRollbackHappened() {
   }
 }
 
-// Delegate methods:
-void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
-                                     ErrorCode code) {
-  LOG(INFO) << "Processing Done.";
-
+void UpdateAttempter::ProcessingDoneInternal(const ActionProcessor* processor,
+                                             ErrorCode code) {
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
 
@@ -1064,84 +1061,101 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
   attempt_error_code_ = utils::GetBaseErrorCode(code);
 
-  if (code == ErrorCode::kSuccess) {
-    // For install operation, we do not mark update complete since we do not
-    // need reboot.
-    if (!is_install_)
-      WriteUpdateCompletedMarker();
-    ReportTimeToUpdateAppliedMetric();
-
-    prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
-    prefs_->SetString(kPrefsPreviousVersion,
-                      omaha_request_params_->app_version());
-    DeltaPerformer::ResetUpdateProgress(prefs_, false);
-
-    system_state_->payload_state()->UpdateSucceeded();
-
-    // Since we're done with scattering fully at this point, this is the
-    // safest point delete the state files, as we're sure that the status is
-    // set to reboot (which means no more updates will be applied until reboot)
-    // This deletion is required for correctness as we want the next update
-    // check to re-create a new random number for the update check count.
-    // Similarly, we also delete the wall-clock-wait period that was persisted
-    // so that we start with a new random value for the next update check
-    // after reboot so that the same device is not favored or punished in any
-    // way.
-    prefs_->Delete(kPrefsUpdateCheckCount);
-    system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
-    system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
-    prefs_->Delete(kPrefsUpdateFirstSeenAt);
-
-    if (is_install_) {
-      LOG(INFO) << "DLC successfully installed, no reboot needed.";
-      SetStatusAndNotify(UpdateStatus::IDLE);
-      ScheduleUpdates();
+  if (code != ErrorCode::kSuccess) {
+    if (ScheduleErrorEventAction()) {
       return;
     }
-
-    SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
+    LOG(INFO) << "No update.";
+    SetStatusAndNotify(UpdateStatus::IDLE);
     ScheduleUpdates();
-    LOG(INFO) << "Update successfully applied, waiting to reboot.";
-
-    // |install_plan_| is null during rollback operations, and the stats don't
-    // make much sense then anyway.
-    if (install_plan_) {
-      // Generate an unique payload identifier.
-      string target_version_uid;
-      for (const auto& payload : install_plan_->payloads) {
-        target_version_uid +=
-            brillo::data_encoding::Base64Encode(payload.hash) + ":" +
-            payload.metadata_signature + ":";
-      }
-
-      // If we just downloaded a rollback image, we should preserve this fact
-      // over the following powerwash.
-      if (install_plan_->is_rollback) {
-        system_state_->payload_state()->SetRollbackHappened(true);
-        system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
-            /*success=*/true, install_plan_->version);
-      }
-
-      // Expect to reboot into the new version to send the proper metric during
-      // next boot.
-      system_state_->payload_state()->ExpectRebootInNewVersion(
-          target_version_uid);
-    } else {
-      // If we just finished a rollback, then we expect to have no Omaha
-      // response. Otherwise, it's an error.
-      if (system_state_->payload_state()->GetRollbackVersion().empty()) {
-        LOG(ERROR) << "Can't send metrics because there was no Omaha response";
-      }
-    }
     return;
   }
 
-  if (ScheduleErrorEventAction()) {
-    return;
+  ReportTimeToUpdateAppliedMetric();
+  prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
+  prefs_->SetString(kPrefsPreviousVersion,
+                    omaha_request_params_->app_version());
+  DeltaPerformer::ResetUpdateProgress(prefs_, false);
+
+  system_state_->payload_state()->UpdateSucceeded();
+
+  // Since we're done with scattering fully at this point, this is the
+  // safest point delete the state files, as we're sure that the status is
+  // set to reboot (which means no more updates will be applied until reboot)
+  // This deletion is required for correctness as we want the next update
+  // check to re-create a new random number for the update check count.
+  // Similarly, we also delete the wall-clock-wait period that was persisted
+  // so that we start with a new random value for the next update check
+  // after reboot so that the same device is not favored or punished in any
+  // way.
+  prefs_->Delete(kPrefsUpdateCheckCount);
+  system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
+  system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
+  prefs_->Delete(kPrefsUpdateFirstSeenAt);
+
+  // Note: below this comment should only be on |ErrorCode::kSuccess|.
+  if (is_install_) {
+    ProcessingDoneInstall(processor, code);
+  } else {
+    ProcessingDoneUpdate(processor, code);
   }
-  LOG(INFO) << "No update.";
+}
+
+void UpdateAttempter::ProcessingDoneInstall(const ActionProcessor* processor,
+                                            ErrorCode code) {
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
+  LOG(INFO) << "DLC successfully installed, no reboot needed.";
+}
+
+void UpdateAttempter::ProcessingDoneUpdate(const ActionProcessor* processor,
+                                           ErrorCode code) {
+  WriteUpdateCompletedMarker();
+
+  SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
+  ScheduleUpdates();
+  LOG(INFO) << "Update successfully applied, waiting to reboot.";
+
+  // |install_plan_| is null during rollback operations, and the stats don't
+  // make much sense then anyway.
+  if (install_plan_) {
+    // Generate an unique payload identifier.
+    string target_version_uid;
+    for (const auto& payload : install_plan_->payloads) {
+      target_version_uid += brillo::data_encoding::Base64Encode(payload.hash) +
+                            ":" + payload.metadata_signature + ":";
+    }
+
+    // If we just downloaded a rollback image, we should preserve this fact
+    // over the following powerwash.
+    if (install_plan_->is_rollback) {
+      system_state_->payload_state()->SetRollbackHappened(true);
+      system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+          /*success=*/true, install_plan_->version);
+    }
+
+    // Expect to reboot into the new version to send the proper metric during
+    // next boot.
+    system_state_->payload_state()->ExpectRebootInNewVersion(
+        target_version_uid);
+  } else {
+    // If we just finished a rollback, then we expect to have no Omaha
+    // response. Otherwise, it's an error.
+    if (system_state_->payload_state()->GetRollbackVersion().empty()) {
+      LOG(ERROR) << "Can't send metrics because there was no Omaha response";
+    }
+  }
+}
+
+// Delegate methods:
+void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
+                                     ErrorCode code) {
+  LOG(INFO) << "Processing Done.";
+  ProcessingDoneInternal(processor, code);
+
+  // Note: do cleanups here for any variables that need to be reset after a
+  // failure, error, update, or install.
+  is_install_ = false;
 }
 
 void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {

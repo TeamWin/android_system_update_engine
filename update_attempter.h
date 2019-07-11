@@ -259,6 +259,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, InstallSetsStatusIdle);
   FRIEND_TEST(UpdateAttempterTest, MarkDeltaUpdateFailureTest);
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
+  FRIEND_TEST(UpdateAttempterTest, ProcessingDoneInstallError);
+  FRIEND_TEST(UpdateAttempterTest, ProcessingDoneUpdateError);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, RollbackNotAllowed);
   FRIEND_TEST(UpdateAttempterTest, RollbackAfterInstall);
@@ -283,6 +285,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
   uint32_t GetErrorCodeFlags();
+
+  // ActionProcessorDelegate methods |ProcessingDone()| internal helpers.
+  void ProcessingDoneInternal(const ActionProcessor* processor, ErrorCode code);
+  void ProcessingDoneUpdate(const ActionProcessor* processor, ErrorCode code);
+  void ProcessingDoneInstall(const ActionProcessor* processor, ErrorCode code);
 
   // CertificateChecker::Observer method.
   // Report metrics about the certificate being checked.
