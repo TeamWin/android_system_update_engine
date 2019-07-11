@@ -1710,10 +1710,10 @@ TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
 
 TEST_F(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable) {
   // Default construction for |waiting_for_scheduled_check_| is false.
-  EXPECT_FALSE(attempter_.IsUpdateRunningOrScheduled());
+  EXPECT_FALSE(attempter_.IsBusyOrUpdateScheduled());
   // Verify in-progress update with UPDATE_AVAILABLE is running
   attempter_.status_ = UpdateStatus::UPDATE_AVAILABLE;
-  EXPECT_TRUE(attempter_.IsUpdateRunningOrScheduled());
+  EXPECT_TRUE(attempter_.IsBusyOrUpdateScheduled());
 }
 
 TEST_F(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart) {

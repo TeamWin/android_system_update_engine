@@ -153,7 +153,7 @@ void UpdateAttempter::Init() {
 }
 
 bool UpdateAttempter::ScheduleUpdates() {
-  if (IsUpdateRunningOrScheduled())
+  if (IsBusyOrUpdateScheduled())
     return false;
 
   chromeos_update_manager::UpdateManager* const update_manager =
@@ -1018,7 +1018,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
   // a bug that will most likely prevent further automatic update checks. It
   // seems better to crash in such cases and restart the update_engine daemon
   // into, hopefully, a known good state.
-  CHECK(IsUpdateRunningOrScheduled());
+  CHECK(IsBusyOrUpdateScheduled());
 }
 
 void UpdateAttempter::UpdateLastCheckedTime() {
@@ -1686,7 +1686,7 @@ bool UpdateAttempter::GetBootTimeAtUpdate(Time* out_boot_time) {
   return true;
 }
 
-bool UpdateAttempter::IsUpdateRunningOrScheduled() {
+bool UpdateAttempter::IsBusyOrUpdateScheduled() {
   return ((status_ != UpdateStatus::IDLE &&
            status_ != UpdateStatus::UPDATED_NEED_REBOOT) ||
           waiting_for_scheduled_check_);

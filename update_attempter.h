@@ -407,8 +407,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // policy is available again.
   void UpdateRollbackHappened();
 
-  // Returns whether an update is currently running or scheduled.
-  bool IsUpdateRunningOrScheduled();
+  // Returns if an update is: running, applied and needs reboot, or scheduled.
+  bool IsBusyOrUpdateScheduled();
 
   void CalculateStagingParams(bool interactive);
 
