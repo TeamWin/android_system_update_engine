@@ -304,6 +304,9 @@ bool ReadExtents(const std::string& path,
 // reboot. Returns whether it succeeded getting the boot_id.
 bool GetBootId(std::string* boot_id);
 
+// This function gets the file path of the file pointed to by FileDiscriptor.
+std::string GetFilePath(int fd);
+
 // Divide |x| by |y| and round up to the nearest integer.
 constexpr uint64_t DivRoundUp(uint64_t x, uint64_t y) {
   return (x + y - 1) / y;

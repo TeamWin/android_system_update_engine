@@ -19,6 +19,7 @@
 #include <base/format_macros.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/common/utils.h"
@@ -80,11 +81,18 @@ void InstallPlan::Dump() const {
         base::StringPrintf(", system_version: %s", system_version.c_str());
   }
 
+  string url_str = download_url;
+  if (base::StartsWith(
+          url_str, "fd://", base::CompareCase::INSENSITIVE_ASCII)) {
+    int fd = std::stoi(url_str.substr(strlen("fd://")));
+    url_str = utils::GetFilePath(fd);
+  }
+
   LOG(INFO) << "InstallPlan: " << (is_resume ? "resume" : "new_update")
             << version_str
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
-            << ", url: " << download_url << payloads_str << partitions_str
+            << ", url: " << url_str << payloads_str << partitions_str
             << ", hash_checks_mandatory: "
             << utils::ToString(hash_checks_mandatory)
             << ", powerwash_required: " << utils::ToString(powerwash_required)

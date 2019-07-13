@@ -507,4 +507,13 @@ TEST(UtilsTest, ParseDottedVersion) {
   ExpectInvalidParseRollbackKeyVersion("1.99999");
 }
 
+TEST(UtilsTest, GetFilePathTest) {
+  test_utils::ScopedTempFile file;
+  int fd = HANDLE_EINTR(open(file.path().c_str(), O_RDONLY));
+  EXPECT_GE(fd, 0);
+  EXPECT_EQ(file.path(), utils::GetFilePath(fd));
+  EXPECT_EQ("not found", utils::GetFilePath(-1));
+  IGNORE_EINTR(close(fd));
+}
+
 }  // namespace chromeos_update_engine
