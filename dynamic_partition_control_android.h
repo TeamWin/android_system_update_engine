@@ -36,8 +36,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                   uint32_t slot,
                                   bool force_writable,
                                   std::string* path) override;
-  bool UnmapPartitionOnDeviceMapper(const std::string& target_partition_name,
-                                    bool wait) override;
+  bool UnmapPartitionOnDeviceMapper(
+      const std::string& target_partition_name) override;
   void Cleanup() override;
   bool DeviceExists(const std::string& path) override;
   android::dm::DmDeviceState GetState(const std::string& name) override;
