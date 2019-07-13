@@ -1064,6 +1064,16 @@ void ParseRollbackKeyVersion(const string& raw_version,
   }
 }
 
+string GetFilePath(int fd) {
+  base::FilePath proc("/proc/self/fd/" + std::to_string(fd));
+  base::FilePath file_name;
+
+  if (!base::ReadSymbolicLink(proc, &file_name)) {
+    return "not found";
+  }
+  return file_name.value();
+}
+
 }  // namespace utils
 
 }  // namespace chromeos_update_engine
