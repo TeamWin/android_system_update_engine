@@ -47,6 +47,13 @@ class ServiceDelegateAndroidInterface {
       const std::vector<std::string>& key_value_pair_headers,
       brillo::ErrorPtr* error) = 0;
 
+  virtual bool ApplyPayload(
+      int fd,
+      int64_t payload_offset,
+      int64_t payload_size,
+      const std::vector<std::string>& key_value_pair_headers,
+      brillo::ErrorPtr* error) = 0;
+
   // Suspend an ongoing update. Returns true if there was an update ongoing and
   // it was suspended. In case of failure, it returns false and sets |error|
   // accordingly.

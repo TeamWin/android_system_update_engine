@@ -43,8 +43,9 @@ namespace chromeos_update_engine {
 // static
 bool FileFetcher::SupportedUrl(const string& url) {
   // Note that we require the file path to start with a "/".
-  return base::StartsWith(
-      url, "file:///", base::CompareCase::INSENSITIVE_ASCII);
+  return (
+      base::StartsWith(url, "file:///", base::CompareCase::INSENSITIVE_ASCII) ||
+      base::StartsWith(url, "fd://", base::CompareCase::INSENSITIVE_ASCII));
 }
 
 FileFetcher::~FileFetcher() {
@@ -67,12 +68,20 @@ void FileFetcher::BeginTransfer(const string& url) {
     return;
   }
 
-  string file_path = url.substr(strlen("file://"));
-  stream_ =
-      brillo::FileStream::Open(base::FilePath(file_path),
-                               brillo::Stream::AccessMode::READ,
-                               brillo::FileStream::Disposition::OPEN_EXISTING,
-                               nullptr);
+  string file_path;
+
+  if (base::StartsWith(url, "fd://", base::CompareCase::INSENSITIVE_ASCII)) {
+    int fd = std::stoi(url.substr(strlen("fd://")));
+    file_path = url;
+    stream_ = brillo::FileStream::FromFileDescriptor(fd, false, nullptr);
+  } else {
+    file_path = url.substr(strlen("file://"));
+    stream_ =
+        brillo::FileStream::Open(base::FilePath(file_path),
+                                 brillo::Stream::AccessMode::READ,
+                                 brillo::FileStream::Disposition::OPEN_EXISTING,
+                                 nullptr);
+  }
 
   if (!stream_) {
     LOG(ERROR) << "Couldn't open " << file_path;
@@ -183,5 +192,4 @@ void FileFetcher::CleanUp() {
   transfer_in_progress_ = false;
   transfer_paused_ = false;
 }
-
 }  // namespace chromeos_update_engine

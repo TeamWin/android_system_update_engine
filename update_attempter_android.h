@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include <android-base/unique_fd.h>
 #include <base/time/time.h>
 
 #include "update_engine/client_library/include/update_engine/update_status.h"
@@ -61,6 +62,11 @@ class UpdateAttempterAndroid
 
   // ServiceDelegateAndroidInterface overrides.
   bool ApplyPayload(const std::string& payload_url,
+                    int64_t payload_offset,
+                    int64_t payload_size,
+                    const std::vector<std::string>& key_value_pair_headers,
+                    brillo::ErrorPtr* error) override;
+  bool ApplyPayload(int fd,
                     int64_t payload_offset,
                     int64_t payload_size,
                     const std::vector<std::string>& key_value_pair_headers,
@@ -190,6 +196,8 @@ class UpdateAttempterAndroid
   std::unique_ptr<ClockInterface> clock_;
 
   std::unique_ptr<MetricsReporterInterface> metrics_reporter_;
+
+  ::android::base::unique_fd payload_fd_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempterAndroid);
 };
