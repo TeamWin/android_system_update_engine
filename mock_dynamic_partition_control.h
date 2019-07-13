@@ -33,7 +33,7 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
                     uint32_t,
                     bool,
                     std::string*));
-  MOCK_METHOD2(UnmapPartitionOnDeviceMapper, bool(const std::string&, bool));
+  MOCK_METHOD1(UnmapPartitionOnDeviceMapper, bool(const std::string&));
   MOCK_METHOD0(Cleanup, void());
   MOCK_METHOD1(DeviceExists, bool(const std::string&));
   MOCK_METHOD1(GetState, ::android::dm::DmDeviceState(const std::string&));
