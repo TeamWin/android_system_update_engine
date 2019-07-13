@@ -373,8 +373,8 @@ bool UnmapTargetPartitions(DynamicPartitionControlInterface* dynamic_control,
                            const PartitionMetadata& partition_metadata) {
   for (const auto& group : partition_metadata.groups) {
     for (const auto& partition : group.partitions) {
-      if (!dynamic_control->UnmapPartitionOnDeviceMapper(
-              partition.name + target_suffix, true /* wait */)) {
+      if (!dynamic_control->UnmapPartitionOnDeviceMapper(partition.name +
+                                                         target_suffix)) {
         return false;
       }
     }
