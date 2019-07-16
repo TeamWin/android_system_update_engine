@@ -74,6 +74,15 @@ bool IsSquashfsImage(const string& part_path,
   return false;
 }
 
+bool IsRegularFile(const FilesystemInterface::File& file) {
+  // If inode is 0, then stat information is invalid for some psuedo files
+  if (file.file_stat.st_ino != 0 &&
+      (file.file_stat.st_mode & S_IFMT) == S_IFREG) {
+    return true;
+  }
+  return false;
+}
+
 // Realigns subfiles |files| of a splitted file |file| into its correct
 // positions. This can be used for squashfs, zip, apk, etc.
 bool RealignSplittedFiles(const FilesystemInterface::File& file,
@@ -265,7 +274,9 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
   result_files->reserve(tmp_files.size());
 
   for (auto& file : tmp_files) {
-    if (IsSquashfsImage(part.path, file)) {
+    auto is_regular_file = IsRegularFile(file);
+
+    if (is_regular_file && IsSquashfsImage(part.path, file)) {
       // Read the image into a file.
       base::FilePath path;
       TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&path));
@@ -295,7 +306,7 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
       }
     }
 
-    if (extract_deflates) {
+    if (is_regular_file && extract_deflates) {
       // Search for deflates if the file is in zip or gzip format.
       // .zvoice files may eventually move out of rootfs. If that happens,
       // remove ".zvoice" (crbug.com/782918).
