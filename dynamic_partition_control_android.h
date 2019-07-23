@@ -36,21 +36,48 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                   uint32_t slot,
                                   bool force_writable,
                                   std::string* path) override;
-  bool UnmapPartitionOnDeviceMapper(
-      const std::string& target_partition_name) override;
   void Cleanup() override;
   bool DeviceExists(const std::string& path) override;
   android::dm::DmDeviceState GetState(const std::string& name) override;
   bool GetDmDevicePathByName(const std::string& name,
                              std::string* path) override;
   std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
+      const std::string& super_device, uint32_t source_slot) override;
+
+  bool PreparePartitionsForUpdate(uint32_t source_slot,
+                                  uint32_t target_slot,
+                                  const BootControlInterface::PartitionMetadata&
+                                      partition_metadata) override;
+  bool GetDeviceDir(std::string* path) override;
+
+ protected:
+  // These functions are exposed for testing.
+
+  // Unmap logical partition on device mapper. This is the reverse operation
+  // of MapPartitionOnDeviceMapper.
+  // Returns true if unmapped successfully.
+  virtual bool UnmapPartitionOnDeviceMapper(
+      const std::string& target_partition_name);
+
+  // Retrieve metadata from |super_device| at slot |source_slot|.
+  //
+  // If |target_slot| != kInvalidSlot, before returning the metadata, this
+  // function modifies the metadata so that during updates, the metadata can be
+  // written to |target_slot|. In particular, on retrofit devices, the returned
+  // metadata automatically includes block devices at |target_slot|.
+  //
+  // If |target_slot| == kInvalidSlot, this function returns metadata at
+  // |source_slot| without modifying it. This is the same as
+  // LoadMetadataBuilder(const std::string&, uint32_t).
+  virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
       const std::string& super_device,
       uint32_t source_slot,
-      uint32_t target_slot) override;
-  bool StoreMetadata(const std::string& super_device,
-                     android::fs_mgr::MetadataBuilder* builder,
-                     uint32_t target_slot) override;
-  bool GetDeviceDir(std::string* path) override;
+      uint32_t target_slot);
+
+  // Write metadata |builder| to |super_device| at slot |target_slot|.
+  virtual bool StoreMetadata(const std::string& super_device,
+                             android::fs_mgr::MetadataBuilder* builder,
+                             uint32_t target_slot);
 
  private:
   std::set<std::string> mapped_devices_;
@@ -61,6 +88,13 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                             uint32_t slot,
                             bool force_writable,
                             std::string* path);
+
+  // Update |builder| according to |partition_metadata|, assuming the device
+  // does not have Virtual A/B.
+  bool UpdatePartitionMetadata(
+      android::fs_mgr::MetadataBuilder* builder,
+      uint32_t target_slot,
+      const BootControlInterface::PartitionMetadata& partition_metadata);
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };

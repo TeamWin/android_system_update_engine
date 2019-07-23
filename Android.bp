@@ -214,6 +214,7 @@ cc_library_static {
     srcs: [
         "boot_control_android.cc",
         "dynamic_partition_control_android.cc",
+        "dynamic_partition_utils.cc",
     ],
 }
 
