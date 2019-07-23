@@ -49,8 +49,7 @@ class MockDynamicPartitionControlAndroid
                     android::fs_mgr::MetadataBuilder*,
                     uint32_t));
   MOCK_METHOD1(GetDeviceDir, bool(std::string*));
-  MOCK_METHOD0(IsDynamicPartitionsEnabled, bool());
-  MOCK_METHOD0(IsDynamicPartitionsRetrofit, bool());
+  MOCK_METHOD0(GetDynamicPartitionsFeatureFlag, FeatureFlag());
 };
 
 }  // namespace chromeos_update_engine
