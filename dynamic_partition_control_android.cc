@@ -309,7 +309,7 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
   }
   base::FilePath device_dir(device_dir_str);
   auto source_device =
-      device_dir.Append(fs_mgr_get_super_partition_name(source_slot)).value();
+      device_dir.Append(GetSuperPartitionName(source_slot)).value();
 
   auto builder = LoadMetadataBuilder(source_device, source_slot, target_slot);
   if (builder == nullptr) {
@@ -324,8 +324,13 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
   }
 
   auto target_device =
-      device_dir.Append(fs_mgr_get_super_partition_name(target_slot)).value();
+      device_dir.Append(GetSuperPartitionName(target_slot)).value();
   return StoreMetadata(target_device, builder.get(), target_slot);
+}
+
+std::string DynamicPartitionControlAndroid::GetSuperPartitionName(
+    uint32_t slot) {
+  return fs_mgr_get_super_partition_name(slot);
 }
 
 bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(

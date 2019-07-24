@@ -95,6 +95,10 @@ class DynamicPartitionControlInterface {
 
   // Return a possible location for devices listed by name.
   virtual bool GetDeviceDir(std::string* path) = 0;
+
+  // Return the name of the super partition (which stores super partition
+  // metadata) for a given slot.
+  virtual std::string GetSuperPartitionName(uint32_t slot) = 0;
 };
 
 }  // namespace chromeos_update_engine
