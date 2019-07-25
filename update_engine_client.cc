@@ -41,6 +41,7 @@
 
 using chromeos_update_engine::EolStatus;
 using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::UpdateEngineStatusToString;
 using chromeos_update_engine::UpdateStatusToString;
 using chromeos_update_engine::utils::ErrorCodeToString;
 using std::string;
@@ -138,12 +139,7 @@ class WatchingStatusUpdateHandler : public ExitingStatusUpdateHandler {
 
 void WatchingStatusUpdateHandler::HandleStatusUpdate(
     const UpdateEngineStatus& status) {
-  LOG(INFO) << "Got status update:";
-  LOG(INFO) << "  last_checked_time: " << status.last_checked_time;
-  LOG(INFO) << "  progress: " << status.progress;
-  LOG(INFO) << "  current_operation: " << UpdateStatusToString(status.status);
-  LOG(INFO) << "  new_version: " << status.new_version;
-  LOG(INFO) << "  new_size: " << status.new_size_bytes;
+  LOG(INFO) << "Got status update: " << UpdateEngineStatusToString(status);
 }
 
 bool UpdateEngineClient::ShowStatus() {
@@ -161,14 +157,7 @@ bool UpdateEngineClient::ShowStatus() {
         base::TimeDelta::FromSeconds(kShowStatusRetryIntervalInSeconds));
   }
 
-  printf("LAST_CHECKED_TIME=%" PRIi64
-         "\nPROGRESS=%f\nCURRENT_OP=%s\n"
-         "NEW_VERSION=%s\nNEW_SIZE=%" PRIi64 "\n",
-         status.last_checked_time,
-         status.progress,
-         UpdateStatusToString(status.status),
-         status.new_version.c_str(),
-         status.new_size_bytes);
+  printf("%s", UpdateEngineStatusToString(status).c_str());
 
   return true;
 }

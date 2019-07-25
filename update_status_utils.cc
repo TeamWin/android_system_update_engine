@@ -16,8 +16,13 @@
 #include "update_engine/update_status_utils.h"
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
+#include <brillo/key_value_store.h>
 #include <update_engine/dbus-constants.h>
 
+using brillo::KeyValueStore;
+using std::string;
+using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
@@ -50,6 +55,30 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
 
   NOTREACHED();
   return nullptr;
+}
+
+string UpdateEngineStatusToString(const UpdateEngineStatus& status) {
+  KeyValueStore key_value_store;
+
+#if BASE_VER < 576279
+  key_value_store.SetString("LAST_CHECKED_TIME",
+                            base::Int64ToString(status.last_checked_time));
+  key_value_store.SetString("PROGRESS", base::DoubleToString(status.progress));
+  key_value_store.SetString("NEW_SIZE",
+                            base::Uint64ToString(status.new_size_bytes));
+#else
+  key_value_store.SetString("LAST_CHECKED_TIME",
+                            base::NumberToString(status.last_checked_time));
+  key_value_store.SetString("PROGRESS", base::NumberToString(status.progress));
+  key_value_store.SetString("NEW_SIZE",
+                            base::NumberToString(status.new_size_bytes));
+#endif
+  key_value_store.SetString("CURRENT_OPERATION",
+                            UpdateStatusToString(status.status));
+  key_value_store.SetString("NEW_VERSION", status.new_version);
+  key_value_store.SetBoolean("IS_INSTALL", status.is_install);
+
+  return key_value_store.SaveToString();
 }
 
 }  // namespace chromeos_update_engine

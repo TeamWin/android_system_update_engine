@@ -1382,6 +1382,7 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   out_status->progress = download_progress_;
   out_status->new_size_bytes = new_payload_size_;
   out_status->new_version = new_version_;
+  out_status->is_install = is_install_;
   return true;
 }
 

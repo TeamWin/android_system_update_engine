@@ -52,7 +52,7 @@ enum class UpdateStatus {
   // This value is exclusively used in Chrome. DO NOT define nor use it.
   // TODO(crbug.com/977320): Remove this value from chrome by refactoring the
   // Chrome code and evantually from here. This is not really an operation or
-  // state that the update engine stays on. This is the result of an internal
+  // state that the update_engine stays on. This is the result of an internal
   // failure and should be reflected differently.
   // ERROR = -1,
 };
@@ -71,19 +71,20 @@ enum UpdateAttemptFlags : int32_t {
 DECLARE_FLAGS_ENUM(UpdateAttemptFlags);
 
 struct UpdateEngineStatus {
-  // When the update_engine last checked for updates (time_t: seconds from unix
-  // epoch)
+  // Update engine last checked update (time_t: seconds from unix epoch).
   int64_t last_checked_time;
-  // the current status/operation of the update_engine
+  // Current status/operation of the update_engine.
   UpdateStatus status;
-  // the current product version (oem bundle id)
+  // Current product version (oem bundle id).
   std::string current_version;
-  // The current progress (0.0f-1.0f).
+  // Current progress (0.0f-1.0f).
   double progress;
-  // the size of the update (bytes)
+  // Size of the update in bytes.
   uint64_t new_size_bytes;
-  // the new product version
+  // New product version.
   std::string new_version;
+  // Indication of install for DLC(s).
+  bool is_install;
 };
 
 }  // namespace update_engine
