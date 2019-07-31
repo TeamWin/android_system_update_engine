@@ -48,6 +48,7 @@ constexpr const char* kFakeDevicePath = "/fake/dev/path/";
 constexpr const char* kFakeDmDevicePath = "/fake/dm/dev/path/";
 constexpr const uint32_t kFakeMetadataSize = 65536;
 constexpr const char* kDefaultGroup = "foo";
+constexpr const char* kFakeSuper = "fake_super";
 
 // A map describing the size of each partition.
 // "{name, size}"
@@ -119,11 +120,6 @@ inline std::string GetDevice(const std::string& name) {
 
 inline std::string GetDmDevice(const std::string& name) {
   return kFakeDmDevicePath + name;
-}
-
-// TODO(elsk): fs_mgr_get_super_partition_name should be mocked.
-inline std::string GetSuperDevice(uint32_t slot) {
-  return GetDevice(fs_mgr_get_super_partition_name(slot));
 }
 
 // To support legacy tests, auto-convert {name_a: size} map to

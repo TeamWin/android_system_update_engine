@@ -74,6 +74,7 @@ class MockDynamicPartitionControlAndroid
                     uint32_t));
   MOCK_METHOD1(GetDeviceDir, bool(std::string*));
   MOCK_METHOD0(GetDynamicPartitionsFeatureFlag, FeatureFlag());
+  MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
 };
 
 }  // namespace chromeos_update_engine

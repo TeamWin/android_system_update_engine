@@ -50,11 +50,18 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
           *path = kFakeDevicePath;
           return true;
         }));
+
+    ON_CALL(dynamicControl(), GetSuperPartitionName(_))
+        .WillByDefault(Return(kFakeSuper));
   }
 
   // Return the mocked DynamicPartitionControlInterface.
   NiceMock<MockDynamicPartitionControlAndroid>& dynamicControl() {
     return static_cast<NiceMock<MockDynamicPartitionControlAndroid>&>(*module_);
+  }
+
+  std::string GetSuperDevice(uint32_t slot) {
+    return GetDevice(dynamicControl().GetSuperPartitionName(slot));
   }
 
   uint32_t source() { return slots_.source; }

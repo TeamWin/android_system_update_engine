@@ -73,6 +73,13 @@ class BootControlAndroidTest : public ::testing::Test {
           *device = GetDmDevice(partition_name_suffix);
           return true;
         }));
+
+    ON_CALL(dynamicControl(), GetSuperPartitionName(_))
+        .WillByDefault(Return(kFakeSuper));
+  }
+
+  std::string GetSuperDevice(uint32_t slot) {
+    return GetDevice(dynamicControl().GetSuperPartitionName(slot));
   }
 
   // Return the mocked HAL module.
