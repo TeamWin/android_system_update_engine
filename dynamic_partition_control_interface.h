@@ -30,15 +30,25 @@
 
 namespace chromeos_update_engine {
 
+struct FeatureFlag {
+  enum class Value { NONE = 0, RETROFIT, LAUNCH };
+  constexpr explicit FeatureFlag(Value value) : value_(value) {}
+  constexpr bool IsEnabled() const { return value_ != Value::NONE; }
+  constexpr bool IsRetrofit() const { return value_ == Value::RETROFIT; }
+
+ private:
+  Value value_;
+};
+
 class DynamicPartitionControlInterface {
  public:
   virtual ~DynamicPartitionControlInterface() = default;
 
-  // Return true iff dynamic partitions is enabled on this device.
-  virtual bool IsDynamicPartitionsEnabled() = 0;
-
-  // Return true iff dynamic partitions is retrofitted on this device.
-  virtual bool IsDynamicPartitionsRetrofit() = 0;
+  // Return the feature flags of dynamic partitions on this device.
+  // Return RETROFIT iff dynamic partitions is retrofitted on this device,
+  //        LAUNCH iff this device is launched with dynamic partitions,
+  //        NONE iff dynamic partitions is disabled on this device.
+  virtual FeatureFlag GetDynamicPartitionsFeatureFlag() = 0;
 
   // Map logical partition on device-mapper.
   // |super_device| is the device path of the physical partition ("super").

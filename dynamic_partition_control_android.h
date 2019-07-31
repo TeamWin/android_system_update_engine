@@ -29,8 +29,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
  public:
   DynamicPartitionControlAndroid() = default;
   ~DynamicPartitionControlAndroid();
-  bool IsDynamicPartitionsEnabled() override;
-  bool IsDynamicPartitionsRetrofit() override;
+  FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   bool MapPartitionOnDeviceMapper(const std::string& super_device,
                                   const std::string& target_partition_name,
                                   uint32_t slot,
