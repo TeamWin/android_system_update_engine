@@ -48,6 +48,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                   const BootControlInterface::PartitionMetadata&
                                       partition_metadata) override;
   bool GetDeviceDir(std::string* path) override;
+  std::string GetSuperPartitionName(uint32_t slot) override;
 
  protected:
   // These functions are exposed for testing.
