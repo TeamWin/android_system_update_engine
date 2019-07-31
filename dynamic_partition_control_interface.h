@@ -26,6 +26,8 @@
 #include <libdm/dm.h>
 #include <liblp/builder.h>
 
+#include "update_engine/common/boot_control_interface.h"
+
 namespace chromeos_update_engine {
 
 class DynamicPartitionControlInterface {
@@ -52,13 +54,6 @@ class DynamicPartitionControlInterface {
       bool force_writable,
       std::string* path) = 0;
 
-  // Unmap logical partition on device mapper. This is the reverse operation
-  // of MapPartitionOnDeviceMapper.
-  // If |wait| is set, wait until the device is unmapped.
-  // Returns true if unmapped successfully.
-  virtual bool UnmapPartitionOnDeviceMapper(
-      const std::string& target_partition_name) = 0;
-
   // Do necessary cleanups before destroying the object.
   virtual void Cleanup() = 0;
 
@@ -77,17 +72,16 @@ class DynamicPartitionControlInterface {
                                      std::string* path) = 0;
 
   // Retrieve metadata from |super_device| at slot |source_slot|.
-  // On retrofit devices, if |target_slot| != kInvalidSlot, the returned
-  // metadata automatically includes block devices at |target_slot|.
   virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
-      const std::string& super_device,
-      uint32_t source_slot,
-      uint32_t target_slot) = 0;
+      const std::string& super_device, uint32_t source_slot) = 0;
 
-  // Write metadata |builder| to |super_device| at slot |target_slot|.
-  virtual bool StoreMetadata(const std::string& super_device,
-                             android::fs_mgr::MetadataBuilder* builder,
-                             uint32_t target_slot) = 0;
+  // Prepare all partitions for an update specified in |partition_metadata|.
+  // This is needed before calling MapPartitionOnDeviceMapper(), otherwise the
+  // device would be mapped in an inconsistent way.
+  virtual bool PreparePartitionsForUpdate(
+      uint32_t source_slot,
+      uint32_t target_slot,
+      const BootControlInterface::PartitionMetadata& partition_metadata) = 0;
 
   // Return a possible location for devices listed by name.
   virtual bool GetDeviceDir(std::string* path) = 0;

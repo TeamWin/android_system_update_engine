@@ -262,7 +262,7 @@ class BootControlAndroidTest : public ::testing::Test {
     // Fake init bootctl_
     bootctl_.module_ = new NiceMock<MockBootControlHal>();
     bootctl_.dynamic_control_ =
-        std::make_unique<NiceMock<MockDynamicPartitionControl>>();
+        std::make_unique<NiceMock<MockDynamicPartitionControlAndroid>>();
 
     ON_CALL(module(), getNumberSlots()).WillByDefault(Invoke([] {
       return kMaxNumSlots;
@@ -297,8 +297,8 @@ class BootControlAndroidTest : public ::testing::Test {
   }
 
   // Return the mocked DynamicPartitionControlInterface.
-  NiceMock<MockDynamicPartitionControl>& dynamicControl() {
-    return static_cast<NiceMock<MockDynamicPartitionControl>&>(
+  NiceMock<MockDynamicPartitionControlAndroid>& dynamicControl() {
+    return static_cast<NiceMock<MockDynamicPartitionControlAndroid>&>(
         *bootctl_.dynamic_control_);
   }
 
