@@ -193,7 +193,7 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   // current payload doesn't encode them as dynamic partitions. This may happen
   // when applying a retrofit update on top of a dynamic-partitions-enabled
   // build.
-  if (dynamic_control_->IsDynamicPartitionsEnabled() &&
+  if (dynamic_control_->GetDynamicPartitionsFeatureFlag().IsEnabled() &&
       (slot == GetCurrentSlot() || is_target_dynamic_)) {
     switch (GetDynamicPartitionDevice(
         device_dir, partition_name_suffix, slot, device)) {
@@ -288,7 +288,7 @@ bool BootControlAndroid::InitPartitionMetadata(
            "resources.\n"
         << "run adb enable-verity to deactivate if required and try again.";
   }
-  if (!dynamic_control_->IsDynamicPartitionsEnabled()) {
+  if (!dynamic_control_->GetDynamicPartitionsFeatureFlag().IsEnabled()) {
     return true;
   }
 
