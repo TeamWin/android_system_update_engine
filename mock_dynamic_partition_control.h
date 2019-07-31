@@ -21,11 +21,14 @@
 
 #include <gmock/gmock.h>
 
+#include "update_engine/common/boot_control_interface.h"
+#include "update_engine/dynamic_partition_control_android.h"
 #include "update_engine/dynamic_partition_control_interface.h"
 
 namespace chromeos_update_engine {
 
-class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
+class MockDynamicPartitionControlAndroid
+    : public DynamicPartitionControlAndroid {
  public:
   MOCK_METHOD5(MapPartitionOnDeviceMapper,
                bool(const std::string&,

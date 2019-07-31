@@ -22,7 +22,6 @@
 
 #include <base/bind.h>
 #include <base/logging.h>
-#include <base/strings/string_util.h>
 #include <bootloader_message/bootloader_message.h>
 #include <brillo/message_loops/message_loop.h>
 #include <fs_mgr.h>
@@ -34,7 +33,6 @@
 using std::string;
 
 using android::dm::DmDeviceState;
-using android::fs_mgr::Partition;
 using android::hardware::hidl_string;
 using android::hardware::Return;
 using android::hardware::boot::V1_0::BoolResult;
@@ -112,8 +110,8 @@ bool BootControlAndroid::IsSuperBlockDevice(
     const string& partition_name_suffix) const {
   string source_device =
       device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
-  auto source_metadata = dynamic_control_->LoadMetadataBuilder(
-      source_device, slot, BootControlInterface::kInvalidSlot);
+  auto source_metadata =
+      dynamic_control_->LoadMetadataBuilder(source_device, slot);
   return source_metadata->HasBlockDevice(partition_name_suffix);
 }
 
@@ -126,8 +124,7 @@ BootControlAndroid::GetDynamicPartitionDevice(
   string super_device =
       device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
 
-  auto builder = dynamic_control_->LoadMetadataBuilder(
-      super_device, slot, BootControlInterface::kInvalidSlot);
+  auto builder = dynamic_control_->LoadMetadataBuilder(super_device, slot);
 
   if (builder == nullptr) {
     LOG(ERROR) << "No metadata in slot "
@@ -280,110 +277,6 @@ bool BootControlAndroid::MarkBootSuccessfulAsync(
          brillo::MessageLoop::kTaskIdNull;
 }
 
-namespace {
-
-bool UpdatePartitionMetadata(DynamicPartitionControlInterface* dynamic_control,
-                             Slot source_slot,
-                             Slot target_slot,
-                             const string& target_suffix,
-                             const PartitionMetadata& partition_metadata) {
-  string device_dir_str;
-  if (!dynamic_control->GetDeviceDir(&device_dir_str)) {
-    return false;
-  }
-  base::FilePath device_dir(device_dir_str);
-  auto source_device =
-      device_dir.Append(fs_mgr_get_super_partition_name(source_slot)).value();
-
-  auto builder = dynamic_control->LoadMetadataBuilder(
-      source_device, source_slot, target_slot);
-  if (builder == nullptr) {
-    // TODO(elsk): allow reconstructing metadata from partition_metadata
-    // in recovery sideload.
-    LOG(ERROR) << "No metadata at "
-               << BootControlInterface::SlotName(source_slot);
-    return false;
-  }
-
-  std::vector<string> groups = builder->ListGroups();
-  for (const auto& group_name : groups) {
-    if (base::EndsWith(
-            group_name, target_suffix, base::CompareCase::SENSITIVE)) {
-      LOG(INFO) << "Removing group " << group_name;
-      builder->RemoveGroupAndPartitions(group_name);
-    }
-  }
-
-  uint64_t total_size = 0;
-  for (const auto& group : partition_metadata.groups) {
-    total_size += group.size;
-  }
-
-  string expr;
-  uint64_t allocatable_space = builder->AllocatableSpace();
-  if (!dynamic_control->IsDynamicPartitionsRetrofit()) {
-    allocatable_space /= 2;
-    expr = "half of ";
-  }
-  if (total_size > allocatable_space) {
-    LOG(ERROR) << "The maximum size of all groups with suffix " << target_suffix
-               << " (" << total_size << ") has exceeded " << expr
-               << " allocatable space for dynamic partitions "
-               << allocatable_space << ".";
-    return false;
-  }
-
-  for (const auto& group : partition_metadata.groups) {
-    auto group_name_suffix = group.name + target_suffix;
-    if (!builder->AddGroup(group_name_suffix, group.size)) {
-      LOG(ERROR) << "Cannot add group " << group_name_suffix << " with size "
-                 << group.size;
-      return false;
-    }
-    LOG(INFO) << "Added group " << group_name_suffix << " with size "
-              << group.size;
-
-    for (const auto& partition : group.partitions) {
-      auto partition_name_suffix = partition.name + target_suffix;
-      Partition* p = builder->AddPartition(
-          partition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
-      if (!p) {
-        LOG(ERROR) << "Cannot add partition " << partition_name_suffix
-                   << " to group " << group_name_suffix;
-        return false;
-      }
-      if (!builder->ResizePartition(p, partition.size)) {
-        LOG(ERROR) << "Cannot resize partition " << partition_name_suffix
-                   << " to size " << partition.size << ". Not enough space?";
-        return false;
-      }
-      LOG(INFO) << "Added partition " << partition_name_suffix << " to group "
-                << group_name_suffix << " with size " << partition.size;
-    }
-  }
-
-  auto target_device =
-      device_dir.Append(fs_mgr_get_super_partition_name(target_slot)).value();
-  return dynamic_control->StoreMetadata(
-      target_device, builder.get(), target_slot);
-}
-
-bool UnmapTargetPartitions(DynamicPartitionControlInterface* dynamic_control,
-                           const string& target_suffix,
-                           const PartitionMetadata& partition_metadata) {
-  for (const auto& group : partition_metadata.groups) {
-    for (const auto& partition : group.partitions) {
-      if (!dynamic_control->UnmapPartitionOnDeviceMapper(partition.name +
-                                                         target_suffix)) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-}  // namespace
-
 bool BootControlAndroid::InitPartitionMetadata(
     Slot target_slot,
     const PartitionMetadata& partition_metadata,
@@ -417,23 +310,8 @@ bool BootControlAndroid::InitPartitionMetadata(
     return true;
   }
 
-  string target_suffix;
-  if (!GetSuffix(target_slot, &target_suffix)) {
-    return false;
-  }
-
-  // Unmap all the target dynamic partitions because they would become
-  // inconsistent with the new metadata.
-  if (!UnmapTargetPartitions(
-          dynamic_control_.get(), target_suffix, partition_metadata)) {
-    return false;
-  }
-
-  return UpdatePartitionMetadata(dynamic_control_.get(),
-                                 source_slot,
-                                 target_slot,
-                                 target_suffix,
-                                 partition_metadata);
+  return dynamic_control_->PreparePartitionsForUpdate(
+      source_slot, target_slot, partition_metadata);
 }
 
 }  // namespace chromeos_update_engine
