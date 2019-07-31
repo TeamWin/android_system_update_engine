@@ -19,16 +19,20 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <android-base/properties.h>
 #include <android-base/strings.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/strings/string_util.h>
 #include <bootloader_message/bootloader_message.h>
+#include <fs_mgr.h>
 #include <fs_mgr_dm_linear.h>
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/dynamic_partition_utils.h"
 
 using android::base::GetBoolProperty;
 using android::base::Join;
@@ -37,9 +41,13 @@ using android::dm::DmDeviceState;
 using android::fs_mgr::CreateLogicalPartition;
 using android::fs_mgr::DestroyLogicalPartition;
 using android::fs_mgr::MetadataBuilder;
+using android::fs_mgr::Partition;
 using android::fs_mgr::PartitionOpener;
+using android::fs_mgr::SlotSuffixForSlotNumber;
 
 namespace chromeos_update_engine {
+
+using PartitionMetadata = BootControlInterface::PartitionMetadata;
 
 constexpr char kUseDynamicPartitions[] = "ro.boot.dynamic_partitions";
 constexpr char kRetrfoitDynamicPartitions[] =
@@ -172,6 +180,13 @@ bool DynamicPartitionControlAndroid::GetDmDevicePathByName(
 
 std::unique_ptr<MetadataBuilder>
 DynamicPartitionControlAndroid::LoadMetadataBuilder(
+    const std::string& super_device, uint32_t source_slot) {
+  return LoadMetadataBuilder(
+      super_device, source_slot, BootControlInterface::kInvalidSlot);
+}
+
+std::unique_ptr<MetadataBuilder>
+DynamicPartitionControlAndroid::LoadMetadataBuilder(
     const std::string& super_device,
     uint32_t source_slot,
     uint32_t target_slot) {
@@ -257,4 +272,104 @@ bool DynamicPartitionControlAndroid::GetDeviceDir(std::string* out) {
   *out = base::FilePath(misc_device).DirName().value();
   return true;
 }
+
+bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
+    uint32_t source_slot,
+    uint32_t target_slot,
+    const PartitionMetadata& partition_metadata) {
+  const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
+
+  // Unmap all the target dynamic partitions because they would become
+  // inconsistent with the new metadata.
+  for (const auto& group : partition_metadata.groups) {
+    for (const auto& partition : group.partitions) {
+      if (!UnmapPartitionOnDeviceMapper(partition.name + target_suffix)) {
+        return false;
+      }
+    }
+  }
+
+  std::string device_dir_str;
+  if (!GetDeviceDir(&device_dir_str)) {
+    return false;
+  }
+  base::FilePath device_dir(device_dir_str);
+  auto source_device =
+      device_dir.Append(fs_mgr_get_super_partition_name(source_slot)).value();
+
+  auto builder = LoadMetadataBuilder(source_device, source_slot, target_slot);
+  if (builder == nullptr) {
+    LOG(ERROR) << "No metadata at "
+               << BootControlInterface::SlotName(source_slot);
+    return false;
+  }
+
+  if (!UpdatePartitionMetadata(
+          builder.get(), target_slot, partition_metadata)) {
+    return false;
+  }
+
+  auto target_device =
+      device_dir.Append(fs_mgr_get_super_partition_name(target_slot)).value();
+  return StoreMetadata(target_device, builder.get(), target_slot);
+}
+
+bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
+    MetadataBuilder* builder,
+    uint32_t target_slot,
+    const PartitionMetadata& partition_metadata) {
+  const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
+  DeleteGroupsWithSuffix(builder, target_suffix);
+
+  uint64_t total_size = 0;
+  for (const auto& group : partition_metadata.groups) {
+    total_size += group.size;
+  }
+
+  std::string expr;
+  uint64_t allocatable_space = builder->AllocatableSpace();
+  if (!IsDynamicPartitionsRetrofit()) {
+    allocatable_space /= 2;
+    expr = "half of ";
+  }
+  if (total_size > allocatable_space) {
+    LOG(ERROR) << "The maximum size of all groups with suffix " << target_suffix
+               << " (" << total_size << ") has exceeded " << expr
+               << "allocatable space for dynamic partitions "
+               << allocatable_space << ".";
+    return false;
+  }
+
+  for (const auto& group : partition_metadata.groups) {
+    auto group_name_suffix = group.name + target_suffix;
+    if (!builder->AddGroup(group_name_suffix, group.size)) {
+      LOG(ERROR) << "Cannot add group " << group_name_suffix << " with size "
+                 << group.size;
+      return false;
+    }
+    LOG(INFO) << "Added group " << group_name_suffix << " with size "
+              << group.size;
+
+    for (const auto& partition : group.partitions) {
+      auto partition_name_suffix = partition.name + target_suffix;
+      Partition* p = builder->AddPartition(
+          partition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
+      if (!p) {
+        LOG(ERROR) << "Cannot add partition " << partition_name_suffix
+                   << " to group " << group_name_suffix;
+        return false;
+      }
+      if (!builder->ResizePartition(p, partition.size)) {
+        LOG(ERROR) << "Cannot resize partition " << partition_name_suffix
+                   << " to size " << partition.size << ". Not enough space?";
+        return false;
+      }
+      LOG(INFO) << "Added partition " << partition_name_suffix << " to group "
+                << group_name_suffix << " with size " << partition.size;
+    }
+  }
+
+  return true;
+}
+
 }  // namespace chromeos_update_engine
