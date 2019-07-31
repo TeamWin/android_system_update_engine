@@ -24,8 +24,8 @@
 #include <base/logging.h>
 #include <bootloader_message/bootloader_message.h>
 #include <brillo/message_loops/message_loop.h>
-#include <fs_mgr.h>
 #include <fs_mgr_overlayfs.h>
+#include <libdm/dm.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/dynamic_partition_control_android.h"
@@ -109,7 +109,7 @@ bool BootControlAndroid::IsSuperBlockDevice(
     Slot slot,
     const string& partition_name_suffix) const {
   string source_device =
-      device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
+      device_dir.Append(dynamic_control_->GetSuperPartitionName(slot)).value();
   auto source_metadata =
       dynamic_control_->LoadMetadataBuilder(source_device, slot);
   return source_metadata->HasBlockDevice(partition_name_suffix);
@@ -122,7 +122,7 @@ BootControlAndroid::GetDynamicPartitionDevice(
     Slot slot,
     string* device) const {
   string super_device =
-      device_dir.Append(fs_mgr_get_super_partition_name(slot)).value();
+      device_dir.Append(dynamic_control_->GetSuperPartitionName(slot)).value();
 
   auto builder = dynamic_control_->LoadMetadataBuilder(super_device, slot);
 
@@ -140,8 +140,8 @@ BootControlAndroid::GetDynamicPartitionDevice(
     if (IsSuperBlockDevice(device_dir, current_slot, partition_name_suffix)) {
       LOG(ERROR) << "The static partition " << partition_name_suffix
                  << " is a block device for current metadata ("
-                 << fs_mgr_get_super_partition_name(current_slot) << ", slot "
-                 << BootControlInterface::SlotName(current_slot)
+                 << dynamic_control_->GetSuperPartitionName(current_slot)
+                 << ", slot " << BootControlInterface::SlotName(current_slot)
                  << "). It cannot be used as a logical partition.";
       return DynamicPartitionDeviceStatus::ERROR;
     }
