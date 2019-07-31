@@ -58,12 +58,26 @@ DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
   CleanupInternal(false /* wait */);
 }
 
-bool DynamicPartitionControlAndroid::IsDynamicPartitionsEnabled() {
-  return GetBoolProperty(kUseDynamicPartitions, false);
+static FeatureFlag GetFeatureFlag(const char* enable_prop,
+                                  const char* retrofit_prop) {
+  bool retrofit = GetBoolProperty(retrofit_prop, false);
+  bool enabled = GetBoolProperty(enable_prop, false);
+  if (retrofit && !enabled) {
+    LOG(ERROR) << retrofit_prop << " is true but " << enable_prop
+               << " is not. These sysprops are inconsistent. Assume that "
+               << enable_prop << " is true from now on.";
+  }
+  if (retrofit) {
+    return FeatureFlag(FeatureFlag::Value::RETROFIT);
+  }
+  if (enabled) {
+    return FeatureFlag(FeatureFlag::Value::LAUNCH);
+  }
+  return FeatureFlag(FeatureFlag::Value::NONE);
 }
 
-bool DynamicPartitionControlAndroid::IsDynamicPartitionsRetrofit() {
-  return GetBoolProperty(kRetrfoitDynamicPartitions, false);
+FeatureFlag DynamicPartitionControlAndroid::GetDynamicPartitionsFeatureFlag() {
+  return GetFeatureFlag(kUseDynamicPartitions, kRetrfoitDynamicPartitions);
 }
 
 bool DynamicPartitionControlAndroid::MapPartitionInternal(
@@ -217,7 +231,7 @@ bool DynamicPartitionControlAndroid::StoreMetadata(
     return false;
   }
 
-  if (IsDynamicPartitionsRetrofit()) {
+  if (GetDynamicPartitionsFeatureFlag().IsRetrofit()) {
     if (!FlashPartitionTable(super_device, *metadata)) {
       LOG(ERROR) << "Cannot write metadata to " << super_device;
       return false;
@@ -328,7 +342,7 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
 
   std::string expr;
   uint64_t allocatable_space = builder->AllocatableSpace();
-  if (!IsDynamicPartitionsRetrofit()) {
+  if (!GetDynamicPartitionsFeatureFlag().IsRetrofit()) {
     allocatable_space /= 2;
     expr = "half of ";
   }
