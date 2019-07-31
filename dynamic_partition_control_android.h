@@ -79,6 +79,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                              uint32_t target_slot);
 
  private:
+  friend class DynamicPartitionControlAndroidTest;
+
   std::set<std::string> mapped_devices_;
 
   void CleanupInternal(bool wait);
