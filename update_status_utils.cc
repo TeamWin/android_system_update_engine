@@ -73,8 +73,7 @@ string UpdateEngineStatusToString(const UpdateEngineStatus& status) {
   key_value_store.SetString("NEW_SIZE",
                             base::NumberToString(status.new_size_bytes));
 #endif
-  key_value_store.SetString("CURRENT_OPERATION",
-                            UpdateStatusToString(status.status));
+  key_value_store.SetString("CURRENT_OP", UpdateStatusToString(status.status));
   key_value_store.SetString("NEW_VERSION", status.new_version);
   key_value_store.SetBoolean("IS_INSTALL", status.is_install);
 
