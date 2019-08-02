@@ -27,6 +27,19 @@ using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
 
+namespace {
+
+// Note: Do not change these, autotest depends on these string variables being
+// exactly these matches.
+const char kCurrentOp[] = "CURRENT_OP";
+const char kIsInstall[] = "IS_INSTALL";
+const char kLastCheckedTime[] = "LAST_CHECKED_TIME";
+const char kNewSize[] = "NEW_SIZE";
+const char kNewVersion[] = "NEW_VERSION";
+const char kProgress[] = "PROGRESS";
+
+}  // namespace
+
 const char* UpdateStatusToString(const UpdateStatus& status) {
   switch (status) {
     case UpdateStatus::IDLE:
@@ -61,21 +74,21 @@ string UpdateEngineStatusToString(const UpdateEngineStatus& status) {
   KeyValueStore key_value_store;
 
 #if BASE_VER < 576279
-  key_value_store.SetString("LAST_CHECKED_TIME",
+  key_value_store.SetString(kLastCheckedTime,
                             base::Int64ToString(status.last_checked_time));
-  key_value_store.SetString("PROGRESS", base::DoubleToString(status.progress));
-  key_value_store.SetString("NEW_SIZE",
+  key_value_store.SetString(kProgress, base::DoubleToString(status.progress));
+  key_value_store.SetString(kNewSize,
                             base::Uint64ToString(status.new_size_bytes));
 #else
-  key_value_store.SetString("LAST_CHECKED_TIME",
+  key_value_store.SetString(kLastCheckedTime,
                             base::NumberToString(status.last_checked_time));
-  key_value_store.SetString("PROGRESS", base::NumberToString(status.progress));
-  key_value_store.SetString("NEW_SIZE",
+  key_value_store.SetString(kProgress, base::NumberToString(status.progress));
+  key_value_store.SetString(kNewSize,
                             base::NumberToString(status.new_size_bytes));
 #endif
-  key_value_store.SetString("CURRENT_OP", UpdateStatusToString(status.status));
-  key_value_store.SetString("NEW_VERSION", status.new_version);
-  key_value_store.SetBoolean("IS_INSTALL", status.is_install);
+  key_value_store.SetString(kCurrentOp, UpdateStatusToString(status.status));
+  key_value_store.SetString(kNewVersion, status.new_version);
+  key_value_store.SetBoolean(kIsInstall, status.is_install);
 
   return key_value_store.SaveToString();
 }

@@ -661,6 +661,7 @@ cc_test {
         "payload_generator/zip_unittest.cc",
         "testrunner.cc",
         "update_attempter_android_unittest.cc",
+        "update_status_utils_unittest.cc",
     ],
 }
 

@@ -537,6 +537,7 @@ if (use.test) {
       "update_manager/update_time_restrictions_policy_impl_unittest.cc",
       "update_manager/variable_unittest.cc",
       "update_manager/weekly_time_unittest.cc",
+      "update_status_utils_unittest.cc",
     ]
 
     # //common-mk:test should be on the top.
