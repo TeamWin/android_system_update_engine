@@ -16,10 +16,14 @@
 
 #include "update_engine/metrics_reporter_android.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 
+#include <android-base/properties.h>
 #include <metricslogger/metrics_logger.h>
+#include <statslog.h>
 
 #include "update_engine/common/constants.h"
 
@@ -27,6 +31,16 @@ namespace {
 void LogHistogram(const std::string& metrics, int value) {
   android::metricslogger::LogHistogram(metrics, value);
   LOG(INFO) << "uploading " << value << " to histogram for metric " << metrics;
+}
+
+// A number offset adds on top of the enum value. e.g. ErrorCode::SUCCESS will
+// be reported as 10000, and AttemptResult::UPDATE_CANCELED will be reported as
+// 10011. The keeps the ordering of update engine's enum definition when statsd
+// atoms reserve the value 0 for unknown state.
+constexpr auto kMetricsReporterEnumOffset = 10000;
+
+int32_t GetStatsdEnumValue(int32_t value) {
+  return kMetricsReporterEnumOffset + value;
 }
 }  // namespace
 
@@ -100,6 +114,17 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
                static_cast<int>(attempt_result));
   LogHistogram(metrics::kMetricsUpdateEngineAttemptErrorCode,
                static_cast<int>(error_code));
+
+  android::util::stats_write(
+      android::util::UPDATE_ENGINE_UPDATE_ATTEMPT_REPORTED,
+      attempt_number,
+      GetStatsdEnumValue(static_cast<int32_t>(payload_type)),
+      duration.InMinutes(),
+      duration_uptime.InMinutes(),
+      payload_size_mib,
+      GetStatsdEnumValue(static_cast<int32_t>(attempt_result)),
+      GetStatsdEnumValue(static_cast<int32_t>(error_code)),
+      android::base::GetProperty("ro.build.fingerprint", "").c_str());
 }
 
 void MetricsReporterAndroid::ReportUpdateAttemptDownloadMetrics(
@@ -148,6 +173,16 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
       total_duration.InMinutes());
   LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdateRebootCount,
                reboot_count);
+
+  android::util::stats_write(
+      android::util::UPDATE_ENGINE_SUCCESSFUL_UPDATE_REPORTED,
+      attempt_count,
+      GetStatsdEnumValue(static_cast<int32_t>(payload_type)),
+      payload_size_mib,
+      total_bytes_downloaded,
+      download_overhead_percentage,
+      total_duration.InMinutes(),
+      reboot_count);
 }
 
 void MetricsReporterAndroid::ReportAbnormallyTerminatedUpdateAttemptMetrics() {
