@@ -204,8 +204,14 @@ DynamicPartitionControlAndroid::LoadMetadataBuilder(
     const std::string& super_device,
     uint32_t source_slot,
     uint32_t target_slot) {
-  auto builder = MetadataBuilder::NewForUpdate(
-      PartitionOpener(), super_device, source_slot, target_slot);
+  std::unique_ptr<MetadataBuilder> builder;
+  if (target_slot == BootControlInterface::kInvalidSlot) {
+    builder =
+        MetadataBuilder::New(PartitionOpener(), super_device, source_slot);
+  } else {
+    builder = MetadataBuilder::NewForUpdate(
+        PartitionOpener(), super_device, source_slot, target_slot);
+  }
 
   if (builder == nullptr) {
     LOG(WARNING) << "No metadata slot "
