@@ -327,6 +327,25 @@ cleanup_on_exit() {
 trap cleanup_on_error INT TERM ERR
 trap cleanup_on_exit EXIT
 
+# extract_file <zip_file> <entry_name> <destination>
+#
+# Extracts |entry_name| from |zip_file| to |destination|.
+extract_file() {
+  local zip_file="$1"
+  local entry_name="$2"
+  local destination="$3"
+
+  # unzip -p won't report error upon ENOSPC. Therefore, create a temp directory
+  # as the destination of the unzip, and move the file to the intended
+  # destination.
+  local output_directory=$(
+    mktemp --directory --tmpdir="${FLAGS_work_dir}" "TEMP.XXXXXX")
+  unzip "${zip_file}" "${entry_name}" -d "${output_directory}" ||
+    { rm -rf "${output_directory}"; die "Failed to extract ${entry_name}"; }
+
+  mv "${output_directory}/${entry_name}" "${destination}"
+  rm -rf "${output_directory}"
+}
 
 # extract_image <image> <partitions_array> [partitions_order]
 #
@@ -417,7 +436,7 @@ extract_partition_brillo() {
     fi
   done
   [[ -n "${path_in_zip}" ]] || die "Failed to find ${part}.img"
-  unzip -p "${image}" "${path_in_zip}/${part}.img" >"${part_file}"
+  extract_file "${image}" "${path_in_zip}/${part}.img" "${part_file}"
 
   # If the partition is stored as an Android sparse image file, we need to
   # convert them to a raw image for the update.
@@ -431,8 +450,9 @@ extract_partition_brillo() {
   fi
 
   # Extract the .map file (if one is available).
-  unzip -p "${image}" "${path_in_zip}/${part}.map" >"${part_map_file}" \
-    2>/dev/null || true
+  if unzip -l "${image}" "${path_in_zip}/${part}.map" > /dev/null; then
+    extract_file "${image}" "${path_in_zip}/${part}.map" "${part_map_file}"
+  fi
 
   # delta_generator only supports images multiple of 4 KiB. For target images
   # we pad the data with zeros if needed, but for source images we truncate
@@ -466,7 +486,8 @@ extract_image_brillo() {
   local ab_partitions_list
   ab_partitions_list=$(create_tempfile "ab_partitions_list.XXXXXX")
   CLEANUP_FILES+=("${ab_partitions_list}")
-  if unzip -p "${image}" "META/ab_partitions.txt" >"${ab_partitions_list}"; then
+  if unzip -l "${image}" "META/ab_partitions.txt" > /dev/null; then
+    extract_file "${image}" "META/ab_partitions.txt" "${ab_partitions_list}"
     if grep -v -E '^[a-zA-Z0-9_-]*$' "${ab_partitions_list}" >&2; then
       die "Invalid partition names found in the partition list."
     fi
@@ -491,8 +512,9 @@ extract_image_brillo() {
     # Source image
     local ue_config=$(create_tempfile "ue_config.XXXXXX")
     CLEANUP_FILES+=("${ue_config}")
-    if ! unzip -p "${image}" "META/update_engine_config.txt" \
-        >"${ue_config}"; then
+    if unzip -l "${image}" "META/update_engine_config.txt" > /dev/null; then
+      extract_file "${image}" "META/update_engine_config.txt" "${ue_config}"
+    else
       warn "No update_engine_config.txt found. Assuming pre-release image, \
 using payload minor version 2"
     fi
@@ -513,14 +535,16 @@ Disabling deltas for this source version."
     # Target image
     local postinstall_config=$(create_tempfile "postinstall_config.XXXXXX")
     CLEANUP_FILES+=("${postinstall_config}")
-    if unzip -p "${image}" "META/postinstall_config.txt" \
-        >"${postinstall_config}"; then
+    if unzip -l "${image}" "META/postinstall_config.txt" > /dev/null; then
+      extract_file "${image}" "META/postinstall_config.txt" \
+        "${postinstall_config}"
       POSTINSTALL_CONFIG_FILE="${postinstall_config}"
     fi
     local dynamic_partitions_info=$(create_tempfile "dynamic_partitions_info.XXXXXX")
     CLEANUP_FILES+=("${dynamic_partitions_info}")
-    if unzip -p "${image}" "META/dynamic_partitions_info.txt" \
-        >"${dynamic_partitions_info}"; then
+    if unzip -l "${image}" "META/dynamic_partitions_info.txt" > /dev/null; then
+      extract_file "${image}" "META/dynamic_partitions_info.txt" \
+        "${dynamic_partitions_info}"
       DYNAMIC_PARTITION_INFO_FILE="${dynamic_partitions_info}"
     fi
   fi
