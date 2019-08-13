@@ -184,9 +184,6 @@ void ConnectionManagerTest::TestWithServiceDisconnected(
 TEST_F(ConnectionManagerTest, SimpleTest) {
   TestWithServiceType(shill::kTypeEthernet, nullptr, ConnectionType::kEthernet);
   TestWithServiceType(shill::kTypeWifi, nullptr, ConnectionType::kWifi);
-  TestWithServiceType(shill::kTypeWimax, nullptr, ConnectionType::kWimax);
-  TestWithServiceType(
-      shill::kTypeBluetooth, nullptr, ConnectionType::kBluetooth);
   TestWithServiceType(shill::kTypeCellular, nullptr, ConnectionType::kCellular);
 }
 
@@ -195,8 +192,6 @@ TEST_F(ConnectionManagerTest, PhysicalTechnologyTest) {
   TestWithServiceType(
       shill::kTypeVPN, shill::kTypeVPN, ConnectionType::kUnknown);
   TestWithServiceType(shill::kTypeVPN, shill::kTypeWifi, ConnectionType::kWifi);
-  TestWithServiceType(
-      shill::kTypeVPN, shill::kTypeWimax, ConnectionType::kWimax);
 }
 
 TEST_F(ConnectionManagerTest, TetheringTest) {
@@ -229,16 +224,6 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOverWifiTest) {
                                         ConnectionTethering::kUnknown));
 }
 
-TEST_F(ConnectionManagerTest, AllowUpdatesOverWimaxTest) {
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWimax,
-                                        ConnectionTethering::kUnknown));
-}
-
-TEST_F(ConnectionManagerTest, BlockUpdatesOverBluetoothTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kBluetooth,
-                                         ConnectionTethering::kUnknown));
-}
-
 TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
@@ -263,10 +248,9 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
 
   // This test tests multiple connection types being allowed, with
   // 3G one among them. Only Cellular is currently enforced by the policy
-  // setting, the others are ignored (see Bluetooth for example).
+  // setting.
   set<string> allowed_set;
   allowed_set.insert(StringForConnectionType(ConnectionType::kCellular));
-  allowed_set.insert(StringForConnectionType(ConnectionType::kBluetooth));
 
   EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(3)
@@ -280,10 +264,6 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
                                         ConnectionTethering::kUnknown));
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
                                         ConnectionTethering::kUnknown));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWimax,
-                                        ConnectionTethering::kUnknown));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kBluetooth,
-                                         ConnectionTethering::kUnknown));
 
   // Tethered networks are treated in the same way as Cellular networks and
   // thus allowed.
@@ -325,7 +305,6 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
   set<string> allowed_set;
   allowed_set.insert(StringForConnectionType(ConnectionType::kEthernet));
   allowed_set.insert(StringForConnectionType(ConnectionType::kWifi));
-  allowed_set.insert(StringForConnectionType(ConnectionType::kWimax));
 
   EXPECT_CALL(block_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
@@ -363,10 +342,6 @@ TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
                StringForConnectionType(ConnectionType::kEthernet));
   EXPECT_STREQ(shill::kTypeWifi,
                StringForConnectionType(ConnectionType::kWifi));
-  EXPECT_STREQ(shill::kTypeWimax,
-               StringForConnectionType(ConnectionType::kWimax));
-  EXPECT_STREQ(shill::kTypeBluetooth,
-               StringForConnectionType(ConnectionType::kBluetooth));
   EXPECT_STREQ(shill::kTypeCellular,
                StringForConnectionType(ConnectionType::kCellular));
   EXPECT_STREQ("Unknown", StringForConnectionType(ConnectionType::kUnknown));

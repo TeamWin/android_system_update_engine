@@ -41,12 +41,6 @@ TEST(MetricsUtilsTest, GetConnectionType) {
   EXPECT_EQ(
       metrics::ConnectionType::kWifi,
       GetConnectionType(ConnectionType::kWifi, ConnectionTethering::kUnknown));
-  EXPECT_EQ(
-      metrics::ConnectionType::kWimax,
-      GetConnectionType(ConnectionType::kWimax, ConnectionTethering::kUnknown));
-  EXPECT_EQ(metrics::ConnectionType::kBluetooth,
-            GetConnectionType(ConnectionType::kBluetooth,
-                              ConnectionTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kCellular,
             GetConnectionType(ConnectionType::kCellular,
                               ConnectionTethering::kUnknown));

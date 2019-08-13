@@ -344,14 +344,14 @@ TEST_F(UmRealDevicePolicyProviderTest, AllowedTypesConverted) {
 #else
       .Times(1)
 #endif  // USE_DBUS
-      .WillRepeatedly(DoAll(
-          SetArgPointee<0>(set<string>{"bluetooth", "wifi", "not-a-type"}),
-          Return(true)));
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(set<string>{"ethernet", "wifi", "not-a-type"}),
+                Return(true)));
   EXPECT_TRUE(provider_->Init());
   loop_.RunOnce(false);
 
   UmTestUtils::ExpectVariableHasValue(
-      set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kBluetooth},
+      set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kEthernet},
       provider_->var_allowed_connection_types_for_update());
 }
 

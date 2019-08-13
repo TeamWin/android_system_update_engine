@@ -457,7 +457,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
 // TODO(garnold) The current logic generally treats the list of allowed
 // connections coming from the device policy as a whitelist, meaning that it
 // can only be used for enabling connections, but not disable them. Further,
-// certain connection types (like Bluetooth) cannot be enabled even by policy.
+// certain connection types cannot be enabled even by policy.
 // In effect, the only thing that device policy can change is to enable
 // updates over a cellular network (disabled by default). We may want to
 // revisit this semantics, allowing greater flexibility in defining specific
@@ -488,10 +488,6 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(EvaluationContext* ec,
   *result = true;
   bool device_policy_can_override = false;
   switch (conn_type) {
-    case ConnectionType::kBluetooth:
-      *result = false;
-      break;
-
     case ConnectionType::kCellular:
       *result = false;
       device_policy_can_override = true;

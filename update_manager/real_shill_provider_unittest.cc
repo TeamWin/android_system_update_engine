@@ -51,8 +51,6 @@ namespace {
 // Fake service paths.
 const char* const kFakeEthernetServicePath = "/fake/ethernet/service";
 const char* const kFakeWifiServicePath = "/fake/wifi/service";
-const char* const kFakeWimaxServicePath = "/fake/wimax/service";
-const char* const kFakeBluetoothServicePath = "/fake/bluetooth/service";
 const char* const kFakeCellularServicePath = "/fake/cellular/service";
 const char* const kFakeVpnServicePath = "/fake/vpn/service";
 const char* const kFakeUnknownServicePath = "/fake/unknown/service";
@@ -315,21 +313,6 @@ TEST_F(UmRealShillProviderTest, ReadConnTypeWifi) {
   InitWithDefaultService("/");
   SetupConnectionAndTestType(
       kFakeWifiServicePath, shill::kTypeWifi, ConnectionType::kWifi);
-}
-
-// Test that Wimax connection is identified correctly.
-TEST_F(UmRealShillProviderTest, ReadConnTypeWimax) {
-  InitWithDefaultService("/");
-  SetupConnectionAndTestType(
-      kFakeWimaxServicePath, shill::kTypeWimax, ConnectionType::kWimax);
-}
-
-// Test that Bluetooth connection is identified correctly.
-TEST_F(UmRealShillProviderTest, ReadConnTypeBluetooth) {
-  InitWithDefaultService("/");
-  SetupConnectionAndTestType(kFakeBluetoothServicePath,
-                             shill::kTypeBluetooth,
-                             ConnectionType::kBluetooth);
 }
 
 // Test that Cellular connection is identified correctly.
