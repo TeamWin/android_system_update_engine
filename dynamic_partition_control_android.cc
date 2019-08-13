@@ -39,6 +39,7 @@ using android::base::Join;
 using android::dm::DeviceMapper;
 using android::dm::DmDeviceState;
 using android::fs_mgr::CreateLogicalPartition;
+using android::fs_mgr::CreateLogicalPartitionParams;
 using android::fs_mgr::DestroyLogicalPartition;
 using android::fs_mgr::MetadataBuilder;
 using android::fs_mgr::Partition;
@@ -86,12 +87,15 @@ bool DynamicPartitionControlAndroid::MapPartitionInternal(
     uint32_t slot,
     bool force_writable,
     std::string* path) {
-  if (!CreateLogicalPartition(super_device.c_str(),
-                              slot,
-                              target_partition_name,
-                              force_writable,
-                              std::chrono::milliseconds(kMapTimeoutMillis),
-                              path)) {
+  CreateLogicalPartitionParams params = {
+      .block_device = super_device,
+      .metadata_slot = slot,
+      .partition_name = target_partition_name,
+      .force_writable = force_writable,
+      .timeout_ms = std::chrono::milliseconds(kMapTimeoutMillis),
+  };
+
+  if (!CreateLogicalPartition(params, path)) {
     LOG(ERROR) << "Cannot map " << target_partition_name << " in "
                << super_device << " on device mapper.";
     return false;
