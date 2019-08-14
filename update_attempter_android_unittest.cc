@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <android-base/properties.h>
 #include <base/time/time.h>
@@ -55,6 +56,11 @@ class UpdateAttempterAndroidTest : public ::testing::Test {
 
   void SetUpdateStatus(update_engine::UpdateStatus status) {
     update_attempter_android_.status_ = status;
+  }
+
+  void AddPayload(InstallPlan::Payload&& payload) {
+    update_attempter_android_.install_plan_.payloads.push_back(
+        std::move(payload));
   }
 
   UpdateAttempterAndroid update_attempter_android_{
@@ -143,9 +149,13 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsOnUpdateTerminated) {
       .Times(1);
   EXPECT_CALL(*metrics_reporter_,
               ReportSuccessfulUpdateMetrics(
-                  2, 0, _, _, _, _, duration, duration_uptime, 3, _))
+                  2, 0, _, 50, _, _, duration, duration_uptime, 3, _))
       .Times(1);
 
+  // Adds a payload of 50 bytes to the InstallPlan.
+  InstallPlan::Payload payload;
+  payload.size = 50;
+  AddPayload(std::move(payload));
   SetUpdateStatus(UpdateStatus::UPDATE_AVAILABLE);
   update_attempter_android_.ProcessingDone(nullptr, ErrorCode::kSuccess);
 
@@ -179,14 +189,19 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsForBytesDownloaded) {
                   _,
                   _,
                   _,
-                  _,
+                  50,
                   test_utils::DownloadSourceMatcher(total_bytes),
-                  125,
+                  80,
                   _,
                   _,
                   _,
                   _))
       .Times(1);
+
+  // Adds a payload of 50 bytes to the InstallPlan.
+  InstallPlan::Payload payload;
+  payload.size = 50;
+  AddPayload(std::move(payload));
 
   // The first update fails after receiving 50 bytes in total.
   update_attempter_android_.BytesReceived(30, 50, 200);
@@ -199,7 +214,7 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsForBytesDownloaded) {
       metrics_utils::GetPersistedValue(kPrefsTotalBytesDownloaded, &prefs_));
 
   // The second update succeeds after receiving 40 bytes, which leads to a
-  // overhead of 50 / 40 = 125%.
+  // overhead of (90 - 50) / 50 = 80%.
   update_attempter_android_.BytesReceived(40, 40, 50);
   update_attempter_android_.ProcessingDone(nullptr, ErrorCode::kSuccess);
   // Both prefs should be cleared.
