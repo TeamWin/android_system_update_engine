@@ -39,6 +39,7 @@ using brillo::MessageLoop;
 using brillo::MessageLoopRunMaxIterations;
 using brillo::MessageLoopRunUntil;
 using chromeos_update_engine::FakeClock;
+using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 using testing::_;
@@ -59,14 +60,14 @@ bool GetBoolean(bool* value) {
 }
 
 template <typename T>
-void ReadVar(scoped_refptr<EvaluationContext> ec, Variable<T>* var) {
+void ReadVar(shared_ptr<EvaluationContext> ec, Variable<T>* var) {
   ec->GetValue(var);
 }
 
 // Runs |evaluation|; if the value pointed by |count_p| is greater than zero,
 // decrement it and schedule a reevaluation; otherwise, writes true to |done_p|.
 void EvaluateRepeatedly(Closure evaluation,
-                        scoped_refptr<EvaluationContext> ec,
+                        shared_ptr<EvaluationContext> ec,
                         int* count_p,
                         bool* done_p) {
   evaluation.Run();
@@ -92,11 +93,11 @@ class UmEvaluationContextTest : public ::testing::Test {
     fake_clock_.SetMonotonicTime(Time::FromTimeT(1240428300));
     // Mar 2, 2006 1:23:45 UTC.
     fake_clock_.SetWallclockTime(Time::FromTimeT(1141262625));
-    eval_ctx_ = new EvaluationContext(
+    eval_ctx_.reset(new EvaluationContext(
         &fake_clock_,
         default_timeout_,
         default_timeout_,
-        unique_ptr<base::Callback<void(EvaluationContext*)>>(nullptr));
+        unique_ptr<base::Callback<void(EvaluationContext*)>>(nullptr)));
   }
 
   void TearDown() override {
@@ -126,7 +127,7 @@ class UmEvaluationContextTest : public ::testing::Test {
 
   brillo::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
-  scoped_refptr<EvaluationContext> eval_ctx_;
+  shared_ptr<EvaluationContext> eval_ctx_;
 
   // FakeVariables used for testing the EvaluationContext. These are required
   // here to prevent them from going away *before* the EvaluationContext under

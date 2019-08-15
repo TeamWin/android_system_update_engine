@@ -47,7 +47,11 @@ void UpdateManager::AsyncPolicyRequestUpdateCheckAllowed(
 }
 
 void UpdateManager::UnregisterEvalContext(EvaluationContext* ec) {
-  if (!ec_repo_.erase(ec)) {
+  // Since |ec_repo_|'s compare function is based on the value of the raw
+  // pointer |ec|, we can just create a |shared_ptr| here and pass it along to
+  // be erased.
+  if (!ec_repo_.erase(
+          std::shared_ptr<EvaluationContext>(ec, [](EvaluationContext*) {}))) {
     LOG(ERROR) << "Unregistering an unknown evaluation context, this is a bug.";
   }
 }

@@ -22,7 +22,6 @@
 #include <string>
 
 #include <base/callback.h>
-#include <base/memory/ref_counted.h>
 #include <base/time/time.h>
 
 #include "update_engine/common/clock_interface.h"
@@ -32,15 +31,6 @@
 #include "update_engine/update_manager/state.h"
 
 namespace chromeos_update_manager {
-
-// Comparator for scoped_refptr objects.
-template <typename T>
-struct ScopedRefPtrLess {
-  bool operator()(const scoped_refptr<T>& first,
-                  const scoped_refptr<T>& second) const {
-    return first.get() < second.get();
-  }
-};
 
 // Please do not move this class into a new file for simplicity.
 // This pure virtual class is purely created for purpose of testing. The reason
@@ -152,7 +142,7 @@ class UpdateManager : public SpecializedPolicyRequestInterface {
   // the evaluation will be re-scheduled to be called later.
   template <typename R, typename... Args>
   void OnPolicyReadyToEvaluate(
-      scoped_refptr<EvaluationContext> ec,
+      std::shared_ptr<EvaluationContext> ec,
       base::Callback<void(EvalStatus status, const R& result)> callback,
       EvalStatus (Policy::*policy_method)(
           EvaluationContext*, State*, std::string*, R*, Args...) const,
@@ -186,9 +176,7 @@ class UpdateManager : public SpecializedPolicyRequestInterface {
   // destructed; alternatively, when the UpdateManager instance is destroyed, it
   // will remove all pending events associated with all outstanding contexts
   // (which should, in turn, trigger their destruction).
-  std::set<scoped_refptr<EvaluationContext>,
-           ScopedRefPtrLess<EvaluationContext>>
-      ec_repo_;
+  std::set<std::shared_ptr<EvaluationContext>> ec_repo_;
 
   base::WeakPtrFactory<UpdateManager> weak_ptr_factory_;
 
