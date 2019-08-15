@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_POLICY_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_POLICY_H_
 
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -309,6 +310,11 @@ class Policy {
  private:
   DISALLOW_COPY_AND_ASSIGN(Policy);
 };
+
+// Get system dependent (Chrome OS vs. Android) policy
+// implementation. Implementations can be found in chromeos_policy.cc and
+// android_things_policy.cc.
+std::unique_ptr<Policy> GetSystemPolicy();
 
 }  // namespace chromeos_update_manager
 

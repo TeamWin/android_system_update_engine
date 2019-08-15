@@ -17,6 +17,7 @@
 #include "update_engine/update_manager/chromeos_policy.h"
 
 #include <algorithm>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -48,6 +49,7 @@ using std::get;
 using std::min;
 using std::set;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace {
@@ -184,6 +186,10 @@ bool IsUrlUsable(const string& url, bool http_allowed) {
 }  // namespace
 
 namespace chromeos_update_manager {
+
+unique_ptr<Policy> GetSystemPolicy() {
+  return std::make_unique<ChromeOSPolicy>();
+}
 
 const NextUpdateCheckPolicyConstants
     ChromeOSPolicy::kNextUpdateCheckPolicyConstants = {
