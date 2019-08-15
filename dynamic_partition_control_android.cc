@@ -165,6 +165,9 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
 }
 
 void DynamicPartitionControlAndroid::CleanupInternal(bool wait) {
+  if (mapped_devices_.empty()) {
+    return;
+  }
   // UnmapPartitionOnDeviceMapper removes objects from mapped_devices_, hence
   // a copy is needed for the loop.
   std::set<std::string> mapped = mapped_devices_;
