@@ -413,18 +413,31 @@ bool UpdateEngineService::GetLastAttemptError(ErrorPtr* /* error */,
 }
 
 bool UpdateEngineService::GetEolStatus(ErrorPtr* error,
-                                       int32_t* out_eol_status) {
+                                       int32_t* out_eol_status,
+                                       int32_t* out_milestones_to_eol) {
   PrefsInterface* prefs = system_state_->prefs();
 
+  // Set EOL.
   string str_eol_status;
   if (prefs->Exists(kPrefsOmahaEolStatus) &&
       !prefs->GetString(kPrefsOmahaEolStatus, &str_eol_status)) {
     LogAndSetError(error, FROM_HERE, "Error getting the end-of-life status.");
     return false;
   }
-
-  // StringToEolStatus will return kSupported for invalid values.
+  // |StringToEolStatus()| will return |kSupported| for invalid values.
   *out_eol_status = static_cast<int32_t>(StringToEolStatus(str_eol_status));
+
+  // Set milestones to EOL.
+  string str_milestones_to_eol;
+  if (prefs->Exists(kPrefsOmahaMilestonesToEol) &&
+      !prefs->GetString(kPrefsOmahaMilestonesToEol, &str_milestones_to_eol)) {
+    LogAndSetError(error, FROM_HERE, "Error getting the milestones to EOL.");
+    return false;
+  }
+  // |StringToMilestonesToEol()| will return |kMilestonesToEolNone| for invalid
+  // values.
+  *out_milestones_to_eol = StringToMilestonesToEol(str_milestones_to_eol);
+
   return true;
 }
 

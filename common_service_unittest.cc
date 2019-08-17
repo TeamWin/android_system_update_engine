@@ -169,19 +169,90 @@ TEST_F(UpdateEngineServiceTest, ResetStatusFails) {
                                UpdateEngineService::kErrorFailed));
 }
 
-TEST_F(UpdateEngineServiceTest, GetEolStatusTest) {
+TEST_F(UpdateEngineServiceTest, GetEolStatusTestWithMilestonesDefault) {
   FakePrefs fake_prefs;
   fake_system_state_.set_prefs(&fake_prefs);
-  // The default value should be "supported".
+  // The default value for EOL be |kSupported| and milestone
+  // |kMilestonesToEolNone|.
   int32_t eol_status = static_cast<int32_t>(EolStatus::kEol);
-  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
+  MilestonesToEol milestones_to_eol = kMilestonesToEolNone;
+  EXPECT_TRUE(
+      common_service_.GetEolStatus(&error_, &eol_status, &milestones_to_eol));
   EXPECT_EQ(nullptr, error_);
   EXPECT_EQ(EolStatus::kSupported, static_cast<EolStatus>(eol_status));
+  EXPECT_EQ(kMilestonesToEolNone, milestones_to_eol);
+}
 
-  fake_prefs.SetString(kPrefsOmahaEolStatus, "security-only");
-  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
+TEST_F(UpdateEngineServiceTest, GetEolStatusMilestonesToEolNone) {
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  int32_t eol_status = static_cast<int32_t>(EolStatus::kEol);
+  MilestonesToEol milestones_to_eol = kMilestonesToEolNone;
+
+  // Device is supported and no milestones to EOL set.
+  fake_prefs.SetString(kPrefsOmahaEolStatus, kEolStatusSupported);
+  EXPECT_TRUE(
+      common_service_.GetEolStatus(&error_, &eol_status, &milestones_to_eol));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_EQ(EolStatus::kSupported, static_cast<EolStatus>(eol_status));
+  EXPECT_EQ(kMilestonesToEolNone, milestones_to_eol);
+
+  // Device is security only and no milestones to EOL set.
+  fake_prefs.SetString(kPrefsOmahaEolStatus, kEolStatusSecurityOnly);
+  EXPECT_TRUE(
+      common_service_.GetEolStatus(&error_, &eol_status, &milestones_to_eol));
   EXPECT_EQ(nullptr, error_);
   EXPECT_EQ(EolStatus::kSecurityOnly, static_cast<EolStatus>(eol_status));
+  EXPECT_EQ(kMilestonesToEolNone, milestones_to_eol);
+
+  // Device is EOL and no milestones to EOL set.
+  fake_prefs.SetString(kPrefsOmahaEolStatus, kEolStatusEol);
+  EXPECT_TRUE(
+      common_service_.GetEolStatus(&error_, &eol_status, &milestones_to_eol));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_EQ(EolStatus::kEol, static_cast<EolStatus>(eol_status));
+  EXPECT_EQ(kMilestonesToEolNone, milestones_to_eol);
+}
+
+TEST_F(UpdateEngineServiceTest, GetEolStatusMilestonesToEolTwo) {
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  int32_t eol_status = static_cast<int32_t>(EolStatus::kEol);
+  MilestonesToEol milestones_to_eol = kMilestonesToEolNone;
+
+  // Device is supported and milestones to EOL is n-2.
+  fake_prefs.SetString(kPrefsOmahaEolStatus, kEolStatusSupported);
+  fake_prefs.SetString(kPrefsOmahaMilestonesToEol, "2");
+  EXPECT_TRUE(
+      common_service_.GetEolStatus(&error_, &eol_status, &milestones_to_eol));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_EQ(EolStatus::kSupported, static_cast<EolStatus>(eol_status));
+  EXPECT_EQ(2, milestones_to_eol);
+
+  // Device is security only and milestones to EOL is n-2.
+  fake_prefs.SetString(kPrefsOmahaEolStatus, kEolStatusSecurityOnly);
+  fake_prefs.SetString(kPrefsOmahaMilestonesToEol, "2");
+  EXPECT_TRUE(
+      common_service_.GetEolStatus(&error_, &eol_status, &milestones_to_eol));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_EQ(EolStatus::kSecurityOnly, static_cast<EolStatus>(eol_status));
+  EXPECT_EQ(2, milestones_to_eol);
+}
+
+TEST_F(UpdateEngineServiceTest, GetEolStatusMilestonesToEolZero) {
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  int32_t eol_status = static_cast<int32_t>(EolStatus::kEol);
+  MilestonesToEol milestones_to_eol = kMilestonesToEolNone;
+
+  // Device is EOL and milestones to EOL is n.
+  fake_prefs.SetString(kPrefsOmahaEolStatus, kEolStatusEol);
+  fake_prefs.SetString(kPrefsOmahaMilestonesToEol, "0");
+  EXPECT_TRUE(
+      common_service_.GetEolStatus(&error_, &eol_status, &milestones_to_eol));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_EQ(EolStatus::kEol, static_cast<EolStatus>(eol_status));
+  EXPECT_EQ(0, milestones_to_eol);
 }
 
 }  // namespace chromeos_update_engine

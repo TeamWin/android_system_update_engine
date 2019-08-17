@@ -157,8 +157,13 @@ class DBusUpdateEngineService
   bool GetLastAttemptError(brillo::ErrorPtr* error,
                            int32_t* out_last_attempt_error) override;
 
-  // Returns the current end-of-life status of the device in |out_eol_status|.
-  bool GetEolStatus(brillo::ErrorPtr* error, int32_t* out_eol_status) override;
+  // Returns the current EOL status of the device in |out_eol_status| and the
+  // milestones to EOL of the device in |out_milestones_to_eol| for EOL devices.
+  // In the case that milestones to EOL doesn't exists for EOL, it will default
+  // to |kMilestonesToEolNone|.
+  bool GetEolStatus(brillo::ErrorPtr* error,
+                    int32_t* out_eol_status,
+                    int32_t* out_milestones_to_eol) override;
 
  private:
   std::unique_ptr<UpdateEngineService> common_;

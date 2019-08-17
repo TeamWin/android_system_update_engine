@@ -139,6 +139,7 @@
     </method>
     <method name="GetEolStatus">
       <arg type="i" name="eol_status" direction="out" />
+      <arg type="i" name="milestones_to_eol" direction="out" />
     </method>
   </interface>
 </node>

@@ -17,17 +17,15 @@
 #include "update_engine/omaha_utils.h"
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 
 namespace chromeos_update_engine {
 
-namespace {
-
-// The possible string values for the end-of-life status.
 const char kEolStatusSupported[] = "supported";
 const char kEolStatusSecurityOnly[] = "security-only";
 const char kEolStatusEol[] = "eol";
 
-}  // namespace
+const MilestonesToEol kMilestonesToEolNone = -1;
 
 const char* EolStatusToString(EolStatus eol_status) {
   switch (eol_status) {
@@ -50,8 +48,23 @@ EolStatus StringToEolStatus(const std::string& eol_status) {
     return EolStatus::kSecurityOnly;
   if (eol_status == kEolStatusEol)
     return EolStatus::kEol;
-  LOG(WARNING) << "Invalid end-of-life attribute: " << eol_status;
+  LOG(WARNING) << "Invalid EOL attribute: " << eol_status;
   return EolStatus::kSupported;
+}
+
+std::string MilestonesToEolToString(MilestonesToEol milestones_to_eol) {
+  return base::IntToString(milestones_to_eol);
+}
+
+MilestonesToEol StringToMilestonesToEol(const std::string& milestones_to_eol) {
+  MilestonesToEol milestone = kMilestonesToEolNone;
+  if (!base::StringToInt(milestones_to_eol, &milestone)) {
+    LOG(WARNING) << "Invalid milestones to EOL attribute: "
+                 << milestones_to_eol;
+    return kMilestonesToEolNone;
+  }
+
+  return milestone;
 }
 
 }  // namespace chromeos_update_engine

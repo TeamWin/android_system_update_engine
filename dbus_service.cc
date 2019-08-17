@@ -212,8 +212,9 @@ bool DBusUpdateEngineService::GetLastAttemptError(
 }
 
 bool DBusUpdateEngineService::GetEolStatus(ErrorPtr* error,
-                                           int32_t* out_eol_status) {
-  return common_->GetEolStatus(error, out_eol_status);
+                                           int32_t* out_eol_status,
+                                           int32_t* out_milestone_to_eol) {
+  return common_->GetEolStatus(error, out_eol_status, out_milestone_to_eol);
 }
 
 UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state)
