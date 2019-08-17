@@ -64,10 +64,10 @@ enum class DownloadErrorCode {
   // calling res_init() can recover.
   kUnresolvedHostRecovered = 97,
   // This error is reported when libcurl returns CURLE_COULDNT_RESOLVE_HOST.
-  kUnresolvedHost = 98,
+  kUnresolvedHostError = 98,
   // This error is reported when libcurl has an internal error that
   // update_engine can't recover from.
-  kInternalError = 99,
+  kInternalLibCurlError = 99,
 
   // This error code is used to convey that malformed input was given
   // to the utils::GetDownloadErrorCode() function. This should never

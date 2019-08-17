@@ -59,6 +59,12 @@ class HttpFetcher {
   HttpFetcherDelegate* delegate() const { return delegate_; }
   int http_response_code() const { return http_response_code_; }
 
+  // Returns additional error code that can't be expressed in terms of an HTTP
+  // response code. For example, if there was a specific internal error code in
+  // the objects used in the implementation of this class (like libcurl) that we
+  // are interested about, we can communicate it through this value.
+  ErrorCode GetAuxiliaryErrorCode() const { return auxiliary_error_code_; }
+
   // Optional: Post data to the server. The HttpFetcher should make a copy
   // of this data and upload it via HTTP POST during the transfer. The type of
   // the data is necessary for properly setting the Content-Type HTTP header.
@@ -159,6 +165,10 @@ class HttpFetcher {
   // set to the response code when the transfer is complete.
   int http_response_code_;
 
+  // Set when there is an error that can't be expressed in the form of
+  // |http_response_code_|.
+  ErrorCode auxiliary_error_code_{ErrorCode::kSuccess};
+
   // The delegate; may be null.
   HttpFetcherDelegate* delegate_;
 
@@ -209,13 +219,6 @@ class HttpFetcherDelegate {
   // situations. It's OK to destroy the |fetcher| object in this callback.
   virtual void TransferComplete(HttpFetcher* fetcher, bool successful) = 0;
   virtual void TransferTerminated(HttpFetcher* fetcher) {}
-
-  // This allows |HttpFetcher| to send UMA metrics for its internal states
-  // (unrecoverable libcurl internal error, etc.).
-  virtual void ReportUpdateCheckMetrics(
-      metrics::CheckResult result,
-      metrics::CheckReaction reaction,
-      metrics::DownloadErrorCode download_error_code) {}
 };
 
 }  // namespace chromeos_update_engine

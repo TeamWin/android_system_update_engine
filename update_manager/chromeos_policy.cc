@@ -151,6 +151,9 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kNoUpdate:
     case ErrorCode::kRollbackNotPossible:
     case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
+    case ErrorCode::kInternalLibCurlError:
+    case ErrorCode::kUnresolvedHostError:
+    case ErrorCode::kUnresolvedHostRecovered:
       LOG(INFO) << "Not changing URL index or failure count due to error "
                 << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";

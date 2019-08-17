@@ -19,10 +19,12 @@
 #include <string>
 
 #include <brillo/message_loops/fake_message_loop.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/mock_proxy_resolver.h"
+#include "update_engine/mock_libcurl_http_fetcher.h"
 
 using std::string;
 
@@ -42,7 +44,7 @@ class LibcurlHttpFetcherTest : public ::testing::Test {
 
   brillo::FakeMessageLoop loop_{nullptr};
   FakeHardware fake_hardware_;
-  LibcurlHttpFetcher libcurl_fetcher_{nullptr, &fake_hardware_};
+  MockLibcurlHttpFetcher libcurl_fetcher_{nullptr, &fake_hardware_};
   UnresolvedHostStateMachine state_machine_;
 };
 
@@ -83,7 +85,7 @@ TEST_F(LibcurlHttpFetcherTest, InvalidURLTest) {
   int no_network_max_retries = 1;
   libcurl_fetcher_.set_no_network_max_retries(no_network_max_retries);
 
-  libcurl_fetcher_.BeginTransfer("not-an-URL");
+  libcurl_fetcher_.BeginTransfer("not-a-URL");
   while (loop_.PendingTasks()) {
     loop_.RunOnce(true);
   }
@@ -92,8 +94,32 @@ TEST_F(LibcurlHttpFetcherTest, InvalidURLTest) {
             no_network_max_retries);
 }
 
-TEST_F(LibcurlHttpFetcherTest, CouldntResolveHostTest) {
+TEST_F(LibcurlHttpFetcherTest, CouldNotResolveHostTest) {
   int no_network_max_retries = 1;
+  libcurl_fetcher_.set_no_network_max_retries(no_network_max_retries);
+
+  libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
+
+  // The first time it can't resolve.
+  loop_.RunOnce(true);
+  EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
+            ErrorCode::kUnresolvedHostError);
+
+  while (loop_.PendingTasks()) {
+    loop_.RunOnce(true);
+  }
+  // The auxilary error code should've have been changed.
+  EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
+            ErrorCode::kUnresolvedHostError);
+
+  // If libcurl fails to resolve the name, we call res_init() to reload
+  // resolv.conf and retry exactly once more. See crbug.com/982813 for details.
+  EXPECT_EQ(libcurl_fetcher_.get_no_network_max_retries(),
+            no_network_max_retries + 1);
+}
+
+TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
+  int no_network_max_retries = 2;
   libcurl_fetcher_.set_no_network_max_retries(no_network_max_retries);
 
   // This test actually sends request to internet but according to
@@ -104,9 +130,33 @@ TEST_F(LibcurlHttpFetcherTest, CouldntResolveHostTest) {
   // TODO(xiaochu) Refactor LibcurlHttpFetcher (and its relates) so it's
   // easier to mock the part that depends on internet connectivity.
   libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
+
+  // The first time it can't resolve.
+  loop_.RunOnce(true);
+  EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
+            ErrorCode::kUnresolvedHostError);
+
+  // The second time, it will resolve, with error code 200 but we set the
+  // download size be smaller than the transfer size so it will retry again.
+  EXPECT_CALL(libcurl_fetcher_, GetHttpResponseCode())
+      .WillOnce(testing::Invoke(
+          [this]() { libcurl_fetcher_.http_response_code_ = 200; }))
+      .WillRepeatedly(testing::Invoke(
+          [this]() { libcurl_fetcher_.http_response_code_ = 0; }));
+  libcurl_fetcher_.transfer_size_ = 10;
+
+  // This time the host is resolved. But after that again we can't resolve
+  // anymore (See above).
+  loop_.RunOnce(true);
+  EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
+            ErrorCode::kUnresolvedHostRecovered);
+
   while (loop_.PendingTasks()) {
     loop_.RunOnce(true);
   }
+  // The auxilary error code should not have been changed.
+  EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
+            ErrorCode::kUnresolvedHostRecovered);
 
   // If libcurl fails to resolve the name, we call res_init() to reload
   // resolv.conf and retry exactly once more. See crbug.com/982813 for details.
@@ -117,21 +167,21 @@ TEST_F(LibcurlHttpFetcherTest, CouldntResolveHostTest) {
 TEST_F(LibcurlHttpFetcherTest, HttpFetcherStateMachineRetryFailedTest) {
   state_machine_.UpdateState(true);
   state_machine_.UpdateState(true);
-  EXPECT_EQ(state_machine_.getState(),
+  EXPECT_EQ(state_machine_.GetState(),
             UnresolvedHostStateMachine::State::kNotRetry);
 }
 
 TEST_F(LibcurlHttpFetcherTest, HttpFetcherStateMachineRetrySucceedTest) {
   state_machine_.UpdateState(true);
   state_machine_.UpdateState(false);
-  EXPECT_EQ(state_machine_.getState(),
+  EXPECT_EQ(state_machine_.GetState(),
             UnresolvedHostStateMachine::State::kRetriedSuccess);
 }
 
 TEST_F(LibcurlHttpFetcherTest, HttpFetcherStateMachineNoRetryTest) {
   state_machine_.UpdateState(false);
   state_machine_.UpdateState(false);
-  EXPECT_EQ(state_machine_.getState(),
+  EXPECT_EQ(state_machine_.GetState(),
             UnresolvedHostStateMachine::State::kInit);
 }
 

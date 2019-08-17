@@ -438,10 +438,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
   // In case of an update check, we send UMA metrics and log the error.
   if (is_update_check_ &&
       (retcode == CURLM_OUT_OF_MEMORY || retcode == CURLM_INTERNAL_ERROR)) {
-    delegate_->ReportUpdateCheckMetrics(
-        metrics::CheckResult::kUnset,
-        metrics::CheckReaction::kUnset,
-        metrics::DownloadErrorCode::kInternalError);
+    auxiliary_error_code_ = ErrorCode::kInternalLibCurlError;
     LOG(ERROR) << "curl_multi_perform is in an unrecoverable error condition: "
                << retcode;
   } else if (retcode != CURLM_OK) {
@@ -478,19 +475,14 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     if (curl_code == CURLE_COULDNT_RESOLVE_HOST) {
       LOG(ERROR) << "libcurl can not resolve host.";
       unresolved_host_state_machine_.UpdateState(true);
-      if (delegate_) {
-        delegate_->ReportUpdateCheckMetrics(
-            metrics::CheckResult::kUnset,
-            metrics::CheckReaction::kUnset,
-            metrics::DownloadErrorCode::kUnresolvedHost);
-      }
+      auxiliary_error_code_ = ErrorCode::kUnresolvedHostError;
     }
   }
 
   // we're done!
   CleanUp();
 
-  if (unresolved_host_state_machine_.getState() ==
+  if (unresolved_host_state_machine_.GetState() ==
       UnresolvedHostStateMachine::State::kRetry) {
     // Based on
     // https://curl.haxx.se/docs/todo.html#updated_DNS_server_while_running,
@@ -499,14 +491,9 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     no_network_max_retries_++;
     LOG(INFO) << "Will retry after reloading resolv.conf because last attempt "
                  "failed to resolve host.";
-  } else if (unresolved_host_state_machine_.getState() ==
+  } else if (unresolved_host_state_machine_.GetState() ==
              UnresolvedHostStateMachine::State::kRetriedSuccess) {
-    if (delegate_) {
-      delegate_->ReportUpdateCheckMetrics(
-          metrics::CheckResult::kUnset,
-          metrics::CheckReaction::kUnset,
-          metrics::DownloadErrorCode::kUnresolvedHostRecovered);
-    }
+    auxiliary_error_code_ = ErrorCode::kUnresolvedHostRecovered;
   }
 
   // TODO(petkov): This temporary code tries to deal with the case where the

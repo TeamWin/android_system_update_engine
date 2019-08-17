@@ -851,6 +851,17 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
     return;
   }
 
+  ErrorCode aux_error_code = fetcher->GetAuxiliaryErrorCode();
+  if (aux_error_code != ErrorCode::kSuccess) {
+    metrics::DownloadErrorCode download_error_code =
+        metrics_utils::GetDownloadErrorCode(aux_error_code);
+    system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
+        system_state_,
+        metrics::CheckResult::kUnset,
+        metrics::CheckReaction::kUnset,
+        download_error_code);
+  }
+
   if (!successful) {
     LOG(ERROR) << "Omaha request network transfer failed.";
     int code = GetHTTPResponseCode();
@@ -978,14 +989,6 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   } else {
     CompleteProcessing();
   }
-}
-
-void OmahaRequestAction::ReportUpdateCheckMetrics(
-    metrics::CheckResult result,
-    metrics::CheckReaction reaction,
-    metrics::DownloadErrorCode download_error_code) {
-  system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
-      system_state_, result, reaction, download_error_code);
 }
 
 void OmahaRequestAction::CompleteProcessing() {
@@ -1383,7 +1386,8 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
       break;
   }
 
-  ReportUpdateCheckMetrics(result, reaction, download_error_code);
+  system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
+      system_state_, result, reaction, download_error_code);
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,

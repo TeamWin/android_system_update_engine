@@ -50,7 +50,7 @@ class UnresolvedHostStateMachine {
     kNotRetry = 3,
   };
 
-  State getState() { return state_; }
+  State GetState() { return state_; }
 
   // Updates the following internal state machine:
   //
@@ -159,6 +159,8 @@ class LibcurlHttpFetcher : public HttpFetcher {
   }
 
  private:
+  FRIEND_TEST(LibcurlHttpFetcherTest, HostResolvedTest);
+
   // libcurl's CURLOPT_CLOSESOCKETFUNCTION callback function. Called when
   // closing a socket created with the CURLOPT_OPENSOCKETFUNCTION callback.
   static int LibcurlCloseSocketCallback(void* clientp, curl_socket_t item);
@@ -168,7 +170,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
   void ProxiesResolved();
 
   // Asks libcurl for the http response code and stores it in the object.
-  void GetHttpResponseCode();
+  virtual void GetHttpResponseCode();
 
   // Returns the last |CURLcode|.
   CURLcode GetCurlCode();
