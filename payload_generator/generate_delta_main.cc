@@ -421,6 +421,9 @@ int Main(int argc, char** argv) {
                 "",
                 "An info file specifying dynamic partition metadata. "
                 "Only allowed in major version 2 or newer.");
+  DEFINE_bool(disable_fec_computation,
+              false,
+              "Disables the fec data computation on device.");
 
   brillo::FlagHelper::Init(
       argc,
@@ -527,6 +530,8 @@ int Main(int argc, char** argv) {
         << "Partition name can't be empty, see --partition_names.";
     payload_config.target.partitions.emplace_back(partition_names[i]);
     payload_config.target.partitions.back().path = new_partitions[i];
+    payload_config.target.partitions.back().disable_fec_computation =
+        FLAGS_disable_fec_computation;
     if (i < new_mapfiles.size())
       payload_config.target.partitions.back().mapfile_path = new_mapfiles[i];
   }

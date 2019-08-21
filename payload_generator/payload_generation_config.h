@@ -116,6 +116,9 @@ struct PartitionConfig {
 
   PostInstallConfig postinstall;
   VerityConfig verity;
+
+  // Enables the on device fec data computation by default.
+  bool disable_fec_computation = false;
 };
 
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
