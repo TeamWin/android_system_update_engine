@@ -28,12 +28,16 @@
 #  check       verify a payload using paycheck (static testing)
 #
 #  Generate command arguments:
-#  --payload             generated unsigned payload output file
-#  --source_image        if defined, generate a delta payload from the specified
-#                        image to the target_image
-#  --target_image        the target image that should be sent to clients
-#  --metadata_size_file  if defined, generate a file containing the size of the
-#                        payload metadata in bytes to the specified file
+#  --payload                  generated unsigned payload output file
+#  --source_image             if defined, generate a delta payload from the
+#                             specified image to the target_image
+#  --target_image             the target image that should be sent to clients
+#  --metadata_size_file       if defined, generate a file containing the size
+#                             of the ayload metadata in bytes to the specified
+#                             file
+#  --disable_fec_computation  Disable the on device fec data computation for
+#                             incremental update. This feature is enabled by
+#                             default
 #
 #  Hash command arguments:
 #  --unsigned_payload    the input unsigned payload to generate the hash from
@@ -182,6 +186,9 @@ if [[ "${COMMAND}" == "generate" ]]; then
     "Optional: The maximum unix timestamp of the OS allowed to apply this \
 payload, should be set to a number higher than the build timestamp of the \
 system running on the device, 0 if not specified."
+  DEFINE_string disable_fec_computation "" \
+    "Optional: Disables the on device fec data computation for incremental \
+update. This feature is enabled by default."
 fi
 if [[ "${COMMAND}" == "hash" || "${COMMAND}" == "sign" ]]; then
   DEFINE_string unsigned_payload "" "Path to the input unsigned payload."
@@ -655,6 +662,10 @@ cmd_generate() {
     )
     if [[ -n "${FORCE_MINOR_VERSION}" ]]; then
       GENERATOR_ARGS+=( --minor_version="${FORCE_MINOR_VERSION}" )
+    fi
+    if [[ -n "${FLAGS_disable_fec_computation}" ]]; then
+      GENERATOR_ARGS+=(
+        --disable_fec_computation="${FLAGS_disable_fec_computation}" )
     fi
   fi
 
