@@ -750,11 +750,15 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
         total_bytes_downloaded;
 
     int download_overhead_percentage = 0;
-    if (current_bytes_downloaded > 0) {
+    if (total_bytes_downloaded >= payload_size) {
+      CHECK_GT(payload_size, 0);
       download_overhead_percentage =
-          (total_bytes_downloaded - current_bytes_downloaded) * 100ull /
-          current_bytes_downloaded;
+          (total_bytes_downloaded - payload_size) * 100ull / payload_size;
+    } else {
+      LOG(WARNING) << "Downloaded bytes " << total_bytes_downloaded
+                   << " is smaller than the payload size " << payload_size;
     }
+
     metrics_reporter_->ReportSuccessfulUpdateMetrics(
         static_cast<int>(attempt_number),
         0,  // update abandoned count
