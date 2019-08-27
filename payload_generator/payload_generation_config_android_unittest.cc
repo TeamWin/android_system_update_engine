@@ -160,6 +160,24 @@ TEST_F(PayloadGenerationConfigAndroidTest, LoadVerityConfigSimpleTest) {
   EXPECT_EQ(2u, verity.fec_roots);
 }
 
+TEST_F(PayloadGenerationConfigAndroidTest, LoadVerityConfigDisableFecTest) {
+  brillo::Blob part = GetAVBPartition();
+  test_utils::WriteFileVector(temp_file_.path(), part);
+  image_config_.partitions[0].disable_fec_computation = true;
+  EXPECT_TRUE(image_config_.LoadImageSize());
+  EXPECT_TRUE(image_config_.partitions[0].OpenFilesystem());
+  EXPECT_TRUE(image_config_.LoadVerityConfig());
+  const VerityConfig& verity = image_config_.partitions[0].verity;
+  EXPECT_FALSE(verity.IsEmpty());
+  EXPECT_EQ(ExtentForRange(0, 2), verity.hash_tree_data_extent);
+  EXPECT_EQ(ExtentForRange(2, 1), verity.hash_tree_extent);
+  EXPECT_EQ("sha1", verity.hash_tree_algorithm);
+  brillo::Blob salt(kHashTreeSalt, std::end(kHashTreeSalt));
+  EXPECT_EQ(salt, verity.hash_tree_salt);
+  EXPECT_EQ(0u, verity.fec_data_extent.num_blocks());
+  EXPECT_EQ(0u, verity.fec_extent.num_blocks());
+}
+
 TEST_F(PayloadGenerationConfigAndroidTest,
        LoadVerityConfigInvalidHashTreeTest) {
   brillo::Blob part = GetAVBPartition();
