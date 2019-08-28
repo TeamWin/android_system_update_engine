@@ -110,6 +110,7 @@ ue_libpayload_consumer_exported_static_libraries := \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto \
+    libselinux \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
 ue_libpayload_consumer_src_files := \

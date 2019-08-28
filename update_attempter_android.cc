@@ -29,6 +29,7 @@
 #include <brillo/data_encoding.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
+#include <cutils/sched_policy.h>
 #include <log/log_safetynet.h>
 #include <cutils/sched_policy.h>
 #include <log/log.h>
@@ -360,14 +361,17 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
                           "Failed to parse payload header: " +
                               utils::ErrorCodeToString(errorcode));
   }
-  metadata.resize(payload_metadata.GetMetadataSize() +
-                  payload_metadata.GetMetadataSignatureSize());
-  if (metadata.size() < kMaxPayloadHeaderSize) {
+  uint64_t metadata_size = payload_metadata.GetMetadataSize() +
+                           payload_metadata.GetMetadataSignatureSize();
+  if (metadata_size < kMaxPayloadHeaderSize ||
+      metadata_size >
+          static_cast<uint64_t>(utils::FileSize(metadata_filename))) {
     return LogAndSetError(
         error,
         FROM_HERE,
-        "Metadata size too small: " + std::to_string(metadata.size()));
+        "Invalid metadata size: " + std::to_string(metadata_size));
   }
+  metadata.resize(metadata_size);
   if (!fd->Read(metadata.data() + kMaxPayloadHeaderSize,
                 metadata.size() - kMaxPayloadHeaderSize)) {
     return LogAndSetError(
@@ -432,7 +436,7 @@ bool UpdateAttempterAndroid::SetPerformanceMode(bool enable,
 
   if (performance_mode_ == enable)
     return true;
-  if (set_cpuset_policy(0, enable ? SP_FOREGROUND : SP_BACKGROUND) < 0)
+  if (set_cpuset_policy(0, enable ? SP_TOP_APP : SP_BACKGROUND) < 0)
     return LogAndSetError(error, FROM_HERE, "Could not change policy");
   performance_mode_ = enable;
   return true;
@@ -825,6 +829,11 @@ void UpdateAttempterAndroid::UpdatePrefsAndReportUpdateMetricsOnReboot() {
   metrics_utils::LoadAndReportTimeToReboot(
       metrics_reporter_.get(), prefs_, clock_.get());
   ClearMetricsPrefs();
+
+  // Also reset the update progress if the build version has changed.
+  if (!DeltaPerformer::ResetUpdateProgress(prefs_, false)) {
+    LOG(WARNING) << "Unable to reset the update progress.";
+  }
 }
 
 // Save the update start time. Reset the reboot count and attempt number if the
