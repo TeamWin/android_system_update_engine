@@ -512,6 +512,14 @@ There are different methods to initiate an update:
     can do.
 *   Call `autest` in the crosh. Mainly used by the QA team and is not intended
     to be used by any other team.
+*   Use [`cros flash`]. It internally uses the update_engine to flash a device
+    with a given image.
+*   Run one of many auto update autotests.
+*   Start a [Dev Server] on your host machine and send a specific HTTP request
+    (look at `cros_au` API in the Dev Server code), that has the information
+    like the IP address of your Chromebook and where the update payloads are
+    located to the Dev Server to start an update on your device (**Warning:**
+    complicated to do, not recommended).
 
 `update_engine_client` is a client application that can help initiate an update
 or get more information about the status of the updater client. It has several
@@ -631,3 +639,4 @@ repo upload --cbr --no-verify .
 [`update_engine_client`]: /update_engine_client.cc
 [`brillo_update_payload`]: /scripts/brillo_update_payload
 [`check_update_payload`]: /scripts/paycheck.py
+[Dev Server]: https://chromium.googlesource.com/chromiumos/chromite/+/master/docs/devserver.md
