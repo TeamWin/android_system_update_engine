@@ -53,6 +53,8 @@ using PartitionMetadata = BootControlInterface::PartitionMetadata;
 constexpr char kUseDynamicPartitions[] = "ro.boot.dynamic_partitions";
 constexpr char kRetrfoitDynamicPartitions[] =
     "ro.boot.dynamic_partitions_retrofit";
+constexpr char kVirtualAbEnabled[] = "ro.virtual_ab.enabled";
+constexpr char kVirtualAbRetrofit[] = "ro.virtual_ab.retrofit";
 constexpr uint64_t kMapTimeoutMillis = 1000;
 
 DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
@@ -79,6 +81,10 @@ static FeatureFlag GetFeatureFlag(const char* enable_prop,
 
 FeatureFlag DynamicPartitionControlAndroid::GetDynamicPartitionsFeatureFlag() {
   return GetFeatureFlag(kUseDynamicPartitions, kRetrfoitDynamicPartitions);
+}
+
+FeatureFlag DynamicPartitionControlAndroid::GetVirtualAbFeatureFlag() {
+  return GetFeatureFlag(kVirtualAbEnabled, kVirtualAbRetrofit);
 }
 
 bool DynamicPartitionControlAndroid::MapPartitionInternal(
