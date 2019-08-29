@@ -2220,4 +2220,28 @@ TEST_F(UpdateAttempterTest, OnUpdatesScheduledSucceeded) {
   TestOnUpdateScheduled();
 }
 
+TEST_F(UpdateAttempterTest, IsEnterpriseRollbackInGetStatusDefault) {
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_FALSE(status.is_enterprise_rollback);
+}
+
+TEST_F(UpdateAttempterTest, IsEnterpriseRollbackInGetStatusFalse) {
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = false;
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_FALSE(status.is_enterprise_rollback);
+}
+
+TEST_F(UpdateAttempterTest, IsEnterpriseRollbackInGetStatusTrue) {
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = true;
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_TRUE(status.is_enterprise_rollback);
+}
+
 }  // namespace chromeos_update_engine

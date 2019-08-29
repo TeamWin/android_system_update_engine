@@ -33,6 +33,7 @@ namespace {
 // exactly these matches.
 const char kCurrentOp[] = "CURRENT_OP";
 const char kIsInstall[] = "IS_INSTALL";
+const char kIsEnterpriseRollback[] = "IS_ENTERPRISE_ROLLBACK";
 const char kLastCheckedTime[] = "LAST_CHECKED_TIME";
 const char kNewSize[] = "NEW_SIZE";
 const char kNewVersion[] = "NEW_VERSION";
@@ -88,6 +89,8 @@ string UpdateEngineStatusToString(const UpdateEngineStatus& status) {
 #endif
   key_value_store.SetString(kCurrentOp, UpdateStatusToString(status.status));
   key_value_store.SetString(kNewVersion, status.new_version);
+  key_value_store.SetBoolean(kIsEnterpriseRollback,
+                             status.is_enterprise_rollback);
   key_value_store.SetBoolean(kIsInstall, status.is_install);
 
   return key_value_store.SaveToString();

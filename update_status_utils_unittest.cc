@@ -24,22 +24,11 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-TEST(UpdateStatusUtilsTest, UpdateEngineStatusToStringDefaultTest) {
-  string print =
-      R"(CURRENT_OP=UPDATE_STATUS_IDLE
-IS_INSTALL=false
-LAST_CHECKED_TIME=0
-NEW_SIZE=0
-NEW_VERSION=
-PROGRESS=0.0
-)";
-  EXPECT_EQ(print, UpdateEngineStatusToString({}));
-}
-
 TEST(UpdateStatusUtilsTest, UpdateEngineStatusToStringTest) {
   update_engine::UpdateEngineStatus update_engine_status = {
       .status = update_engine::UpdateStatus::CHECKING_FOR_UPDATE,
       .is_install = true,
+      .is_enterprise_rollback = true,
       .last_checked_time = 156000000,
       .new_size_bytes = 888,
       .new_version = "12345.0.0",
@@ -47,6 +36,7 @@ TEST(UpdateStatusUtilsTest, UpdateEngineStatusToStringTest) {
   };
   string print =
       R"(CURRENT_OP=UPDATE_STATUS_CHECKING_FOR_UPDATE
+IS_ENTERPRISE_ROLLBACK=true
 IS_INSTALL=true
 LAST_CHECKED_TIME=156000000
 NEW_SIZE=888

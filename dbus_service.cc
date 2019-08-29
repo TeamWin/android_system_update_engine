@@ -47,6 +47,7 @@ void ConvertToStatusResult(const UpdateEngineStatus& ue_status,
   out_status->set_current_operation(static_cast<Operation>(ue_status.status));
   out_status->set_new_version(ue_status.new_version);
   out_status->set_new_size(ue_status.new_size_bytes);
+  out_status->set_is_enterprise_rollback(ue_status.is_enterprise_rollback);
   out_status->set_is_install(ue_status.is_install);
 }
 }  // namespace

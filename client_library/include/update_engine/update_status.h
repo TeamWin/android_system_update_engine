@@ -83,6 +83,9 @@ struct UpdateEngineStatus {
   uint64_t new_size_bytes;
   // New product version.
   std::string new_version;
+  // Wether the update is an enterprise rollback. The value is valid only if the
+  // current operation is passed CHECKING_FOR_UPDATE.
+  bool is_enterprise_rollback;
   // Indication of install for DLC(s).
   bool is_install;
 };
