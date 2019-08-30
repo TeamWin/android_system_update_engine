@@ -50,6 +50,9 @@ class DynamicPartitionControlInterface {
   //        NONE iff dynamic partitions is disabled on this device.
   virtual FeatureFlag GetDynamicPartitionsFeatureFlag() = 0;
 
+  // Return the feature flags of Virtual A/B on this device.
+  virtual FeatureFlag GetVirtualAbFeatureFlag() = 0;
+
   // Map logical partition on device-mapper.
   // |super_device| is the device path of the physical partition ("super").
   // |target_partition_name| is the identifier used in metadata; for example,
