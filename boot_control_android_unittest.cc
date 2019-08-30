@@ -62,6 +62,8 @@ class BootControlAndroidTest : public ::testing::Test {
 
     ON_CALL(dynamicControl(), GetDynamicPartitionsFeatureFlag())
         .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+    ON_CALL(dynamicControl(), GetVirtualAbFeatureFlag())
+        .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
     ON_CALL(dynamicControl(), DeviceExists(_)).WillByDefault(Return(true));
     ON_CALL(dynamicControl(), GetDeviceDir(_))
         .WillByDefault(Invoke([](auto path) {
