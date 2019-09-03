@@ -271,9 +271,8 @@ bool DBusUpdateEngineClient::GetLastAttemptError(
   return proxy_->GetLastAttemptError(last_attempt_error, nullptr);
 }
 
-bool DBusUpdateEngineClient::GetEolStatus(int32_t* eol_status,
-                                          int32_t* milestones_to_eol) const {
-  return proxy_->GetEolStatus(eol_status, milestones_to_eol, nullptr);
+bool DBusUpdateEngineClient::GetEolStatus(int32_t* eol_status) const {
+  return proxy_->GetEolStatus(eol_status, nullptr);
 }
 
 }  // namespace internal

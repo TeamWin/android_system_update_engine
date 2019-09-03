@@ -41,7 +41,6 @@
 
 using chromeos_update_engine::EolStatus;
 using chromeos_update_engine::ErrorCode;
-using chromeos_update_engine::MilestonesToEol;
 using chromeos_update_engine::UpdateEngineStatusToString;
 using chromeos_update_engine::UpdateStatusToString;
 using chromeos_update_engine::utils::ErrorCodeToString;
@@ -560,20 +559,12 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   if (FLAGS_eol_status) {
-    int eol_status, milestones_to_eol;
-    if (!client_->GetEolStatus(&eol_status, &milestones_to_eol)) {
-      LOG(ERROR) << "Error getting the end-of-life status and milestones to "
-                    "end-of-life.";
+    int eol_status;
+    if (!client_->GetEolStatus(&eol_status)) {
+      LOG(ERROR) << "Error getting the end-of-life status.";
     } else {
       EolStatus eol_status_code = static_cast<EolStatus>(eol_status);
-      MilestonesToEol milestones_to_eol_code = milestones_to_eol;
-      printf(
-          "EOL_STATUS=%s\n"
-          "MILESTONES_TO_EOL=%s\n",
-          EolStatusToString(eol_status_code),
-          chromeos_update_engine::MilestonesToEolToString(
-              milestones_to_eol_code)
-              .c_str());
+      printf("EOL_STATUS=%s\n", EolStatusToString(eol_status_code));
     }
   }
 

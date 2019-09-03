@@ -39,12 +39,4 @@ TEST(OmahaUtilsTest, EolStatusTest) {
   EXPECT_EQ(EolStatus::kSupported, StringToEolStatus("hello, world!"));
 }
 
-TEST(OmahaUtilsTest, MilestonesToEolTest) {
-  EXPECT_EQ(kMilestonesToEolNone, StringToMilestonesToEol(""));
-  EXPECT_EQ(kMilestonesToEolNone, StringToMilestonesToEol("not_a_number"));
-  EXPECT_EQ(1, StringToMilestonesToEol("1"));
-  EXPECT_EQ(0, StringToMilestonesToEol("0"));
-  EXPECT_EQ(-1, StringToMilestonesToEol("-1"));
-}
-
 }  // namespace chromeos_update_engine

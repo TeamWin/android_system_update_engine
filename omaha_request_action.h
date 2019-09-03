@@ -144,7 +144,6 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
               GetInstallDateWhenOOBECompletedWithValidDate);
   FRIEND_TEST(OmahaRequestActionTest,
               GetInstallDateWhenOOBECompletedDateChanges);
-  FRIEND_TEST(OmahaRequestActionTest, PersistEolStatusTest);
   friend class UpdateAttempterTest;
   FRIEND_TEST(UpdateAttempterTest, SessionIdTestEnforceEmptyStrPingOmaha);
   FRIEND_TEST(UpdateAttempterTest, SessionIdTestConsistencyInUpdateFlow);
@@ -189,9 +188,8 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool PersistCohortData(const std::string& prefs_key,
                          const std::string& new_value);
 
-  // Parse and persist the end-of-life status flag and milestones to EOL sent
-  // back in the updatecheck tag attributes. The flag will be validated and
-  // stored in the Prefs.
+  // Parse and persist the end-of-life status flag sent back in the updatecheck
+  // tag attributes. The flag will be validated and stored in the Prefs.
   bool PersistEolStatus(const std::map<std::string, std::string>& attrs);
 
   // If this is an update check request, initializes

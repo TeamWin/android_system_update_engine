@@ -109,7 +109,6 @@ constexpr char kValNoUpdate[] = "noupdate";
 
 // updatecheck attributes (without the underscore prefix).
 constexpr char kAttrEol[] = "eol";
-constexpr char kAttrMilestonesToEol[] = "milestones_to_eol";
 constexpr char kAttrRollback[] = "rollback";
 constexpr char kAttrFirmwareVersion[] = "firmware_version";
 constexpr char kAttrKernelVersion[] = "kernel_version";
@@ -1316,28 +1315,13 @@ bool OmahaRequestAction::PersistCohortData(const string& prefs_key,
 
 bool OmahaRequestAction::PersistEolStatus(const map<string, string>& attrs) {
   auto eol_attr = attrs.find(kAttrEol);
-  auto milestones_to_eol_attr = attrs.find(kAttrMilestonesToEol);
-
-  bool ret = true;
-  if (milestones_to_eol_attr == attrs.end()) {
-    system_state_->prefs()->Delete(kPrefsOmahaMilestonesToEol);
-    if (eol_attr != attrs.end()) {
-      LOG(WARNING) << "Milestones to EOL missing when EOL.";
-    }
-  } else if (!system_state_->prefs()->SetString(
-                 kPrefsOmahaMilestonesToEol, milestones_to_eol_attr->second)) {
-    LOG(ERROR) << "Setting milestones to EOL failed.";
-    ret = false;
+  if (eol_attr != attrs.end()) {
+    return system_state_->prefs()->SetString(kPrefsOmahaEolStatus,
+                                             eol_attr->second);
+  } else if (system_state_->prefs()->Exists(kPrefsOmahaEolStatus)) {
+    return system_state_->prefs()->Delete(kPrefsOmahaEolStatus);
   }
-
-  if (eol_attr == attrs.end()) {
-    system_state_->prefs()->Delete(kPrefsOmahaEolStatus);
-  } else if (!system_state_->prefs()->SetString(kPrefsOmahaEolStatus,
-                                                eol_attr->second)) {
-    LOG(ERROR) << "Setting EOL failed.";
-    ret = false;
-  }
-  return ret;
+  return true;
 }
 
 void OmahaRequestAction::ActionCompleted(ErrorCode code) {

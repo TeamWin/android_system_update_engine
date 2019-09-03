@@ -153,12 +153,9 @@ class UpdateEngineService {
   bool GetLastAttemptError(brillo::ErrorPtr* error,
                            int32_t* out_last_attempt_error);
 
-  // Returns the current EOL status of the device and the milestones to
-  // EOL if marked EOL. The values are updated on every update check and
-  // persisted on disk across reboots.
-  bool GetEolStatus(brillo::ErrorPtr* error,
-                    int32_t* out_eol_status,
-                    int32_t* out_milestones_to_eol);
+  // Returns the current end-of-life status of the device. This value is updated
+  // on every update check and persisted on disk across reboots.
+  bool GetEolStatus(brillo::ErrorPtr* error, int32_t* out_eol_status);
 
  private:
   SystemState* system_state_;

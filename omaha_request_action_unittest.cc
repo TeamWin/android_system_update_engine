@@ -2012,65 +2012,6 @@ TEST_F(OmahaRequestActionTest, ParseUpdateCheckAttributesTest) {
   EXPECT_EQ("security-only", eol_pref);
 }
 
-TEST_F(OmahaRequestActionTest, ParseUpdateCheckAttributesEolTest) {
-  tuc_params_.http_response =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
-      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
-      "_eol=\"eol\" _milestones_to_eol=\"0\" _foo=\"bar\"/></app></response>";
-  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
-  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
-
-  ASSERT_TRUE(TestUpdateCheck());
-
-  string eol_pref, milestones_to_eol_pref;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol_pref));
-  EXPECT_EQ("eol", eol_pref);
-  EXPECT_TRUE(fake_system_state_.prefs()->GetString(kPrefsOmahaMilestonesToEol,
-                                                    &milestones_to_eol_pref));
-  EXPECT_EQ("0", milestones_to_eol_pref);
-}
-
-TEST_F(OmahaRequestActionTest,
-       ParseUpdateCheckAttributesMissingMilestonesToEolTest) {
-  tuc_params_.http_response =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
-      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
-      "_eol=\"eol\"/></app></response>";
-  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
-  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
-
-  ASSERT_TRUE(TestUpdateCheck());
-
-  string eol_pref, milestones_to_eol_pref;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol_pref));
-  EXPECT_EQ("eol", eol_pref);
-  EXPECT_FALSE(fake_system_state_.prefs()->Exists(kPrefsOmahaMilestonesToEol));
-}
-
-TEST_F(OmahaRequestActionTest, ParseUpdateCheckAttributesMilestonesToEolTest) {
-  tuc_params_.http_response =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
-      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
-      "_eol=\"supported\" _milestones_to_eol=\"3\"/></app></response>";
-  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
-  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
-
-  ASSERT_TRUE(TestUpdateCheck());
-
-  string eol_pref, milestones_to_eol_pref;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol_pref));
-  EXPECT_EQ("supported", eol_pref);
-  EXPECT_TRUE(fake_system_state_.prefs()->GetString(kPrefsOmahaMilestonesToEol,
-                                                    &milestones_to_eol_pref));
-  EXPECT_EQ("3", milestones_to_eol_pref);
-}
-
 TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {
   tuc_params_.http_response = "invalid xml>";
   tuc_params_.expected_code = ErrorCode::kOmahaRequestXMLParseError;
