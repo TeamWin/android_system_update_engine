@@ -49,6 +49,7 @@ void ConvertToStatusResult(const UpdateEngineStatus& ue_status,
   out_status->set_new_size(ue_status.new_size_bytes);
   out_status->set_is_enterprise_rollback(ue_status.is_enterprise_rollback);
   out_status->set_is_install(ue_status.is_install);
+  out_status->set_eol_date(ue_status.eol_date);
 }
 }  // namespace
 

@@ -54,6 +54,7 @@
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
+#include "update_engine/omaha_utils.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
@@ -1385,6 +1386,11 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   out_status->is_enterprise_rollback =
       install_plan_ && install_plan_->is_rollback;
   out_status->is_install = is_install_;
+
+  string str_eol_date;
+  system_state_->prefs()->GetString(kPrefsOmahaEolDate, &str_eol_date);
+  out_status->eol_date = StringToEolDate(str_eol_date);
+
   return true;
 }
 

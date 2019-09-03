@@ -56,6 +56,7 @@ void ConvertToUpdateEngineStatus(const StatusResult& status,
   out_status->status = static_cast<UpdateStatus>(status.current_operation());
   out_status->is_enterprise_rollback = status.is_enterprise_rollback();
   out_status->is_install = status.is_install();
+  out_status->eol_date = status.eol_date();
 }
 }  // namespace
 

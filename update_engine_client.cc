@@ -42,6 +42,8 @@
 #include "update_engine/update_status_utils.h"
 
 using brillo::KeyValueStore;
+using chromeos_update_engine::EolDate;
+using chromeos_update_engine::EolDateToString;
 using chromeos_update_engine::EolStatus;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::UpdateEngineStatusToString;
@@ -569,16 +571,14 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   if (FLAGS_eol_status) {
-    int eol_status;
-    if (!client_->GetEolStatus(&eol_status)) {
-      LOG(ERROR) << "Error getting the end-of-life status.";
+    UpdateEngineStatus status;
+    if (!client_->GetStatus(&status)) {
+      LOG(ERROR) << "Error GetStatus() for getting EOL info.";
     } else {
-      EolStatus eol_status_code = static_cast<EolStatus>(eol_status);
+      EolDate eol_date_code = status.eol_date;
 
       KeyValueStore eol_status_store;
-      eol_status_store.SetString("EOL_STATUS",
-                                 EolStatusToString(eol_status_code));
-
+      eol_status_store.SetString("EOL_DATE", EolDateToString(eol_date_code));
       printf("%s", eol_status_store.SaveToString().c_str());
     }
   }

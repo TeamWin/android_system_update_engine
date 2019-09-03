@@ -17,17 +17,15 @@
 #include "update_engine/omaha_utils.h"
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 
 namespace chromeos_update_engine {
 
-namespace {
-
-// The possible string values for the end-of-life status.
 const char kEolStatusSupported[] = "supported";
 const char kEolStatusSecurityOnly[] = "security-only";
 const char kEolStatusEol[] = "eol";
 
-}  // namespace
+const EolDate kEolDateInvalid = -9999;
 
 const char* EolStatusToString(EolStatus eol_status) {
   switch (eol_status) {
@@ -52,6 +50,23 @@ EolStatus StringToEolStatus(const std::string& eol_status) {
     return EolStatus::kEol;
   LOG(WARNING) << "Invalid end-of-life attribute: " << eol_status;
   return EolStatus::kSupported;
+}
+
+std::string EolDateToString(EolDate eol_date) {
+#if BASE_VER < 576279
+  return base::Int64ToString(eol_date);
+#else
+  return base::NumberToString(eol_date);
+#endif
+}
+
+EolDate StringToEolDate(const std::string& eol_date) {
+  EolDate date = kEolDateInvalid;
+  if (!base::StringToInt64(eol_date, &date)) {
+    LOG(WARNING) << "Invalid EOL date attribute: " << eol_date;
+    return kEolDateInvalid;
+  }
+  return date;
 }
 
 }  // namespace chromeos_update_engine

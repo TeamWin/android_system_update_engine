@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 
+#include <limits>
 #include <memory>
 #include <unordered_set>
 
@@ -48,6 +49,7 @@
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/mock_service_observer.h"
+#include "update_engine/omaha_utils.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/payload_constants.h"
@@ -2242,6 +2244,38 @@ TEST_F(UpdateAttempterTest, IsEnterpriseRollbackInGetStatusTrue) {
   UpdateEngineStatus status;
   attempter_.GetStatus(&status);
   EXPECT_TRUE(status.is_enterprise_rollback);
+}
+
+TEST_F(UpdateAttempterTest, FutureEolTest) {
+  EolDate eol_date = std::numeric_limits<int64_t>::max();
+  EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
+      .WillOnce(
+          DoAll(SetArgPointee<1>(EolDateToString(eol_date)), Return(true)));
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_EQ(eol_date, status.eol_date);
+}
+
+TEST_F(UpdateAttempterTest, PastEolTest) {
+  EolDate eol_date = 1;
+  EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
+      .WillOnce(
+          DoAll(SetArgPointee<1>(EolDateToString(eol_date)), Return(true)));
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_EQ(eol_date, status.eol_date);
+}
+
+TEST_F(UpdateAttempterTest, FailedEolTest) {
+  EolDate eol_date = kEolDateInvalid;
+  EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
+      .WillOnce(Return(false));
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_EQ(eol_date, status.eol_date);
 }
 
 }  // namespace chromeos_update_engine

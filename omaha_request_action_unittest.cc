@@ -53,6 +53,7 @@
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_request_builder_xml.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/omaha_utils.h"
 #include "update_engine/update_manager/rollback_prefs.h"
 
 using base::Time;
@@ -2807,6 +2808,67 @@ TEST_F(OmahaRequestActionTest, NoIncludeRequisitionTest) {
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   ASSERT_TRUE(TestUpdateCheck());
   EXPECT_EQ(string::npos, post_str.find("requisition"));
+}
+
+TEST_F(OmahaRequestActionTest, PersistEolDatesTest) {
+  tuc_params_.http_response =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
+      "_eol=\"supported\" _eol_date=\"200\" "
+      "_foo=\"bar\"/></app></response>";
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  string eol, eol_date;
+  EXPECT_TRUE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol));
+  EXPECT_EQ(kEolStatusSupported, eol);
+  EXPECT_TRUE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+  EXPECT_EQ("200", eol_date);
+}
+
+TEST_F(OmahaRequestActionTest, PersistEolMissingDatesTest) {
+  tuc_params_.http_response =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
+      "_eol=\"supported\" _foo=\"bar\"/></app></response>";
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  string eol, eol_date;
+  EXPECT_TRUE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol));
+  EXPECT_EQ(kEolStatusSupported, eol);
+  EXPECT_FALSE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+}
+
+TEST_F(OmahaRequestActionTest, PersistEolBadDatesTest) {
+  tuc_params_.http_response =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
+      "_eol=\"supported\" _eol_date=\"bad\" "
+      "foo=\"bar\"/></app></response>";
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  string eol, eol_date;
+  EXPECT_TRUE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol));
+  EXPECT_EQ(kEolStatusSupported, eol);
+  EXPECT_TRUE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+  EXPECT_EQ(kEolDateInvalid, StringToEolDate(eol_date));
 }
 
 }  // namespace chromeos_update_engine

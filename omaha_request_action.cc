@@ -109,6 +109,7 @@ constexpr char kValNoUpdate[] = "noupdate";
 
 // updatecheck attributes (without the underscore prefix).
 constexpr char kAttrEol[] = "eol";
+constexpr char kAttrEolDate[] = "eol_date";
 constexpr char kAttrRollback[] = "rollback";
 constexpr char kAttrFirmwareVersion[] = "firmware_version";
 constexpr char kAttrKernelVersion[] = "kernel_version";
@@ -1317,14 +1318,29 @@ bool OmahaRequestAction::PersistCohortData(const string& prefs_key,
 }
 
 bool OmahaRequestAction::PersistEolStatus(const map<string, string>& attrs) {
-  auto eol_attr = attrs.find(kAttrEol);
-  if (eol_attr != attrs.end()) {
-    return system_state_->prefs()->SetString(kPrefsOmahaEolStatus,
-                                             eol_attr->second);
-  } else if (system_state_->prefs()->Exists(kPrefsOmahaEolStatus)) {
-    return system_state_->prefs()->Delete(kPrefsOmahaEolStatus);
+  bool ret = true;
+
+  // Set EOL date.
+  auto eol_date_attr = attrs.find(kAttrEolDate);
+  if (eol_date_attr == attrs.end()) {
+    system_state_->prefs()->Delete(kPrefsOmahaEolDate);
+  } else if (!system_state_->prefs()->SetString(kPrefsOmahaEolDate,
+                                                eol_date_attr->second)) {
+    LOG(ERROR) << "Setting EOL date failed.";
+    ret = false;
   }
-  return true;
+
+  // Set EOL.
+  auto eol_attr = attrs.find(kAttrEol);
+  if (eol_attr == attrs.end()) {
+    system_state_->prefs()->Delete(kPrefsOmahaEolStatus);
+  } else if (!system_state_->prefs()->SetString(kPrefsOmahaEolStatus,
+                                                eol_attr->second)) {
+    LOG(ERROR) << "Setting EOL status failed.";
+    ret = false;
+  }
+
+  return ret;
 }
 
 void OmahaRequestAction::ActionCompleted(ErrorCode code) {

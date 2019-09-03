@@ -39,4 +39,17 @@ TEST(OmahaUtilsTest, EolStatusTest) {
   EXPECT_EQ(EolStatus::kSupported, StringToEolStatus("hello, world!"));
 }
 
+TEST(OmahaUtilsTest, EolDateTest) {
+  // Supported values are converted back and forth properly.
+  const std::vector<EolDate> tests = {kEolDateInvalid, -1, 0, 1};
+  for (EolDate eol_date : tests) {
+    EXPECT_EQ(eol_date, StringToEolDate(EolDateToString(eol_date)))
+        << "The StringToEolDate() was " << EolDateToString(eol_date);
+  }
+
+  // Invalid values are assumed as "supported".
+  EXPECT_EQ(kEolDateInvalid, StringToEolDate(""));
+  EXPECT_EQ(kEolDateInvalid, StringToEolDate("hello, world!"));
+}
+
 }  // namespace chromeos_update_engine

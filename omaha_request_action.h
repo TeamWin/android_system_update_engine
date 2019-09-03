@@ -184,7 +184,9 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                          const std::string& new_value);
 
   // Parse and persist the end-of-life status flag sent back in the updatecheck
-  // tag attributes. The flag will be validated and stored in the Prefs.
+  // tag attributes. In addition, the optional end-of-life date flag will also
+  // be parsed and persisted. The flags will be validated and stored in the
+  // Prefs.
   bool PersistEolStatus(const std::map<std::string, std::string>& attrs);
 
   // If this is an update check request, initializes

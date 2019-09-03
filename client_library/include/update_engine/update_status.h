@@ -88,6 +88,8 @@ struct UpdateEngineStatus {
   bool is_enterprise_rollback;
   // Indication of install for DLC(s).
   bool is_install;
+  // The end-of-life date of the device in the number of days since Unix Epoch.
+  int64_t eol_date;
 };
 
 }  // namespace update_engine

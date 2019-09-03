@@ -56,6 +56,7 @@ extern const char kPrefsNumResponsesSeen[];
 extern const char kPrefsOmahaCohort[];
 extern const char kPrefsOmahaCohortHint[];
 extern const char kPrefsOmahaCohortName[];
+extern const char kPrefsOmahaEolDate[];
 extern const char kPrefsOmahaEolStatus[];
 extern const char kPrefsP2PEnabled[];
 extern const char kPrefsP2PFirstAttemptTimestamp[];
