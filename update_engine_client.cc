@@ -26,10 +26,12 @@
 #include <base/command_line.h>
 #include <base/logging.h>
 #include <base/macros.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <base/threading/platform_thread.h>
 #include <brillo/daemons/daemon.h>
 #include <brillo/flag_helper.h>
+#include <brillo/key_value_store.h>
 
 #include "update_engine/client.h"
 #include "update_engine/common/error_code.h"
@@ -39,6 +41,7 @@
 #include "update_engine/update_status.h"
 #include "update_engine/update_status_utils.h"
 
+using brillo::KeyValueStore;
 using chromeos_update_engine::EolStatus;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::UpdateEngineStatusToString;
@@ -550,11 +553,18 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(ERROR) << "Error getting last attempt error.";
     } else {
       ErrorCode code = static_cast<ErrorCode>(last_attempt_error);
-      printf(
-          "ERROR_CODE=%i\n"
-          "ERROR_MESSAGE=%s\n",
-          last_attempt_error,
-          ErrorCodeToString(code).c_str());
+
+      KeyValueStore last_attempt_error_store;
+#if BASE_VER < 576279
+      last_attempt_error_store.SetString(
+          "ERROR_CODE", base::Int64ToString(last_attempt_error));
+#else
+      last_attempt_error_store.SetString(
+          "ERROR_CODE", base::NumberToString(last_attempt_error));
+#endif
+      last_attempt_error_store.SetString("ERROR_MESSAGE",
+                                         ErrorCodeToString(code));
+      printf("%s", last_attempt_error_store.SaveToString().c_str());
     }
   }
 
@@ -564,7 +574,12 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(ERROR) << "Error getting the end-of-life status.";
     } else {
       EolStatus eol_status_code = static_cast<EolStatus>(eol_status);
-      printf("EOL_STATUS=%s\n", EolStatusToString(eol_status_code));
+
+      KeyValueStore eol_status_store;
+      eol_status_store.SetString("EOL_STATUS",
+                                 EolStatusToString(eol_status_code));
+
+      printf("%s", eol_status_store.SaveToString().c_str());
     }
   }
 
