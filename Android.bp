@@ -740,3 +740,12 @@ cc_prebuilt_binary {
         },
     },
 }
+
+// AIDL interface between libupdate_engine and the Things jar.
+filegroup {
+    name: "things_update_engine_aidl",
+    srcs: [
+        "binder_bindings/android/brillo/IUpdateEngine.aidl",
+        "binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl",
+    ],
+}
