@@ -142,7 +142,14 @@ class PostinstallRunnerActionTest : public ::testing::Test {
           base::TimeDelta::FromMilliseconds(10));
     } else {
       CHECK(processor_);
-      processor_->StopProcessing();
+      // Must |PostDelayedTask()| here to be safe that |FileDescriptorWatcher|
+      // doesn't leak memory, do not directly call |StopProcessing()|.
+      loop_.PostDelayedTask(
+          FROM_HERE,
+          base::Bind(
+              [](ActionProcessor* processor) { processor->StopProcessing(); },
+              base::Unretained(processor_)),
+          base::TimeDelta::FromMilliseconds(100));
     }
   }
 
