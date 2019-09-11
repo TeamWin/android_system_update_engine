@@ -195,7 +195,6 @@ cc_defaults {
     shared_libs: [
         "libbootloader_message",
         "libfs_mgr",
-        "libhwbinder",
         "libhidlbase",
         "liblp",
         "libutils",
@@ -363,7 +362,6 @@ cc_binary {
         recovery: {
             exclude_shared_libs: [
                 "libprotobuf-cpp-lite",
-                "libhwbinder",
                 "libbrillo-stream",
                 "libbrillo",
                 "libchrome",
@@ -638,9 +636,6 @@ cc_test {
         "libgmock",
         "libchrome_test_helpers",
         "libupdate_engine_android",
-    ],
-    shared_libs: [
-        "libhidltransport",
     ],
 
     data: [
