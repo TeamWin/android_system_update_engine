@@ -30,6 +30,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <liblp/builder.h>
+#include <storage_literals/storage_literals.h>
 
 #include "update_engine/common/boot_control_interface.h"
 
@@ -41,6 +42,7 @@ using testing::MakeMatcher;
 using testing::Matcher;
 using testing::MatcherInterface;
 using testing::MatchResultListener;
+using namespace android::storage_literals;  // NOLINT(build/namespaces)
 
 constexpr const uint32_t kMaxNumSlots = 2;
 constexpr const char* kSlotSuffixes[kMaxNumSlots] = {"_a", "_b"};
@@ -58,17 +60,6 @@ using PartitionSizes = std::map<std::string, uint64_t>;
 using PartitionSuffixSizes = std::map<std::string, uint64_t>;
 
 using PartitionMetadata = BootControlInterface::PartitionMetadata;
-
-// C++ standards do not allow uint64_t (aka unsigned long) to be the parameter
-// of user-defined literal operators.
-// clang-format off
-inline constexpr unsigned long long operator"" _MiB(unsigned long long x) {  // NOLINT
-  return x << 20;
-}
-inline constexpr unsigned long long operator"" _GiB(unsigned long long x) {  // NOLINT
-  return x << 30;
-}
-// clang-format on
 
 constexpr uint64_t kDefaultGroupSize = 5_GiB;
 // Super device size. 1 MiB for metadata.
