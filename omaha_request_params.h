@@ -387,7 +387,7 @@ class OmahaRequestParams {
 
   // Token used when making an update request for a specific build.
   // For example: Token for a Quick Fix Build:
-  // https://www.chromium.org/administrators/policy-list-3#DeviceQuickFixBuildToken.
+  // https://cloud.google.com/docs/chrome-enterprise/policies/?policy=DeviceQuickFixBuildToken
   std::string autoupdate_token_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestParams);
