@@ -638,6 +638,10 @@ cc_test {
         "libupdate_engine_android",
     ],
 
+    header_libs: [
+        "libstorage_literals_headers",
+    ],
+
     data: [
         ":test_http_server",
         ":test_subprocess",
