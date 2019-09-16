@@ -33,6 +33,7 @@
 #include <storage_literals/storage_literals.h>
 
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
 
@@ -59,8 +60,6 @@ using PartitionSizes = std::map<std::string, uint64_t>;
 // "{name_a, size}"
 using PartitionSuffixSizes = std::map<std::string, uint64_t>;
 
-using PartitionMetadata = BootControlInterface::PartitionMetadata;
-
 constexpr uint64_t kDefaultGroupSize = 5_GiB;
 // Super device size. 1 MiB for metadata.
 constexpr uint64_t kDefaultSuperSize = kDefaultGroupSize * 2 + 1_MiB;
@@ -78,8 +77,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<U, V>& param) {
   return os << "}";
 }
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& param) {
+template <typename V>
+inline void VectorToStream(std::ostream& os, const V& param) {
   os << "[";
   bool first = true;
   for (const auto& e : param) {
@@ -88,21 +87,28 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& param) {
     os << e;
     first = false;
   }
-  return os << "]";
+  os << "]";
+}
+
+inline std::ostream& operator<<(std::ostream& os, const PartitionUpdate& p) {
+  return os << "{" << p.partition_name() << ", "
+            << p.new_partition_info().size() << "}";
 }
 
 inline std::ostream& operator<<(std::ostream& os,
-                                const PartitionMetadata::Partition& p) {
-  return os << "{" << p.name << ", " << p.size << "}";
+                                const DynamicPartitionGroup& g) {
+  os << "{" << g.name() << ", " << g.size() << ", ";
+  VectorToStream(os, g.partition_names());
+  return os << "}";
 }
 
 inline std::ostream& operator<<(std::ostream& os,
-                                const PartitionMetadata::Group& g) {
-  return os << "{" << g.name << ", " << g.size << ", " << g.partitions << "}";
-}
-
-inline std::ostream& operator<<(std::ostream& os, const PartitionMetadata& m) {
-  return os << m.groups;
+                                const DeltaArchiveManifest& m) {
+  os << "{.groups = ";
+  VectorToStream(os, m.dynamic_partition_metadata().groups());
+  os << ", .partitions = ";
+  VectorToStream(os, m.partitions());
+  return os;
 }
 
 inline std::string GetDevice(const std::string& name) {
@@ -113,54 +119,77 @@ inline std::string GetDmDevice(const std::string& name) {
   return kFakeDmDevicePath + name;
 }
 
+inline DynamicPartitionGroup* AddGroup(DeltaArchiveManifest* manifest,
+                                       const std::string& group,
+                                       uint64_t group_size) {
+  auto* g = manifest->mutable_dynamic_partition_metadata()->add_groups();
+  g->set_name(group);
+  g->set_size(group_size);
+  return g;
+}
+
+inline void AddPartition(DeltaArchiveManifest* manifest,
+                         DynamicPartitionGroup* group,
+                         const std::string& partition,
+                         uint64_t partition_size) {
+  group->add_partition_names(partition);
+  auto* p = manifest->add_partitions();
+  p->set_partition_name(partition);
+  p->mutable_new_partition_info()->set_size(partition_size);
+}
+
 // To support legacy tests, auto-convert {name_a: size} map to
-// PartitionMetadata.
-inline PartitionMetadata PartitionSuffixSizesToMetadata(
+// DeltaArchiveManifest.
+inline DeltaArchiveManifest PartitionSuffixSizesToManifest(
     const PartitionSuffixSizes& partition_sizes) {
-  PartitionMetadata metadata;
+  DeltaArchiveManifest manifest;
   for (const char* suffix : kSlotSuffixes) {
-    metadata.groups.push_back(
-        {std::string(kDefaultGroup) + suffix, kDefaultGroupSize, {}});
+    AddGroup(&manifest, std::string(kDefaultGroup) + suffix, kDefaultGroupSize);
   }
   for (const auto& pair : partition_sizes) {
     for (size_t suffix_idx = 0; suffix_idx < kMaxNumSlots; ++suffix_idx) {
       if (base::EndsWith(pair.first,
                          kSlotSuffixes[suffix_idx],
                          base::CompareCase::SENSITIVE)) {
-        metadata.groups[suffix_idx].partitions.push_back(
-            {pair.first, pair.second});
+        AddPartition(
+            &manifest,
+            manifest.mutable_dynamic_partition_metadata()->mutable_groups(
+                suffix_idx),
+            pair.first,
+            pair.second);
       }
     }
   }
-  return metadata;
+  return manifest;
 }
 
 // To support legacy tests, auto-convert {name: size} map to PartitionMetadata.
-inline PartitionMetadata PartitionSizesToMetadata(
+inline DeltaArchiveManifest PartitionSizesToManifest(
     const PartitionSizes& partition_sizes) {
-  PartitionMetadata metadata;
-  metadata.groups.push_back(
-      {std::string{kDefaultGroup}, kDefaultGroupSize, {}});
+  DeltaArchiveManifest manifest;
+  auto* g = AddGroup(&manifest, std::string(kDefaultGroup), kDefaultGroupSize);
   for (const auto& pair : partition_sizes) {
-    metadata.groups[0].partitions.push_back({pair.first, pair.second});
+    AddPartition(&manifest, g, pair.first, pair.second);
   }
-  return metadata;
+  return manifest;
 }
 
 inline std::unique_ptr<MetadataBuilder> NewFakeMetadata(
-    const PartitionMetadata& metadata) {
+    const DeltaArchiveManifest& manifest) {
   auto builder =
       MetadataBuilder::New(kDefaultSuperSize, kFakeMetadataSize, kMaxNumSlots);
-  EXPECT_GE(builder->AllocatableSpace(), kDefaultGroupSize * 2);
-  EXPECT_NE(nullptr, builder);
-  if (builder == nullptr)
-    return nullptr;
-  for (const auto& group : metadata.groups) {
-    EXPECT_TRUE(builder->AddGroup(group.name, group.size));
-    for (const auto& partition : group.partitions) {
-      auto p = builder->AddPartition(partition.name, group.name, 0 /* attr */);
-      EXPECT_TRUE(p && builder->ResizePartition(p, partition.size));
+  for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
+    EXPECT_TRUE(builder->AddGroup(group.name(), group.size()));
+    for (const auto& partition_name : group.partition_names()) {
+      EXPECT_NE(
+          nullptr,
+          builder->AddPartition(partition_name, group.name(), 0 /* attr */));
     }
+  }
+  for (const auto& partition : manifest.partitions()) {
+    auto p = builder->FindPartition(partition.partition_name());
+    EXPECT_TRUE(p && builder->ResizePartition(
+                         p, partition.new_partition_info().size()));
   }
   return builder;
 }
@@ -168,35 +197,47 @@ inline std::unique_ptr<MetadataBuilder> NewFakeMetadata(
 class MetadataMatcher : public MatcherInterface<MetadataBuilder*> {
  public:
   explicit MetadataMatcher(const PartitionSuffixSizes& partition_sizes)
-      : partition_metadata_(PartitionSuffixSizesToMetadata(partition_sizes)) {}
-  explicit MetadataMatcher(const PartitionMetadata& partition_metadata)
-      : partition_metadata_(partition_metadata) {}
+      : manifest_(PartitionSuffixSizesToManifest(partition_sizes)) {}
+  explicit MetadataMatcher(const DeltaArchiveManifest& manifest)
+      : manifest_(manifest) {}
 
   bool MatchAndExplain(MetadataBuilder* metadata,
                        MatchResultListener* listener) const override {
     bool success = true;
-    for (const auto& group : partition_metadata_.groups) {
-      for (const auto& partition : group.partitions) {
-        auto p = metadata->FindPartition(partition.name);
+    for (const auto& group : manifest_.dynamic_partition_metadata().groups()) {
+      for (const auto& partition_name : group.partition_names()) {
+        auto p = metadata->FindPartition(partition_name);
         if (p == nullptr) {
           if (!success)
             *listener << "; ";
-          *listener << "No partition " << partition.name;
+          *listener << "No partition " << partition_name;
           success = false;
           continue;
         }
-        if (p->size() != partition.size) {
+        const auto& partition_updates = manifest_.partitions();
+        auto it = std::find_if(partition_updates.begin(),
+                               partition_updates.end(),
+                               [&](const auto& p) {
+                                 return p.partition_name() == partition_name;
+                               });
+        if (it == partition_updates.end()) {
+          *listener << "Can't find partition update " << partition_name;
+          success = false;
+          continue;
+        }
+        auto partition_size = it->new_partition_info().size();
+        if (p->size() != partition_size) {
           if (!success)
             *listener << "; ";
-          *listener << "Partition " << partition.name << " has size "
-                    << p->size() << ", expected " << partition.size;
+          *listener << "Partition " << partition_name << " has size "
+                    << p->size() << ", expected " << partition_size;
           success = false;
         }
-        if (p->group_name() != group.name) {
+        if (p->group_name() != group.name()) {
           if (!success)
             *listener << "; ";
-          *listener << "Partition " << partition.name << " has group "
-                    << p->group_name() << ", expected " << group.name;
+          *listener << "Partition " << partition_name << " has group "
+                    << p->group_name() << ", expected " << group.name();
           success = false;
         }
       }
@@ -205,15 +246,15 @@ class MetadataMatcher : public MatcherInterface<MetadataBuilder*> {
   }
 
   void DescribeTo(std::ostream* os) const override {
-    *os << "expect: " << partition_metadata_;
+    *os << "expect: " << manifest_;
   }
 
   void DescribeNegationTo(std::ostream* os) const override {
-    *os << "expect not: " << partition_metadata_;
+    *os << "expect not: " << manifest_;
   }
 
  private:
-  PartitionMetadata partition_metadata_;
+  DeltaArchiveManifest manifest_;
 };
 
 inline Matcher<MetadataBuilder*> MetadataMatches(
@@ -222,8 +263,8 @@ inline Matcher<MetadataBuilder*> MetadataMatches(
 }
 
 inline Matcher<MetadataBuilder*> MetadataMatches(
-    const PartitionMetadata& partition_metadata) {
-  return MakeMatcher(new MetadataMatcher(partition_metadata));
+    const DeltaArchiveManifest& manifest) {
+  return MakeMatcher(new MetadataMatcher(manifest));
 }
 
 MATCHER_P(HasGroup, group, " has group " + group) {
