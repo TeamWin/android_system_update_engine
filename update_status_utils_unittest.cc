@@ -25,14 +25,16 @@ using std::string;
 namespace chromeos_update_engine {
 
 TEST(UpdateStatusUtilsTest, UpdateEngineStatusToStringTest) {
+  // Keep field assignments in same order as they were declared,
+  // to prevent compiler warning, -Wreorder-init-fields.
   update_engine::UpdateEngineStatus update_engine_status = {
-      .status = update_engine::UpdateStatus::CHECKING_FOR_UPDATE,
-      .is_install = true,
-      .is_enterprise_rollback = true,
       .last_checked_time = 156000000,
+      .status = update_engine::UpdateStatus::CHECKING_FOR_UPDATE,
+      .progress = 0.5,
       .new_size_bytes = 888,
       .new_version = "12345.0.0",
-      .progress = 0.5,
+      .is_enterprise_rollback = true,
+      .is_install = true,
   };
   string print =
       R"(CURRENT_OP=UPDATE_STATUS_CHECKING_FOR_UPDATE
