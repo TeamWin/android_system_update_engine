@@ -191,7 +191,10 @@ cc_defaults {
     name: "libupdate_engine_boot_control_exports",
     defaults: ["update_metadata-protos_exports"],
 
-    static_libs: ["update_metadata-protos"],
+    static_libs: [
+        "libsnapshot",
+        "update_metadata-protos",
+    ],
     shared_libs: [
         "libbootloader_message",
         "libfs_mgr",
@@ -200,6 +203,12 @@ cc_defaults {
         "libutils",
         "android.hardware.boot@1.0",
     ],
+    target: {
+        recovery: {
+            static_libs: ["libsnapshot_nobinder"],
+            exclude_static_libs: ["libsnapshot"],
+        },
+    },
 }
 
 cc_library_static {

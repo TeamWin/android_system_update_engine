@@ -16,6 +16,7 @@
 
 #include "update_engine/dynamic_partition_control_android.h"
 
+#include <chrono>  // NOLINT(build/c++11) - using libsnapshot / liblp API
 #include <map>
 #include <memory>
 #include <set>
@@ -30,6 +31,7 @@
 #include <bootloader_message/bootloader_message.h>
 #include <fs_mgr.h>
 #include <fs_mgr_dm_linear.h>
+#include <libsnapshot/snapshot.h>
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/utils.h"
@@ -54,7 +56,18 @@ constexpr char kRetrfoitDynamicPartitions[] =
     "ro.boot.dynamic_partitions_retrofit";
 constexpr char kVirtualAbEnabled[] = "ro.virtual_ab.enabled";
 constexpr char kVirtualAbRetrofit[] = "ro.virtual_ab.retrofit";
-constexpr uint64_t kMapTimeoutMillis = 1000;
+// Map timeout for dynamic partitions.
+constexpr std::chrono::milliseconds kMapTimeout{1000};
+// Map timeout for dynamic partitions with snapshots. Since several devices
+// needs to be mapped, this timeout is longer than |kMapTimeout|.
+constexpr std::chrono::milliseconds kMapSnapshotTimeout{5000};
+
+DynamicPartitionControlAndroid::DynamicPartitionControlAndroid() {
+  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    snapshot_ = android::snapshot::SnapshotManager::New();
+    CHECK(snapshot_ != nullptr) << "Cannot initialize SnapshotManager.";
+  }
+}
 
 DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
   CleanupInternal(false /* wait */);
@@ -97,10 +110,20 @@ bool DynamicPartitionControlAndroid::MapPartitionInternal(
       .metadata_slot = slot,
       .partition_name = target_partition_name,
       .force_writable = force_writable,
-      .timeout_ms = std::chrono::milliseconds(kMapTimeoutMillis),
   };
+  bool success = false;
+  if (GetVirtualAbFeatureFlag().IsEnabled() && force_writable) {
+    // Only target partitions are mapped with force_writable. On Virtual
+    // A/B devices, target partitions may overlap with source partitions, so
+    // they must be mapped with snapshot.
+    params.timeout_ms = kMapSnapshotTimeout;
+    success = snapshot_->MapUpdateSnapshot(params, path);
+  } else {
+    params.timeout_ms = kMapTimeout;
+    success = CreateLogicalPartition(params, path);
+  }
 
-  if (!CreateLogicalPartition(params, path)) {
+  if (!success) {
     LOG(ERROR) << "Cannot map " << target_partition_name << " in "
                << super_device << " on device mapper.";
     return false;
@@ -161,7 +184,19 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
     const std::string& target_partition_name) {
   if (DeviceMapper::Instance().GetState(target_partition_name) !=
       DmDeviceState::INVALID) {
-    if (!DestroyLogicalPartition(target_partition_name)) {
+    // Partitions at target slot on non-Virtual A/B devices are mapped as
+    // dm-linear. Also, on Virtual A/B devices, system_other may be mapped for
+    // preopt apps as dm-linear.
+    // Call DestroyLogicalPartition to handle these cases.
+    bool success = DestroyLogicalPartition(target_partition_name);
+
+    // On a Virtual A/B device, |target_partition_name| may be a leftover from
+    // a paused update. Clean up any underlying devices.
+    if (GetVirtualAbFeatureFlag().IsEnabled()) {
+      success &= snapshot_->UnmapUpdateSnapshot(target_partition_name);
+    }
+
+    if (!success) {
       LOG(ERROR) << "Cannot unmap " << target_partition_name
                  << " from device mapper.";
       return false;
@@ -309,6 +344,20 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest) {
+  // TODO(elsk): Also call PrepareDynamicPartitionsForUpdate when applying
+  // downgrade packages on retrofit Virtual A/B devices and when applying
+  // secondary OTA. b/138258570
+  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    return PrepareSnapshotPartitionsForUpdate(
+        source_slot, target_slot, manifest);
+  }
+  return PrepareDynamicPartitionsForUpdate(source_slot, target_slot, manifest);
+}
+
+bool DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
+    uint32_t source_slot,
+    uint32_t target_slot,
+    const DeltaArchiveManifest& manifest) {
   const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
 
   // Unmap all the target dynamic partitions because they would become
@@ -343,6 +392,21 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
   auto target_device =
       device_dir.Append(GetSuperPartitionName(target_slot)).value();
   return StoreMetadata(target_device, builder.get(), target_slot);
+}
+
+bool DynamicPartitionControlAndroid::PrepareSnapshotPartitionsForUpdate(
+    uint32_t source_slot,
+    uint32_t target_slot,
+    const DeltaArchiveManifest& manifest) {
+  if (!snapshot_->BeginUpdate()) {
+    LOG(ERROR) << "Cannot begin new update.";
+    return false;
+  }
+  if (!snapshot_->CreateUpdateSnapshots(manifest)) {
+    LOG(ERROR) << "Cannot create update snapshots.";
+    return false;
+  }
+  return true;
 }
 
 std::string DynamicPartitionControlAndroid::GetSuperPartitionName(
