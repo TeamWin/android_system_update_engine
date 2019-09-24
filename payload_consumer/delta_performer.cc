@@ -808,7 +808,6 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     for (const PartitionUpdate& partition : manifest_.partitions()) {
       partitions_.push_back(partition);
     }
-    manifest_.clear_partitions();
   } else if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
     LOG(INFO) << "Converting update information from old format.";
     PartitionUpdate root_part;
@@ -923,10 +922,14 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   }
 
   if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
-    if (!InitPartitionMetadata()) {
+    if (!PreparePartitionsForUpdate()) {
       *error = ErrorCode::kInstallDeviceOpenError;
       return false;
     }
+  }
+
+  if (major_payload_version_ == kBrilloMajorPayloadVersion) {
+    manifest_.clear_partitions();
   }
 
   if (!install_plan_->LoadPartitionsFromSlots(boot_control_)) {
@@ -938,45 +941,18 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   return true;
 }
 
-bool DeltaPerformer::InitPartitionMetadata() {
-  BootControlInterface::PartitionMetadata partition_metadata;
-  if (manifest_.has_dynamic_partition_metadata()) {
-    std::map<string, uint64_t> partition_sizes;
-    for (const auto& partition : install_plan_->partitions) {
-      partition_sizes.emplace(partition.name, partition.target_size);
-    }
-    for (const auto& group : manifest_.dynamic_partition_metadata().groups()) {
-      BootControlInterface::PartitionMetadata::Group e;
-      e.name = group.name();
-      e.size = group.size();
-      for (const auto& partition_name : group.partition_names()) {
-        auto it = partition_sizes.find(partition_name);
-        if (it == partition_sizes.end()) {
-          // TODO(tbao): Support auto-filling partition info for framework-only
-          // OTA.
-          LOG(ERROR) << "dynamic_partition_metadata contains partition "
-                     << partition_name
-                     << " but it is not part of the manifest. "
-                     << "This is not supported.";
-          return false;
-        }
-        e.partitions.push_back({partition_name, it->second});
-      }
-      partition_metadata.groups.push_back(std::move(e));
-    }
-  }
-
+bool DeltaPerformer::PreparePartitionsForUpdate() {
   bool metadata_updated = false;
   prefs_->GetBoolean(kPrefsDynamicPartitionMetadataUpdated, &metadata_updated);
-  if (!boot_control_->InitPartitionMetadata(
-          install_plan_->target_slot, partition_metadata, !metadata_updated)) {
+  if (!boot_control_->PreparePartitionsForUpdate(
+          install_plan_->target_slot, manifest_, !metadata_updated)) {
     LOG(ERROR) << "Unable to initialize partition metadata for slot "
                << BootControlInterface::SlotName(install_plan_->target_slot);
     return false;
   }
   TEST_AND_RETURN_FALSE(
       prefs_->SetBoolean(kPrefsDynamicPartitionMetadataUpdated, true));
-  LOG(INFO) << "InitPartitionMetadata done.";
+  LOG(INFO) << "PreparePartitionsForUpdate done.";
 
   return true;
 }
