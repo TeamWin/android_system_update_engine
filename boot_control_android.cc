@@ -245,6 +245,10 @@ bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
 }
 
 bool BootControlAndroid::SetActiveBootSlot(Slot slot) {
+  if (slot != GetCurrentSlot() && !dynamic_control_->FinishUpdate()) {
+    return false;
+  }
+
   CommandResult result;
   auto ret = module_->setActiveBootSlot(slot, StoreResultCallback(&result));
   if (!ret.isOk()) {

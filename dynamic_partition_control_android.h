@@ -52,6 +52,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
       const DeltaArchiveManifest& manifest) override;
   bool GetDeviceDir(std::string* path) override;
   std::string GetSuperPartitionName(uint32_t slot) override;
+  bool FinishUpdate() override;
 
  protected:
   // These functions are exposed for testing.
