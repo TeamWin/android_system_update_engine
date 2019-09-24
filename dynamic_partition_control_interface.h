@@ -103,6 +103,8 @@ class DynamicPartitionControlInterface {
   // Return the name of the super partition (which stores super partition
   // metadata) for a given slot.
   virtual std::string GetSuperPartitionName(uint32_t slot) = 0;
+
+  virtual bool FinishUpdate() = 0;
 };
 
 }  // namespace chromeos_update_engine
