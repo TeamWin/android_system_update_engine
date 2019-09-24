@@ -23,11 +23,13 @@
 #include <set>
 #include <string>
 
+#include <libsnapshot/snapshot.h>
+
 namespace chromeos_update_engine {
 
 class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
  public:
-  DynamicPartitionControlAndroid() = default;
+  DynamicPartitionControlAndroid();
   ~DynamicPartitionControlAndroid();
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
@@ -83,8 +85,6 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
  private:
   friend class DynamicPartitionControlAndroidTest;
 
-  std::set<std::string> mapped_devices_;
-
   void CleanupInternal(bool wait);
   bool MapPartitionInternal(const std::string& super_device,
                             const std::string& target_partition_name,
@@ -97,6 +97,21 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   bool UpdatePartitionMetadata(android::fs_mgr::MetadataBuilder* builder,
                                uint32_t target_slot,
                                const DeltaArchiveManifest& manifest);
+
+  // Helper for PreparePartitionsForUpdate. Used for dynamic partitions without
+  // Virtual A/B update.
+  bool PrepareDynamicPartitionsForUpdate(uint32_t source_slot,
+                                         uint32_t target_slot,
+                                         const DeltaArchiveManifest& manifest);
+
+  // Helper for PreparePartitionsForUpdate. Used for snapshotted partitions for
+  // Virtual A/B update.
+  bool PrepareSnapshotPartitionsForUpdate(uint32_t source_slot,
+                                          uint32_t target_slot,
+                                          const DeltaArchiveManifest& manifest);
+
+  std::set<std::string> mapped_devices_;
+  std::unique_ptr<android::snapshot::SnapshotManager> snapshot_;
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };
