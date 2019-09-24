@@ -25,6 +25,8 @@
 #include <base/callback.h>
 #include <base/macros.h>
 
+#include "update_engine/update_metadata.pb.h"
+
 namespace chromeos_update_engine {
 
 // The abstract boot control interface defines the interaction with the
@@ -34,19 +36,6 @@ namespace chromeos_update_engine {
 class BootControlInterface {
  public:
   using Slot = unsigned int;
-
-  struct PartitionMetadata {
-    struct Partition {
-      std::string name;
-      uint64_t size;
-    };
-    struct Group {
-      std::string name;
-      uint64_t size;
-      std::vector<Partition> partitions;
-    };
-    std::vector<Group> groups;
-  };
 
   static const Slot kInvalidSlot = UINT_MAX;
 
@@ -67,9 +56,9 @@ class BootControlInterface {
   // The |slot| number must be between 0 and GetNumSlots() - 1 and the
   // |partition_name| is a platform-specific name that identifies a partition on
   // every slot. In order to access the dynamic partitions in the target slot,
-  // InitPartitionMetadata() must be called (once per payload) prior to calling
-  // this function. On success, returns true and stores the block device in
-  // |device|.
+  // PreparePartitionsForUpdate() must be called (once per payload) prior to
+  // calling this function. On success, returns true and stores the block device
+  // in |device|.
   virtual bool GetPartitionDevice(const std::string& partition_name,
                                   Slot slot,
                                   std::string* device) const = 0;
@@ -96,12 +85,11 @@ class BootControlInterface {
 
   // Initializes the metadata of the underlying partitions for a given |slot|
   // and sets up the states for accessing dynamic partitions.
-  // |partition_metadata| will be written to the specified |slot| if
+  // Metadata will be written to the specified |slot| if
   // |update_metadata| is set.
-  virtual bool InitPartitionMetadata(
-      Slot slot,
-      const PartitionMetadata& partition_metadata,
-      bool update_metadata) = 0;
+  virtual bool PreparePartitionsForUpdate(Slot slot,
+                                          const DeltaArchiveManifest& manifest,
+                                          bool update_metadata) = 0;
 
   // Do necessary clean-up operations after the whole update.
   virtual void Cleanup() = 0;

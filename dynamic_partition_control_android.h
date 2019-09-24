@@ -44,10 +44,10 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
       const std::string& super_device, uint32_t source_slot) override;
 
-  bool PreparePartitionsForUpdate(uint32_t source_slot,
-                                  uint32_t target_slot,
-                                  const BootControlInterface::PartitionMetadata&
-                                      partition_metadata) override;
+  bool PreparePartitionsForUpdate(
+      uint32_t source_slot,
+      uint32_t target_slot,
+      const DeltaArchiveManifest& manifest) override;
   bool GetDeviceDir(std::string* path) override;
   std::string GetSuperPartitionName(uint32_t slot) override;
 
@@ -94,10 +94,9 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   // Update |builder| according to |partition_metadata|, assuming the device
   // does not have Virtual A/B.
-  bool UpdatePartitionMetadata(
-      android::fs_mgr::MetadataBuilder* builder,
-      uint32_t target_slot,
-      const BootControlInterface::PartitionMetadata& partition_metadata);
+  bool UpdatePartitionMetadata(android::fs_mgr::MetadataBuilder* builder,
+                               uint32_t target_slot,
+                               const DeltaArchiveManifest& manifest);
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };

@@ -39,8 +39,6 @@ using android::hardware::boot::V1_0::BoolResult;
 using android::hardware::boot::V1_0::CommandResult;
 using android::hardware::boot::V1_0::IBootControl;
 using Slot = chromeos_update_engine::BootControlInterface::Slot;
-using PartitionMetadata =
-    chromeos_update_engine::BootControlInterface::PartitionMetadata;
 
 namespace {
 
@@ -277,9 +275,9 @@ bool BootControlAndroid::MarkBootSuccessfulAsync(
          brillo::MessageLoop::kTaskIdNull;
 }
 
-bool BootControlAndroid::InitPartitionMetadata(
+bool BootControlAndroid::PreparePartitionsForUpdate(
     Slot target_slot,
-    const PartitionMetadata& partition_metadata,
+    const DeltaArchiveManifest& manifest,
     bool update_metadata) {
   if (fs_mgr_overlayfs_is_setup()) {
     // Non DAP devices can use overlayfs as well.
@@ -294,14 +292,14 @@ bool BootControlAndroid::InitPartitionMetadata(
 
   auto source_slot = GetCurrentSlot();
   if (target_slot == source_slot) {
-    LOG(ERROR) << "Cannot call InitPartitionMetadata on current slot.";
+    LOG(ERROR) << "Cannot call PreparePartitionsForUpdate on current slot.";
     return false;
   }
 
   // Although the current build supports dynamic partitions, the given payload
   // doesn't use it for target partitions. This could happen when applying a
   // retrofit update. Skip updating the partition metadata for the target slot.
-  is_target_dynamic_ = !partition_metadata.groups.empty();
+  is_target_dynamic_ = !manifest.dynamic_partition_metadata().groups().empty();
   if (!is_target_dynamic_) {
     return true;
   }
@@ -311,7 +309,7 @@ bool BootControlAndroid::InitPartitionMetadata(
   }
 
   return dynamic_control_->PreparePartitionsForUpdate(
-      source_slot, target_slot, partition_metadata);
+      source_slot, target_slot, manifest);
 }
 
 }  // namespace chromeos_update_engine

@@ -86,7 +86,7 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
                 LoadMetadataBuilder(GetSuperDevice(slot), slot, _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([sizes](auto, auto, auto) {
-          return NewFakeMetadata(PartitionSuffixSizesToMetadata(sizes));
+          return NewFakeMetadata(PartitionSuffixSizesToManifest(sizes));
         }));
   }
 
@@ -112,7 +112,7 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
   }
   bool PreparePartitionsForUpdate(const PartitionSizes& partition_sizes) {
     return dynamicControl().PreparePartitionsForUpdate(
-        source(), target(), PartitionSizesToMetadata(partition_sizes));
+        source(), target(), PartitionSizesToManifest(partition_sizes));
   }
   void SetSlots(const TestParam& slots) { slots_ = slots; }
 
@@ -125,24 +125,24 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
       const PartitionSizes& update_metadata,
       const PartitionSuffixSizes& expected) {
     return UpdatePartitionMetadata(
-        PartitionSuffixSizesToMetadata(source_metadata),
-        PartitionSizesToMetadata(update_metadata),
-        PartitionSuffixSizesToMetadata(expected));
+        PartitionSuffixSizesToManifest(source_metadata),
+        PartitionSizesToManifest(update_metadata),
+        PartitionSuffixSizesToManifest(expected));
   }
   testing::AssertionResult UpdatePartitionMetadata(
-      const PartitionMetadata& source_metadata,
-      const PartitionMetadata& update_metadata,
-      const PartitionMetadata& expected) {
+      const DeltaArchiveManifest& source_manifest,
+      const DeltaArchiveManifest& update_manifest,
+      const DeltaArchiveManifest& expected) {
     return UpdatePartitionMetadata(
-        source_metadata, update_metadata, MetadataMatches(expected));
+        source_manifest, update_manifest, MetadataMatches(expected));
   }
   testing::AssertionResult UpdatePartitionMetadata(
-      const PartitionMetadata& source_metadata,
-      const PartitionMetadata& update_metadata,
+      const DeltaArchiveManifest& source_manifest,
+      const DeltaArchiveManifest& update_manifest,
       const Matcher<MetadataBuilder*>& matcher) {
-    auto super_metadata = NewFakeMetadata(source_metadata);
+    auto super_metadata = NewFakeMetadata(source_manifest);
     if (!module_->UpdatePartitionMetadata(
-            super_metadata.get(), target(), update_metadata)) {
+            super_metadata.get(), target(), update_manifest)) {
       return testing::AssertionFailure()
              << "UpdatePartitionMetadataInternal failed";
     }
@@ -290,112 +290,115 @@ INSTANTIATE_TEST_CASE_P(DynamicPartitionControlAndroidTest,
 class DynamicPartitionControlAndroidGroupTestP
     : public DynamicPartitionControlAndroidTestP {
  public:
-  PartitionMetadata source_metadata;
+  DeltaArchiveManifest source_manifest;
   void SetUp() override {
     DynamicPartitionControlAndroidTestP::SetUp();
-    source_metadata = {
-        .groups = {SimpleGroup(S("android"), 3_GiB, S("system"), 2_GiB),
-                   SimpleGroup(S("oem"), 2_GiB, S("vendor"), 1_GiB),
-                   SimpleGroup(T("android"), 3_GiB, T("system"), 0),
-                   SimpleGroup(T("oem"), 2_GiB, T("vendor"), 0)}};
+    AddGroupAndPartition(
+        &source_manifest, S("android"), 3_GiB, S("system"), 2_GiB);
+    AddGroupAndPartition(&source_manifest, S("oem"), 2_GiB, S("vendor"), 1_GiB);
+    AddGroupAndPartition(&source_manifest, T("android"), 3_GiB, T("system"), 0);
+    AddGroupAndPartition(&source_manifest, T("oem"), 2_GiB, T("vendor"), 0);
   }
 
-  // Return a simple group with only one partition.
-  PartitionMetadata::Group SimpleGroup(const string& group,
-                                       uint64_t group_size,
-                                       const string& partition,
-                                       uint64_t partition_size) {
-    return {.name = group,
-            .size = group_size,
-            .partitions = {{.name = partition, .size = partition_size}}};
+  void AddGroupAndPartition(DeltaArchiveManifest* manifest,
+                            const string& group,
+                            uint64_t group_size,
+                            const string& partition,
+                            uint64_t partition_size) {
+    auto* g = AddGroup(manifest, group, group_size);
+    AddPartition(manifest, g, partition, partition_size);
   }
 };
 
 // Allow to resize within group.
 TEST_P(DynamicPartitionControlAndroidGroupTestP, ResizeWithinGroup) {
-  PartitionMetadata expected{
-      .groups = {SimpleGroup(T("android"), 3_GiB, T("system"), 3_GiB),
-                 SimpleGroup(T("oem"), 2_GiB, T("vendor"), 2_GiB)}};
+  DeltaArchiveManifest expected;
+  AddGroupAndPartition(&expected, T("android"), 3_GiB, T("system"), 3_GiB);
+  AddGroupAndPartition(&expected, T("oem"), 2_GiB, T("vendor"), 2_GiB);
 
-  PartitionMetadata update_metadata{
-      .groups = {SimpleGroup("android", 3_GiB, "system", 3_GiB),
-                 SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}};
+  DeltaArchiveManifest update_manifest;
+  AddGroupAndPartition(&update_manifest, "android", 3_GiB, "system", 3_GiB);
+  AddGroupAndPartition(&update_manifest, "oem", 2_GiB, "vendor", 2_GiB);
 
   EXPECT_TRUE(
-      UpdatePartitionMetadata(source_metadata, update_metadata, expected));
+      UpdatePartitionMetadata(source_manifest, update_manifest, expected));
 }
 
 TEST_P(DynamicPartitionControlAndroidGroupTestP, NotEnoughSpaceForGroup) {
-  PartitionMetadata update_metadata{
-      .groups = {SimpleGroup("android", 3_GiB, "system", 1_GiB),
-                 SimpleGroup("oem", 2_GiB, "vendor", 3_GiB)}};
-  EXPECT_FALSE(UpdatePartitionMetadata(source_metadata, update_metadata, {}))
+  DeltaArchiveManifest update_manifest;
+  AddGroupAndPartition(&update_manifest, "android", 3_GiB, "system", 1_GiB),
+      AddGroupAndPartition(&update_manifest, "oem", 2_GiB, "vendor", 3_GiB);
+  EXPECT_FALSE(UpdatePartitionMetadata(source_manifest, update_manifest, {}))
       << "Should not be able to grow over maximum size of group";
 }
 
 TEST_P(DynamicPartitionControlAndroidGroupTestP, GroupTooBig) {
-  PartitionMetadata update_metadata{
-      .groups = {{.name = "android", .size = 3_GiB},
-                 {.name = "oem", .size = 3_GiB}}};
-  EXPECT_FALSE(UpdatePartitionMetadata(source_metadata, update_metadata, {}))
+  DeltaArchiveManifest update_manifest;
+  AddGroup(&update_manifest, "android", 3_GiB);
+  AddGroup(&update_manifest, "oem", 3_GiB);
+  EXPECT_FALSE(UpdatePartitionMetadata(source_manifest, update_manifest, {}))
       << "Should not be able to grow over size of super / 2";
 }
 
 TEST_P(DynamicPartitionControlAndroidGroupTestP, AddPartitionToGroup) {
-  PartitionMetadata expected{
-      .groups = {{.name = T("android"),
-                  .size = 3_GiB,
-                  .partitions = {{.name = T("system"), .size = 2_GiB},
-                                 {.name = T("system_ext"), .size = 1_GiB}}}}};
-  PartitionMetadata update_metadata{
-      .groups = {{.name = "android",
-                  .size = 3_GiB,
-                  .partitions = {{.name = "system", .size = 2_GiB},
-                                 {.name = "system_ext", .size = 1_GiB}}},
-                 SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}};
+  DeltaArchiveManifest expected;
+  auto* g = AddGroup(&expected, T("android"), 3_GiB);
+  AddPartition(&expected, g, T("system"), 2_GiB);
+  AddPartition(&expected, g, T("system_ext"), 1_GiB);
+
+  DeltaArchiveManifest update_manifest;
+  g = AddGroup(&update_manifest, "android", 3_GiB);
+  AddPartition(&update_manifest, g, "system", 2_GiB);
+  AddPartition(&update_manifest, g, "system_ext", 1_GiB);
+  AddGroupAndPartition(&update_manifest, "oem", 2_GiB, "vendor", 2_GiB);
+
   EXPECT_TRUE(
-      UpdatePartitionMetadata(source_metadata, update_metadata, expected));
+      UpdatePartitionMetadata(source_manifest, update_manifest, expected));
 }
 
 TEST_P(DynamicPartitionControlAndroidGroupTestP, RemovePartitionFromGroup) {
-  PartitionMetadata expected{
-      .groups = {{.name = T("android"), .size = 3_GiB, .partitions = {}}}};
-  PartitionMetadata update_metadata{
-      .groups = {{.name = "android", .size = 3_GiB, .partitions = {}},
-                 SimpleGroup("oem", 2_GiB, "vendor", 2_GiB)}};
+  DeltaArchiveManifest expected;
+  AddGroup(&expected, T("android"), 3_GiB);
+
+  DeltaArchiveManifest update_manifest;
+  AddGroup(&update_manifest, "android", 3_GiB);
+  AddGroupAndPartition(&update_manifest, "oem", 2_GiB, "vendor", 2_GiB);
+
   EXPECT_TRUE(
-      UpdatePartitionMetadata(source_metadata, update_metadata, expected));
+      UpdatePartitionMetadata(source_manifest, update_manifest, expected));
 }
 
 TEST_P(DynamicPartitionControlAndroidGroupTestP, AddGroup) {
-  PartitionMetadata expected{
-      .groups = {
-          SimpleGroup(T("new_group"), 2_GiB, T("new_partition"), 2_GiB)}};
-  PartitionMetadata update_metadata{
-      .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB),
-                 SimpleGroup("oem", 1_GiB, "vendor", 1_GiB),
-                 SimpleGroup("new_group", 2_GiB, "new_partition", 2_GiB)}};
+  DeltaArchiveManifest expected;
+  AddGroupAndPartition(
+      &expected, T("new_group"), 2_GiB, T("new_partition"), 2_GiB);
+
+  DeltaArchiveManifest update_manifest;
+  AddGroupAndPartition(&update_manifest, "android", 2_GiB, "system", 2_GiB);
+  AddGroupAndPartition(&update_manifest, "oem", 1_GiB, "vendor", 1_GiB);
+  AddGroupAndPartition(
+      &update_manifest, "new_group", 2_GiB, "new_partition", 2_GiB);
   EXPECT_TRUE(
-      UpdatePartitionMetadata(source_metadata, update_metadata, expected));
+      UpdatePartitionMetadata(source_manifest, update_manifest, expected));
 }
 
 TEST_P(DynamicPartitionControlAndroidGroupTestP, RemoveGroup) {
-  PartitionMetadata update_metadata{
-      .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB)}};
+  DeltaArchiveManifest update_manifest;
+  AddGroupAndPartition(&update_manifest, "android", 2_GiB, "system", 2_GiB);
 
   EXPECT_TRUE(UpdatePartitionMetadata(
-      source_metadata, update_metadata, Not(HasGroup(T("oem")))));
+      source_manifest, update_manifest, Not(HasGroup(T("oem")))));
 }
 
 TEST_P(DynamicPartitionControlAndroidGroupTestP, ResizeGroup) {
-  PartitionMetadata expected{
-      .groups = {SimpleGroup(T("android"), 2_GiB, T("system"), 2_GiB),
-                 SimpleGroup(T("oem"), 3_GiB, T("vendor"), 3_GiB)}};
-  PartitionMetadata update_metadata{
-      .groups = {SimpleGroup("android", 2_GiB, "system", 2_GiB),
-                 SimpleGroup("oem", 3_GiB, "vendor", 3_GiB)}};
+  DeltaArchiveManifest expected;
+  AddGroupAndPartition(&expected, T("android"), 2_GiB, T("system"), 2_GiB);
+  AddGroupAndPartition(&expected, T("oem"), 3_GiB, T("vendor"), 3_GiB);
+  DeltaArchiveManifest update_manifest;
+  AddGroupAndPartition(&update_manifest, "android", 2_GiB, "system", 2_GiB),
+      AddGroupAndPartition(&update_manifest, "oem", 3_GiB, "vendor", 3_GiB);
   EXPECT_TRUE(
-      UpdatePartitionMetadata(source_metadata, update_metadata, expected));
+      UpdatePartitionMetadata(source_manifest, update_manifest, expected));
 }
 
 INSTANTIATE_TEST_CASE_P(DynamicPartitionControlAndroidTest,
