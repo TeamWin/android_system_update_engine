@@ -490,4 +490,11 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
   return true;
 }
 
+bool DynamicPartitionControlAndroid::FinishUpdate() {
+  if (!GetVirtualAbFeatureFlag().IsEnabled())
+    return true;
+  LOG(INFO) << "Snapshot writes are done.";
+  return snapshot_->FinishedSnapshotWrites();
+}
+
 }  // namespace chromeos_update_engine
