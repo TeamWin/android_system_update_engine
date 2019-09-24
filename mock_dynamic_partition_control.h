@@ -48,6 +48,7 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
                bool(uint32_t, uint32_t, const DeltaArchiveManifest&));
   MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
+  MOCK_METHOD0(FinishUpdate, bool());
 };
 
 class MockDynamicPartitionControlAndroid
@@ -75,6 +76,7 @@ class MockDynamicPartitionControlAndroid
   MOCK_METHOD0(GetDynamicPartitionsFeatureFlag, FeatureFlag());
   MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
+  MOCK_METHOD0(FinishUpdate, bool());
 };
 
 }  // namespace chromeos_update_engine
