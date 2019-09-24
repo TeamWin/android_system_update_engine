@@ -51,9 +51,9 @@ class BootControlAndroid : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
-  bool InitPartitionMetadata(Slot slot,
-                             const PartitionMetadata& partition_metadata,
-                             bool update_metadata) override;
+  bool PreparePartitionsForUpdate(Slot slot,
+                                  const DeltaArchiveManifest& manifest,
+                                  bool update_metadata) override;
   void Cleanup() override;
 
  private:
@@ -84,7 +84,7 @@ class BootControlAndroid : public BootControlInterface {
                           const std::string& partition_name_suffix) const;
 
   // Whether the target partitions should be loaded as dynamic partitions. Set
-  // by InitPartitionMetadata() per each update.
+  // by PreparePartitionsForUpdate() per each update.
   bool is_target_dynamic_{false};
 
   DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);

@@ -16,6 +16,7 @@
 
 #include "update_engine/dynamic_partition_control_android.h"
 
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -47,8 +48,6 @@ using android::fs_mgr::PartitionOpener;
 using android::fs_mgr::SlotSuffixForSlotNumber;
 
 namespace chromeos_update_engine {
-
-using PartitionMetadata = BootControlInterface::PartitionMetadata;
 
 constexpr char kUseDynamicPartitions[] = "ro.boot.dynamic_partitions";
 constexpr char kRetrfoitDynamicPartitions[] =
@@ -309,14 +308,14 @@ bool DynamicPartitionControlAndroid::GetDeviceDir(std::string* out) {
 bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
-    const PartitionMetadata& partition_metadata) {
+    const DeltaArchiveManifest& manifest) {
   const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
 
   // Unmap all the target dynamic partitions because they would become
   // inconsistent with the new metadata.
-  for (const auto& group : partition_metadata.groups) {
-    for (const auto& partition : group.partitions) {
-      if (!UnmapPartitionOnDeviceMapper(partition.name + target_suffix)) {
+  for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
+    for (const auto& partition_name : group.partition_names()) {
+      if (!UnmapPartitionOnDeviceMapper(partition_name + target_suffix)) {
         return false;
       }
     }
@@ -337,8 +336,7 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     return false;
   }
 
-  if (!UpdatePartitionMetadata(
-          builder.get(), target_slot, partition_metadata)) {
+  if (!UpdatePartitionMetadata(builder.get(), target_slot, manifest)) {
     return false;
   }
 
@@ -355,13 +353,13 @@ std::string DynamicPartitionControlAndroid::GetSuperPartitionName(
 bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     MetadataBuilder* builder,
     uint32_t target_slot,
-    const PartitionMetadata& partition_metadata) {
+    const DeltaArchiveManifest& manifest) {
   const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
   DeleteGroupsWithSuffix(builder, target_suffix);
 
   uint64_t total_size = 0;
-  for (const auto& group : partition_metadata.groups) {
-    total_size += group.size;
+  for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
+    total_size += group.size();
   }
 
   std::string expr;
@@ -378,18 +376,36 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     return false;
   }
 
-  for (const auto& group : partition_metadata.groups) {
-    auto group_name_suffix = group.name + target_suffix;
-    if (!builder->AddGroup(group_name_suffix, group.size)) {
+  // name of partition(e.g. "system") -> size in bytes
+  std::map<std::string, uint64_t> partition_sizes;
+  for (const auto& partition : manifest.partitions()) {
+    partition_sizes.emplace(partition.partition_name(),
+                            partition.new_partition_info().size());
+  }
+
+  for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
+    auto group_name_suffix = group.name() + target_suffix;
+    if (!builder->AddGroup(group_name_suffix, group.size())) {
       LOG(ERROR) << "Cannot add group " << group_name_suffix << " with size "
-                 << group.size;
+                 << group.size();
       return false;
     }
     LOG(INFO) << "Added group " << group_name_suffix << " with size "
-              << group.size;
+              << group.size();
 
-    for (const auto& partition : group.partitions) {
-      auto partition_name_suffix = partition.name + target_suffix;
+    for (const auto& partition_name : group.partition_names()) {
+      auto partition_sizes_it = partition_sizes.find(partition_name);
+      if (partition_sizes_it == partition_sizes.end()) {
+        // TODO(tbao): Support auto-filling partition info for framework-only
+        // OTA.
+        LOG(ERROR) << "dynamic_partition_metadata contains partition "
+                   << partition_name << " but it is not part of the manifest. "
+                   << "This is not supported.";
+        return false;
+      }
+      uint64_t partition_size = partition_sizes_it->second;
+
+      auto partition_name_suffix = partition_name + target_suffix;
       Partition* p = builder->AddPartition(
           partition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
       if (!p) {
@@ -397,13 +413,13 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
                    << " to group " << group_name_suffix;
         return false;
       }
-      if (!builder->ResizePartition(p, partition.size)) {
+      if (!builder->ResizePartition(p, partition_size)) {
         LOG(ERROR) << "Cannot resize partition " << partition_name_suffix
-                   << " to size " << partition.size << ". Not enough space?";
+                   << " to size " << partition_size << ". Not enough space?";
         return false;
       }
       LOG(INFO) << "Added partition " << partition_name_suffix << " to group "
-                << group_name_suffix << " with size " << partition.size;
+                << group_name_suffix << " with size " << partition_size;
     }
   }
 
