@@ -102,7 +102,7 @@ class BootControlAndroidTest : public ::testing::Test {
                 LoadMetadataBuilder(GetSuperDevice(slot), slot))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([sizes](auto, auto) {
-          return NewFakeMetadata(PartitionSuffixSizesToMetadata(sizes));
+          return NewFakeMetadata(PartitionSuffixSizesToManifest(sizes));
         }));
   }
 
@@ -125,11 +125,11 @@ class BootControlAndroidTest : public ::testing::Test {
     }));
   }
 
-  bool InitPartitionMetadata(uint32_t slot,
-                             PartitionSizes partition_sizes,
-                             bool update_metadata = true) {
-    auto m = PartitionSizesToMetadata(partition_sizes);
-    return bootctl_.InitPartitionMetadata(slot, m, update_metadata);
+  bool PreparePartitionsForUpdate(uint32_t slot,
+                                  PartitionSizes partition_sizes,
+                                  bool update_metadata = true) {
+    auto m = PartitionSizesToManifest(partition_sizes);
+    return bootctl_.PreparePartitionsForUpdate(slot, m, update_metadata);
   }
 
   BootControlAndroid bootctl_;  // BootControlAndroid under test.
@@ -155,9 +155,9 @@ TEST_P(BootControlAndroidTestP,
                {T("system"), 2_GiB},
                {T("vendor"), 1_GiB}});
 
-  // Not calling through BootControlAndroidTest::InitPartitionMetadata(), since
-  // we don't want any default group in the PartitionMetadata.
-  EXPECT_TRUE(bootctl_.InitPartitionMetadata(target(), {}, true));
+  // Not calling through BootControlAndroidTest::PreparePartitionsForUpdate(),
+  // since we don't want any default group in the PartitionMetadata.
+  EXPECT_TRUE(bootctl_.PreparePartitionsForUpdate(target(), {}, true));
 
   // Should use dynamic source partitions.
   EXPECT_CALL(dynamicControl(), GetState(S("system")))
@@ -197,7 +197,7 @@ TEST_P(BootControlAndroidTestP, GetPartitionDeviceWhenResumingUpdate) {
                {T("system"), 2_GiB},
                {T("vendor"), 1_GiB}});
 
-  EXPECT_TRUE(InitPartitionMetadata(
+  EXPECT_TRUE(PreparePartitionsForUpdate(
       target(), {{"system", 2_GiB}, {"vendor", 1_GiB}}, false));
 
   // Dynamic partition "system".
@@ -240,7 +240,7 @@ INSTANTIATE_TEST_CASE_P(BootControlAndroidTest,
 
 TEST_F(BootControlAndroidTest, ApplyingToCurrentSlot) {
   SetSlots({1, 1});
-  EXPECT_FALSE(InitPartitionMetadata(target(), {}))
+  EXPECT_FALSE(PreparePartitionsForUpdate(target(), {}))
       << "Should not be able to apply to current slot.";
 }
 

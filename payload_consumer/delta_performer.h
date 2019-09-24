@@ -275,7 +275,7 @@ class DeltaPerformer : public FileWriter {
 
   // After install_plan_ is filled with partition names and sizes, initialize
   // metadata of partitions and map necessary devices before opening devices.
-  bool InitPartitionMetadata();
+  bool PreparePartitionsForUpdate();
 
   // Update Engine preference store.
   PrefsInterface* prefs_;
