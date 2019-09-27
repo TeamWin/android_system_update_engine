@@ -153,10 +153,10 @@ message ImageInfo {
 
 message InstallOperation {
   enum Type {
-    REPLACE = 0;  // Replace destination extents w/ attached data
-    REPLACE_BZ = 1;  // Replace destination extents w/ attached bzipped data
-    MOVE = 2;  // Move source extents to destination extents
-    BSDIFF = 3;  // The data is a bsdiff binary diff
+    REPLACE = 0;     // Replace destination extents w/ attached data.
+    REPLACE_BZ = 1;  // Replace destination extents w/ attached bzipped data.
+    MOVE = 2 [deprecated = true];    // Move source extents to target extents.
+    BSDIFF = 3 [deprecated = true];  // The data is a bsdiff binary diff.
 
     // On minor version 2 or newer, these operations are supported:
     SOURCE_COPY = 4; // Copy from source to target partition

@@ -306,30 +306,6 @@ class PayloadApplier(object):
       raise PayloadError('%s: wrote fewer bytes (%d) than expected (%d)' %
                          (op_name, data_start, data_length))
 
-  def _ApplyMoveOperation(self, op, op_name, part_file):
-    """Applies a MOVE operation.
-
-    Note that this operation must read the whole block data from the input and
-    only then dump it, due to our in-place update semantics; otherwise, it
-    might clobber data midway through.
-
-    Args:
-      op: the operation object
-      op_name: name string for error reporting
-      part_file: the partition file object
-
-    Raises:
-      PayloadError if something goes wrong.
-    """
-    block_size = self.block_size
-
-    # Gather input raw data from src extents.
-    in_data = _ReadExtents(part_file, op.src_extents, block_size)
-
-    # Dump extracted data to dst extents.
-    _WriteExtents(part_file, in_data, op.dst_extents, block_size,
-                  '%s.dst_extents' % op_name)
-
   def _ApplyZeroOperation(self, op, op_name, part_file):
     """Applies a ZERO operation.
 
@@ -439,8 +415,7 @@ class PayloadApplier(object):
       # Diff from source partition.
       old_file_name = '/dev/fd/%d' % old_part_file.fileno()
 
-      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF,
-                     common.OpType.BROTLI_BSDIFF):
+      if op.type in (common.OpType.SOURCE_BSDIFF, common.OpType.BROTLI_BSDIFF):
         # Invoke bspatch on partition file with extents args.
         bspatch_cmd = [self.bspatch_path, old_file_name, new_file_name,
                        patch_file_name, in_extents_arg, out_extents_arg]
@@ -477,8 +452,7 @@ class PayloadApplier(object):
       with tempfile.NamedTemporaryFile(delete=False) as out_file:
         out_file_name = out_file.name
 
-      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF,
-                     common.OpType.BROTLI_BSDIFF):
+      if op.type in (common.OpType.SOURCE_BSDIFF, common.OpType.BROTLI_BSDIFF):
         # Invoke bspatch.
         bspatch_cmd = [self.bspatch_path, in_file_name, out_file_name,
                        patch_file_name]
@@ -520,10 +494,6 @@ class PayloadApplier(object):
                        new_part_file, part_size):
     """Applies a sequence of update operations to a partition.
 
-    This assumes an in-place update semantics for MOVE and BSDIFF, namely all
-    reads are performed first, then the data is processed and written back to
-    the same file.
-
     Args:
       operations: the sequence of operations
       base_name: the name of the operation sequence
@@ -541,13 +511,8 @@ class PayloadApplier(object):
       if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ,
                      common.OpType.REPLACE_XZ):
         self._ApplyReplaceOperation(op, op_name, data, new_part_file, part_size)
-      elif op.type == common.OpType.MOVE:
-        self._ApplyMoveOperation(op, op_name, new_part_file)
       elif op.type == common.OpType.ZERO:
         self._ApplyZeroOperation(op, op_name, new_part_file)
-      elif op.type == common.OpType.BSDIFF:
-        self._ApplyDiffOperation(op, op_name, data, new_part_file,
-                                 new_part_file)
       elif op.type == common.OpType.SOURCE_COPY:
         self._ApplySourceCopyOperation(op, op_name, old_part_file,
                                        new_part_file)
@@ -583,15 +548,8 @@ class PayloadApplier(object):
         _VerifySha256(old_part_file, old_part_info.hash,
                       'old ' + part_name, length=old_part_info.size)
       new_part_file_mode = 'r+b'
-      if self.minor_version == common.INPLACE_MINOR_PAYLOAD_VERSION:
-        # Copy the src partition to the dst one; make sure we don't truncate it.
-        shutil.copyfile(old_part_file_name, new_part_file_name)
-      elif self.minor_version >= common.SOURCE_MINOR_PAYLOAD_VERSION:
-        # In minor version >= 2, we don't want to copy the partitions, so
-        # instead just make the new partition file.
-        open(new_part_file_name, 'w').close()
-      else:
-        raise PayloadError("Unknown minor version: %d" % self.minor_version)
+      open(new_part_file_name, 'w').close()
+
     else:
       # We need to create/truncate the dst partition file.
       new_part_file_mode = 'w+b'

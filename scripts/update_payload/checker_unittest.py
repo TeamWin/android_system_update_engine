@@ -44,8 +44,6 @@ def _OpTypeByName(op_name):
   op_name_to_type = {
       'REPLACE': common.OpType.REPLACE,
       'REPLACE_BZ': common.OpType.REPLACE_BZ,
-      'MOVE': common.OpType.MOVE,
-      'BSDIFF': common.OpType.BSDIFF,
       'SOURCE_COPY': common.OpType.SOURCE_COPY,
       'SOURCE_BSDIFF': common.OpType.SOURCE_BSDIFF,
       'ZERO': common.OpType.ZERO,
@@ -429,10 +427,10 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_gen.SetBlockSize(test_utils.KiB(4))
 
     # Add some operations.
-    payload_gen.AddOperation(False, common.OpType.MOVE,
+    payload_gen.AddOperation(False, common.OpType.SOURCE_COPY,
                              src_extents=[(0, 16), (16, 497)],
                              dst_extents=[(16, 496), (0, 16)])
-    payload_gen.AddOperation(True, common.OpType.MOVE,
+    payload_gen.AddOperation(True, common.OpType.SOURCE_COPY,
                              src_extents=[(0, 8), (8, 8)],
                              dst_extents=[(8, 8), (0, 8)])
 
@@ -669,132 +667,6 @@ class PayloadCheckerTest(mox.MoxTestBase):
         PayloadError, payload_checker._CheckReplaceOperation,
         op, data_length, (data_length + block_size - 1) / block_size, 'foo')
 
-  def testCheckMoveOperation_Pass(self):
-    """Tests _CheckMoveOperation(); pass case."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((16, 128), (512, 6)))
-    self.assertIsNone(
-        payload_checker._CheckMoveOperation(op, None, 134, 134, 'foo'))
-
-  def testCheckMoveOperation_FailContainsData(self):
-    """Tests _CheckMoveOperation(); fails, message contains data."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((16, 128), (512, 6)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, 1024, 134, 134, 'foo')
-
-  def testCheckMoveOperation_FailInsufficientSrcBlocks(self):
-    """Tests _CheckMoveOperation(); fails, not enough actual src blocks."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 127)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((16, 128), (512, 6)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-
-  def testCheckMoveOperation_FailInsufficientDstBlocks(self):
-    """Tests _CheckMoveOperation(); fails, not enough actual dst blocks."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((16, 128), (512, 5)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-
-  def testCheckMoveOperation_FailExcessSrcBlocks(self):
-    """Tests _CheckMoveOperation(); fails, too many actual src blocks."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((16, 128), (512, 5)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 129)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((16, 128), (512, 6)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-
-  def testCheckMoveOperation_FailExcessDstBlocks(self):
-    """Tests _CheckMoveOperation(); fails, too many actual dst blocks."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((16, 128), (512, 7)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-
-  def testCheckMoveOperation_FailStagnantBlocks(self):
-    """Tests _CheckMoveOperation(); fails, there are blocks that do not move."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((8, 128), (512, 6)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-
-  def testCheckMoveOperation_FailZeroStartBlock(self):
-    """Tests _CheckMoveOperation(); fails, has extent with start block 0."""
-    payload_checker = checker.PayloadChecker(self.MockPayload())
-    op = update_metadata_pb2.InstallOperation()
-    op.type = common.OpType.MOVE
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((0, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((8, 128), (512, 6)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-
-    self.AddToMessage(op.src_extents,
-                      self.NewExtentList((1, 4), (12, 2), (1024, 128)))
-    self.AddToMessage(op.dst_extents,
-                      self.NewExtentList((0, 128), (512, 6)))
-    self.assertRaises(
-        PayloadError, payload_checker._CheckMoveOperation,
-        op, None, 134, 134, 'foo')
-
   def testCheckAnyDiff(self):
     """Tests _CheckAnyDiffOperation()."""
     payload_checker = checker.PayloadChecker(self.MockPayload())
@@ -841,7 +713,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     """Parametric testing of _CheckOperation().
 
     Args:
-      op_type_name: 'REPLACE', 'REPLACE_BZ', 'REPLACE_XZ', 'MOVE', 'BSDIFF',
+      op_type_name: 'REPLACE', 'REPLACE_BZ', 'REPLACE_XZ',
         'SOURCE_COPY', 'SOURCE_BSDIFF', BROTLI_BSDIFF or 'PUFFDIFF'.
       is_last: Whether we're testing the last operation in a sequence.
       allow_signature: Whether we're testing a signature-capable operation.
@@ -880,8 +752,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     op.type = op_type
 
     total_src_blocks = 0
-    if op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
-                   common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF,
+    if op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF,
                    common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF):
       if fail_src_extents:
         self.AddToMessage(op.src_extents,
@@ -895,8 +766,6 @@ class PayloadCheckerTest(mox.MoxTestBase):
     payload_checker.major_version = common.CHROMEOS_MAJOR_PAYLOAD_VERSION
     if op_type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       payload_checker.minor_version = 0
-    elif op_type in (common.OpType.MOVE, common.OpType.BSDIFF):
-      payload_checker.minor_version = 2 if fail_bad_minor_version else 1
     elif op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
       payload_checker.minor_version = 1 if fail_bad_minor_version else 2
     if op_type == common.OpType.REPLACE_XZ:
@@ -907,7 +776,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     elif op_type == common.OpType.PUFFDIFF:
       payload_checker.minor_version = 4 if fail_bad_minor_version else 5
 
-    if op_type not in (common.OpType.MOVE, common.OpType.SOURCE_COPY):
+    if op_type != common.OpType.SOURCE_COPY:
       if not fail_mismatched_data_offset_length:
         op.data_length = 16 * block_size - 8
       if fail_prev_data_offset:
@@ -944,8 +813,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if total_src_blocks:
       if fail_src_length:
         op.src_length = total_src_blocks * block_size + 8
-      elif (op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
-                        common.OpType.SOURCE_BSDIFF) and
+      elif (op_type == common.OpType.SOURCE_BSDIFF and
             payload_checker.minor_version <= 3):
         op.src_length = total_src_blocks * block_size
     elif fail_src_length:
@@ -955,8 +823,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if total_dst_blocks:
       if fail_dst_length:
         op.dst_length = total_dst_blocks * block_size + 8
-      elif (op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
-                        common.OpType.SOURCE_BSDIFF) and
+      elif (op_type == common.OpType.SOURCE_BSDIFF and
             payload_checker.minor_version <= 3):
         op.dst_length = total_dst_blocks * block_size
 
@@ -1120,7 +987,6 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     should_succeed = (
         (minor_version == 0 and payload_type == checker._TYPE_FULL) or
-        (minor_version == 1 and payload_type == checker._TYPE_DELTA) or
         (minor_version == 2 and payload_type == checker._TYPE_DELTA) or
         (minor_version == 3 and payload_type == checker._TYPE_DELTA) or
         (minor_version == 4 and payload_type == checker._TYPE_DELTA) or
@@ -1244,8 +1110,8 @@ def ValidateCheckOperationTest(op_type_name, is_last, allow_signature,
                                                  fail_bad_minor_version)):
     return False
 
-  # MOVE and SOURCE_COPY operations don't carry data.
-  if (op_type in (common.OpType.MOVE, common.OpType.SOURCE_COPY) and (
+  # SOURCE_COPY operation does not carry data.
+  if (op_type == common.OpType.SOURCE_COPY and (
       fail_mismatched_data_offset_length or fail_data_hash or
       fail_prev_data_offset)):
     return False
@@ -1328,9 +1194,8 @@ def AddAllParametricTests():
   # Add all _CheckOperation() test cases.
   AddParametricTests('CheckOperation',
                      {'op_type_name': ('REPLACE', 'REPLACE_BZ', 'REPLACE_XZ',
-                                       'MOVE', 'BSDIFF', 'SOURCE_COPY',
-                                       'SOURCE_BSDIFF', 'PUFFDIFF',
-                                       'BROTLI_BSDIFF'),
+                                       'SOURCE_COPY', 'SOURCE_BSDIFF',
+                                       'PUFFDIFF', 'BROTLI_BSDIFF'),
                       'is_last': (True, False),
                       'allow_signature': (True, False),
                       'allow_unhashed': (True, False),
@@ -1360,7 +1225,7 @@ def AddAllParametricTests():
 
   # Add all _CheckManifestMinorVersion() test cases.
   AddParametricTests('CheckManifestMinorVersion',
-                     {'minor_version': (None, 0, 1, 2, 3, 4, 5, 555),
+                     {'minor_version': (None, 0, 2, 3, 4, 5, 555),
                       'payload_type': (checker._TYPE_FULL,
                                        checker._TYPE_DELTA)})
 

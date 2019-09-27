@@ -187,10 +187,6 @@ class PayloadCommand(object):
             num_write_seeks += 1
           last_ext = curr_ext
 
-    if manifest.minor_version == 1:
-      # Rootfs and kernel are written during the filesystem copy in version 1.
-      written_blocks += manifest.old_rootfs_info.size / manifest.block_size
-      written_blocks += manifest.old_kernel_info.size / manifest.block_size
     # Old and new rootfs and kernel are read once during verification
     read_blocks += manifest.old_rootfs_info.size / manifest.block_size
     read_blocks += manifest.old_kernel_info.size / manifest.block_size

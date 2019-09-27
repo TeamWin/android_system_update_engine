@@ -66,15 +66,12 @@ _DEFAULT_PUBKEY_FILE_NAME = os.path.join(os.path.dirname(__file__),
 # Supported minor version map to payload types allowed to be using them.
 _SUPPORTED_MINOR_VERSIONS = {
     0: (_TYPE_FULL,),
-    1: (_TYPE_DELTA,),
     2: (_TYPE_DELTA,),
     3: (_TYPE_DELTA,),
     4: (_TYPE_DELTA,),
     5: (_TYPE_DELTA,),
     6: (_TYPE_DELTA,),
 }
-
-_OLD_DELTA_USABLE_PART_SIZE = 2 * 1024 * 1024 * 1024
 
 #
 # Helper functions.
@@ -806,89 +803,6 @@ class PayloadChecker(object):
             'space (%d * %d).' %
             (op_name, data_length, total_dst_blocks, self.block_size))
 
-  def _CheckMoveOperation(self, op, data_offset, total_src_blocks,
-                          total_dst_blocks, op_name):
-    """Specific checks for MOVE operations.
-
-    Args:
-      op: The operation object from the manifest.
-      data_offset: The offset of a data blob for the operation.
-      total_src_blocks: Total number of blocks in src_extents.
-      total_dst_blocks: Total number of blocks in dst_extents.
-      op_name: Operation name for error reporting.
-
-    Raises:
-      error.PayloadError if any check fails.
-    """
-    # Check: No data_{offset,length}.
-    if data_offset is not None:
-      raise error.PayloadError('%s: contains data_{offset,length}.' % op_name)
-
-    # Check: total_src_blocks == total_dst_blocks.
-    if total_src_blocks != total_dst_blocks:
-      raise error.PayloadError(
-          '%s: total src blocks (%d) != total dst blocks (%d).' %
-          (op_name, total_src_blocks, total_dst_blocks))
-
-    # Check: For all i, i-th src block index != i-th dst block index.
-    i = 0
-    src_extent_iter = iter(op.src_extents)
-    dst_extent_iter = iter(op.dst_extents)
-    src_extent = dst_extent = None
-    src_idx = src_num = dst_idx = dst_num = 0
-    while i < total_src_blocks:
-      # Get the next source extent, if needed.
-      if not src_extent:
-        try:
-          src_extent = src_extent_iter.next()
-        except StopIteration:
-          raise error.PayloadError('%s: ran out of src extents (%d/%d).' %
-                                   (op_name, i, total_src_blocks))
-        src_idx = src_extent.start_block
-        src_num = src_extent.num_blocks
-
-      # Get the next dest extent, if needed.
-      if not dst_extent:
-        try:
-          dst_extent = dst_extent_iter.next()
-        except StopIteration:
-          raise error.PayloadError('%s: ran out of dst extents (%d/%d).' %
-                                   (op_name, i, total_dst_blocks))
-        dst_idx = dst_extent.start_block
-        dst_num = dst_extent.num_blocks
-
-      # Check: start block is not 0. See crbug/480751; there are still versions
-      # of update_engine which fail when seeking to 0 in PReadAll and PWriteAll,
-      # so we need to fail payloads that try to MOVE to/from block 0.
-      if src_idx == 0 or dst_idx == 0:
-        raise error.PayloadError(
-            '%s: MOVE operation cannot have extent with start block 0' %
-            op_name)
-
-      if self.check_move_same_src_dst_block and src_idx == dst_idx:
-        raise error.PayloadError(
-            '%s: src/dst block number %d is the same (%d).' %
-            (op_name, i, src_idx))
-
-      advance = min(src_num, dst_num)
-      i += advance
-
-      src_idx += advance
-      src_num -= advance
-      if src_num == 0:
-        src_extent = None
-
-      dst_idx += advance
-      dst_num -= advance
-      if dst_num == 0:
-        dst_extent = None
-
-    # Make sure we've exhausted all src/dst extents.
-    if src_extent:
-      raise error.PayloadError('%s: excess src blocks.' % op_name)
-    if dst_extent:
-      raise error.PayloadError('%s: excess dst blocks.' % op_name)
-
   def _CheckZeroOperation(self, op, op_name):
     """Specific checks for ZERO operations.
 
@@ -908,7 +822,7 @@ class PayloadChecker(object):
       raise error.PayloadError('%s: contains data_offset.' % op_name)
 
   def _CheckAnyDiffOperation(self, op, data_length, total_dst_blocks, op_name):
-    """Specific checks for BSDIFF, SOURCE_BSDIFF, PUFFDIFF and BROTLI_BSDIFF
+    """Specific checks for SOURCE_BSDIFF, PUFFDIFF and BROTLI_BSDIFF
        operations.
 
     Args:
@@ -933,8 +847,7 @@ class PayloadChecker(object):
            total_dst_blocks * self.block_size))
 
     # Check the existence of src_length and dst_length for legacy bsdiffs.
-    if (op.type == common.OpType.BSDIFF or
-        (op.type == common.OpType.SOURCE_BSDIFF and self.minor_version <= 3)):
+    if op.type == common.OpType.SOURCE_BSDIFF and self.minor_version <= 3:
       if not op.HasField('src_length') or not op.HasField('dst_length'):
         raise error.PayloadError('%s: require {src,dst}_length.' % op_name)
     else:
@@ -1074,13 +987,8 @@ class PayloadChecker(object):
           (self.minor_version >= 3 or
            self.major_version >= common.BRILLO_MAJOR_PAYLOAD_VERSION)):
       self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
-    elif op.type == common.OpType.MOVE and self.minor_version == 1:
-      self._CheckMoveOperation(op, data_offset, total_src_blocks,
-                               total_dst_blocks, op_name)
     elif op.type == common.OpType.ZERO and self.minor_version >= 4:
       self._CheckZeroOperation(op, op_name)
-    elif op.type == common.OpType.BSDIFF and self.minor_version == 1:
-      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.SOURCE_COPY and self.minor_version >= 2:
       self._CheckSourceCopyOperation(data_offset, total_src_blocks,
                                      total_dst_blocks, op_name)
@@ -1149,9 +1057,7 @@ class PayloadChecker(object):
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
         common.OpType.REPLACE_XZ: 0,
-        common.OpType.MOVE: 0,
         common.OpType.ZERO: 0,
-        common.OpType.BSDIFF: 0,
         common.OpType.SOURCE_COPY: 0,
         common.OpType.SOURCE_BSDIFF: 0,
         common.OpType.PUFFDIFF: 0,
@@ -1162,8 +1068,6 @@ class PayloadChecker(object):
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
         common.OpType.REPLACE_XZ: 0,
-        # MOVE operations don't have blobs.
-        common.OpType.BSDIFF: 0,
         # SOURCE_COPY operations don't have blobs.
         common.OpType.SOURCE_BSDIFF: 0,
         common.OpType.PUFFDIFF: 0,
@@ -1374,19 +1278,10 @@ class PayloadChecker(object):
 
         if part_sizes is not None and part_sizes.get(part, None):
           new_fs_usable_size = old_fs_usable_size = part_sizes[part]
-        # Infer the usable partition size when validating rootfs operations:
-        # - If rootfs partition size was provided, use that.
-        # - Otherwise, if this is an older delta (minor version < 2), stick with
-        #   a known constant size. This is necessary because older deltas may
-        #   exceed the filesystem size when moving data blocks around.
-        # - Otherwise, use the encoded filesystem size.
-        elif self.payload_type == _TYPE_DELTA and part == common.ROOTFS and \
-            self.minor_version in (None, 1):
-          new_fs_usable_size = old_fs_usable_size = _OLD_DELTA_USABLE_PART_SIZE
 
-        # TODO(garnold)(chromium:243559) only default to the filesystem size if
-        # no explicit size provided *and* the partition size is not embedded in
-        # the payload; see issue for more details.
+        # TODO(chromium:243559) only default to the filesystem size if no
+        # explicit size provided *and* the partition size is not embedded in the
+        # payload; see issue for more details.
         total_blob_size += self._CheckOperations(
             operations, report, '%s_install_operations' % part,
             self.old_fs_sizes[part], self.new_fs_sizes[part],

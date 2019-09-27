@@ -642,7 +642,6 @@ int Main(int argc, char** argv) {
     // Autodetect minor_version by looking at the update_engine.conf in the old
     // image.
     if (payload_config.is_delta) {
-      payload_config.version.minor = kInPlaceMinorPayloadVersion;
       brillo::KeyValueStore store;
       uint32_t minor_version;
       bool minor_version_found = false;
@@ -656,9 +655,10 @@ int Main(int argc, char** argv) {
           break;
         }
       }
-      LOG_IF(WARNING, !minor_version_found)
-          << "Failed to detect minor version defaulting to minor_version="
-          << payload_config.version.minor;
+      if (!minor_version_found) {
+        LOG(FATAL) << "Failed to detect the minor version.";
+        return 1;
+      }
     } else {
       payload_config.version.minor = kFullPayloadMinorVersion;
       LOG(INFO) << "Using non-delta minor_version="
@@ -667,6 +667,13 @@ int Main(int argc, char** argv) {
   } else {
     payload_config.version.minor = FLAGS_minor_version;
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
+  }
+
+  if (payload_config.version.minor != kFullPayloadMinorVersion &&
+      (payload_config.version.minor < kMinSupportedMinorPayloadVersion ||
+       payload_config.version.minor > kMaxSupportedMinorPayloadVersion)) {
+    LOG(FATAL) << "Unsupported minor version " << payload_config.version.minor;
+    return 1;
   }
 
   payload_config.max_timestamp = FLAGS_max_timestamp;

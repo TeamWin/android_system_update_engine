@@ -315,9 +315,8 @@ bool DeltaPerformer::OpenCurrentPartition() {
       install_plan_->partitions.size() - partitions_.size();
   const InstallPlan::Partition& install_part =
       install_plan_->partitions[num_previous_partitions + current_partition_];
-  // Open source fds if we have a delta payload with minor version >= 2.
-  if (payload_->type == InstallPayloadType::kDelta &&
-      GetMinorVersion() != kInPlaceMinorPayloadVersion) {
+  // Open source fds if we have a delta payload.
+  if (payload_->type == InstallPayloadType::kDelta) {
     source_path_ = install_part.source_path;
     int err;
     source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
@@ -369,9 +368,8 @@ bool DeltaPerformer::OpenCurrentECCPartition() {
   if (current_partition_ >= partitions_.size())
     return false;
 
-  // No support for ECC in minor version 1 or full payloads.
-  if (payload_->type == InstallPayloadType::kFull ||
-      GetMinorVersion() == kInPlaceMinorPayloadVersion)
+  // No support for ECC for full payloads.
+  if (payload_->type == InstallPayloadType::kFull)
     return false;
 
 #if USE_FEC
@@ -684,14 +682,6 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
       case InstallOperation::DISCARD:
         op_result = PerformZeroOrDiscardOperation(op);
         OP_DURATION_HISTOGRAM("ZERO_OR_DISCARD", op_start_time);
-        break;
-      case InstallOperation::MOVE:
-        op_result = PerformMoveOperation(op);
-        OP_DURATION_HISTOGRAM("MOVE", op_start_time);
-        break;
-      case InstallOperation::BSDIFF:
-        op_result = PerformBsdiffOperation(op);
-        OP_DURATION_HISTOGRAM("BSDIFF", op_start_time);
         break;
       case InstallOperation::SOURCE_COPY:
         op_result = PerformSourceCopyOperation(op, error);
@@ -1030,57 +1020,6 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
   return true;
 }
 
-bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation) {
-  // Calculate buffer size. Note, this function doesn't do a sliding
-  // window to copy in case the source and destination blocks overlap.
-  // If we wanted to do a sliding window, we could program the server
-  // to generate deltas that effectively did a sliding window.
-
-  uint64_t blocks_to_read = 0;
-  for (int i = 0; i < operation.src_extents_size(); i++)
-    blocks_to_read += operation.src_extents(i).num_blocks();
-
-  uint64_t blocks_to_write = 0;
-  for (int i = 0; i < operation.dst_extents_size(); i++)
-    blocks_to_write += operation.dst_extents(i).num_blocks();
-
-  DCHECK_EQ(blocks_to_write, blocks_to_read);
-  brillo::Blob buf(blocks_to_write * block_size_);
-
-  // Read in bytes.
-  ssize_t bytes_read = 0;
-  for (int i = 0; i < operation.src_extents_size(); i++) {
-    ssize_t bytes_read_this_iteration = 0;
-    const Extent& extent = operation.src_extents(i);
-    const size_t bytes = extent.num_blocks() * block_size_;
-    TEST_AND_RETURN_FALSE(extent.start_block() != kSparseHole);
-    TEST_AND_RETURN_FALSE(utils::PReadAll(target_fd_,
-                                          &buf[bytes_read],
-                                          bytes,
-                                          extent.start_block() * block_size_,
-                                          &bytes_read_this_iteration));
-    TEST_AND_RETURN_FALSE(bytes_read_this_iteration ==
-                          static_cast<ssize_t>(bytes));
-    bytes_read += bytes_read_this_iteration;
-  }
-
-  // Write bytes out.
-  ssize_t bytes_written = 0;
-  for (int i = 0; i < operation.dst_extents_size(); i++) {
-    const Extent& extent = operation.dst_extents(i);
-    const size_t bytes = extent.num_blocks() * block_size_;
-    TEST_AND_RETURN_FALSE(extent.start_block() != kSparseHole);
-    TEST_AND_RETURN_FALSE(utils::PWriteAll(target_fd_,
-                                           &buf[bytes_written],
-                                           bytes,
-                                           extent.start_block() * block_size_));
-    bytes_written += bytes;
-  }
-  DCHECK_EQ(bytes_written, bytes_read);
-  DCHECK_EQ(bytes_written, static_cast<ssize_t>(buf.size()));
-  return true;
-}
-
 bool DeltaPerformer::ValidateSourceHash(const brillo::Blob& calculated_hash,
                                         const InstallOperation& operation,
                                         const FileDescriptorPtr source_fd,
@@ -1262,47 +1201,6 @@ bool DeltaPerformer::ExtentsToBsdiffPositionsString(
   if (!ret.empty())
     ret.resize(ret.size() - 1);  // Strip trailing comma off
   *positions_string = ret;
-  return true;
-}
-
-bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
-  // Since we delete data off the beginning of the buffer as we use it,
-  // the data we need should be exactly at the beginning of the buffer.
-  TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
-  TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
-
-  string input_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.src_extents(),
-                                                       block_size_,
-                                                       operation.src_length(),
-                                                       &input_positions));
-  string output_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.dst_extents(),
-                                                       block_size_,
-                                                       operation.dst_length(),
-                                                       &output_positions));
-
-  TEST_AND_RETURN_FALSE(bsdiff::bspatch(target_path_.c_str(),
-                                        target_path_.c_str(),
-                                        buffer_.data(),
-                                        buffer_.size(),
-                                        input_positions.c_str(),
-                                        output_positions.c_str()) == 0);
-  DiscardBuffer(true, buffer_.size());
-
-  if (operation.dst_length() % block_size_) {
-    // Zero out rest of final block.
-    // TODO(adlr): build this into bspatch; it's more efficient that way.
-    const Extent& last_extent =
-        operation.dst_extents(operation.dst_extents_size() - 1);
-    const uint64_t end_byte =
-        (last_extent.start_block() + last_extent.num_blocks()) * block_size_;
-    const uint64_t begin_byte =
-        end_byte - (block_size_ - operation.dst_length() % block_size_);
-    brillo::Blob zeros(end_byte - begin_byte);
-    TEST_AND_RETURN_FALSE(utils::PWriteAll(
-        target_fd_, zeros.data(), end_byte - begin_byte, begin_byte));
-  }
   return true;
 }
 

@@ -288,11 +288,11 @@ class EnhancedPayloadGenerator(PayloadGenerator):
 
     Args:
       is_kernel: whether this is a kernel (True) or rootfs (False) operation
-      op_type: one of REPLACE, REPLACE_BZ, REPLACE_XZ, MOVE or BSDIFF
+      op_type: one of REPLACE, REPLACE_BZ, REPLACE_XZ.
       src_extents: list of (start, length) pairs indicating src block ranges
-      src_length: size of the src data in bytes (needed for BSDIFF)
+      src_length: size of the src data in bytes (needed for diff operations)
       dst_extents: list of (start, length) pairs indicating dst block ranges
-      dst_length: size of the dst data in bytes (needed for BSDIFF)
+      dst_length: size of the dst data in bytes (needed for diff operations)
       data_blob: a data blob associated with this operation
       do_hash_data_blob: whether or not to compute and add a data blob hash
     """

@@ -37,7 +37,6 @@
 #include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/full_update_generator.h"
-#include "update_engine/payload_generator/inplace_generator.h"
 #include "update_engine/payload_generator/payload_file.h"
 
 using std::string;
@@ -93,13 +92,8 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
       unique_ptr<OperationsGenerator> strategy;
       if (!old_part.path.empty()) {
         // Delta update.
-        if (config.version.minor == kInPlaceMinorPayloadVersion) {
-          LOG(INFO) << "Using generator InplaceGenerator().";
-          strategy.reset(new InplaceGenerator());
-        } else {
-          LOG(INFO) << "Using generator ABGenerator().";
-          strategy.reset(new ABGenerator());
-        }
+        LOG(INFO) << "Using generator ABGenerator().";
+        strategy.reset(new ABGenerator());
       } else {
         LOG(INFO) << "Using generator FullUpdateGenerator().";
         strategy.reset(new FullUpdateGenerator());
@@ -109,11 +103,6 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
       // Generate the operations using the strategy we selected above.
       TEST_AND_RETURN_FALSE(strategy->GenerateOperations(
           config, old_part, new_part, &blob_file, &aops));
-
-      // Filter the no-operations. OperationsGenerators should not output this
-      // kind of operations normally, but this is an extra step to fix that if
-      // happened.
-      diff_utils::FilterNoopOperations(&aops);
 
       TEST_AND_RETURN_FALSE(payload.AddPartition(old_part, new_part, aops));
     }

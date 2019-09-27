@@ -223,8 +223,6 @@ class DeltaPerformer : public FileWriter {
   // set even if it fails.
   bool PerformReplaceOperation(const InstallOperation& operation);
   bool PerformZeroOrDiscardOperation(const InstallOperation& operation);
-  bool PerformMoveOperation(const InstallOperation& operation);
-  bool PerformBsdiffOperation(const InstallOperation& operation);
   bool PerformSourceCopyOperation(const InstallOperation& operation,
                                   ErrorCode* error);
   bool PerformSourceBsdiffOperation(const InstallOperation& operation,

@@ -39,7 +39,7 @@ extern const uint64_t kMaxSupportedMajorPayloadVersion;
 extern const uint32_t kFullPayloadMinorVersion;
 
 // The minor version used by the in-place delta generator algorithm.
-extern const uint32_t kInPlaceMinorPayloadVersion;
+// extern const uint32_t kInPlaceMinorPayloadVersion;  DEPRECATED
 
 // The minor version used by the A to B delta generator algorithm.
 extern const uint32_t kSourceMinorPayloadVersion;

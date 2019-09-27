@@ -222,7 +222,6 @@ bool PayloadVersion::Validate() const {
   TEST_AND_RETURN_FALSE(major == kChromeOSMajorPayloadVersion ||
                         major == kBrilloMajorPayloadVersion);
   TEST_AND_RETURN_FALSE(minor == kFullPayloadMinorVersion ||
-                        minor == kInPlaceMinorPayloadVersion ||
                         minor == kSourceMinorPayloadVersion ||
                         minor == kOpSrcHashMinorPayloadVersion ||
                         minor == kBrotliBsdiffMinorPayloadVersion ||
@@ -252,14 +251,6 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
       // them for delta payloads for now.
       return minor >= kBrotliBsdiffMinorPayloadVersion;
 
-    // Delta operations:
-    case InstallOperation::MOVE:
-    case InstallOperation::BSDIFF:
-      // MOVE and BSDIFF were replaced by SOURCE_COPY and SOURCE_BSDIFF and
-      // should not be used in newer delta versions, since the idempotent checks
-      // were removed.
-      return minor == kInPlaceMinorPayloadVersion;
-
     case InstallOperation::SOURCE_COPY:
     case InstallOperation::SOURCE_BSDIFF:
       return minor >= kSourceMinorPayloadVersion;
@@ -269,16 +260,16 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
 
     case InstallOperation::PUFFDIFF:
       return minor >= kPuffdiffMinorPayloadVersion;
+
+    case InstallOperation::MOVE:
+    case InstallOperation::BSDIFF:
+      NOTREACHED();
   }
   return false;
 }
 
 bool PayloadVersion::IsDelta() const {
   return minor != kFullPayloadMinorVersion;
-}
-
-bool PayloadVersion::InplaceUpdate() const {
-  return minor == kInPlaceMinorPayloadVersion;
 }
 
 bool PayloadGenerationConfig::Validate() const {
@@ -307,9 +298,6 @@ bool PayloadGenerationConfig::Validate() const {
   for (const PartitionConfig& part : target.partitions) {
     TEST_AND_RETURN_FALSE(part.ValidateExists());
     TEST_AND_RETURN_FALSE(part.size % block_size == 0);
-    if (version.minor == kInPlaceMinorPayloadVersion &&
-        part.name == kPartitionNameRoot)
-      TEST_AND_RETURN_FALSE(rootfs_partition_size >= part.size);
     if (version.major == kChromeOSMajorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
     if (version.minor < kVerityMinorPayloadVersion)
