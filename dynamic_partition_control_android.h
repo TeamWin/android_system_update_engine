@@ -46,10 +46,10 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
       const std::string& super_device, uint32_t source_slot) override;
 
-  bool PreparePartitionsForUpdate(
-      uint32_t source_slot,
-      uint32_t target_slot,
-      const DeltaArchiveManifest& manifest) override;
+  bool PreparePartitionsForUpdate(uint32_t source_slot,
+                                  uint32_t target_slot,
+                                  const DeltaArchiveManifest& manifest,
+                                  bool update) override;
   bool GetDeviceDir(std::string* path) override;
   std::string GetSuperPartitionName(uint32_t slot) override;
   bool FinishUpdate() override;
@@ -113,6 +113,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   std::set<std::string> mapped_devices_;
   std::unique_ptr<android::snapshot::SnapshotManager> snapshot_;
+  bool target_supports_snapshot_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };

@@ -92,10 +92,11 @@ class DynamicPartitionControlInterface {
   // Prepare all partitions for an update specified in |manifest|.
   // This is needed before calling MapPartitionOnDeviceMapper(), otherwise the
   // device would be mapped in an inconsistent way.
-  virtual bool PreparePartitionsForUpdate(
-      uint32_t source_slot,
-      uint32_t target_slot,
-      const DeltaArchiveManifest& manifest) = 0;
+  // If |update| is set, create snapshots and writes super partition metadata.
+  virtual bool PreparePartitionsForUpdate(uint32_t source_slot,
+                                          uint32_t target_slot,
+                                          const DeltaArchiveManifest& manifest,
+                                          bool update) = 0;
 
   // Return a possible location for devices listed by name.
   virtual bool GetDeviceDir(std::string* path) = 0;
