@@ -171,7 +171,7 @@ TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
   uint64_t metadata_size;
   EXPECT_TRUE(payload.WritePayload(
       payload_file.path(), "/dev/null", "", &metadata_size));
-  const vector<int> sizes = {256};
+  const vector<size_t> sizes = {256};
   brillo::Blob unsigned_payload_hash, unsigned_metadata_hash;
   EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(payload_file.path(),
                                                    sizes,
