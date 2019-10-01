@@ -173,7 +173,7 @@ static size_t GetSignatureSize(const string& private_key_path) {
   return signature.size();
 }
 
-static bool InsertSignaturePlaceholder(int signature_size,
+static bool InsertSignaturePlaceholder(size_t signature_size,
                                        const string& payload_path,
                                        uint64_t* out_metadata_size) {
   vector<brillo::Blob> signatures;
@@ -186,7 +186,7 @@ static bool InsertSignaturePlaceholder(int signature_size,
 static void SignGeneratedPayload(const string& payload_path,
                                  uint64_t* out_metadata_size) {
   string private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyPath);
-  int signature_size = GetSignatureSize(private_key_path);
+  size_t signature_size = GetSignatureSize(private_key_path);
   brillo::Blob hash;
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path, {signature_size}, &hash, nullptr));
@@ -229,15 +229,15 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
     fclose(fprikey);
     RSA_free(rsa);
   }
-  int signature_size = GetSignatureSize(private_key_path);
+  size_t signature_size = GetSignatureSize(private_key_path);
   test_utils::ScopedTempFile hash_file("hash.XXXXXX");
   string signature_size_string;
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2)
     signature_size_string =
-        base::StringPrintf("%d:%d", signature_size, signature_size);
+        base::StringPrintf("%zu:%zu", signature_size, signature_size);
   else
-    signature_size_string = base::StringPrintf("%d", signature_size);
+    signature_size_string = base::StringPrintf("%zu", signature_size);
   string delta_generator_path = GetBuildArtifactsPath("delta_generator");
   ASSERT_EQ(0,
             System(base::StringPrintf(
@@ -531,7 +531,7 @@ static void GenerateDeltaFile(bool full_kernel,
 
   if (signature_test == kSignatureGeneratedPlaceholder ||
       signature_test == kSignatureGeneratedPlaceholderMismatch) {
-    int signature_size =
+    size_t signature_size =
         GetSignatureSize(GetBuildArtifactsPath(kUnittestPrivateKeyPath));
     LOG(INFO) << "Inserting placeholder signature.";
     ASSERT_TRUE(InsertSignaturePlaceholder(

@@ -54,13 +54,13 @@ namespace chromeos_update_engine {
 namespace {
 
 void ParseSignatureSizes(const string& signature_sizes_flag,
-                         vector<int>* signature_sizes) {
+                         vector<size_t>* signature_sizes) {
   signature_sizes->clear();
   vector<string> split_strings = base::SplitString(
       signature_sizes_flag, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (const string& str : split_strings) {
-    int size = 0;
-    bool parsing_successful = base::StringToInt(str, &size);
+    size_t size = 0;
+    bool parsing_successful = base::StringToSizeT(str, &size);
     LOG_IF(FATAL, !parsing_successful) << "Invalid signature size: " << str;
 
     LOG_IF(FATAL, size != 256 && size != 512)
@@ -102,7 +102,7 @@ bool ParseImageInfo(const string& channel,
   return true;
 }
 
-void CalculateHashForSigning(const vector<int>& sizes,
+void CalculateHashForSigning(const vector<size_t>& sizes,
                              const string& out_hash_file,
                              const string& out_metadata_hash_file,
                              const string& in_file) {
@@ -445,8 +445,10 @@ int Main(int argc, char** argv) {
   // Initialize the Xz compressor.
   XzCompressInit();
 
-  vector<int> signature_sizes;
-  ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
+  vector<size_t> signature_sizes;
+  if (!FLAGS_signature_size.empty()) {
+    ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
+  }
 
   if (!FLAGS_out_hash_file.empty() || !FLAGS_out_metadata_hash_file.empty()) {
     CHECK(FLAGS_out_metadata_size_file.empty());
