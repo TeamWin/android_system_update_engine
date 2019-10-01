@@ -352,9 +352,20 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
   if (!update)
     return true;
 
-  if (GetVirtualAbFeatureFlag().IsEnabled() && target_supports_snapshot_) {
-    return PrepareSnapshotPartitionsForUpdate(
-        source_slot, target_slot, manifest);
+  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    // On Virtual A/B device, either CancelUpdate() or BeginUpdate() must be
+    // called before calling UnmapUpdateSnapshot.
+    // - If target_supports_snapshot_, PrepareSnapshotPartitionsForUpdate()
+    //   calls BeginUpdate() which resets update state
+    // - If !target_supports_snapshot_, explicitly CancelUpdate().
+    if (target_supports_snapshot_) {
+      return PrepareSnapshotPartitionsForUpdate(
+          source_slot, target_slot, manifest);
+    }
+    if (!snapshot_->CancelUpdate()) {
+      LOG(ERROR) << "Cannot cancel previous update.";
+      return false;
+    }
   }
   return PrepareDynamicPartitionsForUpdate(source_slot, target_slot, manifest);
 }
