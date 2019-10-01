@@ -91,7 +91,7 @@ class PayloadSigner {
   //
   // The changes to payload are not preserved or written to disk.
   static bool HashPayloadForSigning(const std::string& payload_path,
-                                    const std::vector<int>& signature_sizes,
+                                    const std::vector<size_t>& signature_sizes,
                                     brillo::Blob* out_payload_hash_data,
                                     brillo::Blob* out_metadata_hash);
 
