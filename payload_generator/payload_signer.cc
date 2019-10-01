@@ -352,7 +352,7 @@ bool PayloadSigner::SignatureBlobLength(const vector<string>& private_key_paths,
 }
 
 bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
-                                          const vector<int>& signature_sizes,
+                                          const vector<size_t>& signature_sizes,
                                           brillo::Blob* out_payload_hash_data,
                                           brillo::Blob* out_metadata_hash) {
   // Create a signature blob with signatures filled with 0.
