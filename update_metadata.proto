@@ -302,6 +302,12 @@ message DynamicPartitionMetadata {
   // - If an updatable group is in the manifest but not on the device, the group
   //   is added to the device.
   repeated DynamicPartitionGroup groups = 1;
+
+  // Whether dynamic partitions have snapshots during the update. If this is
+  // set to true, the update_engine daemon creates snapshots for all dynamic
+  // partitions if possible. If this is unset, the update_engine daemon MUST
+  // NOT create snapshots for dynamic partitions.
+  optional bool snapshot_enabled = 2;
 }
 
 message DeltaArchiveManifest {
