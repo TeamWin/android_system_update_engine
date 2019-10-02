@@ -160,6 +160,11 @@ bool ImageConfig::LoadDynamicPartitionMetadata(
       }
     }
   }
+
+  bool snapshot_enabled = false;
+  store.GetBoolean("virtual_ab", &snapshot_enabled);
+  metadata->set_snapshot_enabled(snapshot_enabled);
+
   dynamic_partition_metadata = std::move(metadata);
   return true;
 }
