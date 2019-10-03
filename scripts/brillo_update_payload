@@ -281,7 +281,7 @@ read_option_uint() {
   local option_key="$2"
   local default_value="${3:-}"
   local value
-  if value=$(look "${option_key}=" "${file_txt}" | tail -n 1); then
+  if value=$(grep "^${option_key}=" "${file_txt}" | tail -n 1); then
     if value=$(echo "${value}" | cut -f 2- -d "=" | grep -E "^[0-9]+$"); then
       echo "${value}"
       return
