@@ -1794,8 +1794,12 @@ ErrorCode DeltaPerformer::VerifyPayload(
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       hash_data.size() == kSHA256Size);
 
-  if (!PayloadVerifier::VerifySignature(
-          signatures_message_data_, public_key, hash_data)) {
+  auto payload_verifier = PayloadVerifier::CreateInstance(public_key);
+  if (!payload_verifier) {
+    LOG(ERROR) << "Failed to create the payload verifier from " << public_key;
+    return ErrorCode::kDownloadPayloadPubKeyVerificationError;
+  }
+  if (!payload_verifier->VerifySignature(signatures_message_data_, hash_data)) {
     // The autoupdate_CatchBadSignatures test checks for this string
     // in log-files. Keep in sync.
     LOG(ERROR) << "Public key verification failed, thus update failed.";

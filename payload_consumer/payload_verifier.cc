@@ -51,9 +51,30 @@ const uint8_t kSHA256DigestInfoPrefix[] = {
 
 }  // namespace
 
-bool PayloadVerifier::VerifySignature(const string& signature_proto,
-                                      const string& pem_public_key,
-                                      const brillo::Blob& sha256_hash_data) {
+std::unique_ptr<PayloadVerifier> PayloadVerifier::CreateInstance(
+    const std::string& pem_public_key) {
+  std::unique_ptr<BIO, decltype(&BIO_free)> bp(
+      BIO_new_mem_buf(pem_public_key.data(), pem_public_key.size()), BIO_free);
+  if (!bp) {
+    LOG(ERROR) << "Failed to read " << pem_public_key << " into buffer.";
+    return nullptr;
+  }
+
+  auto pub_key = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>(
+      PEM_read_bio_PUBKEY(bp.get(), nullptr, nullptr, nullptr), EVP_PKEY_free);
+  if (!pub_key) {
+    LOG(ERROR) << "Failed to parse the public key in " << pem_public_key;
+    return nullptr;
+  }
+
+  return std::unique_ptr<PayloadVerifier>(
+      new PayloadVerifier(std::move(pub_key)));
+}
+
+bool PayloadVerifier::VerifySignature(
+    const string& signature_proto, const brillo::Blob& sha256_hash_data) const {
+  TEST_AND_RETURN_FALSE(public_key_ != nullptr);
+
   Signatures signatures;
   LOG(INFO) << "signature blob size = " << signature_proto.size();
   TEST_AND_RETURN_FALSE(signatures.ParseFromString(signature_proto));
@@ -69,17 +90,14 @@ bool PayloadVerifier::VerifySignature(const string& signature_proto,
     const Signatures::Signature& signature = signatures.signatures(i);
     brillo::Blob sig_data(signature.data().begin(), signature.data().end());
     brillo::Blob sig_hash_data;
-    if (!GetRawHashFromSignature(sig_data, pem_public_key, &sig_hash_data))
-      continue;
-
-    brillo::Blob padded_hash_data = sha256_hash_data;
-    if (PadRSASHA256Hash(&padded_hash_data, sig_hash_data.size()) &&
-        padded_hash_data == sig_hash_data) {
+    if (VerifyRawSignature(sig_data, sha256_hash_data, &sig_hash_data)) {
       LOG(INFO) << "Verified correct signature " << i + 1 << " out of "
                 << signatures.signatures_size() << " signatures.";
       return true;
     }
-    tested_hashes.push_back(sig_hash_data);
+    if (!sig_hash_data.empty()) {
+      tested_hashes.push_back(sig_hash_data);
+    }
   }
   LOG(ERROR) << "None of the " << signatures.signatures_size()
              << " signatures is correct. Expected hash before padding:";
@@ -91,24 +109,43 @@ bool PayloadVerifier::VerifySignature(const string& signature_proto,
   return false;
 }
 
-bool PayloadVerifier::GetRawHashFromSignature(const brillo::Blob& sig_data,
-                                              const string& pem_public_key,
-                                              brillo::Blob* out_hash_data) {
+bool PayloadVerifier::VerifyRawSignature(
+    const brillo::Blob& sig_data,
+    const brillo::Blob& sha256_hash_data,
+    brillo::Blob* decrypted_sig_data) const {
+  TEST_AND_RETURN_FALSE(public_key_ != nullptr);
+
+  int key_type = EVP_PKEY_id(public_key_.get());
+  TEST_AND_RETURN_FALSE(key_type == EVP_PKEY_RSA);
+  brillo::Blob sig_hash_data;
+  TEST_AND_RETURN_FALSE(
+      GetRawHashFromSignature(sig_data, public_key_.get(), &sig_hash_data));
+
+  if (decrypted_sig_data != nullptr) {
+    *decrypted_sig_data = sig_hash_data;
+  }
+
+  brillo::Blob padded_hash_data = sha256_hash_data;
+  TEST_AND_RETURN_FALSE(
+      PadRSASHA256Hash(&padded_hash_data, sig_hash_data.size()));
+
+  return padded_hash_data == sig_hash_data;
+}
+
+bool PayloadVerifier::GetRawHashFromSignature(
+    const brillo::Blob& sig_data,
+    const EVP_PKEY* public_key,
+    brillo::Blob* out_hash_data) const {
   // The code below executes the equivalent of:
   //
-  // openssl rsautl -verify -pubin -inkey <(echo |pem_public_key|)
+  // openssl rsautl -verify -pubin -inkey <(echo pem_public_key)
   //   -in |sig_data| -out |out_hash_data|
-
-  BIO* bp = BIO_new_mem_buf(pem_public_key.data(), pem_public_key.size());
-  char dummy_password[] = {' ', 0};  // Ensure no password is read from stdin.
-  RSA* rsa = PEM_read_bio_RSA_PUBKEY(bp, nullptr, nullptr, dummy_password);
-  BIO_free(bp);
+  RSA* rsa = EVP_PKEY_get0_RSA(public_key);
 
   TEST_AND_RETURN_FALSE(rsa != nullptr);
   unsigned int keysize = RSA_size(rsa);
   if (sig_data.size() > 2 * keysize) {
     LOG(ERROR) << "Signature size is too big for public key size.";
-    RSA_free(rsa);
     return false;
   }
 
@@ -116,7 +153,6 @@ bool PayloadVerifier::GetRawHashFromSignature(const brillo::Blob& sig_data,
   brillo::Blob hash_data(keysize);
   int decrypt_size = RSA_public_decrypt(
       sig_data.size(), sig_data.data(), hash_data.data(), rsa, RSA_NO_PADDING);
-  RSA_free(rsa);
   TEST_AND_RETURN_FALSE(decrypt_size > 0 &&
                         decrypt_size <= static_cast<int>(hash_data.size()));
   hash_data.resize(decrypt_size);

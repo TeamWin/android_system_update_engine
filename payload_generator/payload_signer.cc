@@ -18,6 +18,7 @@
 
 #include <endian.h>
 
+#include <memory>
 #include <utility>
 
 #include <base/logging.h>
@@ -255,14 +256,18 @@ bool PayloadSigner::VerifySignedPayload(const string& payload_path,
   string public_key;
   TEST_AND_RETURN_FALSE(utils::ReadFile(public_key_path, &public_key));
   TEST_AND_RETURN_FALSE(payload_hash.size() == kSHA256Size);
+
+  auto payload_verifier = PayloadVerifier::CreateInstance(public_key);
+  TEST_AND_RETURN_FALSE(payload_verifier != nullptr);
+
   TEST_AND_RETURN_FALSE(
-      PayloadVerifier::VerifySignature(signature, public_key, payload_hash));
+      payload_verifier->VerifySignature(signature, payload_hash));
   if (metadata_signature_size) {
     signature.assign(payload.begin() + metadata_size,
                      payload.begin() + metadata_size + metadata_signature_size);
     TEST_AND_RETURN_FALSE(metadata_hash.size() == kSHA256Size);
     TEST_AND_RETURN_FALSE(
-        PayloadVerifier::VerifySignature(signature, public_key, metadata_hash));
+        payload_verifier->VerifySignature(signature, metadata_hash));
   }
   return true;
 }
@@ -280,27 +285,39 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
 
   FILE* fprikey = fopen(private_key_path.c_str(), "rb");
   TEST_AND_RETURN_FALSE(fprikey != nullptr);
-  RSA* rsa = PEM_read_RSAPrivateKey(fprikey, nullptr, nullptr, nullptr);
+
+  std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> private_key(
+      PEM_read_PrivateKey(fprikey, nullptr, nullptr, nullptr), EVP_PKEY_free);
   fclose(fprikey);
-  TEST_AND_RETURN_FALSE(rsa != nullptr);
+  TEST_AND_RETURN_FALSE(private_key != nullptr);
 
-  brillo::Blob padded_hash = hash;
-  PayloadVerifier::PadRSASHA256Hash(&padded_hash, RSA_size(rsa));
+  int key_type = EVP_PKEY_id(private_key.get());
+  brillo::Blob signature;
+  if (key_type == EVP_PKEY_RSA) {
+    RSA* rsa = EVP_PKEY_get0_RSA(private_key.get());
+    TEST_AND_RETURN_FALSE(rsa != nullptr);
 
-  brillo::Blob signature(RSA_size(rsa));
-  ssize_t signature_size = RSA_private_encrypt(padded_hash.size(),
-                                               padded_hash.data(),
-                                               signature.data(),
-                                               rsa,
-                                               RSA_NO_PADDING);
-  RSA_free(rsa);
-  if (signature_size < 0) {
-    LOG(ERROR) << "Signing hash failed: "
-               << ERR_error_string(ERR_get_error(), nullptr);
+    brillo::Blob padded_hash = hash;
+    PayloadVerifier::PadRSASHA256Hash(&padded_hash, RSA_size(rsa));
+
+    signature.resize(RSA_size(rsa));
+    ssize_t signature_size = RSA_private_encrypt(padded_hash.size(),
+                                                 padded_hash.data(),
+                                                 signature.data(),
+                                                 rsa,
+                                                 RSA_NO_PADDING);
+
+    if (signature_size < 0) {
+      LOG(ERROR) << "Signing hash failed: "
+                 << ERR_error_string(ERR_get_error(), nullptr);
+      return false;
+    }
+    TEST_AND_RETURN_FALSE(static_cast<size_t>(signature_size) ==
+                          signature.size());
+  } else {
+    LOG(ERROR) << "key_type " << key_type << " isn't supported for signing";
     return false;
   }
-  TEST_AND_RETURN_FALSE(static_cast<size_t>(signature_size) ==
-                        signature.size());
   out_signature->swap(signature);
   return true;
 }

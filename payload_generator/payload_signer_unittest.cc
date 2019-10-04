@@ -131,19 +131,15 @@ TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
                   GetBuildArtifactsPath(kUnittestPrivateKeyRSA4096Path)});
 
   // Either public key should pass the verification.
-  string public_key;
-  EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKeyPath),
-                              &public_key));
-  EXPECT_TRUE(
-      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
-  EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKey2Path),
-                              &public_key));
-  EXPECT_TRUE(
-      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
-  EXPECT_TRUE(utils::ReadFile(
-      GetBuildArtifactsPath(kUnittestPublicKeyRSA4096Path), &public_key));
-  EXPECT_TRUE(
-      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
+  for (const auto& path : {kUnittestPublicKeyPath,
+                           kUnittestPublicKey2Path,
+                           kUnittestPublicKeyRSA4096Path}) {
+    string public_key;
+    EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(path), &public_key));
+    auto payload_verifier = PayloadVerifier::CreateInstance(public_key);
+    EXPECT_TRUE(payload_verifier != nullptr);
+    EXPECT_TRUE(payload_verifier->VerifySignature(signature, hash_data_));
+  }
 }
 
 TEST_F(PayloadSignerTest, VerifySignatureTest) {
@@ -153,13 +149,17 @@ TEST_F(PayloadSignerTest, VerifySignatureTest) {
   string public_key;
   EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKeyPath),
                               &public_key));
-  EXPECT_TRUE(
-      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
+  auto payload_verifier = PayloadVerifier::CreateInstance(public_key);
+  EXPECT_TRUE(payload_verifier != nullptr);
+  EXPECT_TRUE(payload_verifier->VerifySignature(signature, hash_data_));
+
   // Passing the invalid key should fail the verification.
+  public_key.clear();
   EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(kUnittestPublicKey2Path),
                               &public_key));
-  EXPECT_TRUE(
-      PayloadVerifier::VerifySignature(signature, public_key, hash_data_));
+  payload_verifier = PayloadVerifier::CreateInstance(public_key);
+  EXPECT_TRUE(payload_verifier != nullptr);
+  EXPECT_FALSE(payload_verifier->VerifySignature(signature, hash_data_));
 }
 
 TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
