@@ -17,38 +17,23 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_CONSUMER_PAYLOAD_VERIFIER_H_
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_PAYLOAD_VERIFIER_H_
 
+#include <memory>
 #include <string>
+#include <utility>
 
-#include <base/macros.h>
 #include <brillo/secure_blob.h>
+#include <openssl/evp.h>
 
 #include "update_engine/update_metadata.pb.h"
 
-// This class encapsulates methods used for payload signature verification.
-// See payload_generator/payload_signer.h for payload signing.
+// This class holds the public key and implements methods used for payload
+// signature verification. See payload_generator/payload_signer.h for payload
+// signing.
 
 namespace chromeos_update_engine {
 
 class PayloadVerifier {
  public:
-  // Interprets |signature_proto| as a protocol buffer containing the Signatures
-  // message and decrypts each signature data using the |pem_public_key|.
-  // |pem_public_key| should be a PEM format RSA public key data.
-  // Pads the 32 bytes |sha256_hash_data| to 256 or 512 bytes according to the
-  // PKCS#1 v1.5 standard; and returns whether *any* of the decrypted hashes
-  // matches the padded hash data. In case of any error parsing the signatures
-  // or the public key, returns false.
-  static bool VerifySignature(const std::string& signature_proto,
-                              const std::string& pem_public_key,
-                              const brillo::Blob& sha256_hash_data);
-
-  // Decrypts |sig_data| with the given |pem_public_key| and populates
-  // |out_hash_data| with the decoded raw hash. |pem_public_key| should be a PEM
-  // format RSA public key data. Returns true if successful, false otherwise.
-  static bool GetRawHashFromSignature(const brillo::Blob& sig_data,
-                                      const std::string& pem_public_key,
-                                      brillo::Blob* out_hash_data);
-
   // Pads a SHA256 hash so that it may be encrypted/signed with RSA2048 or
   // RSA4096 using the PKCS#1 v1.5 scheme.
   // hash should be a pointer to vector of exactly 256 bits. |rsa_size| must be
@@ -57,9 +42,41 @@ class PayloadVerifier {
   // Returns true on success, false otherwise.
   static bool PadRSASHA256Hash(brillo::Blob* hash, size_t rsa_size);
 
+  // Parses the input as a PEM encoded public string. And creates a
+  // PayloadVerifier with that public key for signature verification.
+  static std::unique_ptr<PayloadVerifier> CreateInstance(
+      const std::string& pem_public_key);
+
+  // Interprets |signature_proto| as a protocol buffer containing the
+  // |Signatures| message and decrypts each signature data using the stored
+  // public key. Pads the 32 bytes |sha256_hash_data| to 256 or 512 bytes
+  // according to the PKCS#1 v1.5 standard; and returns whether *any* of the
+  // decrypted hashes matches the padded hash data. In case of any error parsing
+  // the signatures, returns false.
+  bool VerifySignature(const std::string& signature_proto,
+                       const brillo::Blob& sha256_hash_data) const;
+
+  // Verifies if |sig_data| is a raw signature of the hash |sha256_hash_data|.
+  // If PayloadVerifier is using RSA as the public key, further puts the
+  // decrypted data of |sig_data| into |decrypted_sig_data|.
+  bool VerifyRawSignature(const brillo::Blob& sig_data,
+                          const brillo::Blob& sha256_hash_data,
+                          brillo::Blob* decrypted_sig_data) const;
+
  private:
-  // This should never be constructed
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PayloadVerifier);
+  explicit PayloadVerifier(
+      std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>&& public_key)
+      : public_key_(std::move(public_key)) {}
+
+  // Decrypts |sig_data| with the given |public_key| and populates
+  // |out_hash_data| with the decoded raw hash. Returns true if successful,
+  // false otherwise.
+  bool GetRawHashFromSignature(const brillo::Blob& sig_data,
+                               const EVP_PKEY* public_key,
+                               brillo::Blob* out_hash_data) const;
+
+  std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> public_key_{nullptr,
+                                                                  nullptr};
 };
 
 }  // namespace chromeos_update_engine
