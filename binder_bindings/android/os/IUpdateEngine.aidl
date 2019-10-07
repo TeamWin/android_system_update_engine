@@ -17,6 +17,7 @@
 package android.os;
 
 import android.os.IUpdateEngineCallback;
+import android.os.ParcelFileDescriptor;
 
 /** @hide */
 interface IUpdateEngine {
@@ -26,7 +27,7 @@ interface IUpdateEngine {
                     in long payload_size,
                     in String[] headerKeyValuePairs);
   /** @hide */
-  void applyPayloadFd(in FileDescriptor fd,
+  void applyPayloadFd(in ParcelFileDescriptor pfd,
                       in long payload_offset,
                       in long payload_size,
                       in String[] headerKeyValuePairs);

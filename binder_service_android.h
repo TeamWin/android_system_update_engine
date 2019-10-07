@@ -54,7 +54,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
       int64_t payload_size,
       const std::vector<android::String16>& header_kv_pairs) override;
   android::binder::Status applyPayloadFd(
-      const ::android::base::unique_fd& fd,
+      const ::android::os::ParcelFileDescriptor& pfd,
       int64_t payload_offset,
       int64_t payload_size,
       const std::vector<android::String16>& header_kv_pairs) override;
