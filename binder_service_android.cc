@@ -16,16 +16,15 @@
 
 #include "update_engine/binder_service_android.h"
 
-#include <android-base/unique_fd.h>
 #include <base/bind.h>
 #include <base/logging.h>
 #include <binderwrapper/binder_wrapper.h>
 #include <brillo/errors/error.h>
 #include <utils/String8.h>
 
-using android::base::unique_fd;
 using android::binder::Status;
 using android::os::IUpdateEngineCallback;
+using android::os::ParcelFileDescriptor;
 using std::string;
 using std::vector;
 using update_engine::UpdateEngineStatus;
@@ -115,7 +114,7 @@ Status BinderUpdateEngineAndroidService::applyPayload(
 }
 
 Status BinderUpdateEngineAndroidService::applyPayloadFd(
-    const ::android::base::unique_fd& fd,
+    const ParcelFileDescriptor& pfd,
     int64_t payload_offset,
     int64_t payload_size,
     const vector<android::String16>& header_kv_pairs) {
@@ -127,7 +126,7 @@ Status BinderUpdateEngineAndroidService::applyPayloadFd(
 
   brillo::ErrorPtr error;
   if (!service_delegate_->ApplyPayload(
-          fd.get(), payload_offset, payload_size, str_headers, &error)) {
+          pfd.get(), payload_offset, payload_size, str_headers, &error)) {
     return ErrorPtrToStatus(error);
   }
   return Status::ok();
