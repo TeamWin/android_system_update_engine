@@ -98,23 +98,20 @@ bool AddSignatureBlobToPayload(const string& payload_path,
   uint64_t metadata_size = payload_metadata.GetMetadataSize();
   uint32_t metadata_signature_size =
       payload_metadata.GetMetadataSignatureSize();
-  if (payload_metadata.GetMajorVersion() == kBrilloMajorPayloadVersion) {
-    // Write metadata signature size in header.
-    uint32_t metadata_signature_size_be =
-        htobe32(metadata_signature_blob.size());
-    memcpy(payload.data() + manifest_offset,
-           &metadata_signature_size_be,
-           sizeof(metadata_signature_size_be));
-    manifest_offset += sizeof(metadata_signature_size_be);
-    // Replace metadata signature.
-    payload.erase(payload.begin() + metadata_size,
-                  payload.begin() + metadata_size + metadata_signature_size);
-    payload.insert(payload.begin() + metadata_size,
-                   metadata_signature_blob.begin(),
-                   metadata_signature_blob.end());
-    metadata_signature_size = metadata_signature_blob.size();
-    LOG(INFO) << "Metadata signature size: " << metadata_signature_size;
-  }
+  // Write metadata signature size in header.
+  uint32_t metadata_signature_size_be = htobe32(metadata_signature_blob.size());
+  memcpy(payload.data() + manifest_offset,
+         &metadata_signature_size_be,
+         sizeof(metadata_signature_size_be));
+  manifest_offset += sizeof(metadata_signature_size_be);
+  // Replace metadata signature.
+  payload.erase(payload.begin() + metadata_size,
+                payload.begin() + metadata_size + metadata_signature_size);
+  payload.insert(payload.begin() + metadata_size,
+                 metadata_signature_blob.begin(),
+                 metadata_signature_blob.end());
+  metadata_signature_size = metadata_signature_blob.size();
+  LOG(INFO) << "Metadata signature size: " << metadata_signature_size;
 
   DeltaArchiveManifest manifest;
   TEST_AND_RETURN_FALSE(payload_metadata.GetManifest(payload, &manifest));
@@ -138,7 +135,6 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     PayloadSigner::AddSignatureToManifest(
         payload.size() - metadata_size - metadata_signature_size,
         signature_blob.size(),
-        payload_metadata.GetMajorVersion() == kChromeOSMajorPayloadVersion,
         &manifest);
 
     // Updates the payload to include the new manifest.
@@ -209,25 +205,12 @@ bool CalculateHashFromPayload(const brillo::Blob& payload,
 
 void PayloadSigner::AddSignatureToManifest(uint64_t signature_blob_offset,
                                            uint64_t signature_blob_length,
-                                           bool add_dummy_op,
                                            DeltaArchiveManifest* manifest) {
   LOG(INFO) << "Making room for signature in file";
   manifest->set_signatures_offset(signature_blob_offset);
   LOG(INFO) << "set? " << manifest->has_signatures_offset();
   manifest->set_signatures_offset(signature_blob_offset);
   manifest->set_signatures_size(signature_blob_length);
-  // Add a dummy op at the end to appease older clients
-  if (add_dummy_op) {
-    InstallOperation* dummy_op = manifest->add_kernel_install_operations();
-    dummy_op->set_type(InstallOperation::REPLACE);
-    dummy_op->set_data_offset(signature_blob_offset);
-    dummy_op->set_data_length(signature_blob_length);
-    Extent* dummy_extent = dummy_op->add_dst_extents();
-    // Tell the dummy op to write this data to a big sparse hole
-    dummy_extent->set_start_block(kSparseHole);
-    dummy_extent->set_num_blocks(
-        utils::DivRoundUp(signature_blob_length, kBlockSize));
-  }
 }
 
 bool PayloadSigner::VerifySignedPayload(const string& payload_path,

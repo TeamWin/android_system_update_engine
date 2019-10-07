@@ -219,8 +219,7 @@ PayloadVersion::PayloadVersion(uint64_t major_version, uint32_t minor_version) {
 }
 
 bool PayloadVersion::Validate() const {
-  TEST_AND_RETURN_FALSE(major == kChromeOSMajorPayloadVersion ||
-                        major == kBrilloMajorPayloadVersion);
+  TEST_AND_RETURN_FALSE(major == kBrilloMajorPayloadVersion);
   TEST_AND_RETURN_FALSE(minor == kFullPayloadMinorVersion ||
                         minor == kSourceMinorPayloadVersion ||
                         minor == kOpSrcHashMinorPayloadVersion ||
@@ -236,13 +235,10 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
     case InstallOperation::REPLACE:
     case InstallOperation::REPLACE_BZ:
       // These operations were included in the original payload format.
-      return true;
-
     case InstallOperation::REPLACE_XZ:
-      // These operations are included in the major version used in Brillo, but
-      // can also be used with minor version 3 or newer.
-      return major == kBrilloMajorPayloadVersion ||
-             minor >= kOpSrcHashMinorPayloadVersion;
+      // These operations are included minor version 3 or newer and full
+      // payloads.
+      return true;
 
     case InstallOperation::ZERO:
     case InstallOperation::DISCARD:
@@ -298,8 +294,6 @@ bool PayloadGenerationConfig::Validate() const {
   for (const PartitionConfig& part : target.partitions) {
     TEST_AND_RETURN_FALSE(part.ValidateExists());
     TEST_AND_RETURN_FALSE(part.size % block_size == 0);
-    if (version.major == kChromeOSMajorPayloadVersion)
-      TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
     if (version.minor < kVerityMinorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.verity.IsEmpty());
   }

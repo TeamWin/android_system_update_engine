@@ -20,15 +20,15 @@
 from __future__ import print_function
 
 import StringIO
-import collections
-import mock
 import sys
 import unittest
 
+from contextlib import contextmanager
+
+import mock  # pylint: disable=import-error
+
 import payload_info
 import update_payload
-
-from contextlib import contextmanager
 
 from update_payload import update_metadata_pb2
 
@@ -60,42 +60,47 @@ class FakeOp(object):
   def HasField(self, field):
     return hasattr(self, field)
 
+class FakeExtent(object):
+  """Fake Extent for testing."""
+  def __init__(self, start_block, num_blocks):
+    self.start_block = start_block
+    self.num_blocks = num_blocks
+
+class FakePartitionInfo(object):
+  """Fake PartitionInfo for testing."""
+  def __init__(self, size):
+    self.size = size
+
 class FakePartition(object):
   """Fake PartitionUpdate field for testing."""
 
-  def __init__(self, partition_name, operations):
+  def __init__(self, partition_name, operations, old_size, new_size):
     self.partition_name = partition_name
     self.operations = operations
+    self.old_partition_info = FakePartitionInfo(old_size)
+    self.new_partition_info = FakePartitionInfo(new_size)
 
 class FakeManifest(object):
   """Fake manifest for testing."""
 
-  def __init__(self, major_version):
-    FakeExtent = collections.namedtuple('FakeExtent',
-                                        ['start_block', 'num_blocks'])
-    self.install_operations = [FakeOp([],
-                                      [FakeExtent(1, 1), FakeExtent(2, 2)],
-                                      update_payload.common.OpType.REPLACE_BZ,
-                                      dst_length=3*4096,
-                                      data_offset=1,
-                                      data_length=1)]
-    self.kernel_install_operations = [FakeOp(
-        [FakeExtent(1, 1)],
-        [FakeExtent(x, x) for x in xrange(20)],
-        update_payload.common.OpType.SOURCE_COPY,
-        src_length=4096)]
-    if major_version == payload_info.MAJOR_PAYLOAD_VERSION_BRILLO:
-      self.partitions = [FakePartition('root', self.install_operations),
-                         FakePartition('kernel',
-                                       self.kernel_install_operations)]
-      self.install_operations = self.kernel_install_operations = []
+  def __init__(self):
+    self.partitions = [
+        FakePartition(update_payload.common.ROOTFS,
+                      [FakeOp([], [FakeExtent(1, 1), FakeExtent(2, 2)],
+                              update_payload.common.OpType.REPLACE_BZ,
+                              dst_length=3*4096,
+                              data_offset=1,
+                              data_length=1)
+                      ], 1 * 4096, 3 * 4096),
+        FakePartition(update_payload.common.KERNEL,
+                      [FakeOp([FakeExtent(1, 1)],
+                              [FakeExtent(x, x) for x in xrange(20)],
+                              update_payload.common.OpType.SOURCE_COPY,
+                              src_length=4096)
+                      ], 2 * 4096, 4 * 4096),
+    ]
     self.block_size = 4096
     self.minor_version = 4
-    FakePartInfo = collections.namedtuple('FakePartInfo', ['size'])
-    self.old_rootfs_info = FakePartInfo(1 * 4096)
-    self.old_kernel_info = FakePartInfo(2 * 4096)
-    self.new_rootfs_info = FakePartInfo(3 * 4096)
-    self.new_kernel_info = FakePartInfo(4 * 4096)
     self.signatures_offset = None
     self.signatures_size = None
 
@@ -106,23 +111,22 @@ class FakeManifest(object):
 class FakeHeader(object):
   """Fake payload header for testing."""
 
-  def __init__(self, version, manifest_len, metadata_signature_len):
-    self.version = version
+  def __init__(self, manifest_len, metadata_signature_len):
+    self.version = payload_info.MAJOR_PAYLOAD_VERSION_BRILLO
     self.manifest_len = manifest_len
     self.metadata_signature_len = metadata_signature_len
 
   @property
   def size(self):
-    return (20 if self.version == payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS
-            else 24)
+    return 24
 
 class FakePayload(object):
   """Fake payload for testing."""
 
-  def __init__(self, major_version):
-    self._header = FakeHeader(major_version, 222, 0)
+  def __init__(self):
+    self._header = FakeHeader(222, 0)
     self.header = None
-    self._manifest = FakeManifest(major_version)
+    self._manifest = FakeManifest()
     self.manifest = None
 
     self._blobs = {}
@@ -203,41 +207,14 @@ class PayloadCommandTest(unittest.TestCase):
   def testRun(self):
     """Verify that Run parses and displays the payload like we expect."""
     payload_cmd = payload_info.PayloadCommand(FakeOption(action='show'))
-    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
-    expected_out = """Payload version:             1
+    payload = FakePayload()
+    expected_out = """Payload version:             2
 Manifest length:             222
-Number of operations:        1
-Number of kernel ops:        1
+Number of partitions:        2
+  Number of "root" ops:      1
+  Number of "kernel" ops:    1
 Block size:                  4096
 Minor version:               4
-"""
-    self.TestCommand(payload_cmd, payload, expected_out)
-
-  def testListOpsOnVersion1(self):
-    """Verify that the --list_ops option gives the correct output."""
-    payload_cmd = payload_info.PayloadCommand(
-        FakeOption(list_ops=True, action='show'))
-    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
-    expected_out = """Payload version:             1
-Manifest length:             222
-Number of operations:        1
-Number of kernel ops:        1
-Block size:                  4096
-Minor version:               4
-
-Install operations:
-  0: REPLACE_BZ
-    Data offset: 1
-    Data length: 1
-    Destination: 2 extents (3 blocks)
-      (1,1) (2,2)
-Kernel install operations:
-  0: SOURCE_COPY
-    Source: 1 extent (1 block)
-      (1,1)
-    Destination: 20 extents (190 blocks)
-      (0,0) (1,1) (2,2) (3,3) (4,4) (5,5) (6,6) (7,7) (8,8) (9,9) (10,10)
-      (11,11) (12,12) (13,13) (14,14) (15,15) (16,16) (17,17) (18,18) (19,19)
 """
     self.TestCommand(payload_cmd, payload, expected_out)
 
@@ -245,7 +222,7 @@ Kernel install operations:
     """Verify that the --list_ops option gives the correct output."""
     payload_cmd = payload_info.PayloadCommand(
         FakeOption(list_ops=True, action='show'))
-    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_BRILLO)
+    payload = FakePayload()
     expected_out = """Payload version:             2
 Manifest length:             222
 Number of partitions:        2
@@ -270,28 +247,11 @@ kernel install operations:
 """
     self.TestCommand(payload_cmd, payload, expected_out)
 
-  def testStatsOnVersion1(self):
-    """Verify that the --stats option works correctly."""
-    payload_cmd = payload_info.PayloadCommand(
-        FakeOption(stats=True, action='show'))
-    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
-    expected_out = """Payload version:             1
-Manifest length:             222
-Number of operations:        1
-Number of kernel ops:        1
-Block size:                  4096
-Minor version:               4
-Blocks read:                 11
-Blocks written:              193
-Seeks when writing:          18
-"""
-    self.TestCommand(payload_cmd, payload, expected_out)
-
   def testStatsOnVersion2(self):
     """Verify that the --stats option works correctly on version 2."""
     payload_cmd = payload_info.PayloadCommand(
         FakeOption(stats=True, action='show'))
-    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_BRILLO)
+    payload = FakePayload()
     expected_out = """Payload version:             2
 Manifest length:             222
 Number of partitions:        2
@@ -309,11 +269,12 @@ Seeks when writing:          18
     """Verify that the --signatures option works with unsigned payloads."""
     payload_cmd = payload_info.PayloadCommand(
         FakeOption(action='show', signatures=True))
-    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_CHROMEOS)
-    expected_out = """Payload version:             1
+    payload = FakePayload()
+    expected_out = """Payload version:             2
 Manifest length:             222
-Number of operations:        1
-Number of kernel ops:        1
+Number of partitions:        2
+  Number of "root" ops:      1
+  Number of "kernel" ops:    1
 Block size:                  4096
 Minor version:               4
 No metadata signatures stored in the payload
@@ -325,7 +286,7 @@ No payload signatures stored in the payload
     """Verify that the --signatures option shows the present signatures."""
     payload_cmd = payload_info.PayloadCommand(
         FakeOption(action='show', signatures=True))
-    payload = FakePayload(payload_info.MAJOR_PAYLOAD_VERSION_BRILLO)
+    payload = FakePayload()
     payload.AddPayloadSignature(version=1,
                                 data='12345678abcdefgh\x00\x01\x02\x03')
     payload.AddPayloadSignature(data='I am a signature so access is yes.')

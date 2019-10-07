@@ -263,9 +263,7 @@ class Payload(object):
   def IsDelta(self):
     """Returns True iff the payload appears to be a delta."""
     self._AssertInit()
-    return (self.manifest.HasField('old_kernel_info') or
-            self.manifest.HasField('old_rootfs_info') or
-            any(partition.HasField('old_partition_info')
+    return (any(partition.HasField('old_partition_info')
                 for partition in self.manifest.partitions))
 
   def IsFull(self):

@@ -119,8 +119,7 @@ bool PayloadProperties::LoadFromPayload() {
     metadata_signatures_ = base::JoinString(base64_signatures, ":");
   }
 
-  is_delta_ = manifest.has_old_image_info() || manifest.has_old_kernel_info() ||
-              manifest.has_old_rootfs_info() ||
+  is_delta_ = manifest.has_old_image_info() ||
               std::any_of(manifest.partitions().begin(),
                           manifest.partitions().end(),
                           [](const PartitionUpdate& part) {

@@ -36,34 +36,18 @@ const uint64_t PayloadMetadata::kDeltaManifestSizeOffset =
 const uint64_t PayloadMetadata::kDeltaManifestSizeSize = 8;
 const uint64_t PayloadMetadata::kDeltaMetadataSignatureSizeSize = 4;
 
-bool PayloadMetadata::GetMetadataSignatureSizeOffset(
-    uint64_t* out_offset) const {
-  if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
-    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize;
-    return true;
-  }
-  return false;
+uint64_t PayloadMetadata::GetMetadataSignatureSizeOffset() const {
+  return kDeltaManifestSizeOffset + kDeltaManifestSizeSize;
 }
 
-bool PayloadMetadata::GetManifestOffset(uint64_t* out_offset) const {
-  // Actual manifest begins right after the manifest size field or
-  // metadata signature size field if major version >= 2.
-  if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
-    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize;
-    return true;
-  }
-  if (major_payload_version_ == kBrilloMajorPayloadVersion) {
-    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize +
-                  kDeltaMetadataSignatureSizeSize;
-    return true;
-  }
-  LOG(ERROR) << "Unknown major payload version: " << major_payload_version_;
-  return false;
+uint64_t PayloadMetadata::GetManifestOffset() const {
+  // Actual manifest begins right after the metadata signature size field.
+  return kDeltaManifestSizeOffset + kDeltaManifestSizeSize +
+         kDeltaMetadataSignatureSizeSize;
 }
 
 MetadataParseResult PayloadMetadata::ParsePayloadHeader(
     const brillo::Blob& payload, ErrorCode* error) {
-  uint64_t manifest_offset;
   // Ensure we have data to cover the major payload version.
   if (payload.size() < kDeltaManifestSizeOffset)
     return MetadataParseResult::kInsufficientData;
@@ -74,6 +58,11 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
     *error = ErrorCode::kDownloadInvalidMetadataMagicString;
     return MetadataParseResult::kError;
   }
+
+  uint64_t manifest_offset = GetManifestOffset();
+  // Check again with the manifest offset.
+  if (payload.size() < manifest_offset)
+    return MetadataParseResult::kInsufficientData;
 
   // Extract the payload version from the metadata.
   static_assert(sizeof(major_payload_version_) == kDeltaVersionSize,
@@ -92,15 +81,6 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
     return MetadataParseResult::kError;
   }
 
-  // Get the manifest offset now that we have payload version.
-  if (!GetManifestOffset(&manifest_offset)) {
-    *error = ErrorCode::kUnsupportedMajorPayloadVersion;
-    return MetadataParseResult::kError;
-  }
-  // Check again with the manifest offset.
-  if (payload.size() < manifest_offset)
-    return MetadataParseResult::kInsufficientData;
-
   // Next, parse the manifest size.
   static_assert(sizeof(manifest_size_) == kDeltaManifestSizeSize,
                 "manifest_size size mismatch");
@@ -116,26 +96,20 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
     return MetadataParseResult::kError;
   }
 
-  if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
-    // Parse the metadata signature size.
-    static_assert(
-        sizeof(metadata_signature_size_) == kDeltaMetadataSignatureSizeSize,
-        "metadata_signature_size size mismatch");
-    uint64_t metadata_signature_size_offset;
-    if (!GetMetadataSignatureSizeOffset(&metadata_signature_size_offset)) {
-      *error = ErrorCode::kError;
-      return MetadataParseResult::kError;
-    }
-    memcpy(&metadata_signature_size_,
-           &payload[metadata_signature_size_offset],
-           kDeltaMetadataSignatureSizeSize);
-    metadata_signature_size_ = be32toh(metadata_signature_size_);
+  // Parse the metadata signature size.
+  static_assert(
+      sizeof(metadata_signature_size_) == kDeltaMetadataSignatureSizeSize,
+      "metadata_signature_size size mismatch");
+  uint64_t metadata_signature_size_offset = GetMetadataSignatureSizeOffset();
+  memcpy(&metadata_signature_size_,
+         &payload[metadata_signature_size_offset],
+         kDeltaMetadataSignatureSizeSize);
+  metadata_signature_size_ = be32toh(metadata_signature_size_);
 
-    if (metadata_size_ + metadata_signature_size_ < metadata_size_) {
-      // Overflow detected.
-      *error = ErrorCode::kDownloadInvalidMetadataSize;
-      return MetadataParseResult::kError;
-    }
+  if (metadata_size_ + metadata_signature_size_ < metadata_size_) {
+    // Overflow detected.
+    *error = ErrorCode::kDownloadInvalidMetadataSize;
+    return MetadataParseResult::kError;
   }
   return MetadataParseResult::kSuccess;
 }
@@ -147,9 +121,7 @@ bool PayloadMetadata::ParsePayloadHeader(const brillo::Blob& payload) {
 
 bool PayloadMetadata::GetManifest(const brillo::Blob& payload,
                                   DeltaArchiveManifest* out_manifest) const {
-  uint64_t manifest_offset;
-  if (!GetManifestOffset(&manifest_offset))
-    return false;
+  uint64_t manifest_offset = GetManifestOffset();
   CHECK_GE(payload.size(), manifest_offset + manifest_size_);
   return out_manifest->ParseFromArray(&payload[manifest_offset],
                                       manifest_size_);
@@ -171,7 +143,7 @@ ErrorCode PayloadMetadata::ValidateMetadataSignature(
                  << metadata_signature;
       return ErrorCode::kDownloadMetadataSignatureError;
     }
-  } else if (major_payload_version_ == kBrilloMajorPayloadVersion) {
+  } else {
     metadata_signature_protobuf_blob.assign(
         payload.begin() + metadata_size_,
         payload.begin() + metadata_size_ + metadata_signature_size_);
@@ -243,8 +215,7 @@ bool PayloadMetadata::ParsePayloadFile(const string& payload_path,
     TEST_AND_RETURN_FALSE(GetManifest(payload, manifest));
   }
 
-  if (metadata_signatures != nullptr &&
-      GetMajorVersion() >= kBrilloMajorPayloadVersion) {
+  if (metadata_signatures != nullptr) {
     payload.clear();
     TEST_AND_RETURN_FALSE(utils::ReadFileChunk(
         payload_path, GetMetadataSize(), GetMetadataSignatureSize(), &payload));

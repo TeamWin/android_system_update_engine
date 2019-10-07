@@ -25,15 +25,12 @@ from update_payload.error import PayloadError
 #
 # Constants.
 #
-PSEUDO_EXTENT_MARKER = (1L << 64) - 1  # UINT64_MAX
-
 SIG_ASN1_HEADER = (
     '\x30\x31\x30\x0d\x06\x09\x60\x86'
     '\x48\x01\x65\x03\x04\x02\x01\x05'
     '\x00\x04\x20'
 )
 
-CHROMEOS_MAJOR_PAYLOAD_VERSION = 1
 BRILLO_MAJOR_PAYLOAD_VERSION = 2
 
 SOURCE_MINOR_PAYLOAD_VERSION = 2
@@ -162,8 +159,7 @@ def FormatExtent(ex, block_size=0):
   end_block = ex.start_block + ex.num_blocks
   if block_size:
     return '%d->%d * %d' % (ex.start_block, end_block, block_size)
-  else:
-    return '%d->%d' % (ex.start_block, end_block)
+  return '%d->%d' % (ex.start_block, end_block)
 
 
 def FormatSha256(digest):

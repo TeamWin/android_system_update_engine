@@ -713,8 +713,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
 
   // In major version 2, we don't add dummy operation to the payload.
   // If we already extracted the signature we should skip this step.
-  if (major_payload_version_ == kBrilloMajorPayloadVersion &&
-      manifest_.has_signatures_offset() && manifest_.has_signatures_size() &&
+  if (manifest_.has_signatures_offset() && manifest_.has_signatures_size() &&
       signatures_message_data_.empty()) {
     if (manifest_.signatures_offset() != buffer_offset_) {
       LOG(ERROR) << "Payload signatures offset points to blob offset "
@@ -749,51 +748,11 @@ bool DeltaPerformer::IsManifestValid() {
 }
 
 bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
-  if (major_payload_version_ == kBrilloMajorPayloadVersion) {
-    partitions_.clear();
-    for (const PartitionUpdate& partition : manifest_.partitions()) {
-      partitions_.push_back(partition);
-    }
-    manifest_.clear_partitions();
-  } else if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
-    LOG(INFO) << "Converting update information from old format.";
-    PartitionUpdate root_part;
-    root_part.set_partition_name(kPartitionNameRoot);
-#ifdef __ANDROID__
-    LOG(WARNING) << "Legacy payload major version provided to an Android "
-                    "build. Assuming no post-install. Please use major version "
-                    "2 or newer.";
-    root_part.set_run_postinstall(false);
-#else
-    root_part.set_run_postinstall(true);
-#endif  // __ANDROID__
-    if (manifest_.has_old_rootfs_info()) {
-      *root_part.mutable_old_partition_info() = manifest_.old_rootfs_info();
-      manifest_.clear_old_rootfs_info();
-    }
-    if (manifest_.has_new_rootfs_info()) {
-      *root_part.mutable_new_partition_info() = manifest_.new_rootfs_info();
-      manifest_.clear_new_rootfs_info();
-    }
-    *root_part.mutable_operations() = manifest_.install_operations();
-    manifest_.clear_install_operations();
-    partitions_.push_back(std::move(root_part));
-
-    PartitionUpdate kern_part;
-    kern_part.set_partition_name(kPartitionNameKernel);
-    kern_part.set_run_postinstall(false);
-    if (manifest_.has_old_kernel_info()) {
-      *kern_part.mutable_old_partition_info() = manifest_.old_kernel_info();
-      manifest_.clear_old_kernel_info();
-    }
-    if (manifest_.has_new_kernel_info()) {
-      *kern_part.mutable_new_partition_info() = manifest_.new_kernel_info();
-      manifest_.clear_new_kernel_info();
-    }
-    *kern_part.mutable_operations() = manifest_.kernel_install_operations();
-    manifest_.clear_kernel_install_operations();
-    partitions_.push_back(std::move(kern_part));
+  partitions_.clear();
+  for (const PartitionUpdate& partition : manifest_.partitions()) {
+    partitions_.push_back(partition);
   }
+  manifest_.clear_partitions();
 
   // Fill in the InstallPlan::partitions based on the partitions from the
   // payload.
@@ -953,14 +912,6 @@ bool DeltaPerformer::PerformReplaceOperation(
   // the data we need should be exactly at the beginning of the buffer.
   TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
   TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
-
-  // Extract the signature message if it's in this operation.
-  if (ExtractSignatureMessageFromOperation(operation)) {
-    // If this is dummy replace operation, we ignore it after extracting the
-    // signature.
-    DiscardBuffer(true, 0);
-    return true;
-  }
 
   // Setup the ExtentWriter stack based on the operation type.
   std::unique_ptr<ExtentWriter> writer = std::make_unique<DirectExtentWriter>();
@@ -1412,19 +1363,6 @@ bool DeltaPerformer::PerformPuffDiffOperation(const InstallOperation& operation,
   return true;
 }
 
-bool DeltaPerformer::ExtractSignatureMessageFromOperation(
-    const InstallOperation& operation) {
-  if (operation.type() != InstallOperation::REPLACE ||
-      !manifest_.has_signatures_offset() ||
-      manifest_.signatures_offset() != operation.data_offset()) {
-    return false;
-  }
-  TEST_AND_RETURN_FALSE(manifest_.has_signatures_size() &&
-                        manifest_.signatures_size() == operation.data_length());
-  TEST_AND_RETURN_FALSE(ExtractSignatureMessage());
-  return true;
-}
-
 bool DeltaPerformer::ExtractSignatureMessage() {
   TEST_AND_RETURN_FALSE(signatures_message_data_.empty());
   TEST_AND_RETURN_FALSE(buffer_offset_ == manifest_.signatures_offset());
@@ -1476,11 +1414,11 @@ ErrorCode DeltaPerformer::ValidateManifest() {
   // Perform assorted checks to sanity check the manifest, make sure it
   // matches data from other sources, and that it is a supported version.
 
-  bool has_old_fields =
-      (manifest_.has_old_kernel_info() || manifest_.has_old_rootfs_info());
-  for (const PartitionUpdate& partition : manifest_.partitions()) {
-    has_old_fields = has_old_fields || partition.has_old_partition_info();
-  }
+  bool has_old_fields = std::any_of(manifest_.partitions().begin(),
+                                    manifest_.partitions().end(),
+                                    [](const PartitionUpdate& partition) {
+                                      return partition.has_old_partition_info();
+                                    });
 
   // The presence of an old partition hash is the sole indicator for a delta
   // update.
@@ -1522,16 +1460,12 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     }
   }
 
-  if (major_payload_version_ != kChromeOSMajorPayloadVersion) {
-    if (manifest_.has_old_rootfs_info() || manifest_.has_new_rootfs_info() ||
-        manifest_.has_old_kernel_info() || manifest_.has_new_kernel_info() ||
-        manifest_.install_operations_size() != 0 ||
-        manifest_.kernel_install_operations_size() != 0) {
-      LOG(ERROR) << "Manifest contains deprecated field only supported in "
-                 << "major payload version 1, but the payload major version is "
-                 << major_payload_version_;
-      return ErrorCode::kPayloadMismatchedType;
-    }
+  if (manifest_.has_old_rootfs_info() || manifest_.has_new_rootfs_info() ||
+      manifest_.has_old_kernel_info() || manifest_.has_new_kernel_info() ||
+      manifest_.install_operations_size() != 0 ||
+      manifest_.kernel_install_operations_size() != 0) {
+    LOG(ERROR) << "Manifest contains deprecated fields.";
+    return ErrorCode::kPayloadMismatchedType;
   }
 
   if (manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
@@ -1542,18 +1476,8 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     return ErrorCode::kPayloadTimestampError;
   }
 
-  if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
-    if (manifest_.has_dynamic_partition_metadata()) {
-      LOG(ERROR)
-          << "Should not contain dynamic_partition_metadata for major version "
-          << kChromeOSMajorPayloadVersion
-          << ". Please use major version 2 or above.";
-      return ErrorCode::kPayloadMismatchedType;
-    }
-  }
-
-  // TODO(garnold) we should be adding more and more manifest checks, such as
-  // partition boundaries etc (see chromium-os:37661).
+  // TODO(crbug.com/37661) we should be adding more and more manifest checks,
+  // such as partition boundaries, etc.
 
   return ErrorCode::kSuccess;
 }

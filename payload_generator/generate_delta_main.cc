@@ -509,16 +509,10 @@ int Main(int argc, char** argv) {
   partition_names = base::SplitString(
       FLAGS_partition_names, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   CHECK(!partition_names.empty());
-  if (FLAGS_major_version == kChromeOSMajorPayloadVersion ||
-      FLAGS_new_partitions.empty()) {
-    LOG_IF(FATAL, partition_names.size() != 2)
-        << "To support more than 2 partitions, please use the "
-        << "--new_partitions flag and major version 2.";
-    LOG_IF(FATAL,
-           partition_names[0] != kPartitionNameRoot ||
-               partition_names[1] != kPartitionNameKernel)
-        << "To support non-default partition name, please use the "
-        << "--new_partitions flag and major version 2.";
+  if (FLAGS_major_version < kMinSupportedMajorPayloadVersion ||
+      FLAGS_major_version > kMaxSupportedMajorPayloadVersion) {
+    LOG(FATAL) << "Unsupported major version " << FLAGS_major_version;
+    return 1;
   }
 
   if (!FLAGS_new_partitions.empty()) {
@@ -577,8 +571,6 @@ int Main(int argc, char** argv) {
   }
 
   if (!FLAGS_new_postinstall_config_file.empty()) {
-    LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
-        << "Postinstall config is only allowed in major version 2 or newer.";
     brillo::KeyValueStore store;
     CHECK(store.Load(base::FilePath(FLAGS_new_postinstall_config_file)));
     CHECK(payload_config.target.LoadPostInstallConfig(store));
@@ -596,9 +588,6 @@ int Main(int argc, char** argv) {
   CHECK(payload_config.target.LoadImageSize());
 
   if (!FLAGS_dynamic_partition_info_file.empty()) {
-    LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
-        << "Dynamic partition info is only allowed in major version 2 or "
-           "newer.";
     brillo::KeyValueStore store;
     CHECK(store.Load(base::FilePath(FLAGS_dynamic_partition_info_file)));
     CHECK(payload_config.target.LoadDynamicPartitionMetadata(store));

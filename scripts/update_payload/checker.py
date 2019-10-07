@@ -45,11 +45,9 @@ from update_payload import update_metadata_pb2
 # Constants.
 #
 
-_CHECK_DST_PSEUDO_EXTENTS = 'dst-pseudo-extents'
 _CHECK_MOVE_SAME_SRC_DST_BLOCK = 'move-same-src-dst-block'
 _CHECK_PAYLOAD_SIG = 'payload-sig'
 CHECKS_TO_DISABLE = (
-    _CHECK_DST_PSEUDO_EXTENTS,
     _CHECK_MOVE_SAME_SRC_DST_BLOCK,
     _CHECK_PAYLOAD_SIG,
 )
@@ -320,8 +318,6 @@ class PayloadChecker(object):
     self.allow_unhashed = allow_unhashed
 
     # Disable specific tests.
-    self.check_dst_pseudo_extents = (
-        _CHECK_DST_PSEUDO_EXTENTS not in disabled_tests)
     self.check_move_same_src_dst_block = (
         _CHECK_MOVE_SAME_SRC_DST_BLOCK not in disabled_tests)
     self.check_payload_sig = _CHECK_PAYLOAD_SIG not in disabled_tests
@@ -625,35 +621,23 @@ class PayloadChecker(object):
     self._CheckPresentIff(self.sigs_offset, self.sigs_size,
                           'signatures_offset', 'signatures_size', 'manifest')
 
-    if self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION:
-      for real_name, proto_name in common.CROS_PARTITIONS:
-        self.old_part_info[real_name] = self._CheckOptionalSubMsg(
-            manifest, 'old_%s_info' % proto_name, report)
-        self.new_part_info[real_name] = self._CheckMandatorySubMsg(
-            manifest, 'new_%s_info' % proto_name, report, 'manifest')
+    for part in manifest.partitions:
+      name = part.partition_name
+      self.old_part_info[name] = self._CheckOptionalSubMsg(
+          part, 'old_partition_info', report)
+      self.new_part_info[name] = self._CheckMandatorySubMsg(
+          part, 'new_partition_info', report, 'manifest.partitions')
 
-      # Check: old_kernel_info <==> old_rootfs_info.
-      self._CheckPresentIff(self.old_part_info[common.KERNEL].msg,
-                            self.old_part_info[common.ROOTFS].msg,
-                            'old_kernel_info', 'old_rootfs_info', 'manifest')
-    else:
-      for part in manifest.partitions:
-        name = part.partition_name
-        self.old_part_info[name] = self._CheckOptionalSubMsg(
-            part, 'old_partition_info', report)
-        self.new_part_info[name] = self._CheckMandatorySubMsg(
-            part, 'new_partition_info', report, 'manifest.partitions')
+    # Check: Old-style partition infos should not be specified.
+    for _, part in common.CROS_PARTITIONS:
+      self._CheckElemNotPresent(manifest, 'old_%s_info' % part, 'manifest')
+      self._CheckElemNotPresent(manifest, 'new_%s_info' % part, 'manifest')
 
-      # Check: Old-style partition infos should not be specified.
-      for _, part in common.CROS_PARTITIONS:
-        self._CheckElemNotPresent(manifest, 'old_%s_info' % part, 'manifest')
-        self._CheckElemNotPresent(manifest, 'new_%s_info' % part, 'manifest')
-
-      # Check: If old_partition_info is specified anywhere, it must be
-      # specified everywhere.
-      old_part_msgs = [part.msg for part in self.old_part_info.values() if part]
-      self._CheckPresentIffMany(old_part_msgs, 'old_partition_info',
-                                'manifest.partitions')
+    # Check: If old_partition_info is specified anywhere, it must be
+    # specified everywhere.
+    old_part_msgs = [part.msg for part in self.old_part_info.values() if part]
+    self._CheckPresentIffMany(old_part_msgs, 'old_partition_info',
+                              'manifest.partitions')
 
     is_delta = any(part and part.msg for part in self.old_part_info.values())
     if is_delta:
@@ -721,8 +705,7 @@ class PayloadChecker(object):
     self._CheckBlocksFitLength(length, total_blocks, self.block_size,
                                '%s: %s' % (op_name, length_name))
 
-  def _CheckExtents(self, extents, usable_size, block_counters, name,
-                    allow_pseudo=False, allow_signature=False):
+  def _CheckExtents(self, extents, usable_size, block_counters, name):
     """Checks a sequence of extents.
 
     Args:
@@ -730,8 +713,6 @@ class PayloadChecker(object):
       usable_size: The usable size of the partition to which the extents apply.
       block_counters: Array of counters corresponding to the number of blocks.
       name: The name of the extent block.
-      allow_pseudo: Whether or not pseudo block numbers are allowed.
-      allow_signature: Whether or not the extents are used for a signature.
 
     Returns:
       The total number of blocks in the extents.
@@ -752,20 +733,15 @@ class PayloadChecker(object):
       if num_blocks == 0:
         raise error.PayloadError('%s: extent length is zero.' % ex_name)
 
-      if start_block != common.PSEUDO_EXTENT_MARKER:
-        # Check: Make sure we're within the partition limit.
-        if usable_size and end_block * self.block_size > usable_size:
-          raise error.PayloadError(
-              '%s: extent (%s) exceeds usable partition size (%d).' %
-              (ex_name, common.FormatExtent(ex, self.block_size), usable_size))
+      # Check: Make sure we're within the partition limit.
+      if usable_size and end_block * self.block_size > usable_size:
+        raise error.PayloadError(
+            '%s: extent (%s) exceeds usable partition size (%d).' %
+            (ex_name, common.FormatExtent(ex, self.block_size), usable_size))
 
-        # Record block usage.
-        for i in xrange(start_block, end_block):
-          block_counters[i] += 1
-      elif not (allow_pseudo or (allow_signature and len(extents) == 1)):
-        # Pseudo-extents must be allowed explicitly, or otherwise be part of a
-        # signature operation (in which case there has to be exactly one).
-        raise error.PayloadError('%s: unexpected pseudo-extent.' % ex_name)
+      # Record block usage.
+      for i in xrange(start_block, end_block):
+        block_counters[i] += 1
 
       total_num_blocks += num_blocks
 
@@ -896,21 +872,19 @@ class PayloadChecker(object):
     if self.minor_version >= 3 and op.src_sha256_hash is None:
       raise error.PayloadError('%s: source hash missing.' % op_name)
 
-  def _CheckOperation(self, op, op_name, is_last, old_block_counters,
-                      new_block_counters, old_usable_size, new_usable_size,
-                      prev_data_offset, allow_signature, blob_hash_counts):
+  def _CheckOperation(self, op, op_name, old_block_counters, new_block_counters,
+                      old_usable_size, new_usable_size, prev_data_offset,
+                      blob_hash_counts):
     """Checks a single update operation.
 
     Args:
       op: The operation object.
       op_name: Operation name string for error reporting.
-      is_last: Whether this is the last operation in the sequence.
       old_block_counters: Arrays of block read counters.
       new_block_counters: Arrays of block write counters.
       old_usable_size: The overall usable size for src data in bytes.
       new_usable_size: The overall usable size for dst data in bytes.
       prev_data_offset: Offset of last used data bytes.
-      allow_signature: Whether this may be a signature operation.
       blob_hash_counts: Counters for hashed/unhashed blobs.
 
     Returns:
@@ -922,14 +896,10 @@ class PayloadChecker(object):
     # Check extents.
     total_src_blocks = self._CheckExtents(
         op.src_extents, old_usable_size, old_block_counters,
-        op_name + '.src_extents', allow_pseudo=True)
-    allow_signature_in_extents = (allow_signature and is_last and
-                                  op.type == common.OpType.REPLACE)
+        op_name + '.src_extents')
     total_dst_blocks = self._CheckExtents(
         op.dst_extents, new_usable_size, new_block_counters,
-        op_name + '.dst_extents',
-        allow_pseudo=(not self.check_dst_pseudo_extents),
-        allow_signature=allow_signature_in_extents)
+        op_name + '.dst_extents')
 
     # Check: data_offset present <==> data_length present.
     data_offset = self._CheckOptionalField(op, 'data_offset', None)
@@ -965,9 +935,7 @@ class PayloadChecker(object):
             (op_name, common.FormatSha256(op.data_sha256_hash),
              common.FormatSha256(actual_hash.digest())))
     elif data_offset is not None:
-      if allow_signature_in_extents:
-        blob_hash_counts['signature'] += 1
-      elif self.allow_unhashed:
+      if self.allow_unhashed:
         blob_hash_counts['unhashed'] += 1
       else:
         raise error.PayloadError('%s: unhashed operation not allowed.' %
@@ -981,11 +949,8 @@ class PayloadChecker(object):
             (op_name, data_offset, prev_data_offset))
 
     # Type-specific checks.
-    if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
-      self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
-    elif (op.type == common.OpType.REPLACE_XZ and
-          (self.minor_version >= 3 or
-           self.major_version >= common.BRILLO_MAJOR_PAYLOAD_VERSION)):
+    if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ,
+                   common.OpType.REPLACE_XZ):
       self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.ZERO and self.minor_version >= 4:
       self._CheckZeroOperation(op, op_name)
@@ -1030,7 +995,7 @@ class PayloadChecker(object):
 
   def _CheckOperations(self, operations, report, base_name, old_fs_size,
                        new_fs_size, old_usable_size, new_usable_size,
-                       prev_data_offset, allow_signature):
+                       prev_data_offset):
     """Checks a sequence of update operations.
 
     Args:
@@ -1042,7 +1007,6 @@ class PayloadChecker(object):
       old_usable_size: The overall usable size of the old partition in bytes.
       new_usable_size: The overall usable size of the new partition in bytes.
       prev_data_offset: Offset of last used data bytes.
-      allow_signature: Whether this sequence may contain signature operations.
 
     Returns:
       The total data blob size used.
@@ -1078,8 +1042,6 @@ class PayloadChecker(object):
         'hashed': 0,
         'unhashed': 0,
     }
-    if allow_signature:
-      blob_hash_counts['signature'] = 0
 
     # Allocate old and new block counters.
     old_block_counters = (self._AllocBlockCounters(old_usable_size)
@@ -1096,12 +1058,10 @@ class PayloadChecker(object):
         raise error.PayloadError('%s: invalid type (%d).' % (op_name, op.type))
       op_counts[op.type] += 1
 
-      is_last = op_num == len(operations)
       curr_data_used = self._CheckOperation(
-          op, op_name, is_last, old_block_counters, new_block_counters,
+          op, op_name, old_block_counters, new_block_counters,
           old_usable_size, new_usable_size,
-          prev_data_offset + total_data_used, allow_signature,
-          blob_hash_counts)
+          prev_data_offset + total_data_used, blob_hash_counts)
       if curr_data_used:
         op_blob_totals[op.type] += curr_data_used
         total_data_used += curr_data_used
@@ -1155,21 +1115,18 @@ class PayloadChecker(object):
     if not sigs.signatures:
       raise error.PayloadError('Signature block is empty.')
 
-    last_ops_section = (self.payload.manifest.kernel_install_operations or
-                        self.payload.manifest.install_operations)
-
-    # Only major version 1 has the fake signature OP at the end.
-    if self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION:
-      fake_sig_op = last_ops_section[-1]
+    # Check that we don't have the signature operation blob at the end (used to
+    # be for major version 1).
+    last_partition = self.payload.manifest.partitions[-1]
+    if last_partition.operations:
+      last_op = last_partition.operations[-1]
       # Check: signatures_{offset,size} must match the last (fake) operation.
-      if not (fake_sig_op.type == common.OpType.REPLACE and
-              self.sigs_offset == fake_sig_op.data_offset and
-              self.sigs_size == fake_sig_op.data_length):
-        raise error.PayloadError('Signatures_{offset,size} (%d+%d) does not'
-                                 ' match last operation (%d+%d).' %
-                                 (self.sigs_offset, self.sigs_size,
-                                  fake_sig_op.data_offset,
-                                  fake_sig_op.data_length))
+      if (last_op.type == common.OpType.REPLACE and
+          last_op.data_offset == self.sigs_offset and
+          last_op.data_length == self.sigs_size):
+        raise error.PayloadError('It seems like the last operation is the '
+                                 'signature blob. This is an invalid payload.')
+
 
     # Compute the checksum of all data up to signature blob.
     # TODO(garnold) we're re-reading the whole data section into a string
@@ -1248,29 +1205,17 @@ class PayloadChecker(object):
       self._CheckManifest(report, part_sizes)
       assert self.payload_type, 'payload type should be known by now'
 
-      manifest = self.payload.manifest
-
-      # Part 3: Examine partition operations.
-      install_operations = []
-      if self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION:
-        # partitions field should not ever exist in major version 1 payloads
-        self._CheckRepeatedElemNotPresent(manifest, 'partitions', 'manifest')
-
-        install_operations.append((common.ROOTFS, manifest.install_operations))
-        install_operations.append((common.KERNEL,
-                                   manifest.kernel_install_operations))
-
-      else:
-        self._CheckRepeatedElemNotPresent(manifest, 'install_operations',
+      # Make sure deprecated values are not present in the payload.
+      for field in ('install_operations', 'kernel_install_operations'):
+        self._CheckRepeatedElemNotPresent(self.payload.manifest, field,
                                           'manifest')
-        self._CheckRepeatedElemNotPresent(manifest, 'kernel_install_operations',
-                                          'manifest')
-
-        for update in manifest.partitions:
-          install_operations.append((update.partition_name, update.operations))
+      for field in ('old_kernel_info', 'old_rootfs_info',
+                    'new_kernel_info', 'new_rootfs_info'):
+        self._CheckElemNotPresent(self.payload.manifest, field, 'manifest')
 
       total_blob_size = 0
-      for part, operations in install_operations:
+      for part, operations in ((p.partition_name, p.operations)
+                               for p in self.payload.manifest.partitions):
         report.AddSection('%s operations' % part)
 
         new_fs_usable_size = self.new_fs_sizes[part]
@@ -1285,16 +1230,13 @@ class PayloadChecker(object):
         total_blob_size += self._CheckOperations(
             operations, report, '%s_install_operations' % part,
             self.old_fs_sizes[part], self.new_fs_sizes[part],
-            old_fs_usable_size, new_fs_usable_size, total_blob_size,
-            (self.major_version == common.CHROMEOS_MAJOR_PAYLOAD_VERSION
-             and part == common.KERNEL))
+            old_fs_usable_size, new_fs_usable_size, total_blob_size)
 
       # Check: Operations data reach the end of the payload file.
       used_payload_size = self.payload.data_offset + total_blob_size
       # Major versions 2 and higher have a signature at the end, so it should be
       # considered in the total size of the image.
-      if (self.major_version >= common.BRILLO_MAJOR_PAYLOAD_VERSION and
-          self.sigs_size):
+      if self.sigs_size:
         used_payload_size += self.sigs_size
 
       if used_payload_size != payload_file_size:

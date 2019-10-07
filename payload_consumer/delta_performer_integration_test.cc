@@ -76,6 +76,7 @@ struct DeltaState {
 
   string delta_path;
   uint64_t metadata_size;
+  uint32_t metadata_signature_size;
 
   string old_kernel;
   brillo::Blob old_kernel_data;
@@ -187,15 +188,30 @@ static void SignGeneratedPayload(const string& payload_path,
                                  uint64_t* out_metadata_size) {
   string private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyPath);
   int signature_size = GetSignatureSize(private_key_path);
-  brillo::Blob hash;
+  brillo::Blob metadata_hash, payload_hash;
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
-      payload_path, {signature_size}, &hash, nullptr));
-  brillo::Blob signature;
-  ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
-  ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(
-      payload_path, {signature}, {}, payload_path, out_metadata_size));
+      payload_path, {signature_size}, &payload_hash, &metadata_hash));
+  brillo::Blob metadata_signature, payload_signature;
+  ASSERT_TRUE(PayloadSigner::SignHash(
+      payload_hash, private_key_path, &payload_signature));
+  ASSERT_TRUE(PayloadSigner::SignHash(
+      metadata_hash, private_key_path, &metadata_signature));
+  ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(payload_path,
+                                                   {payload_signature},
+                                                   {metadata_signature},
+                                                   payload_path,
+                                                   out_metadata_size));
   EXPECT_TRUE(PayloadSigner::VerifySignedPayload(
       payload_path, GetBuildArtifactsPath(kUnittestPublicKeyPath)));
+}
+
+static void SignHashToFile(const string& hash_file,
+                           const string& signature_file,
+                           const string& private_key_file) {
+  brillo::Blob hash, signature;
+  ASSERT_TRUE(utils::ReadFile(hash_file, &hash));
+  ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_file, &signature));
+  ASSERT_TRUE(test_utils::WriteFileVector(signature_file, signature));
 }
 
 static void SignGeneratedShellPayload(SignatureTest signature_test,
@@ -230,7 +246,8 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
     RSA_free(rsa);
   }
   int signature_size = GetSignatureSize(private_key_path);
-  test_utils::ScopedTempFile hash_file("hash.XXXXXX");
+  test_utils::ScopedTempFile payload_hash_file("hash.XXXXXX"),
+      metadata_hash_file("hash.XXXXXX");
   string signature_size_string;
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2)
@@ -241,38 +258,51 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   string delta_generator_path = GetBuildArtifactsPath("delta_generator");
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                "%s -in_file=%s -signature_size=%s -out_hash_file=%s",
+                "%s -in_file=%s -signature_size=%s -out_hash_file=%s "
+                "-out_metadata_hash_file=%s",
                 delta_generator_path.c_str(),
                 payload_path.c_str(),
                 signature_size_string.c_str(),
-                hash_file.path().c_str())));
+                payload_hash_file.path().c_str(),
+                metadata_hash_file.path().c_str())));
 
-  // Sign the hash
-  brillo::Blob hash, signature;
-  ASSERT_TRUE(utils::ReadFile(hash_file.path(), &hash));
-  ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
+  // Sign the payload hash.
+  test_utils::ScopedTempFile payload_signature_file("signature.XXXXXX");
+  SignHashToFile(payload_hash_file.path(),
+                 payload_signature_file.path(),
+                 private_key_path);
+  string payload_sig_files = payload_signature_file.path();
+  // Sign the metadata hash.
+  test_utils::ScopedTempFile metadata_signature_file("signature.XXXXXX");
+  SignHashToFile(metadata_hash_file.path(),
+                 metadata_signature_file.path(),
+                 private_key_path);
+  string metadata_sig_files = metadata_signature_file.path();
 
-  test_utils::ScopedTempFile sig_file("signature.XXXXXX");
-  ASSERT_TRUE(test_utils::WriteFileVector(sig_file.path(), signature));
-  string sig_files = sig_file.path();
-
-  test_utils::ScopedTempFile sig_file2("signature.XXXXXX");
+  test_utils::ScopedTempFile payload_signature_file2("signature.XXXXXX");
+  test_utils::ScopedTempFile metadata_signature_file2("signature.XXXXXX");
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2) {
-    ASSERT_TRUE(PayloadSigner::SignHash(
-        hash, GetBuildArtifactsPath(kUnittestPrivateKey2Path), &signature));
-    ASSERT_TRUE(test_utils::WriteFileVector(sig_file2.path(), signature));
+    SignHashToFile(payload_hash_file.path(),
+                   payload_signature_file2.path(),
+                   GetBuildArtifactsPath(kUnittestPrivateKey2Path));
+    SignHashToFile(metadata_hash_file.path(),
+                   metadata_signature_file2.path(),
+                   GetBuildArtifactsPath(kUnittestPrivateKey2Path));
     // Append second sig file to first path
-    sig_files += ":" + sig_file2.path();
+    payload_sig_files += ":" + payload_signature_file2.path();
+    metadata_sig_files += ":" + metadata_signature_file2.path();
   }
 
-  ASSERT_EQ(0,
-            System(base::StringPrintf(
-                "%s -in_file=%s -payload_signature_file=%s -out_file=%s",
-                delta_generator_path.c_str(),
-                payload_path.c_str(),
-                sig_files.c_str(),
-                payload_path.c_str())));
+  ASSERT_EQ(
+      0,
+      System(base::StringPrintf("%s -in_file=%s -payload_signature_file=%s "
+                                "-metadata_signature_file=%s -out_file=%s",
+                                delta_generator_path.c_str(),
+                                payload_path.c_str(),
+                                payload_sig_files.c_str(),
+                                metadata_sig_files.c_str(),
+                                payload_path.c_str())));
   int verify_result = System(base::StringPrintf(
       "%s -in_file=%s -public_key=%s -public_key_version=%d",
       delta_generator_path.c_str(),
@@ -474,7 +504,7 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.is_delta = !full_rootfs;
     payload_config.hard_chunk_size = chunk_size;
     payload_config.rootfs_partition_size = kRootFSPartitionSize;
-    payload_config.version.major = kChromeOSMajorPayloadVersion;
+    payload_config.version.major = kBrilloMajorPayloadVersion;
     payload_config.version.minor = minor_version;
     if (!full_rootfs) {
       payload_config.source.partitions.emplace_back(kPartitionNameRoot);
@@ -564,6 +594,9 @@ static void ApplyDeltaFile(bool full_kernel,
     EXPECT_TRUE(payload_metadata.ParsePayloadHeader(state->delta));
     state->metadata_size = payload_metadata.GetMetadataSize();
     LOG(INFO) << "Metadata size: " << state->metadata_size;
+    state->metadata_signature_size =
+        payload_metadata.GetMetadataSignatureSize();
+    LOG(INFO) << "Metadata signature size: " << state->metadata_signature_size;
 
     DeltaArchiveManifest manifest;
     EXPECT_TRUE(payload_metadata.GetManifest(state->delta, &manifest));
@@ -575,7 +608,8 @@ static void ApplyDeltaFile(bool full_kernel,
       EXPECT_TRUE(manifest.has_signatures_size());
       Signatures sigs_message;
       EXPECT_TRUE(sigs_message.ParseFromArray(
-          &state->delta[state->metadata_size + manifest.signatures_offset()],
+          &state->delta[state->metadata_size + state->metadata_signature_size +
+                        manifest.signatures_offset()],
           manifest.signatures_size()));
       if (signature_test == kSignatureGeneratedShellRotateCl1 ||
           signature_test == kSignatureGeneratedShellRotateCl2)
@@ -597,13 +631,38 @@ static void ApplyDeltaFile(bool full_kernel,
       EXPECT_FALSE(signature.data().empty());
     }
 
+    // TODO(ahassani): Make |DeltaState| into a partition list kind of struct
+    // instead of hardcoded kernel/rootfs so its cleaner and we can make the
+    // following code into a helper function instead.
+    const auto& kernel_part = *std::find_if(
+        manifest.partitions().begin(),
+        manifest.partitions().end(),
+        [](const PartitionUpdate& partition) {
+          return partition.partition_name() == kPartitionNameKernel;
+        });
     if (full_kernel) {
-      EXPECT_FALSE(manifest.has_old_kernel_info());
+      EXPECT_FALSE(kernel_part.has_old_partition_info());
     } else {
       EXPECT_EQ(state->old_kernel_data.size(),
-                manifest.old_kernel_info().size());
-      EXPECT_FALSE(manifest.old_kernel_info().hash().empty());
+                kernel_part.old_partition_info().size());
+      EXPECT_FALSE(kernel_part.old_partition_info().hash().empty());
     }
+    EXPECT_EQ(state->new_kernel_data.size(),
+              kernel_part.new_partition_info().size());
+    EXPECT_FALSE(kernel_part.new_partition_info().hash().empty());
+
+    const auto& rootfs_part =
+        *std::find_if(manifest.partitions().begin(),
+                      manifest.partitions().end(),
+                      [](const PartitionUpdate& partition) {
+                        return partition.partition_name() == kPartitionNameRoot;
+                      });
+    if (full_rootfs) {
+      EXPECT_FALSE(rootfs_part.has_old_partition_info());
+    } else {
+      EXPECT_FALSE(rootfs_part.old_partition_info().hash().empty());
+    }
+    EXPECT_FALSE(rootfs_part.new_partition_info().hash().empty());
 
     EXPECT_EQ(manifest.new_image_info().channel(), "test-channel");
     EXPECT_EQ(manifest.new_image_info().board(), "test-board");
@@ -620,27 +679,14 @@ static void ApplyDeltaFile(bool full_kernel,
       EXPECT_EQ(manifest.old_image_info().build_channel(), "src-build-channel");
       EXPECT_EQ(manifest.old_image_info().build_version(), "src-build-version");
     }
-
-    if (full_rootfs) {
-      EXPECT_FALSE(manifest.has_old_rootfs_info());
-      EXPECT_FALSE(manifest.has_old_image_info());
-      EXPECT_TRUE(manifest.has_new_image_info());
-    } else {
-      EXPECT_EQ(state->image_size, manifest.old_rootfs_info().size());
-      EXPECT_FALSE(manifest.old_rootfs_info().hash().empty());
-    }
-
-    EXPECT_EQ(state->new_kernel_data.size(), manifest.new_kernel_info().size());
-    EXPECT_EQ(state->image_size, manifest.new_rootfs_info().size());
-
-    EXPECT_FALSE(manifest.new_kernel_info().hash().empty());
-    EXPECT_FALSE(manifest.new_rootfs_info().hash().empty());
   }
 
   MockPrefs prefs;
   EXPECT_CALL(prefs, SetInt64(kPrefsManifestMetadataSize, state->metadata_size))
       .WillOnce(Return(true));
-  EXPECT_CALL(prefs, SetInt64(kPrefsManifestSignatureSize, 0))
+  EXPECT_CALL(
+      prefs,
+      SetInt64(kPrefsManifestSignatureSize, state->metadata_signature_size))
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsUpdateStateNextOperation, _))
       .WillRepeatedly(Return(true));

@@ -29,7 +29,6 @@ from __future__ import print_function
 import array
 import bz2
 import hashlib
-import itertools
 # Not everywhere we can have the lzma library so we ignore it if we didn't have
 # it because it is not going to be used. For example, 'cros flash' uses
 # devserver code which eventually loads this file, but the lzma library is not
@@ -45,7 +44,6 @@ except ImportError:
   except ImportError:
     pass
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -116,12 +114,8 @@ def _ReadExtents(file_obj, extents, block_size, max_length=-1):
       break
     read_length = min(max_length, ex.num_blocks * block_size)
 
-    # Fill with zeros or read from file, depending on the type of extent.
-    if ex.start_block == common.PSEUDO_EXTENT_MARKER:
-      data.extend(itertools.repeat('\0', read_length))
-    else:
-      file_obj.seek(ex.start_block * block_size)
-      data.fromfile(file_obj, read_length)
+    file_obj.seek(ex.start_block * block_size)
+    data.fromfile(file_obj, read_length)
 
     max_length -= read_length
 
@@ -150,11 +144,9 @@ def _WriteExtents(file_obj, data, extents, block_size, base_name):
       raise PayloadError('%s: more write extents than data' % ex_name)
     write_length = min(data_length, ex.num_blocks * block_size)
 
-    # Only do actual writing if this is not a pseudo-extent.
-    if ex.start_block != common.PSEUDO_EXTENT_MARKER:
-      file_obj.seek(ex.start_block * block_size)
-      data_view = buffer(data, data_offset, write_length)
-      file_obj.write(data_view)
+    file_obj.seek(ex.start_block * block_size)
+    data_view = buffer(data, data_offset, write_length)
+    file_obj.write(data_view)
 
     data_offset += write_length
     data_length -= write_length
@@ -189,15 +181,12 @@ def _ExtentsToBspatchArg(extents, block_size, base_name, data_length=-1):
     if not data_length:
       raise PayloadError('%s: more extents than total data length' % ex_name)
 
-    is_pseudo = ex.start_block == common.PSEUDO_EXTENT_MARKER
-    start_byte = -1 if is_pseudo else ex.start_block * block_size
+    start_byte = ex.start_block * block_size
     num_bytes = ex.num_blocks * block_size
     if data_length < num_bytes:
       # We're only padding a real extent.
-      if not is_pseudo:
-        pad_off = start_byte + data_length
-        pad_len = num_bytes - data_length
-
+      pad_off = start_byte + data_length
+      pad_len = num_bytes - data_length
       num_bytes = data_length
 
     arg += '%s%d:%d' % (arg and ',', start_byte, num_bytes)
@@ -274,30 +263,28 @@ class PayloadApplier(object):
       num_blocks = ex.num_blocks
       count = num_blocks * block_size
 
-      # Make sure it's not a fake (signature) operation.
-      if start_block != common.PSEUDO_EXTENT_MARKER:
-        data_end = data_start + count
+      data_end = data_start + count
 
-        # Make sure we're not running past partition boundary.
-        if (start_block + num_blocks) * block_size > part_size:
-          raise PayloadError(
-              '%s: extent (%s) exceeds partition size (%d)' %
-              (ex_name, common.FormatExtent(ex, block_size),
-               part_size))
+      # Make sure we're not running past partition boundary.
+      if (start_block + num_blocks) * block_size > part_size:
+        raise PayloadError(
+            '%s: extent (%s) exceeds partition size (%d)' %
+            (ex_name, common.FormatExtent(ex, block_size),
+             part_size))
 
-        # Make sure that we have enough data to write.
-        if data_end >= data_length + block_size:
-          raise PayloadError(
-              '%s: more dst blocks than data (even with padding)')
+      # Make sure that we have enough data to write.
+      if data_end >= data_length + block_size:
+        raise PayloadError(
+            '%s: more dst blocks than data (even with padding)')
 
-        # Pad with zeros if necessary.
-        if data_end > data_length:
-          padding = data_end - data_length
-          out_data += '\0' * padding
+      # Pad with zeros if necessary.
+      if data_end > data_length:
+        padding = data_end - data_length
+        out_data += '\0' * padding
 
-        self.payload.payload_file.seek(start_block * block_size)
-        part_file.seek(start_block * block_size)
-        part_file.write(out_data[data_start:data_end])
+      self.payload.payload_file.seek(start_block * block_size)
+      part_file.seek(start_block * block_size)
+      part_file.write(out_data[data_start:data_end])
 
       data_start += count
 
@@ -323,10 +310,8 @@ class PayloadApplier(object):
     # Iterate over the extents and write zero.
     # pylint: disable=unused-variable
     for ex, ex_name in common.ExtentIter(op.dst_extents, base_name):
-      # Only do actual writing if this is not a pseudo-extent.
-      if ex.start_block != common.PSEUDO_EXTENT_MARKER:
-        part_file.seek(ex.start_block * block_size)
-        part_file.write('\0' * (ex.num_blocks * block_size))
+      part_file.seek(ex.start_block * block_size)
+      part_file.write('\0' * (ex.num_blocks * block_size))
 
   def _ApplySourceCopyOperation(self, op, op_name, old_part_file,
                                 new_part_file):
@@ -597,20 +582,11 @@ class PayloadApplier(object):
     install_operations = []
 
     manifest = self.payload.manifest
-    if self.payload.header.version == 1:
-      for real_name, proto_name in common.CROS_PARTITIONS:
-        new_part_info[real_name] = getattr(manifest, 'new_%s_info' % proto_name)
-        old_part_info[real_name] = getattr(manifest, 'old_%s_info' % proto_name)
-
-      install_operations.append((common.ROOTFS, manifest.install_operations))
-      install_operations.append((common.KERNEL,
-                                 manifest.kernel_install_operations))
-    else:
-      for part in manifest.partitions:
-        name = part.partition_name
-        new_part_info[name] = part.new_partition_info
-        old_part_info[name] = part.old_partition_info
-        install_operations.append((name, part.operations))
+    for part in manifest.partitions:
+      name = part.partition_name
+      new_part_info[name] = part.new_partition_info
+      old_part_info[name] = part.old_partition_info
+      install_operations.append((name, part.operations))
 
     part_names = set(new_part_info.keys())  # Equivalently, old_part_info.keys()
 

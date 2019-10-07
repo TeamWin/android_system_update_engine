@@ -90,7 +90,7 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
     EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
               aops[i].op.dst_extents(0).num_blocks());
     if (aops[i].op.type() != InstallOperation::REPLACE) {
-      EXPECT_EQ(InstallOperation::REPLACE_BZ, aops[i].op.type());
+      EXPECT_EQ(InstallOperation::REPLACE_XZ, aops[i].op.type());
     }
   }
 }

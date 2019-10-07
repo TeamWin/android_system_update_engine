@@ -427,10 +427,10 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_gen.SetBlockSize(test_utils.KiB(4))
 
     # Add some operations.
-    payload_gen.AddOperation(False, common.OpType.SOURCE_COPY,
+    payload_gen.AddOperation(common.ROOTFS, common.OpType.SOURCE_COPY,
                              src_extents=[(0, 16), (16, 497)],
                              dst_extents=[(16, 496), (0, 16)])
-    payload_gen.AddOperation(True, common.OpType.SOURCE_COPY,
+    payload_gen.AddOperation(common.KERNEL, common.OpType.SOURCE_COPY,
                              src_extents=[(0, 8), (8, 8)],
                              dst_extents=[(8, 8), (0, 8)])
 
@@ -456,19 +456,21 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if fail_mismatched_oki_ori or fail_old_kernel_fs_size or fail_bad_oki:
       oki_hash = (None if fail_bad_oki
                   else hashlib.sha256('fake-oki-content').digest())
-      payload_gen.SetPartInfo(True, False, old_kernel_fs_size, oki_hash)
+      payload_gen.SetPartInfo(common.KERNEL, False, old_kernel_fs_size,
+                              oki_hash)
     if not fail_mismatched_oki_ori and (fail_old_rootfs_fs_size or
                                         fail_bad_ori):
       ori_hash = (None if fail_bad_ori
                   else hashlib.sha256('fake-ori-content').digest())
-      payload_gen.SetPartInfo(False, False, old_rootfs_fs_size, ori_hash)
+      payload_gen.SetPartInfo(common.ROOTFS, False, old_rootfs_fs_size,
+                              ori_hash)
 
     # Add new kernel/rootfs partition info.
     payload_gen.SetPartInfo(
-        True, True, new_kernel_fs_size,
+        common.KERNEL, True, new_kernel_fs_size,
         None if fail_bad_nki else hashlib.sha256('fake-nki-content').digest())
     payload_gen.SetPartInfo(
-        False, True, new_rootfs_fs_size,
+        common.ROOTFS, True, new_rootfs_fs_size,
         None if fail_bad_nri else hashlib.sha256('fake-nri-content').digest())
 
     # Set the minor version.
@@ -520,23 +522,6 @@ class PayloadCheckerTest(mox.MoxTestBase):
         23,
         payload_checker._CheckExtents(extents, (1024 + 16) * block_size,
                                       collections.defaultdict(int), 'foo'))
-
-    # Passes w/ pseudo-extents (aka sparse holes).
-    extents = self.NewExtentList((0, 4), (common.PSEUDO_EXTENT_MARKER, 5),
-                                 (8, 3))
-    self.assertEquals(
-        12,
-        payload_checker._CheckExtents(extents, (1024 + 16) * block_size,
-                                      collections.defaultdict(int), 'foo',
-                                      allow_pseudo=True))
-
-    # Passes w/ pseudo-extent due to a signature.
-    extents = self.NewExtentList((common.PSEUDO_EXTENT_MARKER, 2))
-    self.assertEquals(
-        2,
-        payload_checker._CheckExtents(extents, (1024 + 16) * block_size,
-                                      collections.defaultdict(int), 'foo',
-                                      allow_signature=True))
 
     # Fails, extent missing a start block.
     extents = self.NewExtentList((-1, 4), (8, 3), (1024, 16))
@@ -704,8 +689,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.assertRaises(PayloadError, payload_checker._CheckSourceCopyOperation,
                       None, 0, 1, 'foo')
 
-  def DoCheckOperationTest(self, op_type_name, is_last, allow_signature,
-                           allow_unhashed, fail_src_extents, fail_dst_extents,
+  def DoCheckOperationTest(self, op_type_name, allow_unhashed,
+                           fail_src_extents, fail_dst_extents,
                            fail_mismatched_data_offset_length,
                            fail_missing_dst_extents, fail_src_length,
                            fail_dst_length, fail_data_hash,
@@ -715,8 +700,6 @@ class PayloadCheckerTest(mox.MoxTestBase):
     Args:
       op_type_name: 'REPLACE', 'REPLACE_BZ', 'REPLACE_XZ',
         'SOURCE_COPY', 'SOURCE_BSDIFF', BROTLI_BSDIFF or 'PUFFDIFF'.
-      is_last: Whether we're testing the last operation in a sequence.
-      allow_signature: Whether we're testing a signature-capable operation.
       allow_unhashed: Whether we're allowing to not hash the data.
       fail_src_extents: Tamper with src extents.
       fail_dst_extents: Tamper with dst extents.
@@ -762,8 +745,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
                           self.NewExtentList((1, 16)))
         total_src_blocks = 16
 
-    # TODO(tbrindus): add major version 2 tests.
-    payload_checker.major_version = common.CHROMEOS_MAJOR_PAYLOAD_VERSION
+    payload_checker.major_version = common.BRILLO_MAJOR_PAYLOAD_VERSION
     if op_type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       payload_checker.minor_version = 0
     elif op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
@@ -785,13 +767,11 @@ class PayloadCheckerTest(mox.MoxTestBase):
         op.data_offset = prev_data_offset
 
       fake_data = 'fake-data'.ljust(op.data_length)
-      if not (allow_unhashed or (is_last and allow_signature and
-                                 op_type == common.OpType.REPLACE)):
-        if not fail_data_hash:
-          # Create a valid data blob hash.
-          op.data_sha256_hash = hashlib.sha256(fake_data).digest()
-          payload.ReadDataBlob(op.data_offset, op.data_length).AndReturn(
-              fake_data)
+      if not allow_unhashed and not fail_data_hash:
+        # Create a valid data blob hash.
+        op.data_sha256_hash = hashlib.sha256(fake_data).digest()
+        payload.ReadDataBlob(op.data_offset, op.data_length).AndReturn(
+            fake_data)
 
       elif fail_data_hash:
         # Create an invalid data blob hash.
@@ -833,8 +813,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
                    fail_missing_dst_extents or fail_src_length or
                    fail_dst_length or fail_data_hash or fail_prev_data_offset or
                    fail_bad_minor_version)
-    args = (op, 'foo', is_last, old_block_counters, new_block_counters,
-            old_part_size, new_part_size, prev_data_offset, allow_signature,
+    args = (op, 'foo', old_block_counters, new_block_counters,
+            old_part_size, new_part_size, prev_data_offset,
             blob_hash_counts)
     if should_fail:
       self.assertRaises(PayloadError, payload_checker._CheckOperation, *args)
@@ -876,7 +856,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if fail_nonexhaustive_full_update:
       rootfs_data_length -= block_size
 
-    payload_gen.AddOperation(False, rootfs_op_type,
+    payload_gen.AddOperation(common.ROOTFS, rootfs_op_type,
                              dst_extents=[(0, rootfs_data_length / block_size)],
                              data_offset=0,
                              data_length=rootfs_data_length)
@@ -887,17 +867,17 @@ class PayloadCheckerTest(mox.MoxTestBase):
                                              'allow_unhashed': True})
     payload_checker.payload_type = checker._TYPE_FULL
     report = checker._PayloadReport()
-
-    args = (payload_checker.payload.manifest.install_operations, report, 'foo',
-            0, rootfs_part_size, rootfs_part_size, rootfs_part_size, 0, False)
+    partition = next((p for p in payload_checker.payload.manifest.partitions
+                      if p.partition_name == common.ROOTFS), None)
+    args = (partition.operations, report, 'foo',
+            0, rootfs_part_size, rootfs_part_size, rootfs_part_size, 0)
     if fail_nonexhaustive_full_update:
       self.assertRaises(PayloadError, payload_checker._CheckOperations, *args)
     else:
       self.assertEqual(rootfs_data_length,
                        payload_checker._CheckOperations(*args))
 
-  def DoCheckSignaturesTest(self, fail_empty_sigs_blob, fail_missing_pseudo_op,
-                            fail_mismatched_pseudo_op, fail_sig_missing_fields,
+  def DoCheckSignaturesTest(self, fail_empty_sigs_blob, fail_sig_missing_fields,
                             fail_unknown_sig_version, fail_incorrect_sig):
     """Tests _CheckSignatures()."""
     # Generate a test payload. For this test, we only care about the signature
@@ -908,20 +888,18 @@ class PayloadCheckerTest(mox.MoxTestBase):
     payload_gen.SetBlockSize(block_size)
     rootfs_part_size = test_utils.MiB(2)
     kernel_part_size = test_utils.KiB(16)
-    payload_gen.SetPartInfo(False, True, rootfs_part_size,
+    payload_gen.SetPartInfo(common.ROOTFS, True, rootfs_part_size,
                             hashlib.sha256('fake-new-rootfs-content').digest())
-    payload_gen.SetPartInfo(True, True, kernel_part_size,
+    payload_gen.SetPartInfo(common.KERNEL, True, kernel_part_size,
                             hashlib.sha256('fake-new-kernel-content').digest())
     payload_gen.SetMinorVersion(0)
     payload_gen.AddOperationWithData(
-        False, common.OpType.REPLACE,
+        common.ROOTFS, common.OpType.REPLACE,
         dst_extents=[(0, rootfs_part_size / block_size)],
         data_blob=os.urandom(rootfs_part_size))
 
-    do_forge_pseudo_op = (fail_missing_pseudo_op or fail_mismatched_pseudo_op)
-    do_forge_sigs_data = (do_forge_pseudo_op or fail_empty_sigs_blob or
-                          fail_sig_missing_fields or fail_unknown_sig_version
-                          or fail_incorrect_sig)
+    do_forge_sigs_data = (fail_empty_sigs_blob or fail_sig_missing_fields or
+                          fail_unknown_sig_version or fail_incorrect_sig)
 
     sigs_data = None
     if do_forge_sigs_data:
@@ -937,22 +915,12 @@ class PayloadCheckerTest(mox.MoxTestBase):
       sigs_data = sigs_gen.ToBinary()
       payload_gen.SetSignatures(payload_gen.curr_offset, len(sigs_data))
 
-    if do_forge_pseudo_op:
-      assert sigs_data is not None, 'should have forged signatures blob by now'
-      sigs_len = len(sigs_data)
-      payload_gen.AddOperation(
-          False, common.OpType.REPLACE,
-          data_offset=payload_gen.curr_offset / 2,
-          data_length=sigs_len / 2,
-          dst_extents=[(0, (sigs_len / 2 + block_size - 1) / block_size)])
-
     # Generate payload (complete w/ signature) and create the test object.
     payload_checker = _GetPayloadChecker(
         payload_gen.WriteToFileWithData,
         payload_gen_dargs={
             'sigs_data': sigs_data,
-            'privkey_file_name': test_utils._PRIVKEY_FILE_NAME,
-            'do_add_pseudo_operation': not do_forge_pseudo_op})
+            'privkey_file_name': test_utils._PRIVKEY_FILE_NAME})
     payload_checker.payload_type = checker._TYPE_FULL
     report = checker._PayloadReport()
 
@@ -962,8 +930,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
         common.KERNEL: kernel_part_size
     })
 
-    should_fail = (fail_empty_sigs_blob or fail_missing_pseudo_op or
-                   fail_mismatched_pseudo_op or fail_sig_missing_fields or
+    should_fail = (fail_empty_sigs_blob or fail_sig_missing_fields or
                    fail_unknown_sig_version or fail_incorrect_sig)
     args = (report, test_utils._PUBKEY_FILE_NAME)
     if should_fail:
@@ -1016,9 +983,9 @@ class PayloadCheckerTest(mox.MoxTestBase):
     payload_gen.SetBlockSize(block_size)
     kernel_filesystem_size = test_utils.KiB(16)
     rootfs_filesystem_size = test_utils.MiB(2)
-    payload_gen.SetPartInfo(False, True, rootfs_filesystem_size,
+    payload_gen.SetPartInfo(common.ROOTFS, True, rootfs_filesystem_size,
                             hashlib.sha256('fake-new-rootfs-content').digest())
-    payload_gen.SetPartInfo(True, True, kernel_filesystem_size,
+    payload_gen.SetPartInfo(common.KERNEL, True, kernel_filesystem_size,
                             hashlib.sha256('fake-new-kernel-content').digest())
     payload_gen.SetMinorVersion(0)
 
@@ -1029,7 +996,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if fail_rootfs_part_size_exceeded:
       rootfs_op_size += block_size
     payload_gen.AddOperationWithData(
-        False, common.OpType.REPLACE,
+        common.ROOTFS, common.OpType.REPLACE,
         dst_extents=[(0, rootfs_op_size / block_size)],
         data_blob=os.urandom(rootfs_op_size))
 
@@ -1040,7 +1007,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if fail_kernel_part_size_exceeded:
       kernel_op_size += block_size
     payload_gen.AddOperationWithData(
-        True, common.OpType.REPLACE,
+        common.KERNEL, common.OpType.REPLACE,
         dst_extents=[(0, kernel_op_size / block_size)],
         data_blob=os.urandom(kernel_op_size))
 
@@ -1052,16 +1019,14 @@ class PayloadCheckerTest(mox.MoxTestBase):
     else:
       use_block_size = block_size
 
-    # For the unittests 246 is the value that generated for the payload.
-    metadata_size = 246
+    # For the unittests 237 is the value that generated for the payload.
+    metadata_size = 237
     if fail_mismatched_metadata_size:
       metadata_size += 1
 
     kwargs = {
         'payload_gen_dargs': {
             'privkey_file_name': test_utils._PRIVKEY_FILE_NAME,
-            'do_add_pseudo_operation': True,
-            'is_pseudo_in_kernel': True,
             'padding': os.urandom(1024) if fail_excess_data else None},
         'checker_init_dargs': {
             'assert_type': 'delta' if fail_wrong_payload_type else 'full',
@@ -1073,7 +1038,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_checker = _GetPayloadChecker(payload_gen.WriteToFileWithData,
                                            **kwargs)
 
-      kwargs = {
+      kwargs2 = {
           'pubkey_file_name': test_utils._PUBKEY_FILE_NAME,
           'metadata_size': metadata_size,
           'part_sizes': {
@@ -1085,15 +1050,14 @@ class PayloadCheckerTest(mox.MoxTestBase):
                      fail_rootfs_part_size_exceeded or
                      fail_kernel_part_size_exceeded)
       if should_fail:
-        self.assertRaises(PayloadError, payload_checker.Run, **kwargs)
+        self.assertRaises(PayloadError, payload_checker.Run, **kwargs2)
       else:
-        self.assertIsNone(payload_checker.Run(**kwargs))
+        self.assertIsNone(payload_checker.Run(**kwargs2))
 
 # This implements a generic API, hence the occasional unused args.
 # pylint: disable=W0613
-def ValidateCheckOperationTest(op_type_name, is_last, allow_signature,
-                               allow_unhashed, fail_src_extents,
-                               fail_dst_extents,
+def ValidateCheckOperationTest(op_type_name, allow_unhashed,
+                               fail_src_extents, fail_dst_extents,
                                fail_mismatched_data_offset_length,
                                fail_missing_dst_extents, fail_src_length,
                                fail_dst_length, fail_data_hash,
@@ -1147,7 +1111,7 @@ def AddParametricTests(tested_method_name, arg_space, validate_func=None):
     run_method_name = 'Do%sTest' % tested_method_name
     test_method_name = 'test%s' % tested_method_name
     for arg_key, arg_val in run_dargs.iteritems():
-      if arg_val or type(arg_val) is int:
+      if arg_val or isinstance(arg_val, int):
         test_method_name += '__%s=%s' % (arg_key, arg_val)
     setattr(PayloadCheckerTest, test_method_name,
             TestMethodBody(run_method_name, run_dargs))
@@ -1196,8 +1160,6 @@ def AddAllParametricTests():
                      {'op_type_name': ('REPLACE', 'REPLACE_BZ', 'REPLACE_XZ',
                                        'SOURCE_COPY', 'SOURCE_BSDIFF',
                                        'PUFFDIFF', 'BROTLI_BSDIFF'),
-                      'is_last': (True, False),
-                      'allow_signature': (True, False),
                       'allow_unhashed': (True, False),
                       'fail_src_extents': (True, False),
                       'fail_dst_extents': (True, False),
@@ -1217,8 +1179,6 @@ def AddAllParametricTests():
   # Add all _CheckOperations() test cases.
   AddParametricTests('CheckSignatures',
                      {'fail_empty_sigs_blob': (True, False),
-                      'fail_missing_pseudo_op': (True, False),
-                      'fail_mismatched_pseudo_op': (True, False),
                       'fail_sig_missing_fields': (True, False),
                       'fail_unknown_sig_version': (True, False),
                       'fail_incorrect_sig': (True, False)})

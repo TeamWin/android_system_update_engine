@@ -94,14 +94,12 @@ class PayloadMetadata {
                         Signatures* metadata_signatures);
 
  private:
-  // Set |*out_offset| to the byte offset at which the manifest protobuf begins
-  // in a payload. Return true on success, false if the offset is unknown.
-  bool GetManifestOffset(uint64_t* out_offset) const;
+  // Returns the byte offset at which the manifest protobuf begins in a payload.
+  uint64_t GetManifestOffset() const;
 
-  // Set |*out_offset| to the byte offset where the size of the metadata
-  // signature is stored in a payload. Return true on success, if this field is
-  // not present in the payload, return false.
-  bool GetMetadataSignatureSizeOffset(uint64_t* out_offset) const;
+  // Returns the byte offset where the size of the metadata signature is stored
+  // in a payload.
+  uint64_t GetMetadataSignatureSizeOffset() const;
 
   uint64_t metadata_size_{0};
   uint64_t manifest_size_{0};

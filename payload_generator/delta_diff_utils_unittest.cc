@@ -136,7 +136,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
   bool RunDeltaMovedAndZeroBlocks(ssize_t chunk_blocks,
                                   uint32_t minor_version) {
     BlobFileWriter blob_file(blob_fd_, &blob_size_);
-    PayloadVersion version(kChromeOSMajorPayloadVersion, minor_version);
+    PayloadVersion version(kBrilloMajorPayloadVersion, minor_version);
     ExtentRanges old_zero_blocks;
     return diff_utils::DeltaMovedAndZeroBlocks(&aops_,
                                                old_part_.path,
@@ -225,8 +225,7 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
         new_extents,
         {},  // old_deflates
         {},  // new_deflates
-        PayloadVersion(kChromeOSMajorPayloadVersion,
-                       kSourceMinorPayloadVersion),
+        PayloadVersion(kBrilloMajorPayloadVersion, kSourceMinorPayloadVersion),
         &data,
         &op));
     EXPECT_FALSE(data.empty());
@@ -268,7 +267,7 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
       new_extents,
       {},  // old_deflates
       {},  // new_deflates
-      PayloadVersion(kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion),
+      PayloadVersion(kBrilloMajorPayloadVersion, kSourceMinorPayloadVersion),
       &data,
       &op));
   EXPECT_TRUE(data.empty());
@@ -302,7 +301,7 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
       new_extents,
       {},  // old_deflates
       {},  // new_deflates
-      PayloadVersion(kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion),
+      PayloadVersion(kBrilloMajorPayloadVersion, kSourceMinorPayloadVersion),
       &data,
       &op));
 
