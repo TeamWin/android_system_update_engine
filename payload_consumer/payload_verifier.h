@@ -20,13 +20,14 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <brillo/secure_blob.h>
 #include <openssl/evp.h>
 
 #include "update_engine/update_metadata.pb.h"
 
-// This class holds the public key and implements methods used for payload
+// This class holds the public keys and implements methods used for payload
 // signature verification. See payload_generator/payload_signer.h for payload
 // signing.
 
@@ -47,6 +48,11 @@ class PayloadVerifier {
   static std::unique_ptr<PayloadVerifier> CreateInstance(
       const std::string& pem_public_key);
 
+  // Extracts the public keys from the certificates contained in the input
+  // zip file. And creates a PayloadVerifier with these public keys.
+  static std::unique_ptr<PayloadVerifier> CreateInstanceFromZipPath(
+      const std::string& certificate_zip_path);
+
   // Interprets |signature_proto| as a protocol buffer containing the
   // |Signatures| message and decrypts each signature data using the stored
   // public key. Pads the 32 bytes |sha256_hash_data| to 256 or 512 bytes
@@ -65,8 +71,9 @@ class PayloadVerifier {
 
  private:
   explicit PayloadVerifier(
-      std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>&& public_key)
-      : public_key_(std::move(public_key)) {}
+      std::vector<std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>>&&
+          public_keys)
+      : public_keys_(std::move(public_keys)) {}
 
   // Decrypts |sig_data| with the given |public_key| and populates
   // |out_hash_data| with the decoded raw hash. Returns true if successful,
@@ -75,8 +82,7 @@ class PayloadVerifier {
                                const EVP_PKEY* public_key,
                                brillo::Blob* out_hash_data) const;
 
-  std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> public_key_{nullptr,
-                                                                  nullptr};
+  std::vector<std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>> public_keys_;
 };
 
 }  // namespace chromeos_update_engine

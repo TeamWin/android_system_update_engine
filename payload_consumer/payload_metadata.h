@@ -27,6 +27,7 @@
 
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -65,9 +66,10 @@ class PayloadMetadata {
   // metadata is parsed so that a man-in-the-middle attack on the SSL connection
   // to the payload server doesn't exploit any vulnerability in the code that
   // parses the protocol buffer.
-  ErrorCode ValidateMetadataSignature(const brillo::Blob& payload,
-                                      const std::string& metadata_signature,
-                                      const std::string& pem_public_key) const;
+  ErrorCode ValidateMetadataSignature(
+      const brillo::Blob& payload,
+      const std::string& metadata_signature,
+      const PayloadVerifier& payload_verifier) const;
 
   // Returns the major payload version. If the version was not yet parsed,
   // returns zero.

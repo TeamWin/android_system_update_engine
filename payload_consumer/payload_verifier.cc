@@ -25,6 +25,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/certificate_parser_interface.h"
 #include "update_engine/update_metadata.pb.h"
 
 using std::string;
@@ -63,17 +64,39 @@ std::unique_ptr<PayloadVerifier> PayloadVerifier::CreateInstance(
   auto pub_key = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>(
       PEM_read_bio_PUBKEY(bp.get(), nullptr, nullptr, nullptr), EVP_PKEY_free);
   if (!pub_key) {
-    LOG(ERROR) << "Failed to parse the public key in " << pem_public_key;
+    LOG(ERROR) << "Failed to parse the public key in: " << pem_public_key;
+    return nullptr;
+  }
+
+  std::vector<std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>> keys;
+  keys.emplace_back(std::move(pub_key));
+  return std::unique_ptr<PayloadVerifier>(new PayloadVerifier(std::move(keys)));
+}
+
+std::unique_ptr<PayloadVerifier> PayloadVerifier::CreateInstanceFromZipPath(
+    const std::string& certificate_zip_path) {
+  auto parser = CreateCertificateParser();
+  if (!parser) {
+    LOG(ERROR) << "Failed to create certificate parser from "
+               << certificate_zip_path;
+    return nullptr;
+  }
+
+  std::vector<std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>> public_keys;
+  if (!parser->ReadPublicKeysFromCertificates(certificate_zip_path,
+                                              &public_keys) ||
+      public_keys.empty()) {
+    LOG(ERROR) << "Failed to parse public keys in: " << certificate_zip_path;
     return nullptr;
   }
 
   return std::unique_ptr<PayloadVerifier>(
-      new PayloadVerifier(std::move(pub_key)));
+      new PayloadVerifier(std::move(public_keys)));
 }
 
 bool PayloadVerifier::VerifySignature(
     const string& signature_proto, const brillo::Blob& sha256_hash_data) const {
-  TEST_AND_RETURN_FALSE(public_key_ != nullptr);
+  TEST_AND_RETURN_FALSE(!public_keys_.empty());
 
   Signatures signatures;
   LOG(INFO) << "signature blob size = " << signature_proto.size();
@@ -125,37 +148,50 @@ bool PayloadVerifier::VerifyRawSignature(
     const brillo::Blob& sig_data,
     const brillo::Blob& sha256_hash_data,
     brillo::Blob* decrypted_sig_data) const {
-  TEST_AND_RETURN_FALSE(public_key_ != nullptr);
+  TEST_AND_RETURN_FALSE(!public_keys_.empty());
 
-  int key_type = EVP_PKEY_id(public_key_.get());
-  if (key_type == EVP_PKEY_RSA) {
-    brillo::Blob sig_hash_data;
-    TEST_AND_RETURN_FALSE(
-        GetRawHashFromSignature(sig_data, public_key_.get(), &sig_hash_data));
+  for (const auto& public_key : public_keys_) {
+    int key_type = EVP_PKEY_id(public_key.get());
+    if (key_type == EVP_PKEY_RSA) {
+      brillo::Blob sig_hash_data;
+      if (!GetRawHashFromSignature(
+              sig_data, public_key.get(), &sig_hash_data)) {
+        LOG(WARNING)
+            << "Failed to get the raw hash with RSA key. Trying other keys.";
+        continue;
+      }
 
-    if (decrypted_sig_data != nullptr) {
-      *decrypted_sig_data = sig_hash_data;
+      if (decrypted_sig_data != nullptr) {
+        *decrypted_sig_data = sig_hash_data;
+      }
+
+      brillo::Blob padded_hash_data = sha256_hash_data;
+      TEST_AND_RETURN_FALSE(
+          PadRSASHA256Hash(&padded_hash_data, sig_hash_data.size()));
+
+      if (padded_hash_data == sig_hash_data) {
+        return true;
+      }
     }
 
-    brillo::Blob padded_hash_data = sha256_hash_data;
-    TEST_AND_RETURN_FALSE(
-        PadRSASHA256Hash(&padded_hash_data, sig_hash_data.size()));
+    if (key_type == EVP_PKEY_EC) {
+      EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key.get());
+      TEST_AND_RETURN_FALSE(ec_key != nullptr);
+      if (ECDSA_verify(0,
+                       sha256_hash_data.data(),
+                       sha256_hash_data.size(),
+                       sig_data.data(),
+                       sig_data.size(),
+                       ec_key) == 1) {
+        return true;
+      }
+    }
 
-    return padded_hash_data == sig_hash_data;
+    LOG(ERROR) << "Unsupported key type " << key_type;
+    return false;
   }
-
-  if (key_type == EVP_PKEY_EC) {
-    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key_.get());
-    TEST_AND_RETURN_FALSE(ec_key != nullptr);
-    return ECDSA_verify(0,
-                        sha256_hash_data.data(),
-                        sha256_hash_data.size(),
-                        sig_data.data(),
-                        sig_data.size(),
-                        ec_key) == 1;
-  }
-
-  LOG(ERROR) << "Unsupported key type " << key_type;
+  LOG(INFO) << "Failed to verify the signature with " << public_keys_.size()
+            << " keys.";
   return false;
 }
 

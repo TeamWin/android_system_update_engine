@@ -39,6 +39,7 @@
 #include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector.h"
+#include "update_engine/payload_consumer/certificate_parser_interface.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
@@ -46,6 +47,7 @@
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_metadata.h"
+#include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_boot_flags_action.h"
 #include "update_engine/update_status_utils.h"
@@ -410,12 +412,16 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
   }
   fd->Close();
 
-  string public_key;
-  if (!utils::ReadFile(constants::kUpdatePayloadPublicKeyPath, &public_key)) {
-    return LogAndSetError(error, FROM_HERE, "Failed to read public key.");
+  auto payload_verifier = PayloadVerifier::CreateInstanceFromZipPath(
+      constants::kUpdateCertificatesPath);
+  if (!payload_verifier) {
+    return LogAndSetError(error,
+                          FROM_HERE,
+                          "Failed to create the payload verifier from " +
+                              std::string(constants::kUpdateCertificatesPath));
   }
-  errorcode =
-      payload_metadata.ValidateMetadataSignature(metadata, "", public_key);
+  errorcode = payload_metadata.ValidateMetadataSignature(
+      metadata, "", *payload_verifier);
   if (errorcode != ErrorCode::kSuccess) {
     return LogAndSetError(error,
                           FROM_HERE,

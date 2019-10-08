@@ -25,8 +25,8 @@ const char kOmahaDefaultAUTestURL[] =
     "https://clients2.google.com/service/update2/brillo";
 const char kOmahaUpdaterID[] = "Brillo";
 const char kOmahaPlatformName[] = "Brillo";
-const char kUpdatePayloadPublicKeyPath[] =
-    "/etc/update_engine/update-payload-key.pub.pem";
+const char kUpdatePayloadPublicKeyPath[] = "";
+const char kUpdateCertificatesPath[] = "/system/etc/security/otacerts.zip";
 const char kCACertificatesPath[] = "/system/etc/security/cacerts_google";
 // No deadline file API support on Android.
 const char kOmahaResponseDeadlineFile[] = "";
