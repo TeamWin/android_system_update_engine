@@ -60,6 +60,8 @@ extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;
 extern const char* kUnittestPrivateKey2Path;
 extern const char* kUnittestPublicKey2Path;
+extern const char* kUnittestPrivateKeyECPath;
+extern const char* kUnittestPublicKeyECPath;
 
 static const uint32_t kDefaultKernelSize = 4096;  // Something small for a test
 // clang-format off
@@ -107,6 +109,7 @@ enum SignatureTest {
   kSignatureGeneratedPlaceholder,  // Insert placeholder signatures, then real.
   kSignatureGeneratedPlaceholderMismatch,  // Insert a wrong sized placeholder.
   kSignatureGeneratedShell,  // Sign the generated payload through shell cmds.
+  kSignatureGeneratedShellECKey,      // Sign with a EC key through shell cmds.
   kSignatureGeneratedShellBadKey,     // Sign with a bad key through shell cmds.
   kSignatureGeneratedShellRotateCl1,  // Rotate key, test client v1
   kSignatureGeneratedShellRotateCl2,  // Rotate key, test client v2
@@ -164,53 +167,127 @@ static bool WriteByteAtOffset(const string& path, off_t offset) {
   return true;
 }
 
-static size_t GetSignatureSize(const string& private_key_path) {
-  const brillo::Blob data(1, 'x');
-  brillo::Blob hash;
-  EXPECT_TRUE(HashCalculator::RawHashOfData(data, &hash));
-  brillo::Blob signature;
-  EXPECT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
-  return signature.size();
-}
-
 static bool InsertSignaturePlaceholder(size_t signature_size,
                                        const string& payload_path,
                                        uint64_t* out_metadata_size) {
   vector<brillo::Blob> signatures;
   signatures.push_back(brillo::Blob(signature_size, 0));
 
-  return PayloadSigner::AddSignatureToPayload(
-      payload_path, signatures, {}, payload_path, out_metadata_size);
+  return PayloadSigner::AddSignatureToPayload(payload_path,
+                                              {signature_size},
+                                              signatures,
+                                              {},
+                                              payload_path,
+                                              out_metadata_size);
 }
 
 static void SignGeneratedPayload(const string& payload_path,
                                  uint64_t* out_metadata_size) {
   string private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyPath);
-  size_t signature_size = GetSignatureSize(private_key_path);
+  size_t signature_size;
+  ASSERT_TRUE(PayloadSigner::GetMaximumSignatureSize(private_key_path,
+                                                     &signature_size));
   brillo::Blob hash;
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path, {signature_size}, &hash, nullptr));
   brillo::Blob signature;
   ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
-  ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(
-      payload_path, {signature}, {}, payload_path, out_metadata_size));
+  ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(payload_path,
+                                                   {signature_size},
+                                                   {signature},
+                                                   {},
+                                                   payload_path,
+                                                   out_metadata_size));
   EXPECT_TRUE(PayloadSigner::VerifySignedPayload(
       payload_path, GetBuildArtifactsPath(kUnittestPublicKeyPath)));
 }
 
+static void SignGeneratedShellPayloadWithKeys(
+    const string& payload_path,
+    const vector<string>& private_key_paths,
+    const string& public_key_path,
+    bool verification_success) {
+  vector<string> signature_size_strings;
+  for (const auto& key_path : private_key_paths) {
+    size_t signature_size;
+    ASSERT_TRUE(
+        PayloadSigner::GetMaximumSignatureSize(key_path, &signature_size));
+    signature_size_strings.push_back(base::StringPrintf("%zu", signature_size));
+  }
+  string signature_size_string = base::JoinString(signature_size_strings, ":");
+
+  test_utils::ScopedTempFile hash_file("hash.XXXXXX");
+  string delta_generator_path = GetBuildArtifactsPath("delta_generator");
+  ASSERT_EQ(0,
+            System(base::StringPrintf(
+                "%s -in_file=%s -signature_size=%s -out_hash_file=%s",
+                delta_generator_path.c_str(),
+                payload_path.c_str(),
+                signature_size_string.c_str(),
+                hash_file.path().c_str())));
+
+  // Sign the hash with all private keys.
+  vector<test_utils::ScopedTempFile> sig_files;
+  vector<string> sig_file_paths;
+  for (const auto& key_path : private_key_paths) {
+    brillo::Blob hash, signature;
+    ASSERT_TRUE(utils::ReadFile(hash_file.path(), &hash));
+    ASSERT_TRUE(PayloadSigner::SignHash(hash, key_path, &signature));
+
+    test_utils::ScopedTempFile sig_file("signature.XXXXXX");
+    ASSERT_TRUE(test_utils::WriteFileVector(sig_file.path(), signature));
+    sig_file_paths.push_back(sig_file.path());
+    sig_files.push_back(std::move(sig_file));
+  }
+  string sig_files_string = base::JoinString(sig_file_paths, ":");
+
+  // Add the signature to the payload.
+  ASSERT_EQ(0,
+            System(base::StringPrintf("%s --signature_size=%s -in_file=%s "
+                                      "-payload_signature_file=%s -out_file=%s",
+                                      delta_generator_path.c_str(),
+                                      signature_size_string.c_str(),
+                                      payload_path.c_str(),
+                                      sig_files_string.c_str(),
+                                      payload_path.c_str())));
+
+  int verify_result = System(base::StringPrintf("%s -in_file=%s -public_key=%s",
+                                                delta_generator_path.c_str(),
+                                                payload_path.c_str(),
+                                                public_key_path.c_str()));
+
+  if (verification_success) {
+    ASSERT_EQ(0, verify_result);
+  } else {
+    ASSERT_NE(0, verify_result);
+  }
+}
+
 static void SignGeneratedShellPayload(SignatureTest signature_test,
                                       const string& payload_path) {
-  string private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyPath);
+  vector<SignatureTest> supported_test = {
+      kSignatureGeneratedShell,
+      kSignatureGeneratedShellBadKey,
+      kSignatureGeneratedShellECKey,
+      kSignatureGeneratedShellRotateCl1,
+      kSignatureGeneratedShellRotateCl2,
+  };
+  ASSERT_TRUE(std::find(supported_test.begin(),
+                        supported_test.end(),
+                        signature_test) != supported_test.end());
+
+  string private_key_path;
   if (signature_test == kSignatureGeneratedShellBadKey) {
     ASSERT_TRUE(utils::MakeTempFile("key.XXXXXX", &private_key_path, nullptr));
+  } else if (signature_test == kSignatureGeneratedShellECKey) {
+    private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyECPath);
   } else {
-    ASSERT_TRUE(signature_test == kSignatureGeneratedShell ||
-                signature_test == kSignatureGeneratedShellRotateCl1 ||
-                signature_test == kSignatureGeneratedShellRotateCl2);
+    private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyPath);
   }
   ScopedPathUnlinker key_unlinker(private_key_path);
   key_unlinker.set_should_remove(signature_test ==
                                  kSignatureGeneratedShellBadKey);
+
   // Generates a new private key that will not match the public key.
   if (signature_test == kSignatureGeneratedShellBadKey) {
     LOG(INFO) << "Generating a mismatched private key.";
@@ -229,64 +306,26 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
     fclose(fprikey);
     RSA_free(rsa);
   }
-  size_t signature_size = GetSignatureSize(private_key_path);
-  test_utils::ScopedTempFile hash_file("hash.XXXXXX");
-  string signature_size_string;
-  if (signature_test == kSignatureGeneratedShellRotateCl1 ||
-      signature_test == kSignatureGeneratedShellRotateCl2)
-    signature_size_string =
-        base::StringPrintf("%zu:%zu", signature_size, signature_size);
-  else
-    signature_size_string = base::StringPrintf("%zu", signature_size);
-  string delta_generator_path = GetBuildArtifactsPath("delta_generator");
-  ASSERT_EQ(0,
-            System(base::StringPrintf(
-                "%s -in_file=%s -signature_size=%s -out_hash_file=%s",
-                delta_generator_path.c_str(),
-                payload_path.c_str(),
-                signature_size_string.c_str(),
-                hash_file.path().c_str())));
 
-  // Sign the hash
-  brillo::Blob hash, signature;
-  ASSERT_TRUE(utils::ReadFile(hash_file.path(), &hash));
-  ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
-
-  test_utils::ScopedTempFile sig_file("signature.XXXXXX");
-  ASSERT_TRUE(test_utils::WriteFileVector(sig_file.path(), signature));
-  string sig_files = sig_file.path();
-
-  test_utils::ScopedTempFile sig_file2("signature.XXXXXX");
+  vector<string> private_key_paths = {private_key_path};
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2) {
-    ASSERT_TRUE(PayloadSigner::SignHash(
-        hash, GetBuildArtifactsPath(kUnittestPrivateKey2Path), &signature));
-    ASSERT_TRUE(test_utils::WriteFileVector(sig_file2.path(), signature));
-    // Append second sig file to first path
-    sig_files += ":" + sig_file2.path();
+    private_key_paths.push_back(
+        GetBuildArtifactsPath(kUnittestPrivateKey2Path));
   }
 
-  ASSERT_EQ(0,
-            System(base::StringPrintf(
-                "%s -in_file=%s -payload_signature_file=%s -out_file=%s",
-                delta_generator_path.c_str(),
-                payload_path.c_str(),
-                sig_files.c_str(),
-                payload_path.c_str())));
-  int verify_result = System(base::StringPrintf(
-      "%s -in_file=%s -public_key=%s -public_key_version=%d",
-      delta_generator_path.c_str(),
-      payload_path.c_str(),
-      (signature_test == kSignatureGeneratedShellRotateCl2
-           ? GetBuildArtifactsPath(kUnittestPublicKey2Path)
-           : GetBuildArtifactsPath(kUnittestPublicKeyPath))
-          .c_str(),
-      signature_test == kSignatureGeneratedShellRotateCl2 ? 2 : 1));
-  if (signature_test == kSignatureGeneratedShellBadKey) {
-    ASSERT_NE(0, verify_result);
+  std::string public_key;
+  if (signature_test == kSignatureGeneratedShellRotateCl2) {
+    public_key = GetBuildArtifactsPath(kUnittestPublicKey2Path);
+  } else if (signature_test == kSignatureGeneratedShellECKey) {
+    public_key = GetBuildArtifactsPath(kUnittestPublicKeyECPath);
   } else {
-    ASSERT_EQ(0, verify_result);
+    public_key = GetBuildArtifactsPath(kUnittestPublicKeyPath);
   }
+
+  bool verification_success = signature_test != kSignatureGeneratedShellBadKey;
+  SignGeneratedShellPayloadWithKeys(
+      payload_path, private_key_paths, public_key, verification_success);
 }
 
 static void GenerateDeltaFile(bool full_kernel,
@@ -531,8 +570,9 @@ static void GenerateDeltaFile(bool full_kernel,
 
   if (signature_test == kSignatureGeneratedPlaceholder ||
       signature_test == kSignatureGeneratedPlaceholderMismatch) {
-    size_t signature_size =
-        GetSignatureSize(GetBuildArtifactsPath(kUnittestPrivateKeyPath));
+    size_t signature_size;
+    ASSERT_TRUE(PayloadSigner::GetMaximumSignatureSize(
+        GetBuildArtifactsPath(kUnittestPrivateKeyPath), &signature_size));
     LOG(INFO) << "Inserting placeholder signature.";
     ASSERT_TRUE(InsertSignaturePlaceholder(
         signature_size, state->delta_path, &state->metadata_size));
@@ -555,6 +595,7 @@ static void GenerateDeltaFile(bool full_kernel,
     LOG(INFO) << "Signing payload.";
     SignGeneratedPayload(state->delta_path, &state->metadata_size);
   } else if (signature_test == kSignatureGeneratedShell ||
+             signature_test == kSignatureGeneratedShellECKey ||
              signature_test == kSignatureGeneratedShellBadKey ||
              signature_test == kSignatureGeneratedShellRotateCl1 ||
              signature_test == kSignatureGeneratedShellRotateCl2) {
@@ -597,14 +638,15 @@ static void ApplyDeltaFile(bool full_kernel,
       else
         EXPECT_EQ(1, sigs_message.signatures_size());
       const Signatures::Signature& signature = sigs_message.signatures(0);
-      EXPECT_EQ(1U, signature.version());
 
-      uint64_t expected_sig_data_length = 0;
       vector<string> key_paths{GetBuildArtifactsPath(kUnittestPrivateKeyPath)};
-      if (signature_test == kSignatureGeneratedShellRotateCl1 ||
-          signature_test == kSignatureGeneratedShellRotateCl2) {
+      if (signature_test == kSignatureGeneratedShellECKey) {
+        key_paths = {GetBuildArtifactsPath(kUnittestPrivateKeyECPath)};
+      } else if (signature_test == kSignatureGeneratedShellRotateCl1 ||
+                 signature_test == kSignatureGeneratedShellRotateCl2) {
         key_paths.push_back(GetBuildArtifactsPath(kUnittestPrivateKey2Path));
       }
+      uint64_t expected_sig_data_length = 0;
       EXPECT_TRUE(PayloadSigner::SignatureBlobLength(
           key_paths, &expected_sig_data_length));
       EXPECT_EQ(expected_sig_data_length, manifest.signatures_size());
@@ -717,7 +759,9 @@ static void ApplyDeltaFile(bool full_kernel,
   ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
       state->delta.data(),
       state->metadata_size,
-      GetBuildArtifactsPath(kUnittestPrivateKeyPath),
+      (signature_test == kSignatureGeneratedShellECKey)
+          ? GetBuildArtifactsPath(kUnittestPrivateKeyECPath)
+          : GetBuildArtifactsPath(kUnittestPrivateKeyPath),
       &install_plan->payloads[0].metadata_signature));
   EXPECT_FALSE(install_plan->payloads[0].metadata_signature.empty());
 
@@ -728,7 +772,9 @@ static void ApplyDeltaFile(bool full_kernel,
                                   install_plan,
                                   &install_plan->payloads[0],
                                   false /* interactive */);
-  string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
+  string public_key_path = signature_test == kSignatureGeneratedShellECKey
+                               ? GetBuildArtifactsPath(kUnittestPublicKeyECPath)
+                               : GetBuildArtifactsPath(kUnittestPublicKeyPath);
   EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
   (*performer)->set_public_key_path(public_key_path);
 
@@ -1055,6 +1101,17 @@ TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignGeneratedShellTest) {
                    false,
                    -1,
                    kSignatureGeneratedShell,
+                   false,
+                   kInPlaceMinorPayloadVersion);
+}
+
+TEST(DeltaPerformerIntegrationTest,
+     RunAsRootSmallImageSignGeneratedShellECKeyTest) {
+  DoSmallImageTest(false,
+                   false,
+                   false,
+                   -1,
+                   kSignatureGeneratedShellECKey,
                    false,
                    kInPlaceMinorPayloadVersion);
 }

@@ -126,8 +126,17 @@ message Extent {
 
 message Signatures {
   message Signature {
-    optional uint32 version = 1;
+    optional uint32 version = 1 [deprecated = true];
     optional bytes data = 2;
+
+    // The DER encoded signature size of EC keys is nondeterministic for
+    // different input of sha256 hash. However, we need the size of the
+    // serialized signatures protobuf string to be fixed before signing;
+    // because this size is part of the content to be signed. Therefore, we
+    // always pad the signature data to the maximum possible signature size of
+    // a given key. And the payload verifier will truncate the signature to
+    // its correct size based on the value of |unpadded_signature_size|.
+    optional fixed32 unpadded_signature_size = 3;
   }
   repeated Signature signatures = 1;
 }

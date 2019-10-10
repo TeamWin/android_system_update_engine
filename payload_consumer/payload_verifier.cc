@@ -88,7 +88,19 @@ bool PayloadVerifier::VerifySignature(
   // Tries every signature in the signature blob.
   for (int i = 0; i < signatures.signatures_size(); i++) {
     const Signatures::Signature& signature = signatures.signatures(i);
-    brillo::Blob sig_data(signature.data().begin(), signature.data().end());
+    brillo::Blob sig_data;
+    if (signature.has_unpadded_signature_size()) {
+      TEST_AND_RETURN_FALSE(signature.unpadded_signature_size() <=
+                            signature.data().size());
+      LOG(INFO) << "Truncating the signature to its unpadded size: "
+                << signature.unpadded_signature_size() << ".";
+      sig_data.assign(
+          signature.data().begin(),
+          signature.data().begin() + signature.unpadded_signature_size());
+    } else {
+      sig_data.assign(signature.data().begin(), signature.data().end());
+    }
+
     brillo::Blob sig_hash_data;
     if (VerifyRawSignature(sig_data, sha256_hash_data, &sig_hash_data)) {
       LOG(INFO) << "Verified correct signature " << i + 1 << " out of "
@@ -102,7 +114,7 @@ bool PayloadVerifier::VerifySignature(
   LOG(ERROR) << "None of the " << signatures.signatures_size()
              << " signatures is correct. Expected hash before padding:";
   utils::HexDumpVector(sha256_hash_data);
-  LOG(ERROR) << "But found decrypted hashes:";
+  LOG(ERROR) << "But found RSA decrypted hashes:";
   for (const auto& sig_hash_data : tested_hashes) {
     utils::HexDumpVector(sig_hash_data);
   }
@@ -116,20 +128,35 @@ bool PayloadVerifier::VerifyRawSignature(
   TEST_AND_RETURN_FALSE(public_key_ != nullptr);
 
   int key_type = EVP_PKEY_id(public_key_.get());
-  TEST_AND_RETURN_FALSE(key_type == EVP_PKEY_RSA);
-  brillo::Blob sig_hash_data;
-  TEST_AND_RETURN_FALSE(
-      GetRawHashFromSignature(sig_data, public_key_.get(), &sig_hash_data));
+  if (key_type == EVP_PKEY_RSA) {
+    brillo::Blob sig_hash_data;
+    TEST_AND_RETURN_FALSE(
+        GetRawHashFromSignature(sig_data, public_key_.get(), &sig_hash_data));
 
-  if (decrypted_sig_data != nullptr) {
-    *decrypted_sig_data = sig_hash_data;
+    if (decrypted_sig_data != nullptr) {
+      *decrypted_sig_data = sig_hash_data;
+    }
+
+    brillo::Blob padded_hash_data = sha256_hash_data;
+    TEST_AND_RETURN_FALSE(
+        PadRSASHA256Hash(&padded_hash_data, sig_hash_data.size()));
+
+    return padded_hash_data == sig_hash_data;
   }
 
-  brillo::Blob padded_hash_data = sha256_hash_data;
-  TEST_AND_RETURN_FALSE(
-      PadRSASHA256Hash(&padded_hash_data, sig_hash_data.size()));
+  if (key_type == EVP_PKEY_EC) {
+    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key_.get());
+    TEST_AND_RETURN_FALSE(ec_key != nullptr);
+    return ECDSA_verify(0,
+                        sha256_hash_data.data(),
+                        sha256_hash_data.size(),
+                        sig_data.data(),
+                        sig_data.size(),
+                        ec_key) == 1;
+  }
 
-  return padded_hash_data == sig_hash_data;
+  LOG(ERROR) << "Unsupported key type " << key_type;
+  return false;
 }
 
 bool PayloadVerifier::GetRawHashFromSignature(
