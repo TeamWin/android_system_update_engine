@@ -50,7 +50,10 @@ group("all") {
   }
 
   if (use.fuzzer) {
-    deps += [ ":update_engine_omaha_request_action_fuzzer" ]
+    deps += [
+      ":update_engine_delta_performer_fuzzer",
+      ":update_engine_omaha_request_action_fuzzer",
+    ]
   }
 }
 
@@ -553,6 +556,23 @@ if (use.test) {
 
 # Fuzzer target.
 if (use.fuzzer) {
+  executable("update_engine_delta_performer_fuzzer") {
+    sources = [
+      "payload_consumer/delta_performer_fuzzer.cc",
+    ]
+    configs += [
+      "//common-mk/common_fuzzer",
+      ":target_defaults",
+    ]
+    pkg_deps = [
+      "libbrillo-test-${libbase_ver}",
+      "libchrome-test-${libbase_ver}",
+    ]
+    deps = [
+      ":libupdate_engine",
+      ":update_engine_test_libs",
+    ]
+  }
   executable("update_engine_omaha_request_action_fuzzer") {
     sources = [
       "omaha_request_action_fuzzer.cc",
