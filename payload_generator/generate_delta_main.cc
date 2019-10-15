@@ -63,9 +63,6 @@ void ParseSignatureSizes(const string& signature_sizes_flag,
     bool parsing_successful = base::StringToSizeT(str, &size);
     LOG_IF(FATAL, !parsing_successful) << "Invalid signature size: " << str;
 
-    LOG_IF(FATAL, size != 256 && size != 512)
-        << "Only signature sizes of 256 or 512 bytes are supported.";
-
     signature_sizes->push_back(size);
   }
 }
@@ -138,6 +135,7 @@ void SignatureFileFlagToBlobs(const string& signature_file_flag,
 
 void SignPayload(const string& in_file,
                  const string& out_file,
+                 const vector<size_t>& signature_sizes,
                  const string& payload_signature_file,
                  const string& metadata_signature_file,
                  const string& out_metadata_size_file) {
@@ -151,6 +149,7 @@ void SignPayload(const string& in_file,
   SignatureFileFlagToBlobs(metadata_signature_file, &metadata_signatures);
   uint64_t final_metadata_size;
   CHECK(PayloadSigner::AddSignatureToPayload(in_file,
+                                             signature_sizes,
                                              payload_signatures,
                                              metadata_signatures,
                                              out_file,
@@ -461,6 +460,7 @@ int Main(int argc, char** argv) {
   if (!FLAGS_payload_signature_file.empty()) {
     SignPayload(FLAGS_in_file,
                 FLAGS_out_file,
+                signature_sizes,
                 FLAGS_payload_signature_file,
                 FLAGS_metadata_signature_file,
                 FLAGS_out_metadata_size_file);
