@@ -46,6 +46,8 @@ const char* kUnittestPrivateKey2Path = "unittest_key2.pem";
 const char* kUnittestPublicKey2Path = "unittest_key2.pub.pem";
 const char* kUnittestPrivateKeyRSA4096Path = "unittest_key_RSA4096.pem";
 const char* kUnittestPublicKeyRSA4096Path = "unittest_key_RSA4096.pub.pem";
+const char* kUnittestPrivateKeyECPath = "unittest_key_EC.pem";
+const char* kUnittestPublicKeyECPath = "unittest_key_EC.pub.pem";
 
 // Some data and its corresponding hash and signature:
 const char kDataToSign[] = "This is some data to sign.";
@@ -115,7 +117,6 @@ TEST_F(PayloadSignerTest, SignSimpleTextTest) {
   EXPECT_TRUE(signatures.ParseFromString(signature));
   EXPECT_EQ(1, signatures.signatures_size());
   const Signatures::Signature& sig = signatures.signatures(0);
-  EXPECT_EQ(1U, sig.version());
   const string& sig_data = sig.data();
   ASSERT_EQ(arraysize(kDataSignature), sig_data.size());
   for (size_t i = 0; i < arraysize(kDataSignature); i++) {
@@ -128,12 +129,14 @@ TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
   SignSampleData(&signature,
                  {GetBuildArtifactsPath(kUnittestPrivateKeyPath),
                   GetBuildArtifactsPath(kUnittestPrivateKey2Path),
-                  GetBuildArtifactsPath(kUnittestPrivateKeyRSA4096Path)});
+                  GetBuildArtifactsPath(kUnittestPrivateKeyRSA4096Path),
+                  GetBuildArtifactsPath(kUnittestPrivateKeyECPath)});
 
   // Either public key should pass the verification.
   for (const auto& path : {kUnittestPublicKeyPath,
                            kUnittestPublicKey2Path,
-                           kUnittestPublicKeyRSA4096Path}) {
+                           kUnittestPublicKeyRSA4096Path,
+                           kUnittestPublicKeyECPath}) {
     string public_key;
     EXPECT_TRUE(utils::ReadFile(GetBuildArtifactsPath(path), &public_key));
     auto payload_verifier = PayloadVerifier::CreateInstance(public_key);
