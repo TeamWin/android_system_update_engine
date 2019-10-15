@@ -47,23 +47,29 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
-
-// The payload verifier will check all the signatures included in the payload
-// regardless of the version field. Old version of the verifier require the
-// version field to be included and be 1.
-const uint32_t kSignatureMessageLegacyVersion = 1;
-
 // Given raw |signatures|, packs them into a protobuf and serializes it into a
 // string. Returns true on success, false otherwise.
 bool ConvertSignaturesToProtobuf(const vector<brillo::Blob>& signatures,
+                                 const vector<size_t>& padded_signature_sizes,
                                  string* out_serialized_signature) {
+  TEST_AND_RETURN_FALSE(signatures.size() == padded_signature_sizes.size());
   // Pack it into a protobuf
   Signatures out_message;
-  for (const brillo::Blob& signature : signatures) {
+  for (size_t i = 0; i < signatures.size(); i++) {
+    const auto& signature = signatures[i];
+    const auto& padded_signature_size = padded_signature_sizes[i];
+    TEST_AND_RETURN_FALSE(padded_signature_size >= signature.size());
     Signatures::Signature* sig_message = out_message.add_signatures();
-    // Set all the signatures with the same version number.
-    sig_message->set_version(kSignatureMessageLegacyVersion);
-    sig_message->set_data(signature.data(), signature.size());
+    // Skip assigning the same version number because we don't need to be
+    // compatible with old major version 1 client anymore.
+
+    // TODO(Xunchang) don't need to set the unpadded_signature_size field for
+    // RSA key signed signatures.
+    sig_message->set_unpadded_signature_size(signature.size());
+    brillo::Blob padded_signature = signature;
+    padded_signature.insert(
+        padded_signature.end(), padded_signature_size - signature.size(), 0);
+    sig_message->set_data(padded_signature.data(), padded_signature.size());
   }
 
   // Serialize protobuf
@@ -204,7 +210,34 @@ bool CalculateHashFromPayload(const brillo::Blob& payload,
   return true;
 }
 
+std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> CreatePrivateKeyFromPath(
+    const string& private_key_path) {
+  FILE* fprikey = fopen(private_key_path.c_str(), "rb");
+  if (!fprikey) {
+    PLOG(ERROR) << "Failed to read " << private_key_path;
+    return {nullptr, nullptr};
+  }
+
+  auto private_key = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>(
+      PEM_read_PrivateKey(fprikey, nullptr, nullptr, nullptr), EVP_PKEY_free);
+  fclose(fprikey);
+  return private_key;
+}
+
 }  // namespace
+
+bool PayloadSigner::GetMaximumSignatureSize(const string& private_key_path,
+                                            size_t* signature_size) {
+  *signature_size = 0;
+  auto private_key = CreatePrivateKeyFromPath(private_key_path);
+  if (!private_key) {
+    LOG(ERROR) << "Failed to create private key from " << private_key_path;
+    return false;
+  }
+
+  *signature_size = EVP_PKEY_size(private_key.get());
+  return true;
+}
 
 void PayloadSigner::AddSignatureToManifest(uint64_t signature_blob_offset,
                                            uint64_t signature_blob_length,
@@ -283,13 +316,11 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
   // openssl rsautl -raw -sign -inkey |private_key_path|
   //   -in |padded_hash| -out |out_signature|
 
-  FILE* fprikey = fopen(private_key_path.c_str(), "rb");
-  TEST_AND_RETURN_FALSE(fprikey != nullptr);
-
-  std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> private_key(
-      PEM_read_PrivateKey(fprikey, nullptr, nullptr, nullptr), EVP_PKEY_free);
-  fclose(fprikey);
-  TEST_AND_RETURN_FALSE(private_key != nullptr);
+  auto private_key = CreatePrivateKeyFromPath(private_key_path);
+  if (!private_key) {
+    LOG(ERROR) << "Failed to create private key from " << private_key_path;
+    return false;
+  }
 
   int key_type = EVP_PKEY_id(private_key.get());
   brillo::Blob signature;
@@ -314,6 +345,28 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
     }
     TEST_AND_RETURN_FALSE(static_cast<size_t>(signature_size) ==
                           signature.size());
+  } else if (key_type == EVP_PKEY_EC) {
+    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(private_key.get());
+    TEST_AND_RETURN_FALSE(ec_key != nullptr);
+
+    signature.resize(ECDSA_size(ec_key));
+    unsigned int signature_size;
+    if (ECDSA_sign(0,
+                   hash.data(),
+                   hash.size(),
+                   signature.data(),
+                   &signature_size,
+                   ec_key) != 1) {
+      LOG(ERROR) << "Signing hash failed: "
+                 << ERR_error_string(ERR_get_error(), nullptr);
+      return false;
+    }
+
+    // NIST P-256
+    LOG(ERROR) << "signature max size " << signature.size() << " size "
+               << signature_size;
+    TEST_AND_RETURN_FALSE(signature.size() >= signature_size);
+    signature.resize(signature_size);
   } else {
     LOG(ERROR) << "key_type " << key_type << " isn't supported for signing";
     return false;
@@ -326,13 +379,19 @@ bool PayloadSigner::SignHashWithKeys(const brillo::Blob& hash_data,
                                      const vector<string>& private_key_paths,
                                      string* out_serialized_signature) {
   vector<brillo::Blob> signatures;
+  vector<size_t> padded_signature_sizes;
   for (const string& path : private_key_paths) {
     brillo::Blob signature;
     TEST_AND_RETURN_FALSE(SignHash(hash_data, path, &signature));
     signatures.push_back(signature);
+
+    size_t padded_signature_size;
+    TEST_AND_RETURN_FALSE(
+        GetMaximumSignatureSize(path, &padded_signature_size));
+    padded_signature_sizes.push_back(padded_signature_size);
   }
-  TEST_AND_RETURN_FALSE(
-      ConvertSignaturesToProtobuf(signatures, out_serialized_signature));
+  TEST_AND_RETURN_FALSE(ConvertSignaturesToProtobuf(
+      signatures, padded_signature_sizes, out_serialized_signature));
   return true;
 }
 
@@ -379,7 +438,8 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
     signatures.emplace_back(signature_size, 0);
   }
   string signature;
-  TEST_AND_RETURN_FALSE(ConvertSignaturesToProtobuf(signatures, &signature));
+  TEST_AND_RETURN_FALSE(
+      ConvertSignaturesToProtobuf(signatures, signature_sizes, &signature));
 
   brillo::Blob payload;
   uint64_t metadata_size, signatures_offset;
@@ -403,6 +463,7 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
 
 bool PayloadSigner::AddSignatureToPayload(
     const string& payload_path,
+    const vector<size_t>& padded_signature_sizes,
     const vector<brillo::Blob>& payload_signatures,
     const vector<brillo::Blob>& metadata_signatures,
     const string& signed_payload_path,
@@ -411,11 +472,11 @@ bool PayloadSigner::AddSignatureToPayload(
 
   // Loads the payload and adds the signature op to it.
   string payload_signature, metadata_signature;
-  TEST_AND_RETURN_FALSE(
-      ConvertSignaturesToProtobuf(payload_signatures, &payload_signature));
+  TEST_AND_RETURN_FALSE(ConvertSignaturesToProtobuf(
+      payload_signatures, padded_signature_sizes, &payload_signature));
   if (!metadata_signatures.empty()) {
-    TEST_AND_RETURN_FALSE(
-        ConvertSignaturesToProtobuf(metadata_signatures, &metadata_signature));
+    TEST_AND_RETURN_FALSE(ConvertSignaturesToProtobuf(
+        metadata_signatures, padded_signature_sizes, &metadata_signature));
   }
   brillo::Blob payload;
   uint64_t signatures_offset;
