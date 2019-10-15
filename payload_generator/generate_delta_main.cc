@@ -423,6 +423,10 @@ int Main(int argc, char** argv) {
   DEFINE_bool(disable_fec_computation,
               false,
               "Disables the fec data computation on device.");
+  DEFINE_string(
+      out_maximum_signature_size_file,
+      "",
+      "Path to the output maximum signature size given a private key.");
 
   brillo::FlagHelper::Init(
       argc,
@@ -443,6 +447,30 @@ int Main(int argc, char** argv) {
 
   // Initialize the Xz compressor.
   XzCompressInit();
+
+  if (!FLAGS_out_maximum_signature_size_file.empty()) {
+    LOG_IF(FATAL, FLAGS_private_key.empty())
+        << "Private key is not provided when calculating the maximum signature "
+           "size.";
+
+    size_t maximum_signature_size;
+    if (!PayloadSigner::GetMaximumSignatureSize(FLAGS_private_key,
+                                                &maximum_signature_size)) {
+      LOG(ERROR) << "Failed to get the maximum signature size of private key: "
+                 << FLAGS_private_key;
+      return 1;
+    }
+    // Write the size string to output file.
+    string signature_size_string = std::to_string(maximum_signature_size);
+    if (!utils::WriteFile(FLAGS_out_maximum_signature_size_file.c_str(),
+                          signature_size_string.c_str(),
+                          signature_size_string.size())) {
+      PLOG(ERROR) << "Failed to write the maximum signature size to "
+                  << FLAGS_out_maximum_signature_size_file << ".";
+      return 1;
+    }
+    return 0;
+  }
 
   vector<size_t> signature_sizes;
   if (!FLAGS_signature_size.empty()) {
