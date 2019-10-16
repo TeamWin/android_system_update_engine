@@ -119,7 +119,6 @@ bool Prefs::FileStorage::GetKey(const string& key, string* value) const {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
   if (!base::ReadFileToString(filename, value)) {
-    LOG(INFO) << key << " not present in " << prefs_dir_.value();
     return false;
   }
   return true;
