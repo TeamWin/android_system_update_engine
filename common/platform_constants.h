@@ -38,6 +38,10 @@ extern const char kOmahaPlatformName[];
 // whole payload.
 extern const char kUpdatePayloadPublicKeyPath[];
 
+// Path to the location of the zip archive file that contains PEM encoded X509
+// certificates. e.g. 'system/etc/security/otacerts.zip'.
+extern const char kUpdateCertificatesPath[];
+
 // Path to the directory containing all the SSL certificates accepted by
 // update_engine when sending requests to Omaha and the download server (if
 // HTTPS is used for that as well).

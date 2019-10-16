@@ -777,6 +777,7 @@ static void ApplyDeltaFile(bool full_kernel,
                                : GetBuildArtifactsPath(kUnittestPublicKeyPath);
   EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
   (*performer)->set_public_key_path(public_key_path);
+  (*performer)->set_update_certificates_path("");
 
   EXPECT_EQ(static_cast<off_t>(state->image_size),
             HashCalculator::RawHashOfFile(

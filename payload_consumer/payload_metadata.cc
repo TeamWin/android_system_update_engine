@@ -159,7 +159,7 @@ bool PayloadMetadata::GetManifest(const brillo::Blob& payload,
 ErrorCode PayloadMetadata::ValidateMetadataSignature(
     const brillo::Blob& payload,
     const string& metadata_signature,
-    const string& pem_public_key) const {
+    const PayloadVerifier& payload_verifier) const {
   if (payload.size() < metadata_size_ + metadata_signature_size_)
     return ErrorCode::kDownloadMetadataSignatureError;
 
@@ -201,16 +201,9 @@ ErrorCode PayloadMetadata::ValidateMetadataSignature(
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
-  auto payload_verifier = PayloadVerifier::CreateInstance(pem_public_key);
-  if (!payload_verifier) {
-    LOG(ERROR) << "Failed to create the payload verifier from "
-               << pem_public_key;
-    return ErrorCode::kDownloadMetadataSignatureVerificationError;
-  }
-
   if (!metadata_signature_blob.empty()) {
     brillo::Blob decrypted_signature;
-    if (!payload_verifier->VerifyRawSignature(
+    if (!payload_verifier.VerifyRawSignature(
             metadata_signature_blob, metadata_hash, &decrypted_signature)) {
       LOG(ERROR) << "Manifest hash verification failed. Decrypted hash = ";
       utils::HexDumpVector(decrypted_signature);
@@ -219,8 +212,8 @@ ErrorCode PayloadMetadata::ValidateMetadataSignature(
       return ErrorCode::kDownloadMetadataSignatureMismatch;
     }
   } else {
-    if (!payload_verifier->VerifySignature(metadata_signature_protobuf,
-                                           metadata_hash)) {
+    if (!payload_verifier.VerifySignature(metadata_signature_protobuf,
+                                          metadata_hash)) {
       LOG(ERROR) << "Manifest hash verification failed.";
       return ErrorCode::kDownloadMetadataSignatureMismatch;
     }
