@@ -20,7 +20,9 @@
 #include <inttypes.h>
 
 #include <limits>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/time/time.h>
@@ -34,6 +36,7 @@
 #include "update_engine/payload_consumer/file_writer.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/payload_metadata.h"
+#include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -156,6 +159,11 @@ class DeltaPerformer : public FileWriter {
     public_key_path_ = public_key_path;
   }
 
+  void set_update_certificates_path(
+      const std::string& update_certificates_path) {
+    update_certificates_path_ = update_certificates_path;
+  }
+
   // Return true if header parsing is finished and no errors occurred.
   bool IsHeaderParsed() const;
 
@@ -273,6 +281,12 @@ class DeltaPerformer : public FileWriter {
   // |out_public_key|. Returns false on failures.
   bool GetPublicKey(std::string* out_public_key);
 
+  // Creates a PayloadVerifier from the zip file containing certificates. If the
+  // path to the zip file doesn't exist, falls back to use the public key.
+  // Returns a tuple with the created PayloadVerifier and if we should perform
+  // the verification.
+  std::pair<std::unique_ptr<PayloadVerifier>, bool> CreatePayloadVerifier();
+
   // After install_plan_ is filled with partition names and sizes, initialize
   // metadata of partitions and map necessary devices before opening devices.
   bool PreparePartitionsForUpdate();
@@ -382,6 +396,9 @@ class DeltaPerformer : public FileWriter {
   // The public key to be used. Provided as a member so that tests can
   // override with test keys.
   std::string public_key_path_{constants::kUpdatePayloadPublicKeyPath};
+
+  // The path to the zip file with X509 certificates.
+  std::string update_certificates_path_{constants::kUpdateCertificatesPath};
 
   // The number of bytes received so far, used for progress tracking.
   size_t total_bytes_received_{0};

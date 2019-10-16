@@ -46,6 +46,7 @@
 #include "update_engine/common/terminator.h"
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 #include "update_engine/payload_consumer/cached_file_descriptor.h"
+#include "update_engine/payload_consumer/certificate_parser_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
@@ -526,9 +527,10 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
                  << "Trusting metadata size in payload = " << metadata_size_;
   }
 
-  string public_key;
-  if (!GetPublicKey(&public_key)) {
-    LOG(ERROR) << "Failed to get public key.";
+  // Perform the verification unconditionally.
+  auto [payload_verifier, perform_verification] = CreatePayloadVerifier();
+  if (!payload_verifier) {
+    LOG(ERROR) << "Failed to create payload verifier.";
     *error = ErrorCode::kDownloadMetadataSignatureVerificationError;
     return MetadataParseResult::kError;
   }
@@ -536,7 +538,7 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   // We have the full metadata in |payload|. Verify its integrity
   // and authenticity based on the information we have in Omaha response.
   *error = payload_metadata_.ValidateMetadataSignature(
-      payload, payload_->metadata_signature, public_key);
+      payload, payload_->metadata_signature, *payload_verifier);
   if (*error != ErrorCode::kSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       // The autoupdate_CatchBadSignatures test checks for this string
@@ -1596,8 +1598,30 @@ bool DeltaPerformer::GetPublicKey(string* out_public_key) {
     return brillo::data_encoding::Base64Decode(install_plan_->public_key_rsa,
                                                out_public_key);
   }
-
+  LOG(INFO) << "No public keys found for verification.";
   return true;
+}
+
+std::pair<std::unique_ptr<PayloadVerifier>, bool>
+DeltaPerformer::CreatePayloadVerifier() {
+  if (utils::FileExists(update_certificates_path_.c_str())) {
+    LOG(INFO) << "Verifying using certificates: " << update_certificates_path_;
+    return {
+        PayloadVerifier::CreateInstanceFromZipPath(update_certificates_path_),
+        true};
+  }
+
+  string public_key;
+  if (!GetPublicKey(&public_key)) {
+    LOG(ERROR) << "Failed to read public key";
+    return {nullptr, true};
+  }
+
+  // Skips the verification if the public key is empty.
+  if (public_key.empty()) {
+    return {nullptr, false};
+  }
+  return {PayloadVerifier::CreateInstance(public_key), true};
 }
 
 ErrorCode DeltaPerformer::ValidateManifest() {
@@ -1760,12 +1784,6 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
 ErrorCode DeltaPerformer::VerifyPayload(
     const brillo::Blob& update_check_response_hash,
     const uint64_t update_check_response_size) {
-  string public_key;
-  if (!GetPublicKey(&public_key)) {
-    LOG(ERROR) << "Failed to get public key.";
-    return ErrorCode::kDownloadPayloadPubKeyVerificationError;
-  }
-
   // Verifies the download size.
   if (update_check_response_size !=
       metadata_size_ + metadata_signature_size_ + buffer_offset_) {
@@ -1783,20 +1801,19 @@ ErrorCode DeltaPerformer::VerifyPayload(
       ErrorCode::kPayloadHashMismatchError,
       payload_hash_calculator_.raw_hash() == update_check_response_hash);
 
-  // Verifies the signed payload hash.
-  if (public_key.empty()) {
-    LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";
-    return ErrorCode::kSuccess;
-  }
   TEST_AND_RETURN_VAL(ErrorCode::kSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());
   brillo::Blob hash_data = signed_hash_calculator_.raw_hash();
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       hash_data.size() == kSHA256Size);
 
-  auto payload_verifier = PayloadVerifier::CreateInstance(public_key);
+  auto [payload_verifier, perform_verification] = CreatePayloadVerifier();
+  if (!perform_verification) {
+    LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";
+    return ErrorCode::kSuccess;
+  }
   if (!payload_verifier) {
-    LOG(ERROR) << "Failed to create the payload verifier from " << public_key;
+    LOG(ERROR) << "Failed to create the payload verifier.";
     return ErrorCode::kDownloadPayloadPubKeyVerificationError;
   }
   if (!payload_verifier->VerifySignature(signatures_message_data_, hash_data)) {
