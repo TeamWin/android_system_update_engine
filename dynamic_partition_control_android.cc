@@ -62,13 +62,6 @@ constexpr std::chrono::milliseconds kMapTimeout{1000};
 // needs to be mapped, this timeout is longer than |kMapTimeout|.
 constexpr std::chrono::milliseconds kMapSnapshotTimeout{5000};
 
-DynamicPartitionControlAndroid::DynamicPartitionControlAndroid() {
-  if (GetVirtualAbFeatureFlag().IsEnabled()) {
-    snapshot_ = android::snapshot::SnapshotManager::New();
-    CHECK(snapshot_ != nullptr) << "Cannot initialize SnapshotManager.";
-  }
-}
-
 DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
   CleanupInternal(false /* wait */);
 }
@@ -91,12 +84,22 @@ static FeatureFlag GetFeatureFlag(const char* enable_prop,
   return FeatureFlag(FeatureFlag::Value::NONE);
 }
 
+DynamicPartitionControlAndroid::DynamicPartitionControlAndroid()
+    : dynamic_partitions_(
+          GetFeatureFlag(kUseDynamicPartitions, kRetrfoitDynamicPartitions)),
+      virtual_ab_(GetFeatureFlag(kVirtualAbEnabled, kVirtualAbRetrofit)) {
+  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    snapshot_ = android::snapshot::SnapshotManager::New();
+    CHECK(snapshot_ != nullptr) << "Cannot initialize SnapshotManager.";
+  }
+}
+
 FeatureFlag DynamicPartitionControlAndroid::GetDynamicPartitionsFeatureFlag() {
-  return GetFeatureFlag(kUseDynamicPartitions, kRetrfoitDynamicPartitions);
+  return dynamic_partitions_;
 }
 
 FeatureFlag DynamicPartitionControlAndroid::GetVirtualAbFeatureFlag() {
-  return GetFeatureFlag(kVirtualAbEnabled, kVirtualAbRetrofit);
+  return virtual_ab_;
 }
 
 bool DynamicPartitionControlAndroid::MapPartitionInternal(
