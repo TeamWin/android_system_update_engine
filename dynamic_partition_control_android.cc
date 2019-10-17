@@ -257,8 +257,12 @@ DynamicPartitionControlAndroid::LoadMetadataBuilder(
     builder =
         MetadataBuilder::New(PartitionOpener(), super_device, source_slot);
   } else {
-    builder = MetadataBuilder::NewForUpdate(
-        PartitionOpener(), super_device, source_slot, target_slot);
+    bool always_keep_source_slot = !target_supports_snapshot_;
+    builder = MetadataBuilder::NewForUpdate(PartitionOpener(),
+                                            super_device,
+                                            source_slot,
+                                            target_slot,
+                                            always_keep_source_slot);
   }
 
   if (builder == nullptr) {
