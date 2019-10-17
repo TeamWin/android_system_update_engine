@@ -112,7 +112,7 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
   }
   bool PreparePartitionsForUpdate(const PartitionSizes& partition_sizes) {
     return dynamicControl().PreparePartitionsForUpdate(
-        source(), target(), PartitionSizesToManifest(partition_sizes));
+        source(), target(), PartitionSizesToManifest(partition_sizes), true);
   }
   void SetSlots(const TestParam& slots) { slots_ = slots; }
 

@@ -308,12 +308,8 @@ bool BootControlAndroid::PreparePartitionsForUpdate(
     return true;
   }
 
-  if (!update_metadata) {
-    return true;
-  }
-
   return dynamic_control_->PreparePartitionsForUpdate(
-      source_slot, target_slot, manifest);
+      source_slot, target_slot, manifest, update_metadata);
 }
 
 }  // namespace chromeos_update_engine
