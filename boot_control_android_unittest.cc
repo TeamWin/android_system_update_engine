@@ -197,6 +197,9 @@ TEST_P(BootControlAndroidTestP, GetPartitionDeviceWhenResumingUpdate) {
                {T("system"), 2_GiB},
                {T("vendor"), 1_GiB}});
 
+  EXPECT_CALL(dynamicControl(), PreparePartitionsForUpdate(_, _, _, false))
+      .WillOnce(Return(true));
+
   EXPECT_TRUE(PreparePartitionsForUpdate(
       target(), {{"system", 2_GiB}, {"vendor", 1_GiB}}, false));
 

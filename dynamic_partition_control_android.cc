@@ -112,7 +112,8 @@ bool DynamicPartitionControlAndroid::MapPartitionInternal(
       .force_writable = force_writable,
   };
   bool success = false;
-  if (GetVirtualAbFeatureFlag().IsEnabled() && force_writable) {
+  if (GetVirtualAbFeatureFlag().IsEnabled() && target_supports_snapshot_ &&
+      force_writable) {
     // Only target partitions are mapped with force_writable. On Virtual
     // A/B devices, target partitions may overlap with source partitions, so
     // they must be mapped with snapshot.
@@ -343,11 +344,15 @@ bool DynamicPartitionControlAndroid::GetDeviceDir(std::string* out) {
 bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
-    const DeltaArchiveManifest& manifest) {
-  // TODO(elsk): Also call PrepareDynamicPartitionsForUpdate when applying
-  // downgrade packages on retrofit Virtual A/B devices and when applying
-  // secondary OTA. b/138258570
-  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    const DeltaArchiveManifest& manifest,
+    bool update) {
+  target_supports_snapshot_ =
+      manifest.dynamic_partition_metadata().snapshot_enabled();
+
+  if (!update)
+    return true;
+
+  if (GetVirtualAbFeatureFlag().IsEnabled() && target_supports_snapshot_) {
     return PrepareSnapshotPartitionsForUpdate(
         source_slot, target_slot, manifest);
   }
@@ -491,10 +496,11 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
 }
 
 bool DynamicPartitionControlAndroid::FinishUpdate() {
-  if (!GetVirtualAbFeatureFlag().IsEnabled())
-    return true;
-  LOG(INFO) << "Snapshot writes are done.";
-  return snapshot_->FinishedSnapshotWrites();
+  if (GetVirtualAbFeatureFlag().IsEnabled() && target_supports_snapshot_) {
+    LOG(INFO) << "Snapshot writes are done.";
+    return snapshot_->FinishedSnapshotWrites();
+  }
+  return true;
 }
 
 }  // namespace chromeos_update_engine

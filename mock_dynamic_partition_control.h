@@ -44,8 +44,8 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
                    const std::string&, uint32_t));
   MOCK_METHOD1(GetDeviceDir, bool(std::string*));
   MOCK_METHOD0(GetDynamicPartitionsFeatureFlag, FeatureFlag());
-  MOCK_METHOD3(PreparePartitionsForUpdate,
-               bool(uint32_t, uint32_t, const DeltaArchiveManifest&));
+  MOCK_METHOD4(PreparePartitionsForUpdate,
+               bool(uint32_t, uint32_t, const DeltaArchiveManifest&, bool));
   MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
   MOCK_METHOD0(FinishUpdate, bool());
