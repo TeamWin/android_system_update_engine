@@ -307,7 +307,7 @@ cc_binary {
     static_libs: ["libupdate_engine_android"],
     required: [
         "cacerts_google",
-        "update_engine_payload_key",
+        "otacerts",
     ],
 
     srcs: ["main.cc"],
@@ -381,7 +381,7 @@ cc_binary {
     },
 
     required: [
-        "update_engine_payload_key.recovery",
+        "otacerts.recovery",
     ],
 }
 
