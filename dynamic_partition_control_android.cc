@@ -423,6 +423,11 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     MetadataBuilder* builder,
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest) {
+  // If applying downgrade from Virtual A/B to non-Virtual A/B, the left-over
+  // COW group needs to be deleted to ensure there are enough space to create
+  // target partitions.
+  builder->RemoveGroupAndPartitions(android::snapshot::kCowGroupName);
+
   const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
   DeleteGroupsWithSuffix(builder, target_suffix);
 
