@@ -36,6 +36,7 @@ struct FeatureFlag {
   constexpr explicit FeatureFlag(Value value) : value_(value) {}
   constexpr bool IsEnabled() const { return value_ != Value::NONE; }
   constexpr bool IsRetrofit() const { return value_ == Value::RETROFIT; }
+  constexpr bool IsLaunch() const { return value_ == Value::LAUNCH; }
 
  private:
   Value value_;
