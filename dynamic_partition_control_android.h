@@ -112,6 +112,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                           const DeltaArchiveManifest& manifest);
 
   std::set<std::string> mapped_devices_;
+  const FeatureFlag dynamic_partitions_;
+  const FeatureFlag virtual_ab_;
   std::unique_ptr<android::snapshot::SnapshotManager> snapshot_;
   bool target_supports_snapshot_ = false;
 
