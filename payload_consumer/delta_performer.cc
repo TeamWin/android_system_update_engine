@@ -527,18 +527,19 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
                  << "Trusting metadata size in payload = " << metadata_size_;
   }
 
-  // Perform the verification unconditionally.
   auto [payload_verifier, perform_verification] = CreatePayloadVerifier();
   if (!payload_verifier) {
     LOG(ERROR) << "Failed to create payload verifier.";
     *error = ErrorCode::kDownloadMetadataSignatureVerificationError;
-    return MetadataParseResult::kError;
+    if (perform_verification) {
+      return MetadataParseResult::kError;
+    }
+  } else {
+    // We have the full metadata in |payload|. Verify its integrity
+    // and authenticity based on the information we have in Omaha response.
+    *error = payload_metadata_.ValidateMetadataSignature(
+        payload, payload_->metadata_signature, *payload_verifier);
   }
-
-  // We have the full metadata in |payload|. Verify its integrity
-  // and authenticity based on the information we have in Omaha response.
-  *error = payload_metadata_.ValidateMetadataSignature(
-      payload, payload_->metadata_signature, *payload_verifier);
   if (*error != ErrorCode::kSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       // The autoupdate_CatchBadSignatures test checks for this string
