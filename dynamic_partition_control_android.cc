@@ -213,6 +213,7 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
 }
 
 void DynamicPartitionControlAndroid::CleanupInternal(bool wait) {
+  metadata_device_.reset();
   if (mapped_devices_.empty()) {
     return;
   }
@@ -355,6 +356,11 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     bool update) {
   target_supports_snapshot_ =
       manifest.dynamic_partition_metadata().snapshot_enabled();
+
+  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    metadata_device_ = snapshot_->EnsureMetadataMounted();
+    TEST_AND_RETURN_FALSE(metadata_device_ != nullptr);
+  }
 
   if (!update)
     return true;
