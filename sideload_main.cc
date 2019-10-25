@@ -36,6 +36,7 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/sideload_logging_android.h"
 #include "update_engine/update_attempter_android.h"
 
 using std::string;
@@ -196,6 +197,7 @@ int main(int argc, char** argv) {
 
   chromeos_update_engine::Terminator::Init();
   chromeos_update_engine::SetupLogging();
+  chromeos_update_engine::SetupAndroidLogging(argv);
   brillo::FlagHelper::Init(argc, argv, "Update Engine Sideload");
 
   LOG(INFO) << "Update Engine Sideloading starting";
