@@ -96,8 +96,12 @@ pkg_config("target_defaults") {
     # before protobuf here or the linker flags won't be in the right
     # order.
     "system_api",
-    "protobuf-lite",
   ]
+  if (use.fuzzer) {
+    pkg_deps += [ "protobuf" ]
+  } else {
+    pkg_deps += [ "protobuf-lite" ]
+  }
 }
 
 # Protobufs.
