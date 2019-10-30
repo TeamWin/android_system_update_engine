@@ -23,6 +23,7 @@
 #include <set>
 #include <string>
 
+#include <libsnapshot/auto_device.h>
 #include <libsnapshot/snapshot.h>
 
 namespace chromeos_update_engine {
@@ -115,6 +116,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   const FeatureFlag dynamic_partitions_;
   const FeatureFlag virtual_ab_;
   std::unique_ptr<android::snapshot::SnapshotManager> snapshot_;
+  std::unique_ptr<android::snapshot::AutoDevice> metadata_device_;
   bool target_supports_snapshot_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
