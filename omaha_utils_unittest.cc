@@ -23,22 +23,6 @@ namespace chromeos_update_engine {
 
 class OmahaUtilsTest : public ::testing::Test {};
 
-TEST(OmahaUtilsTest, EolStatusTest) {
-  EXPECT_EQ(EolStatus::kEol, StringToEolStatus("eol"));
-
-  // Supported values are converted back and forth properly.
-  const std::vector<EolStatus> tests = {
-      EolStatus::kSupported, EolStatus::kSecurityOnly, EolStatus::kEol};
-  for (EolStatus eol_status : tests) {
-    EXPECT_EQ(eol_status, StringToEolStatus(EolStatusToString(eol_status)))
-        << "The StringToEolStatus() was " << EolStatusToString(eol_status);
-  }
-
-  // Invalid values are assumed as "supported".
-  EXPECT_EQ(EolStatus::kSupported, StringToEolStatus(""));
-  EXPECT_EQ(EolStatus::kSupported, StringToEolStatus("hello, world!"));
-}
-
 TEST(OmahaUtilsTest, EolDateTest) {
   // Supported values are converted back and forth properly.
   const std::vector<EolDate> tests = {kEolDateInvalid, -1, 0, 1};

@@ -137,8 +137,5 @@
     <method name="GetLastAttemptError">
       <arg type="i" name="last_attempt_error" direction="out" />
     </method>
-    <method name="GetEolStatus">
-      <arg type="i" name="eol_status" direction="out" />
-    </method>
   </interface>
 </node>

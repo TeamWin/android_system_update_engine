@@ -183,11 +183,9 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool PersistCohortData(const std::string& prefs_key,
                          const std::string& new_value);
 
-  // Parse and persist the end-of-life status flag sent back in the updatecheck
-  // tag attributes. In addition, the optional end-of-life date flag will also
-  // be parsed and persisted. The flags will be validated and stored in the
-  // Prefs.
-  bool PersistEolStatus(const std::map<std::string, std::string>& attrs);
+  // Parses and persists the end-of-life date flag sent back in the updatecheck
+  // tag attributes. The flags will be validated and stored in the Prefs.
+  bool PersistEolInfo(const std::map<std::string, std::string>& attrs);
 
   // If this is an update check request, initializes
   // |ping_active_days_| and |ping_roll_call_days_| to values that may

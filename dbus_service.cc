@@ -213,11 +213,6 @@ bool DBusUpdateEngineService::GetLastAttemptError(
   return common_->GetLastAttemptError(error, out_last_attempt_error);
 }
 
-bool DBusUpdateEngineService::GetEolStatus(ErrorPtr* error,
-                                           int32_t* out_eol_status) {
-  return common_->GetEolStatus(error, out_eol_status);
-}
-
 UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state)
     : org::chromium::UpdateEngineInterfaceAdaptor(&dbus_service_),
       bus_(DBusConnection::Get()->GetDBus()),

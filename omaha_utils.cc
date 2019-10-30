@@ -21,36 +21,7 @@
 
 namespace chromeos_update_engine {
 
-const char kEolStatusSupported[] = "supported";
-const char kEolStatusSecurityOnly[] = "security-only";
-const char kEolStatusEol[] = "eol";
-
 const EolDate kEolDateInvalid = -9999;
-
-const char* EolStatusToString(EolStatus eol_status) {
-  switch (eol_status) {
-    case EolStatus::kSupported:
-      return kEolStatusSupported;
-    case EolStatus::kSecurityOnly:
-      return kEolStatusSecurityOnly;
-    case EolStatus::kEol:
-      return kEolStatusEol;
-  }
-  // Only reached if an invalid number is casted to |EolStatus|.
-  LOG(WARNING) << "Invalid EolStatus value: " << static_cast<int>(eol_status);
-  return kEolStatusSupported;
-}
-
-EolStatus StringToEolStatus(const std::string& eol_status) {
-  if (eol_status == kEolStatusSupported || eol_status.empty())
-    return EolStatus::kSupported;
-  if (eol_status == kEolStatusSecurityOnly)
-    return EolStatus::kSecurityOnly;
-  if (eol_status == kEolStatusEol)
-    return EolStatus::kEol;
-  LOG(WARNING) << "Invalid end-of-life attribute: " << eol_status;
-  return EolStatus::kSupported;
-}
 
 std::string EolDateToString(EolDate eol_date) {
 #if BASE_VER < 576279

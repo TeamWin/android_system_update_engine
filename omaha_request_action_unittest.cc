@@ -1992,27 +1992,6 @@ TEST_F(OmahaRequestActionTest, BadElapsedSecondsTest) {
   ASSERT_TRUE(TestUpdateCheck());
 }
 
-TEST_F(OmahaRequestActionTest, ParseUpdateCheckAttributesTest) {
-  // Test that the "eol" flags is only parsed from the "_eol" attribute and not
-  // the "eol" attribute.
-  tuc_params_.http_response =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
-      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
-      "_eol=\"security-only\" eol=\"eol\" _foo=\"bar\"/></app></response>";
-  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
-  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
-
-  ASSERT_TRUE(TestUpdateCheck());
-
-  string eol_pref;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol_pref));
-  // Note that the eol="eol" attribute should be ignored and the _eol should be
-  // used instead.
-  EXPECT_EQ("security-only", eol_pref);
-}
-
 TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {
   tuc_params_.http_response = "invalid xml>";
   tuc_params_.expected_code = ErrorCode::kOmahaRequestXMLParseError;
@@ -2810,62 +2789,51 @@ TEST_F(OmahaRequestActionTest, NoIncludeRequisitionTest) {
   EXPECT_EQ(string::npos, post_str.find("requisition"));
 }
 
-TEST_F(OmahaRequestActionTest, PersistEolDatesTest) {
+TEST_F(OmahaRequestActionTest, PersistEolDateTest) {
   tuc_params_.http_response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
       "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
       "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
-      "_eol=\"supported\" _eol_date=\"200\" "
+      "_eol_date=\"200\" _foo=\"bar\"/></app></response>";
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  string eol_date;
+  EXPECT_TRUE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+  EXPECT_EQ("200", eol_date);
+}
+
+TEST_F(OmahaRequestActionTest, PersistEolMissingDateTest) {
+  tuc_params_.http_response =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
       "_foo=\"bar\"/></app></response>";
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  string eol, eol_date;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol));
-  EXPECT_EQ(kEolStatusSupported, eol);
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
-  EXPECT_EQ("200", eol_date);
-}
-
-TEST_F(OmahaRequestActionTest, PersistEolMissingDatesTest) {
-  tuc_params_.http_response =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
-      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
-      "_eol=\"supported\" _foo=\"bar\"/></app></response>";
-  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
-  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
-
-  ASSERT_TRUE(TestUpdateCheck());
-
-  string eol, eol_date;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol));
-  EXPECT_EQ(kEolStatusSupported, eol);
+  string eol_date;
   EXPECT_FALSE(
       fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
 }
 
-TEST_F(OmahaRequestActionTest, PersistEolBadDatesTest) {
+TEST_F(OmahaRequestActionTest, PersistEolBadDateTest) {
   tuc_params_.http_response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
       "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
       "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
-      "_eol=\"supported\" _eol_date=\"bad\" "
-      "foo=\"bar\"/></app></response>";
+      "_eol_date=\"bad\" foo=\"bar\"/></app></response>";
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  string eol, eol_date;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol));
-  EXPECT_EQ(kEolStatusSupported, eol);
+  string eol_date;
   EXPECT_TRUE(
       fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
   EXPECT_EQ(kEolDateInvalid, StringToEolDate(eol_date));

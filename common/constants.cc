@@ -56,7 +56,6 @@ const char kPrefsOmahaCohort[] = "omaha-cohort";
 const char kPrefsOmahaCohortHint[] = "omaha-cohort-hint";
 const char kPrefsOmahaCohortName[] = "omaha-cohort-name";
 const char kPrefsOmahaEolDate[] = "omaha-eol-date";
-const char kPrefsOmahaEolStatus[] = "omaha-eol-status";
 const char kPrefsP2PEnabled[] = "p2p-enabled";
 const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
 const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";

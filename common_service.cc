@@ -412,20 +412,4 @@ bool UpdateEngineService::GetLastAttemptError(ErrorPtr* /* error */,
   return true;
 }
 
-bool UpdateEngineService::GetEolStatus(ErrorPtr* error,
-                                       int32_t* out_eol_status) {
-  PrefsInterface* prefs = system_state_->prefs();
-
-  string str_eol_status;
-  if (prefs->Exists(kPrefsOmahaEolStatus) &&
-      !prefs->GetString(kPrefsOmahaEolStatus, &str_eol_status)) {
-    LogAndSetError(error, FROM_HERE, "Error getting the end-of-life status.");
-    return false;
-  }
-
-  // StringToEolStatus will return kSupported for invalid values.
-  *out_eol_status = static_cast<int32_t>(StringToEolStatus(str_eol_status));
-  return true;
-}
-
 }  // namespace chromeos_update_engine

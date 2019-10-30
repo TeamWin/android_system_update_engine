@@ -169,19 +169,4 @@ TEST_F(UpdateEngineServiceTest, ResetStatusFails) {
                                UpdateEngineService::kErrorFailed));
 }
 
-TEST_F(UpdateEngineServiceTest, GetEolStatusTest) {
-  FakePrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
-  // The default value should be "supported".
-  int32_t eol_status = static_cast<int32_t>(EolStatus::kEol);
-  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
-  EXPECT_EQ(nullptr, error_);
-  EXPECT_EQ(EolStatus::kSupported, static_cast<EolStatus>(eol_status));
-
-  fake_prefs.SetString(kPrefsOmahaEolStatus, "security-only");
-  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
-  EXPECT_EQ(nullptr, error_);
-  EXPECT_EQ(EolStatus::kSecurityOnly, static_cast<EolStatus>(eol_status));
-}
-
 }  // namespace chromeos_update_engine

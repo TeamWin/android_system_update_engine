@@ -44,7 +44,6 @@
 using brillo::KeyValueStore;
 using chromeos_update_engine::EolDate;
 using chromeos_update_engine::EolDateToString;
-using chromeos_update_engine::EolStatus;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::UpdateEngineStatusToString;
 using chromeos_update_engine::UpdateStatusToString;
