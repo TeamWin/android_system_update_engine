@@ -98,24 +98,6 @@ bool DBusUpdateEngineClient::AttemptInstall(const string& omaha_url,
                                 nullptr /* brillo::ErrorPtr* */);
 }
 
-bool DBusUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
-                                       double* out_progress,
-                                       UpdateStatus* out_update_status,
-                                       string* out_new_version,
-                                       int64_t* out_new_size) const {
-  StatusResult status;
-  if (!proxy_->GetStatusAdvanced(&status, nullptr)) {
-    return false;
-  }
-
-  *out_last_checked_time = status.last_checked_time();
-  *out_progress = status.progress();
-  *out_new_version = status.new_version();
-  *out_new_size = status.new_size();
-  *out_update_status = static_cast<UpdateStatus>(status.current_operation());
-  return true;
-}
-
 bool DBusUpdateEngineClient::GetStatus(UpdateEngineStatus* out_status) const {
   StatusResult status;
   if (!proxy_->GetStatusAdvanced(&status, nullptr)) {

@@ -51,14 +51,6 @@
     </method>
     <method name="ResetStatus">
     </method>
-    <method name="GetStatus">
-      <!-- TODO(crbug.com/977320): Deprecate this method. -->
-      <arg type="x" name="last_checked_time" direction="out" />
-      <arg type="d" name="progress" direction="out" />
-      <arg type="s" name="current_operation" direction="out" />
-      <arg type="s" name="new_version" direction="out" />
-      <arg type="x" name="new_size" direction="out" />
-    </method>
     <method name="GetStatusAdvanced">
       <arg type="ay" name="status" direction="out">
         <tp:docstring>
@@ -111,14 +103,6 @@
     <method name="GetDurationSinceUpdate">
       <arg type="x" name="usec_wallclock" direction="out" />
     </method>
-    <signal name="StatusUpdate">
-      <!-- TODO(crbug.com/977320): Deprecate this method. -->
-      <arg type="x" name="last_checked_time" />
-      <arg type="d" name="progress" />
-      <arg type="s" name="current_operation" />
-      <arg type="s" name="new_version" />
-      <arg type="x" name="new_size" />
-    </signal>
     <signal name="StatusUpdateAdvanced">
       <arg type="ay" name="status" direction="out">
         <tp:docstring>

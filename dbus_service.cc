@@ -110,24 +110,6 @@ bool DBusUpdateEngineService::ResetStatus(ErrorPtr* error) {
   return common_->ResetStatus(error);
 }
 
-bool DBusUpdateEngineService::GetStatus(ErrorPtr* error,
-                                        int64_t* out_last_checked_time,
-                                        double* out_progress,
-                                        string* out_current_operation,
-                                        string* out_new_version,
-                                        int64_t* out_new_size) {
-  UpdateEngineStatus status;
-  if (!common_->GetStatus(error, &status)) {
-    return false;
-  }
-  *out_last_checked_time = status.last_checked_time;
-  *out_progress = status.progress;
-  *out_current_operation = UpdateStatusToString(status.status);
-  *out_new_version = status.new_version;
-  *out_new_size = status.new_size_bytes;
-  return true;
-}
-
 bool DBusUpdateEngineService::GetStatusAdvanced(ErrorPtr* error,
                                                 StatusResult* out_status) {
   UpdateEngineStatus status;
@@ -236,14 +218,6 @@ void UpdateEngineAdaptor::SendStatusUpdate(
     const UpdateEngineStatus& update_engine_status) {
   StatusResult status;
   ConvertToStatusResult(update_engine_status, &status);
-
-  // TODO(crbug.com/977320): Deprecate |StatusUpdate| signal.
-  SendStatusUpdateSignal(status.last_checked_time(),
-                         status.progress(),
-                         UpdateStatusToString(static_cast<UpdateStatus>(
-                             status.current_operation())),
-                         status.new_version(),
-                         status.new_size());
 
   // Send |StatusUpdateAdvanced| signal.
   SendStatusUpdateAdvancedSignal(status);

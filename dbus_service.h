@@ -64,16 +64,6 @@ class DBusUpdateEngineService
   // update. This is used for development only.
   bool ResetStatus(brillo::ErrorPtr* error) override;
 
-  // Returns the current status of the Update Engine. If an update is in
-  // progress, the number of operations, size to download and overall progress
-  // is reported.
-  bool GetStatus(brillo::ErrorPtr* error,
-                 int64_t* out_last_checked_time,
-                 double* out_progress,
-                 std::string* out_current_operation,
-                 std::string* out_new_version,
-                 int64_t* out_new_size) override;
-
   // Similar to Above, but returns a protobuffer instead. In the future it will
   // have more features and is easily extendable.
   bool GetStatusAdvanced(brillo::ErrorPtr* error,

@@ -60,26 +60,6 @@ class UpdateEngineClient {
       const std::string& omaha_url,
       const std::vector<std::string>& dlc_module_ids) = 0;
 
-  // Returns the current status of the Update Engine.
-  //
-  // |out_last_checked_time|
-  //     the last time the update engine checked for an update in seconds since
-  //     the epoc.
-  // |out_progress|
-  //     when downloading an update, this is calculated as
-  //     (number of bytes received) / (total bytes).
-  // |out_update_status|
-  //     See update_status.h.
-  // |out_new_version|
-  //     string version of the new system image.
-  // |out_new_size|
-  //     number of bytes in the new system image.
-  virtual bool GetStatus(int64_t* out_last_checked_time,
-                         double* out_progress,
-                         UpdateStatus* out_update_status,
-                         std::string* out_new_version,
-                         int64_t* out_new_size) const = 0;
-
   // Same as above but return the entire struct instead.
   virtual bool GetStatus(UpdateEngineStatus* out_status) const = 0;
 

@@ -46,12 +46,6 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
   bool AttemptInstall(const std::string& omaha_url,
                       const std::vector<std::string>& dlc_module_ids) override;
 
-  bool GetStatus(int64_t* out_last_checked_time,
-                 double* out_progress,
-                 UpdateStatus* out_update_status,
-                 std::string* out_new_version,
-                 int64_t* out_new_size) const override;
-
   bool GetStatus(UpdateEngineStatus* out_status) const override;
 
   bool SetCohortHint(const std::string& cohort_hint) override;
