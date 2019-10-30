@@ -63,7 +63,7 @@ constexpr std::chrono::milliseconds kMapTimeout{1000};
 constexpr std::chrono::milliseconds kMapSnapshotTimeout{5000};
 
 DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
-  CleanupInternal(false /* wait */);
+  CleanupInternal();
 }
 
 static FeatureFlag GetFeatureFlag(const char* enable_prop,
@@ -212,7 +212,7 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
   return true;
 }
 
-void DynamicPartitionControlAndroid::CleanupInternal(bool wait) {
+void DynamicPartitionControlAndroid::CleanupInternal() {
   metadata_device_.reset();
   if (mapped_devices_.empty()) {
     return;
@@ -227,7 +227,7 @@ void DynamicPartitionControlAndroid::CleanupInternal(bool wait) {
 }
 
 void DynamicPartitionControlAndroid::Cleanup() {
-  CleanupInternal(true /* wait */);
+  CleanupInternal();
 }
 
 bool DynamicPartitionControlAndroid::DeviceExists(const std::string& path) {
