@@ -122,6 +122,10 @@ class HardwareInterface {
   // Returns the timestamp of the current OS build.
   virtual int64_t GetBuildTimestamp() const = 0;
 
+  // Returns true if the current OS build allows installing the payload with an
+  // older timestamp.
+  virtual bool AllowDowngrade() const = 0;
+
   // Returns whether the first active ping was sent to Omaha at some point, and
   // that the value is persisted across recovery (and powerwash) once set with
   // |SetFirstActiveOmahaPingSent()|.
