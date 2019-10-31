@@ -128,6 +128,8 @@ class FakeHardware : public HardwareInterface {
 
   int64_t GetBuildTimestamp() const override { return build_timestamp_; }
 
+  bool AllowDowngrade() const override { return false; }
+
   bool GetFirstActiveOmahaPingSent() const override {
     return first_active_omaha_ping_sent_;
   }

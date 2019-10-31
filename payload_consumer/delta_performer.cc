@@ -1692,7 +1692,11 @@ ErrorCode DeltaPerformer::ValidateManifest() {
                << hardware_->GetBuildTimestamp()
                << ") is newer than the maximum timestamp in the manifest ("
                << manifest_.max_timestamp() << ")";
-    return ErrorCode::kPayloadTimestampError;
+    if (!hardware_->AllowDowngrade()) {
+      return ErrorCode::kPayloadTimestampError;
+    }
+    LOG(INFO) << "The current OS build allows downgrade, continuing to apply"
+                 " the payload with an older timestamp.";
   }
 
   if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
