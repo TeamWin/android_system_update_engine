@@ -89,7 +89,7 @@ pkg_config("target_defaults") {
     "${platform2_root}/update_engine/client_library/include",
   ]
   pkg_deps = [
-    "libbrillo-${libbase_ver}",
+    "libbrillo",
     "libchrome-${libbase_ver}",
 
     # system_api depends on protobuf (or protobuf-lite). It must appear
@@ -245,7 +245,7 @@ static_library("libupdate_engine") {
   configs += [ ":target_defaults" ]
   libs = [
     "bz2",
-    "policy-${libbase_ver}",
+    "policy",
     "rootdev",
     "rt",
   ]
@@ -543,7 +543,7 @@ if (use.test) {
       ":target_defaults",
     ]
     pkg_deps = [
-      "libbrillo-test-${libbase_ver}",
+      "libbrillo-test",
       "libchrome-test-${libbase_ver}",
       "libdebugd-client-test",
       "libpower_manager-client-test",
@@ -569,7 +569,7 @@ if (use.fuzzer) {
       ":target_defaults",
     ]
     pkg_deps = [
-      "libbrillo-test-${libbase_ver}",
+      "libbrillo-test",
       "libchrome-test-${libbase_ver}",
     ]
     deps = [
@@ -586,7 +586,7 @@ if (use.fuzzer) {
       ":target_defaults",
     ]
     pkg_deps = [
-      "libbrillo-test-${libbase_ver}",
+      "libbrillo-test",
       "libchrome-test-${libbase_ver}",
     ]
     deps = [
