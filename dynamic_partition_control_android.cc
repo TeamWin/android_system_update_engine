@@ -375,13 +375,6 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
       return PrepareSnapshotPartitionsForUpdate(
           source_slot, target_slot, manifest);
     }
-
-    if (GetVirtualAbFeatureFlag().IsLaunch() && !target_supports_snapshot_) {
-      LOG(ERROR) << "Cannot downgrade to a build that does not support "
-                 << "snapshots because this device launches with Virtual A/B.";
-      return false;
-    }
-
     if (!snapshot_->CancelUpdate()) {
       LOG(ERROR) << "Cannot cancel previous update.";
       return false;
