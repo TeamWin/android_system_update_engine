@@ -141,19 +141,23 @@ bool ImageConfig::LoadDynamicPartitionMetadata(
   for (const auto& group_name : group_names) {
     DynamicPartitionGroup* group = metadata->add_groups();
     group->set_name(group_name);
-    if (!store.GetString(group_name + "_size", &buf)) {
-      LOG(ERROR) << "Missing " << group_name + "_size.";
+    if (!store.GetString("super_" + group_name + "_group_size", &buf) &&
+        !store.GetString(group_name + "_size", &buf)) {
+      LOG(ERROR) << "Missing super_" << group_name + "_group_size or "
+                 << group_name << "_size.";
       return false;
     }
 
     uint64_t max_size;
     if (!base::StringToUint64(buf, &max_size)) {
-      LOG(ERROR) << group_name << "_size=" << buf << " is not an integer.";
+      LOG(ERROR) << "Group size for " << group_name << " = " << buf
+                 << " is not an integer.";
       return false;
     }
     group->set_size(max_size);
 
-    if (store.GetString(group_name + "_partition_list", &buf)) {
+    if (store.GetString("super_" + group_name + "_partition_list", &buf) ||
+        store.GetString(group_name + "_partition_list", &buf)) {
       auto partition_names = brillo::string_utils::Split(buf, " ");
       for (const auto& partition_name : partition_names) {
         group->add_partition_names()->assign(partition_name);
