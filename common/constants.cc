@@ -119,8 +119,7 @@ const char kPayloadPropertyNetworkId[] = "NETWORK_ID";
 // Set "SWITCH_SLOT_ON_REBOOT=0" to skip marking the updated partitions active.
 // The default is 1 (always switch slot if update succeeded).
 const char kPayloadPropertySwitchSlotOnReboot[] = "SWITCH_SLOT_ON_REBOOT";
-// Set "RUN_POST_INSTALL=0" to skip running post install, this will only be
-// honored if we're resuming an update and post install has already succeeded.
+// Set "RUN_POST_INSTALL=0" to skip running optional post install.
 // The default is 1 (always run post install).
 const char kPayloadPropertyRunPostInstall[] = "RUN_POST_INSTALL";
 
