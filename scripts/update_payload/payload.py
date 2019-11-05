@@ -16,6 +16,7 @@
 
 """Tools for reading, verifying and applying Chrome OS update payloads."""
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import hashlib
@@ -64,7 +65,7 @@ class Payload(object):
     """Update payload header struct."""
 
     # Header constants; sizes are in bytes.
-    _MAGIC = 'CrAU'
+    _MAGIC = b'CrAU'
     _VERSION_SIZE = 8
     _MANIFEST_LEN_SIZE = 8
     _METADATA_SIGNATURE_LEN_SIZE = 4
@@ -110,7 +111,6 @@ class Payload(object):
         self.metadata_signature_len = _ReadInt(
             payload_file, self._METADATA_SIGNATURE_LEN_SIZE, True,
             hasher=hasher)
-
 
   def __init__(self, payload_file, payload_file_offset=0):
     """Initialize the payload object.

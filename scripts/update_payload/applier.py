@@ -24,6 +24,7 @@ payload. The interface for invoking the applier is as follows:
 
 """
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import array
@@ -70,7 +71,7 @@ def _VerifySha256(file_obj, expected_hash, name, length=-1):
   """
   hasher = hashlib.sha256()
   block_length = 1024 * 1024
-  max_length = length if length >= 0 else sys.maxint
+  max_length = length if length >= 0 else sys.maxsize
 
   while max_length > 0:
     read_length = min(max_length, block_length)
@@ -108,7 +109,7 @@ def _ReadExtents(file_obj, extents, block_size, max_length=-1):
   """
   data = array.array('c')
   if max_length < 0:
-    max_length = sys.maxint
+    max_length = sys.maxsize
   for ex in extents:
     if max_length == 0:
       break
@@ -176,7 +177,7 @@ def _ExtentsToBspatchArg(extents, block_size, base_name, data_length=-1):
   arg = ''
   pad_off = pad_len = 0
   if data_length < 0:
-    data_length = sys.maxint
+    data_length = sys.maxsize
   for ex, ex_name in common.ExtentIter(extents, base_name):
     if not data_length:
       raise PayloadError('%s: more extents than total data length' % ex_name)
@@ -416,7 +417,7 @@ class PayloadApplier(object):
                          "--dst_extents=%s" % out_extents_arg]
         subprocess.check_call(puffpatch_cmd)
       else:
-        raise PayloadError("Unknown operation %s", op.type)
+        raise PayloadError("Unknown operation %s" % op.type)
 
       # Pad with zeros past the total output length.
       if pad_len:
@@ -451,7 +452,7 @@ class PayloadApplier(object):
                          "--patch_file=%s" % patch_file_name]
         subprocess.check_call(puffpatch_cmd)
       else:
-        raise PayloadError("Unknown operation %s", op.type)
+        raise PayloadError("Unknown operation %s" % op.type)
 
       # Read output.
       with open(out_file_name, 'rb') as out_file:

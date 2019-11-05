@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 #
 # Copyright (C) 2015 The Android Open Source Project
 #
@@ -17,13 +17,18 @@
 
 """Unit testing payload_info.py."""
 
+# Disable check for function names to avoid errors based on old code
+# pylint: disable-msg=invalid-name
+
+from __future__ import absolute_import
 from __future__ import print_function
 
-import StringIO
 import sys
 import unittest
 
 from contextlib import contextmanager
+
+from six.moves import StringIO
 
 import mock  # pylint: disable=import-error
 
@@ -32,8 +37,10 @@ import update_payload
 
 from update_payload import update_metadata_pb2
 
+
 class FakePayloadError(Exception):
   """A generic error when using the FakePayload."""
+
 
 class FakeOption(object):
   """Fake options object for testing."""
@@ -42,10 +49,11 @@ class FakeOption(object):
     self.list_ops = False
     self.stats = False
     self.signatures = False
-    for key, val in kwargs.iteritems():
+    for key, val in kwargs.items():
       setattr(self, key, val)
     if not hasattr(self, 'payload_file'):
       self.payload_file = None
+
 
 class FakeOp(object):
   """Fake manifest operation for testing."""
@@ -54,11 +62,12 @@ class FakeOp(object):
     self.src_extents = src_extents
     self.dst_extents = dst_extents
     self.type = op_type
-    for key, val in kwargs.iteritems():
+    for key, val in kwargs.items():
       setattr(self, key, val)
 
   def HasField(self, field):
     return hasattr(self, field)
+
 
 class FakeExtent(object):
   """Fake Extent for testing."""
@@ -66,10 +75,12 @@ class FakeExtent(object):
     self.start_block = start_block
     self.num_blocks = num_blocks
 
+
 class FakePartitionInfo(object):
   """Fake PartitionInfo for testing."""
   def __init__(self, size):
     self.size = size
+
 
 class FakePartition(object):
   """Fake PartitionUpdate field for testing."""
@@ -79,6 +90,7 @@ class FakePartition(object):
     self.operations = operations
     self.old_partition_info = FakePartitionInfo(old_size)
     self.new_partition_info = FakePartitionInfo(new_size)
+
 
 class FakeManifest(object):
   """Fake manifest for testing."""
@@ -94,7 +106,7 @@ class FakeManifest(object):
                       ], 1 * 4096, 3 * 4096),
         FakePartition(update_payload.common.KERNEL,
                       [FakeOp([FakeExtent(1, 1)],
-                              [FakeExtent(x, x) for x in xrange(20)],
+                              [FakeExtent(x, x) for x in range(20)],
                               update_payload.common.OpType.SOURCE_COPY,
                               src_length=4096)
                       ], 2 * 4096, 4 * 4096),
@@ -108,6 +120,7 @@ class FakeManifest(object):
     """Fake HasField method based on the python members."""
     return hasattr(self, field_name) and getattr(self, field_name) is not None
 
+
 class FakeHeader(object):
   """Fake payload header for testing."""
 
@@ -119,6 +132,7 @@ class FakeHeader(object):
   @property
   def size(self):
     return 24
+
 
 class FakePayload(object):
   """Fake payload for testing."""
@@ -156,7 +170,7 @@ class FakePayload(object):
   def _AddSignatureToProto(proto, **kwargs):
     """Add a new Signature element to the passed proto."""
     new_signature = proto.signatures.add()
-    for key, val in kwargs.iteritems():
+    for key, val in kwargs.items():
       setattr(new_signature, key, val)
 
   def AddPayloadSignature(self, **kwargs):
@@ -174,6 +188,7 @@ class FakePayload(object):
     self._header.metadata_signature_len = len(blob)
     self._blobs[-len(blob)] = blob
 
+
 class PayloadCommandTest(unittest.TestCase):
   """Test class for our PayloadCommand class."""
 
@@ -182,7 +197,7 @@ class PayloadCommandTest(unittest.TestCase):
     """A tool for capturing the sys.stdout"""
     stdout = sys.stdout
     try:
-      sys.stdout = StringIO.StringIO()
+      sys.stdout = StringIO()
       yield sys.stdout
     finally:
       sys.stdout = stdout
@@ -196,13 +211,13 @@ class PayloadCommandTest(unittest.TestCase):
     with mock.patch.object(update_payload, 'Payload', return_value=payload), \
          self.OutputCapturer() as output:
       payload_cmd.Run()
-    self.assertEquals(output.getvalue(), expected_out)
+    self.assertEqual(output.getvalue(), expected_out)
 
   def testDisplayValue(self):
     """Verify that DisplayValue prints what we expect."""
     with self.OutputCapturer() as output:
       payload_info.DisplayValue('key', 'value')
-    self.assertEquals(output.getvalue(), 'key:                         value\n')
+    self.assertEqual(output.getvalue(), 'key:                         value\n')
 
   def testRun(self):
     """Verify that Run parses and displays the payload like we expect."""
@@ -288,9 +303,9 @@ No payload signatures stored in the payload
         FakeOption(action='show', signatures=True))
     payload = FakePayload()
     payload.AddPayloadSignature(version=1,
-                                data='12345678abcdefgh\x00\x01\x02\x03')
-    payload.AddPayloadSignature(data='I am a signature so access is yes.')
-    payload.AddMetadataSignature(data='\x00\x0a\x0c')
+                                data=b'12345678abcdefgh\x00\x01\x02\x03')
+    payload.AddPayloadSignature(data=b'I am a signature so access is yes.')
+    payload.AddMetadataSignature(data=b'\x00\x0a\x0c')
     expected_out = """Payload version:             2
 Manifest length:             222
 Number of partitions:        2
@@ -313,6 +328,7 @@ Payload signatures: (2 entries)
     73 2e                                           | s.
 """
     self.TestCommand(payload_cmd, payload, expected_out)
+
 
 if __name__ == '__main__':
   unittest.main()

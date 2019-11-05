@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2015 The Android Open Source Project
@@ -18,14 +18,16 @@
 
 """payload_info: Show information about an update payload."""
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
-import itertools
 import sys
 import textwrap
 
+from six.moves import range
 import update_payload
+
 
 MAJOR_PAYLOAD_VERSION_BRILLO = 2
 
@@ -40,12 +42,12 @@ def DisplayValue(key, value):
 def DisplayHexData(data, indent=0):
   """Print out binary data as a hex values."""
   for off in range(0, len(data), 16):
-    chunk = data[off:off + 16]
+    chunk = bytearray(data[off:off + 16])
     print(' ' * indent +
-          ' '.join('%.2x' % ord(c) for c in chunk) +
+          ' '.join('%.2x' % c for c in chunk) +
           '   ' * (16 - len(chunk)) +
           ' | ' +
-          ''.join(c if 32 <= ord(c) < 127 else '.' for c in chunk))
+          ''.join(chr(c) if 32 <= c < 127 else '.' for c in chunk))
 
 
 class PayloadCommand(object):
@@ -144,7 +146,7 @@ class PayloadCommand(object):
 
     op_dict = update_payload.common.OpType.NAMES
     print('%s:' % name)
-    for op, op_count in itertools.izip(operations, itertools.count()):
+    for op_count, op in enumerate(operations):
       print('  %d: %s' % (op_count, op_dict[op.type]))
       if op.HasField('data_offset'):
         print('    Data offset: %s' % op.data_offset)
@@ -178,8 +180,8 @@ class PayloadCommand(object):
           last_ext = curr_ext
 
       # Old and new partitions are read once during verification.
-      read_blocks += partition.old_partition_info.size / manifest.block_size
-      read_blocks += partition.new_partition_info.size / manifest.block_size
+      read_blocks += partition.old_partition_info.size // manifest.block_size
+      read_blocks += partition.new_partition_info.size // manifest.block_size
 
     stats = {'read_blocks': read_blocks,
              'written_blocks': written_blocks,
@@ -212,7 +214,7 @@ class PayloadCommand(object):
 def main():
   parser = argparse.ArgumentParser(
       description='Show information about an update payload.')
-  parser.add_argument('payload_file', type=file,
+  parser.add_argument('payload_file', type=argparse.FileType('rb'),
                       help='The update payload file.')
   parser.add_argument('--list_ops', default=False, action='store_true',
                       help='List the install operations and their extents.')
@@ -223,6 +225,7 @@ def main():
   args = parser.parse_args()
 
   PayloadCommand(args).Run()
+
 
 if __name__ == '__main__':
   sys.exit(main())

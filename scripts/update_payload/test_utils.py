@@ -16,9 +16,10 @@
 
 """Utilities for unit testing."""
 
+from __future__ import absolute_import
 from __future__ import print_function
 
-import cStringIO
+import io
 import hashlib
 import os
 import struct
@@ -70,7 +71,7 @@ def _WriteInt(file_obj, size, is_unsigned, val):
   """
   try:
     file_obj.write(struct.pack(common.IntPackingFmtStr(size, is_unsigned), val))
-  except IOError, e:
+  except IOError as e:
     raise payload.PayloadError('error writing to file (%s): %s' %
                                (file_obj.name, e))
 
@@ -335,7 +336,7 @@ class EnhancedPayloadGenerator(PayloadGenerator):
 
     if do_generate_sigs_data:
       # First, sign some arbitrary data to obtain the size of a signature blob.
-      fake_sig = SignSha256('fake-payload-data', privkey_file_name)
+      fake_sig = SignSha256(b'fake-payload-data', privkey_file_name)
       fake_sigs_gen = SignaturesGenerator()
       fake_sigs_gen.AddSig(1, fake_sig)
       sigs_len = len(fake_sigs_gen.ToBinary())
@@ -345,7 +346,7 @@ class EnhancedPayloadGenerator(PayloadGenerator):
 
     if do_generate_sigs_data:
       # Once all payload fields are updated, dump and sign it.
-      temp_payload_file = cStringIO.StringIO()
+      temp_payload_file = io.BytesIO()
       self.WriteToFile(temp_payload_file, data_blobs=self.data_blobs)
       sig = SignSha256(temp_payload_file.getvalue(), privkey_file_name)
       sigs_gen = SignaturesGenerator()

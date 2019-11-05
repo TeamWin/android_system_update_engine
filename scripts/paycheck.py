@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 #
 # Copyright (C) 2013 The Android Open Source Project
 #
@@ -17,6 +17,7 @@
 
 """Command-line tool for checking and applying Chrome OS update payloads."""
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 # pylint: disable=import-error
@@ -26,13 +27,14 @@ import os
 import sys
 import tempfile
 
-from update_payload import common
+from six.moves import zip
 from update_payload import error
+
 
 lib_dir = os.path.join(os.path.dirname(__file__), 'lib')
 if os.path.exists(lib_dir) and os.path.isdir(lib_dir):
   sys.path.insert(1, lib_dir)
-import update_payload
+import update_payload  # pylint: disable=wrong-import-position
 
 
 _TYPE_FULL = 'full'
@@ -287,7 +289,7 @@ def main(argv):
         # files are created as temp files and will be deleted upon close().
         for handle in file_handles:
           handle.close()
-    except error.PayloadError, e:
+    except error.PayloadError as e:
       sys.stderr.write('Error: %s\n' % e)
       return 1
 

@@ -24,6 +24,7 @@ follows:
   checker.Run(...)
 """
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import array
@@ -34,12 +35,13 @@ import itertools
 import os
 import subprocess
 
+from six.moves import range
+
 from update_payload import common
 from update_payload import error
 from update_payload import format_utils
 from update_payload import histogram
 from update_payload import update_metadata_pb2
-
 
 #
 # Constants.
@@ -70,6 +72,7 @@ _SUPPORTED_MINOR_VERSIONS = {
     5: (_TYPE_DELTA,),
     6: (_TYPE_DELTA,),
 }
+
 
 #
 # Helper functions.
@@ -647,7 +650,7 @@ class PayloadChecker(object):
             'Apparent full payload contains old_{kernel,rootfs}_info.')
       self.payload_type = _TYPE_DELTA
 
-      for part, (msg, part_report) in self.old_part_info.iteritems():
+      for part, (msg, part_report) in self.old_part_info.items():
         # Check: {size, hash} present in old_{kernel,rootfs}_info.
         field = 'old_%s_info' % part
         self.old_fs_sizes[part] = self._CheckMandatoryField(msg, 'size',
@@ -668,7 +671,7 @@ class PayloadChecker(object):
       self.payload_type = _TYPE_FULL
 
     # Check: new_{kernel,rootfs}_info present; contains {size, hash}.
-    for part, (msg, part_report) in self.new_part_info.iteritems():
+    for part, (msg, part_report) in self.new_part_info.items():
       field = 'new_%s_info' % part
       self.new_fs_sizes[part] = self._CheckMandatoryField(msg, 'size',
                                                           part_report, field)
@@ -740,7 +743,7 @@ class PayloadChecker(object):
             (ex_name, common.FormatExtent(ex, self.block_size), usable_size))
 
       # Record block usage.
-      for i in xrange(start_block, end_block):
+      for i in range(start_block, end_block):
         block_counters[i] += 1
 
       total_num_blocks += num_blocks
@@ -759,6 +762,11 @@ class PayloadChecker(object):
     Raises:
       error.PayloadError if any check fails.
     """
+    # Check: total_dst_blocks is not a floating point.
+    if isinstance(total_dst_blocks, float):
+      raise error.PayloadError('%s: contains invalid data type of '
+                               'total_dst_blocks.' % op_name)
+
     # Check: Does not contain src extents.
     if op.src_extents:
       raise error.PayloadError('%s: contains src_extents.' % op_name)
@@ -975,7 +983,7 @@ class PayloadChecker(object):
 
   def _SizeToNumBlocks(self, size):
     """Returns the number of blocks needed to contain a given byte size."""
-    return (size + self.block_size - 1) / self.block_size
+    return (size + self.block_size - 1) // self.block_size
 
   def _AllocBlockCounters(self, total_size):
     """Returns a freshly initialized array of block counters.
@@ -1054,7 +1062,7 @@ class PayloadChecker(object):
       op_num += 1
 
       # Check: Type is valid.
-      if op.type not in op_counts.keys():
+      if op.type not in op_counts:
         raise error.PayloadError('%s: invalid type (%d).' % (op_name, op.type))
       op_counts[op.type] += 1
 
@@ -1126,7 +1134,6 @@ class PayloadChecker(object):
           last_op.data_length == self.sigs_size):
         raise error.PayloadError('It seems like the last operation is the '
                                  'signature blob. This is an invalid payload.')
-
 
     # Compute the checksum of all data up to signature blob.
     # TODO(garnold) we're re-reading the whole data section into a string

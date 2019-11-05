@@ -16,7 +16,10 @@
 
 """Utilities for update payload processing."""
 
+from __future__ import absolute_import
 from __future__ import print_function
+
+import base64
 
 from update_payload import update_metadata_pb2
 from update_payload.error import PayloadError
@@ -26,9 +29,9 @@ from update_payload.error import PayloadError
 # Constants.
 #
 SIG_ASN1_HEADER = (
-    '\x30\x31\x30\x0d\x06\x09\x60\x86'
-    '\x48\x01\x65\x03\x04\x02\x01\x05'
-    '\x00\x04\x20'
+    b'\x30\x31\x30\x0d\x06\x09\x60\x86'
+    b'\x48\x01\x65\x03\x04\x02\x01\x05'
+    b'\x00\x04\x20'
 )
 
 BRILLO_MAJOR_PAYLOAD_VERSION = 2
@@ -42,6 +45,7 @@ KERNEL = 'kernel'
 ROOTFS = 'root'
 # Tuple of (name in system, name in protobuf).
 CROS_PARTITIONS = ((KERNEL, KERNEL), (ROOTFS, 'rootfs'))
+
 
 #
 # Payload operation types.
@@ -138,7 +142,7 @@ def Read(file_obj, length, offset=None, hasher=None):
 
   try:
     data = file_obj.read(length)
-  except IOError, e:
+  except IOError as e:
     raise PayloadError('error reading from file (%s): %s' % (file_obj.name, e))
 
   if len(data) != length:
@@ -164,7 +168,7 @@ def FormatExtent(ex, block_size=0):
 
 def FormatSha256(digest):
   """Returns a canonical string representation of a SHA256 digest."""
-  return digest.encode('base64').strip()
+  return base64.b64encode(digest).decode('utf-8')
 
 
 #
