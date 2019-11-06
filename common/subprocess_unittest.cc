@@ -193,7 +193,7 @@ TEST_F(SubprocessTest, EnvVarsAreFiltered) {
 TEST_F(SubprocessTest, SynchronousTrueSearchsOnPath) {
   int rc = -1;
   EXPECT_TRUE(Subprocess::SynchronousExecFlags(
-      {"true"}, Subprocess::kSearchPath, &rc, nullptr));
+      {"true"}, Subprocess::kSearchPath, &rc, nullptr, nullptr));
   EXPECT_EQ(0, rc);
 }
 
@@ -201,16 +201,17 @@ TEST_F(SubprocessTest, SynchronousEchoTest) {
   vector<string> cmd = {
       kBinPath "/sh", "-c", "echo -n stdout-here; echo -n stderr-there >&2"};
   int rc = -1;
-  string stdout;
-  ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
+  string stdout, stderr;
+  ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, &stdout, &stderr));
   EXPECT_EQ(0, rc);
-  EXPECT_EQ("stdout-herestderr-there", stdout);
+  EXPECT_EQ("stdout-here", stdout);
+  EXPECT_EQ("stderr-there", stderr);
 }
 
 TEST_F(SubprocessTest, SynchronousEchoNoOutputTest) {
   int rc = -1;
   ASSERT_TRUE(Subprocess::SynchronousExec(
-      {kBinPath "/sh", "-c", "echo test"}, &rc, nullptr));
+      {kBinPath "/sh", "-c", "echo test"}, &rc, nullptr, nullptr));
   EXPECT_EQ(0, rc);
 }
 

@@ -956,13 +956,9 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
 }
 
 bool UpdateAttempter::RebootDirectly() {
-  vector<string> command;
-  command.push_back("/sbin/shutdown");
-  command.push_back("-r");
-  command.push_back("now");
-  LOG(INFO) << "Running \"" << base::JoinString(command, " ") << "\"";
+  vector<string> command = {"/sbin/shutdown", "-r", "now"};
   int rc = 0;
-  Subprocess::SynchronousExec(command, &rc, nullptr);
+  Subprocess::SynchronousExec(command, &rc, nullptr, nullptr);
   return rc == 0;
 }
 

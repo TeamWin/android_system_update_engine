@@ -88,14 +88,16 @@ class Subprocess {
 
   // Executes a command synchronously. Returns true on success. If |stdout| is
   // non-null, the process output is stored in it, otherwise the output is
-  // logged. Note that stderr is redirected to stdout.
+  // logged.
   static bool SynchronousExec(const std::vector<std::string>& cmd,
                               int* return_code,
-                              std::string* stdout);
+                              std::string* stdout,
+                              std::string* stderr);
   static bool SynchronousExecFlags(const std::vector<std::string>& cmd,
                                    uint32_t flags,
                                    int* return_code,
-                                   std::string* stdout);
+                                   std::string* stdout,
+                                   std::string* stderr);
 
   // Gets the one instance.
   static Subprocess& Get() { return *subprocess_singleton_; }

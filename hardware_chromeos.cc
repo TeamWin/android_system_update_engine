@@ -87,14 +87,16 @@ const char* kOemRequisitionKey = "oem_device_requisition";
 // shell command. Returns true on success.
 int GetVpdValue(string key, string* result) {
   int exit_code = 0;
-  string value;
+  string value, error;
   vector<string> cmd = {"vpd_get_value", key};
   if (!chromeos_update_engine::Subprocess::SynchronousExec(
-          cmd, &exit_code, &value) ||
+          cmd, &exit_code, &value, &error) ||
       exit_code) {
     LOG(ERROR) << "Failed to get vpd key for " << value
-               << " with exit code: " << exit_code;
+               << " with exit code: " << exit_code << " and error: " << error;
     return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "vpd_get_value succeeded but with following errors: " << error;
   }
 
   base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
@@ -198,13 +200,14 @@ string HardwareChromeOS::GetFirmwareVersion() const {
 }
 
 string HardwareChromeOS::GetECVersion() const {
-  string input_line;
+  string input_line, error;
   int exit_code = 0;
   vector<string> cmd = {"/usr/sbin/mosys", "-k", "ec", "info"};
 
-  bool success = Subprocess::SynchronousExec(cmd, &exit_code, &input_line);
-  if (!success || exit_code) {
-    LOG(ERROR) << "Unable to read ec info from mosys (" << exit_code << ")";
+  if (!Subprocess::SynchronousExec(cmd, &exit_code, &input_line, &error) ||
+      exit_code != 0) {
+    LOG(ERROR) << "Unable to read EC info from mosys with exit code: "
+               << exit_code << " and error: " << error;
     return "";
   }
 
@@ -353,22 +356,28 @@ bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
 
 bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
   int exit_code = 0;
-  string output;
+  string output, error;
   vector<string> vpd_set_cmd = {
       "vpd", "-i", "RW_VPD", "-s", string(kActivePingKey) + "=1"};
-  if (!Subprocess::SynchronousExec(vpd_set_cmd, &exit_code, &output) ||
+  if (!Subprocess::SynchronousExec(vpd_set_cmd, &exit_code, &output, &error) ||
       exit_code) {
     LOG(ERROR) << "Failed to set vpd key for " << kActivePingKey
-               << " with exit code: " << exit_code << " with error: " << output;
+               << " with exit code: " << exit_code << " with output: " << output
+               << " and error: " << error;
     return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "vpd succeeded but with error logs: " << error;
   }
 
   vector<string> vpd_dump_cmd = {"dump_vpd_log", "--force"};
-  if (!Subprocess::SynchronousExec(vpd_dump_cmd, &exit_code, &output) ||
+  if (!Subprocess::SynchronousExec(vpd_dump_cmd, &exit_code, &output, &error) ||
       exit_code) {
     LOG(ERROR) << "Failed to cache " << kActivePingKey << " using dump_vpd_log"
-               << " with exit code: " << exit_code << " with error: " << output;
+               << " with exit code: " << exit_code << " with output: " << output
+               << " and error: " << error;
     return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "dump_vpd_log succeeded but with error logs: " << error;
   }
   return true;
 }

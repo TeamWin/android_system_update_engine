@@ -95,6 +95,7 @@ bool LaunchProcess(const vector<string>& cmd,
   proc->RedirectUsingPipe(STDOUT_FILENO, false);
   proc->SetPreExecCallback(base::Bind(&SetupChild, env, flags));
 
+  LOG(INFO) << "Running \"" << base::JoinString(cmd, " ") << "\"";
   return proc->Start();
 }
 
@@ -229,22 +230,20 @@ int Subprocess::GetPipeFd(pid_t pid, int fd) const {
 
 bool Subprocess::SynchronousExec(const vector<string>& cmd,
                                  int* return_code,
-                                 string* stdout) {
-  // The default for SynchronousExec is to use kSearchPath since the code relies
-  // on that.
-  return SynchronousExecFlags(
-      cmd, kRedirectStderrToStdout | kSearchPath, return_code, stdout);
+                                 string* stdout,
+                                 string* stderr) {
+  // The default for |SynchronousExec| is to use |kSearchPath| since the code
+  // relies on that.
+  return SynchronousExecFlags(cmd, kSearchPath, return_code, stdout, stderr);
 }
 
 bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
                                       uint32_t flags,
                                       int* return_code,
-                                      string* stdout) {
+                                      string* stdout,
+                                      string* stderr) {
   brillo::ProcessImpl proc;
-  // It doesn't make sense to redirect some pipes in the synchronous case
-  // because we won't be reading on our end, so we don't expose the output_pipes
-  // in this case.
-  if (!LaunchProcess(cmd, flags, {}, &proc)) {
+  if (!LaunchProcess(cmd, flags, {STDERR_FILENO}, &proc)) {
     LOG(ERROR) << "Failed to launch subprocess";
     return false;
   }
@@ -252,21 +251,39 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
   if (stdout) {
     stdout->clear();
   }
+  if (stderr) {
+    stderr->clear();
+  }
 
-  int fd = proc.GetPipe(STDOUT_FILENO);
+  // Read from both stdout and stderr individually.
+  int stdout_fd = proc.GetPipe(STDOUT_FILENO);
+  int stderr_fd = proc.GetPipe(STDERR_FILENO);
   vector<char> buffer(32 * 1024);
-  while (true) {
-    int rc = HANDLE_EINTR(read(fd, buffer.data(), buffer.size()));
-    if (rc < 0) {
-      PLOG(ERROR) << "Reading from child's output";
-      break;
-    } else if (rc == 0) {
-      break;
-    } else {
-      if (stdout)
+  bool stdout_closed = false, stderr_closed = false;
+  while (!stdout_closed || !stderr_closed) {
+    if (!stdout_closed) {
+      int rc = HANDLE_EINTR(read(stdout_fd, buffer.data(), buffer.size()));
+      if (rc <= 0) {
+        stdout_closed = true;
+        if (rc < 0)
+          PLOG(ERROR) << "Reading from child's stdout";
+      } else if (stdout != nullptr) {
         stdout->append(buffer.data(), rc);
+      }
+    }
+
+    if (!stderr_closed) {
+      int rc = HANDLE_EINTR(read(stderr_fd, buffer.data(), buffer.size()));
+      if (rc <= 0) {
+        stderr_closed = true;
+        if (rc < 0)
+          PLOG(ERROR) << "Reading from child's stderr";
+      } else if (stderr != nullptr) {
+        stderr->append(buffer.data(), rc);
+      }
     }
   }
+
   // At this point, the subprocess already closed the output, so we only need to
   // wait for it to finish.
   int proc_return_code = proc.Wait();

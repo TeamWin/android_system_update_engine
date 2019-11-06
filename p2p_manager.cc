@@ -249,12 +249,12 @@ bool P2PManagerImpl::IsP2PEnabled() {
 
 bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
   int return_code = 0;
-  string output;
+  string stderr;
 
   may_be_running_ = true;  // Unless successful, we must be conservative.
 
   vector<string> args = configuration_->GetInitctlArgs(should_be_running);
-  if (!Subprocess::SynchronousExec(args, &return_code, &output)) {
+  if (!Subprocess::SynchronousExec(args, &return_code, nullptr, &stderr)) {
     LOG(ERROR) << "Error spawning " << utils::StringVectorToString(args);
     return false;
   }
@@ -268,7 +268,7 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
     const char* expected_error_message =
         should_be_running ? "initctl: Job is already running: p2p\n"
                           : "initctl: Unknown instance \n";
-    if (output != expected_error_message)
+    if (stderr != expected_error_message)
       return false;
   }
 

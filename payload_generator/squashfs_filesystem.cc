@@ -81,12 +81,12 @@ bool GetFileMapContent(const string& sqfs_path, string* map) {
   // Run unsquashfs to get the system file map.
   // unsquashfs -m <map-file> <squashfs-file>
   vector<string> cmd = {"unsquashfs", "-m", map_file, sqfs_path};
-  string stdout;
+  string stdout, stderr;
   int exit_code;
-  if (!Subprocess::SynchronousExec(cmd, &exit_code, &stdout) ||
+  if (!Subprocess::SynchronousExec(cmd, &exit_code, &stdout, &stderr) ||
       exit_code != 0) {
-    LOG(ERROR) << "Failed to run unsquashfs -m. The stdout content was: "
-               << stdout;
+    LOG(ERROR) << "Failed to run `unsquashfs -m` with stdout content: "
+               << stdout << " and stderr content: " << stderr;
     return false;
   }
   TEST_AND_RETURN_FALSE(utils::ReadFile(map_file, map));
@@ -109,10 +109,12 @@ bool GetUpdateEngineConfig(const std::string& sqfs_path, string* config) {
                         unsquash_dir.GetPath().value(),
                         sqfs_path,
                         kUpdateEngineConf};
+  string stdout, stderr;
   int exit_code;
-  if (!Subprocess::SynchronousExec(cmd, &exit_code, nullptr) ||
+  if (!Subprocess::SynchronousExec(cmd, &exit_code, &stdout, &stderr) ||
       exit_code != 0) {
-    PLOG(ERROR) << "Failed to unsquashfs etc/update_engine.conf: ";
+    PLOG(ERROR) << "Failed to unsquashfs etc/update_engine.conf with stdout: "
+                << stdout << " and stderr: " << stderr;
     return false;
   }
 
