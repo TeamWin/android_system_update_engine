@@ -22,11 +22,6 @@
 #include <memory>
 #include <string>
 
-#include <base/files/file_util.h>
-#include <libdm/dm.h>
-#include <liblp/builder.h>
-
-#include "update_engine/common/boot_control_interface.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -55,40 +50,8 @@ class DynamicPartitionControlInterface {
   // Return the feature flags of Virtual A/B on this device.
   virtual FeatureFlag GetVirtualAbFeatureFlag() = 0;
 
-  // Map logical partition on device-mapper.
-  // |super_device| is the device path of the physical partition ("super").
-  // |target_partition_name| is the identifier used in metadata; for example,
-  // "vendor_a"
-  // |slot| is the selected slot to mount; for example, 0 for "_a".
-  // Returns true if mapped successfully; if so, |path| is set to the device
-  // path of the mapped logical partition.
-  virtual bool MapPartitionOnDeviceMapper(
-      const std::string& super_device,
-      const std::string& target_partition_name,
-      uint32_t slot,
-      bool force_writable,
-      std::string* path) = 0;
-
   // Do necessary cleanups before destroying the object.
   virtual void Cleanup() = 0;
-
-  // Return true if a static partition exists at device path |path|.
-  virtual bool DeviceExists(const std::string& path) = 0;
-
-  // Returns the current state of the underlying device mapper device
-  // with given name.
-  // One of INVALID, SUSPENDED or ACTIVE.
-  virtual android::dm::DmDeviceState GetState(const std::string& name) = 0;
-
-  // Returns the path to the device mapper device node in '/dev' corresponding
-  // to 'name'. If the device does not exist, false is returned, and the path
-  // parameter is not set.
-  virtual bool GetDmDevicePathByName(const std::string& name,
-                                     std::string* path) = 0;
-
-  // Retrieve metadata from |super_device| at slot |source_slot|.
-  virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
-      const std::string& super_device, uint32_t source_slot) = 0;
 
   // Prepare all partitions for an update specified in |manifest|.
   // This is needed before calling MapPartitionOnDeviceMapper(), otherwise the
@@ -98,13 +61,6 @@ class DynamicPartitionControlInterface {
                                           uint32_t target_slot,
                                           const DeltaArchiveManifest& manifest,
                                           bool update) = 0;
-
-  // Return a possible location for devices listed by name.
-  virtual bool GetDeviceDir(std::string* path) = 0;
-
-  // Return the name of the super partition (which stores super partition
-  // metadata) for a given slot.
-  virtual std::string GetSuperPartitionName(uint32_t slot) = 0;
 
   virtual bool FinishUpdate() = 0;
 };

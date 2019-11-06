@@ -23,6 +23,7 @@
 #include <set>
 #include <string>
 
+#include <base/files/file_util.h>
 #include <libsnapshot/auto_device.h>
 #include <libsnapshot/snapshot.h>
 
@@ -34,26 +35,23 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   ~DynamicPartitionControlAndroid();
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
-  bool MapPartitionOnDeviceMapper(const std::string& super_device,
-                                  const std::string& target_partition_name,
-                                  uint32_t slot,
-                                  bool force_writable,
-                                  std::string* path) override;
   void Cleanup() override;
-  bool DeviceExists(const std::string& path) override;
-  android::dm::DmDeviceState GetState(const std::string& name) override;
-  bool GetDmDevicePathByName(const std::string& name,
-                             std::string* path) override;
-  std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
-      const std::string& super_device, uint32_t source_slot) override;
 
   bool PreparePartitionsForUpdate(uint32_t source_slot,
                                   uint32_t target_slot,
                                   const DeltaArchiveManifest& manifest,
                                   bool update) override;
-  bool GetDeviceDir(std::string* path) override;
-  std::string GetSuperPartitionName(uint32_t slot) override;
   bool FinishUpdate() override;
+
+  // Return the device for partition |partition_name| at slot |slot|.
+  // |current_slot| should be set to the current active slot.
+  // Note: this function is only used by BootControl*::GetPartitionDevice.
+  // Other callers should prefer BootControl*::GetPartitionDevice over
+  // BootControl*::GetDynamicPartitionControl()->GetPartitionDevice().
+  bool GetPartitionDevice(const std::string& partition_name,
+                          uint32_t slot,
+                          uint32_t current_slot,
+                          std::string* device);
 
  protected:
   // These functions are exposed for testing.
@@ -84,6 +82,45 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                              android::fs_mgr::MetadataBuilder* builder,
                              uint32_t target_slot);
 
+  // Map logical partition on device-mapper.
+  // |super_device| is the device path of the physical partition ("super").
+  // |target_partition_name| is the identifier used in metadata; for example,
+  // "vendor_a"
+  // |slot| is the selected slot to mount; for example, 0 for "_a".
+  // Returns true if mapped successfully; if so, |path| is set to the device
+  // path of the mapped logical partition.
+  virtual bool MapPartitionOnDeviceMapper(
+      const std::string& super_device,
+      const std::string& target_partition_name,
+      uint32_t slot,
+      bool force_writable,
+      std::string* path);
+
+  // Return true if a static partition exists at device path |path|.
+  virtual bool DeviceExists(const std::string& path);
+
+  // Returns the current state of the underlying device mapper device
+  // with given name.
+  // One of INVALID, SUSPENDED or ACTIVE.
+  virtual android::dm::DmDeviceState GetState(const std::string& name);
+
+  // Returns the path to the device mapper device node in '/dev' corresponding
+  // to 'name'. If the device does not exist, false is returned, and the path
+  // parameter is not set.
+  virtual bool GetDmDevicePathByName(const std::string& name,
+                                     std::string* path);
+
+  // Retrieve metadata from |super_device| at slot |source_slot|.
+  virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
+      const std::string& super_device, uint32_t source_slot);
+
+  // Return a possible location for devices listed by name.
+  virtual bool GetDeviceDir(std::string* path);
+
+  // Return the name of the super partition (which stores super partition
+  // metadata) for a given slot.
+  virtual std::string GetSuperPartitionName(uint32_t slot);
+
  private:
   friend class DynamicPartitionControlAndroidTest;
 
@@ -112,12 +149,38 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                           uint32_t target_slot,
                                           const DeltaArchiveManifest& manifest);
 
+  enum class DynamicPartitionDeviceStatus {
+    SUCCESS,
+    ERROR,
+    TRY_STATIC,
+  };
+
+  // Return SUCCESS and path in |device| if partition is dynamic.
+  // Return ERROR if any error.
+  // Return TRY_STATIC if caller should resolve the partition as a static
+  // partition instead.
+  DynamicPartitionDeviceStatus GetDynamicPartitionDevice(
+      const base::FilePath& device_dir,
+      const std::string& partition_name_suffix,
+      uint32_t slot,
+      uint32_t current_slot,
+      std::string* device);
+
+  // Return true if |partition_name_suffix| is a block device of
+  // super partition metadata slot |slot|.
+  bool IsSuperBlockDevice(const base::FilePath& device_dir,
+                          uint32_t current_slot,
+                          const std::string& partition_name_suffix);
+
   std::set<std::string> mapped_devices_;
   const FeatureFlag dynamic_partitions_;
   const FeatureFlag virtual_ab_;
   std::unique_ptr<android::snapshot::SnapshotManager> snapshot_;
   std::unique_ptr<android::snapshot::AutoDevice> metadata_device_;
   bool target_supports_snapshot_ = false;
+  // Whether the target partitions should be loaded as dynamic partitions. Set
+  // by PreparePartitionsForUpdate() per each update.
+  bool is_target_dynamic_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };
