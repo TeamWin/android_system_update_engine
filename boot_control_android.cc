@@ -168,4 +168,9 @@ bool BootControlAndroid::PreparePartitionsForUpdate(
       source_slot, target_slot, manifest, update_metadata);
 }
 
+DynamicPartitionControlInterface*
+BootControlAndroid::GetDynamicPartitionControl() {
+  return dynamic_control_.get();
+}
+
 }  // namespace chromeos_update_engine

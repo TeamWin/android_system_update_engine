@@ -25,6 +25,7 @@
 #include <base/callback.h>
 #include <base/macros.h>
 
+#include "update_engine/common/dynamic_partition_control_interface.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -93,6 +94,9 @@ class BootControlInterface {
 
   // Do necessary clean-up operations after the whole update.
   virtual void Cleanup() = 0;
+
+  // Return the dynamic partition control interface.
+  virtual DynamicPartitionControlInterface* GetDynamicPartitionControl() = 0;
 
   // Return a human-readable slot name used for logging.
   static std::string SlotName(Slot slot) {
