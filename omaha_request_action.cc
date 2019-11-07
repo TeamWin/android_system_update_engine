@@ -1318,11 +1318,12 @@ bool OmahaRequestAction::PersistCohortData(const string& prefs_key,
 }
 
 bool OmahaRequestAction::PersistEolInfo(const map<string, string>& attrs) {
+  // If EOL date attribute is not sent, don't delete the old persisted EOL
+  // date information.
   auto eol_date_attr = attrs.find(kAttrEolDate);
-  if (eol_date_attr == attrs.end()) {
-    system_state_->prefs()->Delete(kPrefsOmahaEolDate);
-  } else if (!system_state_->prefs()->SetString(kPrefsOmahaEolDate,
-                                                eol_date_attr->second)) {
+  if (eol_date_attr != attrs.end() &&
+      !system_state_->prefs()->SetString(kPrefsOmahaEolDate,
+                                         eol_date_attr->second)) {
     LOG(ERROR) << "Setting EOL date failed.";
     return false;
   }

@@ -2815,11 +2815,15 @@ TEST_F(OmahaRequestActionTest, PersistEolMissingDateTest) {
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
+  const string kDate = "123";
+  fake_system_state_.prefs()->SetString(kPrefsOmahaEolDate, kDate);
+
   ASSERT_TRUE(TestUpdateCheck());
 
   string eol_date;
-  EXPECT_FALSE(
+  EXPECT_TRUE(
       fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+  EXPECT_EQ(kDate, eol_date);
 }
 
 TEST_F(OmahaRequestActionTest, PersistEolBadDateTest) {
