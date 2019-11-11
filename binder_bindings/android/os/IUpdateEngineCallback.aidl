@@ -19,6 +19,7 @@ package android.os;
 /** @hide */
 oneway interface IUpdateEngineCallback {
   /** @hide */
+  @UnsupportedAppUsage
   void onStatusUpdate(int status_code, float percentage);
   /** @hide */
   void onPayloadApplicationComplete(int error_code);
