@@ -57,9 +57,10 @@ class BootControlInterface {
   // The |slot| number must be between 0 and GetNumSlots() - 1 and the
   // |partition_name| is a platform-specific name that identifies a partition on
   // every slot. In order to access the dynamic partitions in the target slot,
-  // PreparePartitionsForUpdate() must be called (once per payload) prior to
-  // calling this function. On success, returns true and stores the block device
-  // in |device|.
+  // GetDynamicPartitionControl()->PreparePartitionsForUpdate() must be called
+  // (with |update| == true for the first time for a payload, and |false| for
+  // for the rest of the times) prior to calling this function. On success,
+  // returns true and stores the block device in |device|.
   virtual bool GetPartitionDevice(const std::string& partition_name,
                                   Slot slot,
                                   std::string* device) const = 0;
@@ -83,14 +84,6 @@ class BootControlInterface {
   // operation, otherwise, returns true and calls the |callback| with the result
   // of the operation.
   virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
-
-  // Initializes the metadata of the underlying partitions for a given |slot|
-  // and sets up the states for accessing dynamic partitions.
-  // Metadata will be written to the specified |slot| if
-  // |update_metadata| is set.
-  virtual bool PreparePartitionsForUpdate(Slot slot,
-                                          const DeltaArchiveManifest& manifest,
-                                          bool update_metadata) = 0;
 
   // Do necessary clean-up operations after the whole update.
   virtual void Cleanup() = 0;

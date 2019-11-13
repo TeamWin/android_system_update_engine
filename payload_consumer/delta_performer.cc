@@ -947,8 +947,11 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
 bool DeltaPerformer::PreparePartitionsForUpdate() {
   bool metadata_updated = false;
   prefs_->GetBoolean(kPrefsDynamicPartitionMetadataUpdated, &metadata_updated);
-  if (!boot_control_->PreparePartitionsForUpdate(
-          install_plan_->target_slot, manifest_, !metadata_updated)) {
+  if (!boot_control_->GetDynamicPartitionControl()->PreparePartitionsForUpdate(
+          boot_control_->GetCurrentSlot(),
+          install_plan_->target_slot,
+          manifest_,
+          !metadata_updated)) {
     LOG(ERROR) << "Unable to initialize partition metadata for slot "
                << BootControlInterface::SlotName(install_plan_->target_slot);
     return false;

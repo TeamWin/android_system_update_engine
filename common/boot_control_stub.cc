@@ -63,12 +63,6 @@ bool BootControlStub::MarkBootSuccessfulAsync(
   return false;
 }
 
-bool BootControlStub::PreparePartitionsForUpdate(
-    Slot slot, const DeltaArchiveManifest& manifest, bool update_metadata) {
-  LOG(ERROR) << __FUNCTION__ << " should never be called.";
-  return false;
-}
-
 void BootControlStub::Cleanup() {
   LOG(ERROR) << __FUNCTION__ << " should never be called.";
 }
