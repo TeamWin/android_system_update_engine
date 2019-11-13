@@ -15,12 +15,16 @@
 //
 
 #include "update_engine/common/boot_control_stub.h"
+#include "update_engine/common/dynamic_partition_control_stub.h"
 
 #include <base/logging.h>
 
 using std::string;
 
 namespace chromeos_update_engine {
+
+BootControlStub::BootControlStub()
+    : dynamic_partition_control_(new DynamicPartitionControlStub()) {}
 
 unsigned int BootControlStub::GetNumSlots() const {
   return 0;
@@ -67,6 +71,11 @@ bool BootControlStub::PreparePartitionsForUpdate(
 
 void BootControlStub::Cleanup() {
   LOG(ERROR) << __FUNCTION__ << " should never be called.";
+}
+
+DynamicPartitionControlInterface*
+BootControlStub::GetDynamicPartitionControl() {
+  return dynamic_partition_control_.get();
 }
 
 }  // namespace chromeos_update_engine
