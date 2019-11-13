@@ -55,6 +55,7 @@ class BootControlAndroid : public BootControlInterface {
                                   const DeltaArchiveManifest& manifest,
                                   bool update_metadata) override;
   void Cleanup() override;
+  DynamicPartitionControlInterface* GetDynamicPartitionControl() override;
 
  private:
   ::android::sp<::android::hardware::boot::V1_0::IBootControl> module_;

@@ -17,12 +17,14 @@
 #ifndef UPDATE_ENGINE_BOOT_CONTROL_CHROMEOS_H_
 #define UPDATE_ENGINE_BOOT_CONTROL_CHROMEOS_H_
 
+#include <memory>
 #include <string>
 
 #include <base/callback.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/dynamic_partition_control_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -54,6 +56,7 @@ class BootControlChromeOS : public BootControlInterface {
                                   const DeltaArchiveManifest& manifest,
                                   bool update_metadata) override;
   void Cleanup() override;
+  DynamicPartitionControlInterface* GetDynamicPartitionControl() override;
 
  private:
   friend class BootControlChromeOSTest;
@@ -80,6 +83,8 @@ class BootControlChromeOS : public BootControlInterface {
 
   // The block device of the disk we booted from, without the partition number.
   std::string boot_disk_name_;
+
+  std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;
 
   DISALLOW_COPY_AND_ASSIGN(BootControlChromeOS);
 };

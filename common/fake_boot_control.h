@@ -18,12 +18,14 @@
 #define UPDATE_ENGINE_COMMON_FAKE_BOOT_CONTROL_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <base/time/time.h>
 
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/dynamic_partition_control_stub.h"
 
 namespace chromeos_update_engine {
 
@@ -34,6 +36,8 @@ class FakeBootControl : public BootControlInterface {
     SetNumSlots(num_slots_);
     // The current slot should be bootable.
     is_bootable_[current_slot_] = true;
+
+    dynamic_partition_control_.reset(new DynamicPartitionControlStub());
   }
 
   // BootControlInterface overrides.
@@ -103,12 +107,18 @@ class FakeBootControl : public BootControlInterface {
     is_bootable_[slot] = bootable;
   }
 
+  DynamicPartitionControlInterface* GetDynamicPartitionControl() {
+    return dynamic_partition_control_.get();
+  }
+
  private:
   BootControlInterface::Slot num_slots_{2};
   BootControlInterface::Slot current_slot_{0};
 
   std::vector<bool> is_bootable_;
   std::vector<std::map<std::string, std::string>> devices_;
+
+  std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeBootControl);
 };

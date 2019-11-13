@@ -150,6 +150,7 @@ cc_library_static {
         "common/clock.cc",
         "common/constants.cc",
         "common/cpu_limiter.cc",
+        "common/dynamic_partition_control_stub.cc",
         "common/error_code_utils.cc",
         "common/file_fetcher.cc",
         "common/hash_calculator.cc",
