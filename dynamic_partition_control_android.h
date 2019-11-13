@@ -17,8 +17,6 @@
 #ifndef UPDATE_ENGINE_DYNAMIC_PARTITION_CONTROL_ANDROID_H_
 #define UPDATE_ENGINE_DYNAMIC_PARTITION_CONTROL_ANDROID_H_
 
-#include "update_engine/dynamic_partition_control_interface.h"
-
 #include <memory>
 #include <set>
 #include <string>
@@ -26,6 +24,8 @@
 #include <base/files/file_util.h>
 #include <libsnapshot/auto_device.h>
 #include <libsnapshot/snapshot.h>
+
+#include "update_engine/common/dynamic_partition_control_interface.h"
 
 namespace chromeos_update_engine {
 
