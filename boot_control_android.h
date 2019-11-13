@@ -51,9 +51,6 @@ class BootControlAndroid : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
-  bool PreparePartitionsForUpdate(Slot slot,
-                                  const DeltaArchiveManifest& manifest,
-                                  bool update_metadata) override;
   void Cleanup() override;
   DynamicPartitionControlInterface* GetDynamicPartitionControl() override;
 
