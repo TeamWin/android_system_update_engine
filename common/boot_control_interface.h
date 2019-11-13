@@ -85,9 +85,6 @@ class BootControlInterface {
   // of the operation.
   virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
 
-  // Do necessary clean-up operations after the whole update.
-  virtual void Cleanup() = 0;
-
   // Return the dynamic partition control interface.
   virtual DynamicPartitionControlInterface* GetDynamicPartitionControl() = 0;
 
