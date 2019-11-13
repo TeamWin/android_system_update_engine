@@ -329,8 +329,6 @@ int BootControlChromeOS::GetPartitionNumber(
   return -1;
 }
 
-void BootControlChromeOS::Cleanup() {}
-
 DynamicPartitionControlInterface*
 BootControlChromeOS::GetDynamicPartitionControl() {
   return dynamic_partition_control_.get();

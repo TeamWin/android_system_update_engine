@@ -74,10 +74,6 @@ bool BootControlAndroid::Init() {
   return true;
 }
 
-void BootControlAndroid::Cleanup() {
-  dynamic_control_->Cleanup();
-}
-
 unsigned int BootControlAndroid::GetNumSlots() const {
   return module_->getNumberSlots();
 }

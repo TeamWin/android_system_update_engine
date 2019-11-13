@@ -63,10 +63,6 @@ bool BootControlStub::MarkBootSuccessfulAsync(
   return false;
 }
 
-void BootControlStub::Cleanup() {
-  LOG(ERROR) << __FUNCTION__ << " should never be called.";
-}
-
 DynamicPartitionControlInterface*
 BootControlStub::GetDynamicPartitionControl() {
   return dynamic_partition_control_.get();
