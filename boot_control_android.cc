@@ -158,16 +158,6 @@ bool BootControlAndroid::MarkBootSuccessfulAsync(
          brillo::MessageLoop::kTaskIdNull;
 }
 
-bool BootControlAndroid::PreparePartitionsForUpdate(
-    Slot target_slot,
-    const DeltaArchiveManifest& manifest,
-    bool update_metadata) {
-
-  auto source_slot = GetCurrentSlot();
-  return dynamic_control_->PreparePartitionsForUpdate(
-      source_slot, target_slot, manifest, update_metadata);
-}
-
 DynamicPartitionControlInterface*
 BootControlAndroid::GetDynamicPartitionControl() {
   return dynamic_control_.get();

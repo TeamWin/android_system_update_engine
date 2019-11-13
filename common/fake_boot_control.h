@@ -78,12 +78,6 @@ class FakeBootControl : public BootControlInterface {
     return true;
   }
 
-  bool PreparePartitionsForUpdate(Slot slot,
-                                  const DeltaArchiveManifest& manifest,
-                                  bool update_metadata) override {
-    return true;
-  }
-
   void Cleanup() override {}
 
   // Setters
