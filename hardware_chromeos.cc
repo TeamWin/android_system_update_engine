@@ -333,4 +333,6 @@ bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
   return true;
 }
 
+void HardwareChromeOS::SetWarmReset(bool warm_reset) {}
+
 }  // namespace chromeos_update_engine

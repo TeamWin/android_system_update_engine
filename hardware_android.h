@@ -56,6 +56,7 @@ class HardwareAndroid final : public HardwareInterface {
   bool AllowDowngrade() const override;
   bool GetFirstActiveOmahaPingSent() const override;
   bool SetFirstActiveOmahaPingSent() override;
+  void SetWarmReset(bool warm_reset) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HardwareAndroid);
