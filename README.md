@@ -187,7 +187,7 @@ Non-interactive updates are updates that are scheduled periodically by the
 update engine and happen in the background. Interactive updates, on the other
 hand, happen when a user specifically requests an update check (e.g. by clicking
 on “Check For Update” button in Chrome OS’s About page). Depending on the update
-servers policies, interactive updates have higher priority than non-interactive
+server's policies, interactive updates have higher priority than non-interactive
 updates (by carrying marker hints). They may decide to not provide an update if
 they have busy server load, etc. There are other internal differences between
 these two types of updates too. For example, interactive updates try to install
@@ -237,12 +237,12 @@ system reboots. The latest active log is symlinked to
 
 The update payload generation is the process of converting a set of
 partitions/files into a format that is both understandable by the updater client
-(especially if it's much older versions) and is securely verifiable. This
+(especially if it's a much older version) and is securely verifiable. This
 process involves breaking the input partitions into smaller components and
 compressing them in order to help with network bandwidth when downloading the
 payloads.
 
-For each generated payload, there is corresponding properties file which
+For each generated payload, there is a corresponding properties file which
 contains the metadata information of the payload in JSON format. Normally the
 file is located in the same location as the generated payload and its file name
 is the same as the payload file name plus `.json`
@@ -389,11 +389,11 @@ private keys.
 
 ## update_payload Scripts
 
-[update_payload] contains a set of python scripts mostly to validate payload
-generation and application. We normally test the update payloads using an actual
-device (live tests). [`brillo_update_payload`] script can be used to generate
-and test applying of a payload on a host device machine. These tests can be
-viewed as dynamic tests without the need for an actual device. Other
+[update_payload] contains a set of python scripts used mostly to validate
+payload generation and application. We normally test the update payloads using
+an actual device (live tests). [`brillo_update_payload`] script can be used to
+generate and test applying of a payload on a host device machine. These tests
+can be viewed as dynamic tests without the need for an actual device. Other
 `update_payload` scripts (like [`check_update_payload`]) can be used to
 statically check that a payload is in the correct state and its application
 works correctly. These scripts actually apply the payload statically without
@@ -532,7 +532,7 @@ identify different update parameters like the updater server (Omaha) URL, the
 current channel, etc. However, to override any of these parameters, create the
 file `/mnt/stateful_partition/etc/lsb-release` with desired customized
 parameters. For example, this can be used to point to a developer version of the
-update server and allow the update_engine to schedule a periodic update form
+update server and allow the update_engine to schedule a periodic update from
 that specific server.
 
 If you have some changes in the protocol that communicates with Omaha, but you

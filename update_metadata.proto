@@ -73,7 +73,7 @@
 //   new partition.
 // - ZERO: Write zeros to the destination dst_extents.
 // - DISCARD: Discard the destination dst_extents blocks on the physical medium.
-//   the data read from those block is undefined.
+//   the data read from those blocks is undefined.
 // - REPLACE_XZ: Replace the dst_extents with the contents of the attached
 //   xz file after decompression. The xz file should only use crc32 or no crc at
 //   all to be compatible with xz-embedded.
