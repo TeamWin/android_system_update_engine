@@ -61,6 +61,7 @@ class HardwareChromeOS final : public HardwareInterface {
   bool AllowDowngrade() const override { return false; }
   bool GetFirstActiveOmahaPingSent() const override;
   bool SetFirstActiveOmahaPingSent() override;
+  void SetWarmReset(bool warm_reset) override;
 
  private:
   friend class HardwareChromeOSTest;

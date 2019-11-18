@@ -134,6 +134,10 @@ class HardwareInterface {
   // Persist the fact that first active ping was sent to omaha and returns false
   // if failed to persist it.
   virtual bool SetFirstActiveOmahaPingSent() = 0;
+
+  // If |warm_reset| is true, sets the warm reset to indicate a warm reset is
+  // needed on the next reboot. Otherwise, clears the flag.
+  virtual void SetWarmReset(bool warm_reset) = 0;
 };
 
 }  // namespace chromeos_update_engine
