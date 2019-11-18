@@ -342,6 +342,9 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
       if (!boot_control_->GetDynamicPartitionControl()->FinishUpdate() ||
           !boot_control_->SetActiveBootSlot(install_plan_.target_slot)) {
         error_code = ErrorCode::kPostinstallRunnerError;
+      } else {
+        // Schedules warm reset on next reboot, ignores the error.
+        hardware_->SetWarmReset(true);
       }
     } else {
       error_code = ErrorCode::kUpdatedButNotActive;

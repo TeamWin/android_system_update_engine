@@ -351,6 +351,9 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
       if (!boot_control_->MarkBootSuccessfulAsync(Bind([](bool successful) {})))
         ret_value = false;
 
+      // Resets the warm reset property since we won't switch the slot.
+      hardware_->SetWarmReset(false);
+
       if (!ret_value) {
         return LogAndSetError(
             error, FROM_HERE, "Failed to reset the status to ");
