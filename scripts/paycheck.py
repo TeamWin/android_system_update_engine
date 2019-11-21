@@ -203,7 +203,7 @@ def main(argv):
   # Parse and validate arguments.
   args = ParseArguments(argv[1:])
 
-  with open(args.payload) as payload_file:
+  with open(args.payload, 'rb') as payload_file:
     payload = update_payload.Payload(payload_file)
     try:
       # Initialize payload.
@@ -227,7 +227,7 @@ def main(argv):
 
           part_sizes = (args.part_sizes and
                         dict(zip(args.part_names, args.part_sizes)))
-          metadata_sig_file = args.meta_sig and open(args.meta_sig)
+          metadata_sig_file = args.meta_sig and open(args.meta_sig, 'rb')
           payload.Check(
               pubkey_file_name=args.key,
               metadata_sig_file=metadata_sig_file,
@@ -258,7 +258,7 @@ def main(argv):
         file_handles = []
         if args.out_dst_part_paths is not None:
           for name, path in zip(args.part_names, args.out_dst_part_paths):
-            handle = open(path, 'w+')
+            handle = open(path, 'wb+')
             file_handles.append(handle)
             out_dst_parts[name] = handle.name
         else:
