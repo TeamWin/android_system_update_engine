@@ -52,7 +52,9 @@ import tempfile
 from update_payload import common
 from update_payload.error import PayloadError
 
-
+# buffer is not supported in python3, but memoryview has the same functionality
+if sys.version_info.major >= 3:
+  buffer = memoryview  # pylint: disable=invalid-name, redefined-builtin
 #
 # Helper functions.
 #
@@ -107,7 +109,7 @@ def _ReadExtents(file_obj, extents, block_size, max_length=-1):
   Returns:
     A character array containing the concatenated read data.
   """
-  data = array.array('c')
+  data = array.array('B')
   if max_length < 0:
     max_length = sys.maxsize
   for ex in extents:
