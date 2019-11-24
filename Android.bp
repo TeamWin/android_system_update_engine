@@ -183,6 +183,13 @@ cc_library_static {
         "payload_consumer/xz_extent_writer.cc",
         "payload_consumer/fec_file_descriptor.cc",
     ],
+    product_variables: {
+        omnirom: {
+            target_enforce_ab_ota_partition_list: {
+                cflags: ["-DTARGET_ENFORCE_AB_OTA_PARTITION_LIST"],
+            },
+        },
+    },
 }
 
 // libupdate_engine_boot_control (type: static_library)
@@ -506,6 +513,13 @@ cc_library_static {
         "payload_generator/topological_sort.cc",
         "payload_generator/xz_android.cc",
     ],
+    product_variables: {
+        omnirom: {
+            target_enforce_ab_ota_partition_list: {
+                cflags: ["-DTARGET_ENFORCE_AB_OTA_PARTITION_LIST"],
+            },
+        },
+    },
 }
 
 // delta_generator (type: executable)

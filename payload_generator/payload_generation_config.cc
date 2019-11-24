@@ -169,6 +169,10 @@ bool ImageConfig::ValidateDynamicPartitionMetadata() const {
     LOG(ERROR) << "dynamic_partition_metadata is not loaded.";
     return false;
   }
+#ifdef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
+  LOG(INFO) << "Skip ValidateDynamicPartitionMetadata because device has set TARGET_ENFORCE_AB_OTA_PARTITION_LIST";
+  return true;
+#endif
 
   for (const auto& group : dynamic_partition_metadata->groups()) {
     uint64_t sum_size = 0;

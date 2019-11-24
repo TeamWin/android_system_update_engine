@@ -952,6 +952,9 @@ bool DeltaPerformer::InitPartitionMetadata() {
       for (const auto& partition_name : group.partition_names()) {
         auto it = partition_sizes.find(partition_name);
         if (it == partition_sizes.end()) {
+#ifdef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
+          continue;
+#else
           // TODO(tbao): Support auto-filling partition info for framework-only
           // OTA.
           LOG(ERROR) << "dynamic_partition_metadata contains partition "
@@ -959,6 +962,7 @@ bool DeltaPerformer::InitPartitionMetadata() {
                      << " but it is not part of the manifest. "
                      << "This is not supported.";
           return false;
+#endif
         }
         e.partitions.push_back({partition_name, it->second});
       }
@@ -967,7 +971,12 @@ bool DeltaPerformer::InitPartitionMetadata() {
   }
 
   bool metadata_updated = false;
+#ifdef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
+  LOG(INFO) << "Skip metadata update because device has set TARGET_ENFORCE_AB_OTA_PARTITION_LIST";
+  metadata_updated = true;
+#else
   prefs_->GetBoolean(kPrefsDynamicPartitionMetadataUpdated, &metadata_updated);
+#endif
   if (!boot_control_->InitPartitionMetadata(
           install_plan_->target_slot, partition_metadata, !metadata_updated)) {
     LOG(ERROR) << "Unable to initialize partition metadata for slot "
