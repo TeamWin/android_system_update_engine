@@ -52,9 +52,6 @@ import tempfile
 from update_payload import common
 from update_payload.error import PayloadError
 
-# buffer is not supported in python3, but memoryview has the same functionality
-if sys.version_info.major >= 3:
-  buffer = memoryview  # pylint: disable=invalid-name, redefined-builtin
 #
 # Helper functions.
 #
@@ -146,10 +143,8 @@ def _WriteExtents(file_obj, data, extents, block_size, base_name):
     if not data_length:
       raise PayloadError('%s: more write extents than data' % ex_name)
     write_length = min(data_length, ex.num_blocks * block_size)
-
     file_obj.seek(ex.start_block * block_size)
-    data_view = buffer(data, data_offset, write_length)
-    file_obj.write(data_view)
+    file_obj.write(data[data_offset:(data_offset + write_length)])
 
     data_offset += write_length
     data_length -= write_length
@@ -283,7 +278,7 @@ class PayloadApplier(object):
       # Pad with zeros if necessary.
       if data_end > data_length:
         padding = data_end - data_length
-        out_data += '\0' * padding
+        out_data += b'\0' * padding
 
       self.payload.payload_file.seek(start_block * block_size)
       part_file.seek(start_block * block_size)
@@ -314,7 +309,7 @@ class PayloadApplier(object):
     # pylint: disable=unused-variable
     for ex, ex_name in common.ExtentIter(op.dst_extents, base_name):
       part_file.seek(ex.start_block * block_size)
-      part_file.write('\0' * (ex.num_blocks * block_size))
+      part_file.write(b'\0' * (ex.num_blocks * block_size))
 
   def _ApplySourceCopyOperation(self, op, op_name, old_part_file,
                                 new_part_file):
@@ -424,7 +419,7 @@ class PayloadApplier(object):
       # Pad with zeros past the total output length.
       if pad_len:
         new_part_file.seek(pad_off)
-        new_part_file.write('\0' * pad_len)
+        new_part_file.write(b'\0' * pad_len)
     else:
       # Gather input raw data and write to a temp file.
       input_part_file = old_part_file if old_part_file else new_part_file
@@ -467,7 +462,7 @@ class PayloadApplier(object):
       # Write output back to partition, with padding.
       unaligned_out_len = len(out_data) % block_size
       if unaligned_out_len:
-        out_data += '\0' * (block_size - unaligned_out_len)
+        out_data += b'\0' * (block_size - unaligned_out_len)
       _WriteExtents(new_part_file, out_data, op.dst_extents, block_size,
                     '%s.dst_extents' % op_name)
 
