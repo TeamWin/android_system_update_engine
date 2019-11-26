@@ -398,11 +398,19 @@ class PayloadApplier(object):
       # Diff from source partition.
       old_file_name = '/dev/fd/%d' % old_part_file.fileno()
 
+      # In python3, file descriptors(fd) are not passed to child processes by
+      # default. To pass the fds to the child processes, we need to set the flag
+      # 'inheritable' in the fds and make the subprocess calls with the argument
+      # close_fds set to False.
+      if sys.version_info.major >= 3:
+        os.set_inheritable(new_part_file.fileno(), True)
+        os.set_inheritable(old_part_file.fileno(), True)
+
       if op.type in (common.OpType.SOURCE_BSDIFF, common.OpType.BROTLI_BSDIFF):
         # Invoke bspatch on partition file with extents args.
         bspatch_cmd = [self.bspatch_path, old_file_name, new_file_name,
                        patch_file_name, in_extents_arg, out_extents_arg]
-        subprocess.check_call(bspatch_cmd)
+        subprocess.check_call(bspatch_cmd, close_fds=False)
       elif op.type == common.OpType.PUFFDIFF:
         # Invoke puffpatch on partition file with extents args.
         puffpatch_cmd = [self.puffpatch_path,
@@ -412,7 +420,7 @@ class PayloadApplier(object):
                          "--patch_file=%s" % patch_file_name,
                          "--src_extents=%s" % in_extents_arg,
                          "--dst_extents=%s" % out_extents_arg]
-        subprocess.check_call(puffpatch_cmd)
+        subprocess.check_call(puffpatch_cmd, close_fds=False)
       else:
         raise PayloadError("Unknown operation %s" % op.type)
 
