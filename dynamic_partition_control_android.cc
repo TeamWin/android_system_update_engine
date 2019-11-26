@@ -104,6 +104,11 @@ FeatureFlag DynamicPartitionControlAndroid::GetVirtualAbFeatureFlag() {
   return virtual_ab_;
 }
 
+bool DynamicPartitionControlAndroid::ShouldSkipOperation(
+    const InstallOperation& operation) {
+  return false;
+}
+
 bool DynamicPartitionControlAndroid::MapPartitionInternal(
     const std::string& super_device,
     const std::string& target_partition_name,
