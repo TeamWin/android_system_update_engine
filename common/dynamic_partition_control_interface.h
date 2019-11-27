@@ -50,6 +50,9 @@ class DynamicPartitionControlInterface {
   // Return the feature flags of Virtual A/B on this device.
   virtual FeatureFlag GetVirtualAbFeatureFlag() = 0;
 
+  // Checks if the provided InstallOperation can be skipped on this device.
+  virtual bool ShouldSkipOperation(const InstallOperation& operation) = 0;
+
   // Do necessary cleanups before destroying the object.
   virtual void Cleanup() = 0;
 
