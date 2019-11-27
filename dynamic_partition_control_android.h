@@ -35,6 +35,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   ~DynamicPartitionControlAndroid();
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
+  bool ShouldSkipOperation(const InstallOperation& operation) override;
   void Cleanup() override;
 
   bool PreparePartitionsForUpdate(uint32_t source_slot,

@@ -32,6 +32,11 @@ FeatureFlag DynamicPartitionControlStub::GetVirtualAbFeatureFlag() {
   return FeatureFlag(FeatureFlag::Value::NONE);
 }
 
+bool DynamicPartitionControlStub::ShouldSkipOperation(
+    const InstallOperation& operation) {
+  return false;
+}
+
 void DynamicPartitionControlStub::Cleanup() {}
 
 bool DynamicPartitionControlStub::PreparePartitionsForUpdate(
