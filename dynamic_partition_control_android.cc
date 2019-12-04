@@ -50,6 +50,7 @@ using android::fs_mgr::MetadataBuilder;
 using android::fs_mgr::Partition;
 using android::fs_mgr::PartitionOpener;
 using android::fs_mgr::SlotSuffixForSlotNumber;
+using android::snapshot::SourceCopyOperationIsClone;
 
 namespace chromeos_update_engine {
 
@@ -106,6 +107,15 @@ FeatureFlag DynamicPartitionControlAndroid::GetVirtualAbFeatureFlag() {
 
 bool DynamicPartitionControlAndroid::ShouldSkipOperation(
     const InstallOperation& operation) {
+  switch (operation.type()) {
+    case InstallOperation::SOURCE_COPY:
+      return target_supports_snapshot_ &&
+             GetVirtualAbFeatureFlag().IsEnabled() &&
+             SourceCopyOperationIsClone(operation);
+      break;
+    default:
+      break;
+  }
   return false;
 }
 
