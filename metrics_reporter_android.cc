@@ -176,13 +176,13 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
 
   android::util::stats_write(
       android::util::UPDATE_ENGINE_SUCCESSFUL_UPDATE_REPORTED,
-      attempt_count,
+      static_cast<int32_t>(attempt_count),
       GetStatsdEnumValue(static_cast<int32_t>(payload_type)),
-      payload_size_mib,
-      total_bytes_downloaded,
-      download_overhead_percentage,
-      total_duration.InMinutes(),
-      reboot_count);
+      static_cast<int32_t>(payload_size_mib),
+      static_cast<int32_t>(total_bytes_downloaded),
+      static_cast<int32_t>(download_overhead_percentage),
+      static_cast<int32_t>(total_duration.InMinutes()),
+      static_cast<int32_t>(reboot_count));
 }
 
 void MetricsReporterAndroid::ReportAbnormallyTerminatedUpdateAttemptMetrics() {
