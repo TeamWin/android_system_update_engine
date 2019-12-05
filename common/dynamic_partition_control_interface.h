@@ -50,8 +50,12 @@ class DynamicPartitionControlInterface {
   // Return the feature flags of Virtual A/B on this device.
   virtual FeatureFlag GetVirtualAbFeatureFlag() = 0;
 
-  // Checks if the provided InstallOperation can be skipped on this device.
-  virtual bool ShouldSkipOperation(const InstallOperation& operation) = 0;
+  // Checks if |operation| can be skipped on the given partition.
+  // |partition_name| should not have the slot suffix; implementation of
+  // DynamicPartitionControlInterface checks partition at the target slot
+  // previously set with PreparePartitionsForUpdate().
+  virtual bool ShouldSkipOperation(const std::string& partition_name,
+                                   const InstallOperation& operation) = 0;
 
   // Do necessary cleanups before destroying the object.
   virtual void Cleanup() = 0;

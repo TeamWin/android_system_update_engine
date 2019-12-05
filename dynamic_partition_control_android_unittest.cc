@@ -620,18 +620,22 @@ TEST_F(DynamicPartitionControlAndroidTest, ApplyingToCurrentSlot) {
       << "Should not be able to apply to current slot.";
 }
 
-TEST_F(DynamicPartitionControlAndroidTest, ShouldSkipOperationTest) {
+TEST_P(DynamicPartitionControlAndroidTestP, ShouldSkipOperationTest) {
+  ASSERT_TRUE(dynamicControl().PreparePartitionsForUpdate(
+      source(), target(), PartitionSizesToManifest({{"foo", 4_MiB}}), false));
+  dynamicControl().set_fake_mapped_devices({T("foo")});
+
   InstallOperation iop;
   Extent *se, *de;
 
   // Not a SOURCE_COPY operation, cannot skip.
   iop.set_type(InstallOperation::REPLACE);
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   iop.set_type(InstallOperation::SOURCE_COPY);
 
   // By default GetVirtualAbFeatureFlag is disabled. Cannot skip operation.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   // Enable GetVirtualAbFeatureFlag in the mock interface.
   ON_CALL(dynamicControl(), GetVirtualAbFeatureFlag())
@@ -639,19 +643,19 @@ TEST_F(DynamicPartitionControlAndroidTest, ShouldSkipOperationTest) {
 
   // By default target_supports_snapshot_ is set to false. Cannot skip
   // operation.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   SetSnapshotEnabled(true);
 
   // Empty source and destination. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   se = iop.add_src_extents();
   se->set_start_block(0);
   se->set_num_blocks(1);
 
   // There is something in sources, but destinations are empty. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   InstallOperation iop2;
 
@@ -660,42 +664,45 @@ TEST_F(DynamicPartitionControlAndroidTest, ShouldSkipOperationTest) {
   de->set_num_blocks(1);
 
   // There is something in destinations, but sources are empty. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation(iop2));
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop2));
 
   de = iop.add_dst_extents();
   de->set_start_block(0);
   de->set_num_blocks(1);
 
   // Sources and destinations are identical. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   se = iop.add_src_extents();
   se->set_start_block(1);
   se->set_num_blocks(5);
 
   // There is something in source, but not in destination. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   de = iop.add_dst_extents();
   de->set_start_block(1);
   de->set_num_blocks(5);
 
   // There is source and destination are equal. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   de = iop.add_dst_extents();
   de->set_start_block(6);
   de->set_num_blocks(5);
 
   // There is something extra in dest. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
 
   se = iop.add_src_extents();
   se->set_start_block(6);
   se->set_num_blocks(5);
 
   // Source and dest are identical again. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation(iop));
+  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
+
+  // Don't skip for static partitions.
+  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("bar", iop));
 }
 
 }  // namespace chromeos_update_engine

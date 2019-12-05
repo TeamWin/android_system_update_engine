@@ -17,6 +17,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <set>
 #include <string>
 
 #include <gmock/gmock.h>
@@ -69,6 +70,10 @@ class MockDynamicPartitionControlAndroid
   MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
   MOCK_METHOD0(FinishUpdate, bool());
+
+  void set_fake_mapped_devices(const std::set<std::string>& fake) override {
+    DynamicPartitionControlAndroid::set_fake_mapped_devices(fake);
+  }
 };
 
 }  // namespace chromeos_update_engine
