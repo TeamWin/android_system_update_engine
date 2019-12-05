@@ -35,7 +35,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   ~DynamicPartitionControlAndroid();
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
-  bool ShouldSkipOperation(const InstallOperation& operation) override;
+  bool ShouldSkipOperation(const std::string& partition_name,
+                           const InstallOperation& operation) override;
   void Cleanup() override;
 
   bool PreparePartitionsForUpdate(uint32_t source_slot,
@@ -122,6 +123,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // metadata) for a given slot.
   virtual std::string GetSuperPartitionName(uint32_t slot);
 
+  virtual void set_fake_mapped_devices(const std::set<std::string>& fake);
+
  private:
   friend class DynamicPartitionControlAndroidTest;
 
@@ -182,6 +185,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // Whether the target partitions should be loaded as dynamic partitions. Set
   // by PreparePartitionsForUpdate() per each update.
   bool is_target_dynamic_ = false;
+  uint32_t source_slot_ = UINT32_MAX;
+  uint32_t target_slot_ = UINT32_MAX;
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };

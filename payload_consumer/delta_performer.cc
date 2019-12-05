@@ -1157,8 +1157,10 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   // The device may optimize the SOURCE_COPY operation.
   // Being this a device-specific optimization let DynamicPartitionController
   // decide it the operation should be skipped.
+  const PartitionUpdate& partition = partitions_[current_partition_];
   const auto& partition_control = boot_control_->GetDynamicPartitionControl();
-  bool should_skip = partition_control->ShouldSkipOperation(operation);
+  bool should_skip = partition_control->ShouldSkipOperation(
+      partition.partition_name(), operation);
 
   if (operation.has_src_sha256_hash()) {
     bool read_ok;
