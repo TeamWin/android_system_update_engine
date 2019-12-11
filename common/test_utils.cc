@@ -37,6 +37,10 @@
 #include <base/files/file_util.h>
 #include <base/logging.h>
 
+#ifdef __ANDROID__
+#include <libdm/loop_control.h>
+#endif
+
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/file_writer.h"
@@ -44,16 +48,7 @@
 using std::set;
 using std::string;
 using std::vector;
-
-namespace {
-
-#ifdef __ANDROID__
-#define kLoopDevicePrefix "/dev/block/loop"
-#else
-#define kLoopDevicePrefix "/dev/loop"
-#endif  // __ANDROID__
-
-}  // namespace
+using namespace std::chrono_literals;
 
 namespace chromeos_update_engine {
 
@@ -112,17 +107,43 @@ bool WriteFileString(const string& path, const string& data) {
   return utils::WriteFile(path.c_str(), data.data(), data.size());
 }
 
-bool BindToUnusedLoopDevice(const string& filename,
-                            bool writable,
-                            string* out_lo_dev_name) {
-  CHECK(out_lo_dev_name);
+bool SetLoopDeviceStatus(int loop_device_fd,
+                         const std::string& filename,
+                         int loop_number,
+                         bool writable) {
+  struct loop_info64 device_info {};
+  device_info.lo_offset = 0;
+  device_info.lo_sizelimit = 0;  // 0 means whole file.
+  device_info.lo_flags = (writable ? 0 : LO_FLAGS_READ_ONLY);
+  device_info.lo_number = loop_number;
+  strncpy(reinterpret_cast<char*>(device_info.lo_file_name),
+          base::FilePath(filename).BaseName().value().c_str(),
+          LO_NAME_SIZE - 1);
+  device_info.lo_file_name[LO_NAME_SIZE - 1] = '\0';
+  TEST_AND_RETURN_FALSE_ERRNO(
+      ioctl(loop_device_fd, LOOP_SET_STATUS64, &device_info) == 0);
+  if (writable) {
+    // Make sure loop device isn't read only.
+    int ro = 0;
+    if (ioctl(loop_device_fd, BLKROSET, &ro) != 0) {
+      PLOG(WARNING) << "Failed to mark loop device writable.";
+    }
+  }
+
+  return true;
+}
+
+bool BindToUnusedLoopDeviceLegacy(int data_fd,
+                                  const string& filename,
+                                  bool writable,
+                                  string* out_lo_dev_name) {
   // Get the next available loop-device.
   int control_fd =
       HANDLE_EINTR(open("/dev/loop-control", O_RDWR | O_LARGEFILE));
   TEST_AND_RETURN_FALSE_ERRNO(control_fd >= 0);
   int loop_number = ioctl(control_fd, LOOP_CTL_GET_FREE);
   IGNORE_EINTR(close(control_fd));
-  *out_lo_dev_name = kLoopDevicePrefix + std::to_string(loop_number);
+  *out_lo_dev_name = "/dev/loop" + std::to_string(loop_number);
 
   // Double check that the loop exists and is free.
   int loop_device_fd =
@@ -146,32 +167,35 @@ bool BindToUnusedLoopDevice(const string& filename,
     return false;
   }
 
-  // Open our data file and assign it to the loop device.
+  // Assign the data fd to the loop device.
+  TEST_AND_RETURN_FALSE_ERRNO(ioctl(loop_device_fd, LOOP_SET_FD, data_fd) == 0);
+  return SetLoopDeviceStatus(loop_device_fd, filename, loop_number, writable);
+}
+
+bool BindToUnusedLoopDevice(const string& filename,
+                            bool writable,
+                            string* out_lo_dev_name) {
+  CHECK(out_lo_dev_name);
   int data_fd = open(filename.c_str(),
                      (writable ? O_RDWR : O_RDONLY) | O_LARGEFILE | O_CLOEXEC);
   TEST_AND_RETURN_FALSE_ERRNO(data_fd >= 0);
   ScopedFdCloser data_fd_closer(&data_fd);
-  TEST_AND_RETURN_FALSE_ERRNO(ioctl(loop_device_fd, LOOP_SET_FD, data_fd) == 0);
 
-  memset(&device_info, 0, sizeof(device_info));
-  device_info.lo_offset = 0;
-  device_info.lo_sizelimit = 0;  // 0 means whole file.
-  device_info.lo_flags = (writable ? 0 : LO_FLAGS_READ_ONLY);
-  device_info.lo_number = loop_number;
-  strncpy(reinterpret_cast<char*>(device_info.lo_file_name),
-          base::FilePath(filename).BaseName().value().c_str(),
-          LO_NAME_SIZE - 1);
-  device_info.lo_file_name[LO_NAME_SIZE - 1] = '\0';
-  TEST_AND_RETURN_FALSE_ERRNO(
-      ioctl(loop_device_fd, LOOP_SET_STATUS64, &device_info) == 0);
-  if (writable) {
-    // Make sure loop device isn't read only.
-    int ro = 0;
-    if (ioctl(loop_device_fd, BLKROSET, &ro) != 0) {
-      PLOG(WARNING) << "Failed to mark loop device writable.";
-    }
-  }
-  return true;
+#ifdef __ANDROID__
+  // Use libdm to bind a free loop device. The library internally handles the
+  // race condition.
+  android::dm::LoopControl loop_control;
+  TEST_AND_RETURN_FALSE(loop_control.Attach(data_fd, 5s, out_lo_dev_name));
+  int loop_device_fd = open(out_lo_dev_name->c_str(), O_RDWR | O_CLOEXEC);
+  ScopedFdCloser loop_fd_closer(&loop_device_fd);
+  int loop_number;
+  TEST_AND_RETURN_FALSE(
+      sscanf(out_lo_dev_name->c_str(), "/dev/block/loop%d", &loop_number) == 1);
+  return SetLoopDeviceStatus(loop_device_fd, filename, loop_number, writable);
+#else
+  return BindToUnusedLoopDeviceLegacy(
+      data_fd, filename, writable, out_lo_dev_name);
+#endif
 }
 
 bool UnbindLoopDevice(const string& lo_dev_name) {
