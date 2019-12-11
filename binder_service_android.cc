@@ -70,6 +70,20 @@ void BinderUpdateEngineAndroidService::SendPayloadApplicationComplete(
 
 Status BinderUpdateEngineAndroidService::bind(
     const android::sp<IUpdateEngineCallback>& callback, bool* return_value) {
+  // Send an status update on connection (except when no update sent so far).
+  // Even though the status update is oneway, it still returns an erroneous
+  // status in case of a selinux denial. We should at least check this status
+  // and fails the binding.
+  if (last_status_ != -1) {
+    auto status = callback->onStatusUpdate(last_status_, last_progress_);
+    if (!status.isOk()) {
+      LOG(ERROR) << "Failed to call onStatusUpdate() from callback: "
+                 << status.toString8();
+      *return_value = false;
+      return Status::ok();
+    }
+  }
+
   callbacks_.emplace_back(callback);
 
   const android::sp<IBinder>& callback_binder =
@@ -81,12 +95,6 @@ Status BinderUpdateEngineAndroidService::bind(
           base::IgnoreResult(&BinderUpdateEngineAndroidService::UnbindCallback),
           base::Unretained(this),
           base::Unretained(callback_binder.get())));
-
-  // Send an status update on connection (except when no update sent so far),
-  // since the status update is oneway and we don't need to wait for the
-  // response.
-  if (last_status_ != -1)
-    callback->onStatusUpdate(last_status_, last_progress_);
 
   *return_value = true;
   return Status::ok();
