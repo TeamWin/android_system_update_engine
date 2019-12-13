@@ -156,7 +156,13 @@ bool UpdateEngineClient::ShowStatus() {
     if (--retry_count == 0) {
       return false;
     }
-    LOG(WARNING) << "Will try " << retry_count << " more times!";
+    LOG(WARNING)
+        << "Failed to get the update_engine status. This can happen when the"
+           " update_engine is busy doing a heavy operation or if the"
+           " update-engine service is down. If it doesn't resolve, a restart of"
+           " the update-engine service is needed."
+           " Will try "
+        << retry_count << " more times!";
     base::PlatformThread::Sleep(
         base::TimeDelta::FromSeconds(kShowStatusRetryIntervalInSeconds));
   }
