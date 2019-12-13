@@ -43,6 +43,9 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
       return metrics::AttemptResult::kUpdateSucceededNotActive;
 
     case ErrorCode::kDownloadTransferError:
+    case ErrorCode::kInternalLibCurlError:
+    case ErrorCode::kUnresolvedHostError:
+    case ErrorCode::kUnresolvedHostRecovered:
       return metrics::AttemptResult::kPayloadDownloadError;
 
     case ErrorCode::kDownloadInvalidMetadataSize:
@@ -167,6 +170,13 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     // for how we plan to add more detail in the future.
     case ErrorCode::kDownloadTransferError:
       return metrics::DownloadErrorCode::kDownloadError;
+
+    case ErrorCode::kInternalLibCurlError:
+      return metrics::DownloadErrorCode::kInternalLibCurlError;
+    case ErrorCode::kUnresolvedHostError:
+      return metrics::DownloadErrorCode::kUnresolvedHostError;
+    case ErrorCode::kUnresolvedHostRecovered:
+      return metrics::DownloadErrorCode::kUnresolvedHostRecovered;
 
     // All of these error codes are not related to downloading so break
     // out so we can warn and return InputMalformed.
