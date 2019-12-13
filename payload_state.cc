@@ -368,6 +368,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kInternalLibCurlError:
     case ErrorCode::kUnresolvedHostError:
     case ErrorCode::kUnresolvedHostRecovered:
+    case ErrorCode::kNotEnoughSpace:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 
