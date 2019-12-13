@@ -80,6 +80,9 @@ enum class ErrorCode : int {
   kRollbackNotPossible = 54,
   kFirstActiveOmahaPingSentPersistenceError = 55,
   kVerityCalculationError = 56,
+  kInternalLibCurlError = 57,
+  kUnresolvedHostError = 58,
+  kUnresolvedHostRecovered = 59,
 
   // VERY IMPORTANT! When adding new error codes:
   //

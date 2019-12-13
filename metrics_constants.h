@@ -60,6 +60,15 @@ enum class DownloadErrorCode {
   // above block and before the kInputMalformed field. This
   // is to ensure that error codes are not reordered.
 
+  // This error is reported when libcurl returns CURLE_COULDNT_RESOLVE_HOST and
+  // calling res_init() can recover.
+  kUnresolvedHostRecovered = 97,
+  // This error is reported when libcurl returns CURLE_COULDNT_RESOLVE_HOST.
+  kUnresolvedHostError = 98,
+  // This error is reported when libcurl has an internal error that
+  // update_engine can't recover from.
+  kInternalLibCurlError = 99,
+
   // This error code is used to convey that malformed input was given
   // to the utils::GetDownloadErrorCode() function. This should never
   // happen but if it does it's because of an internal update_engine
