@@ -58,4 +58,12 @@ interface IUpdateEngine {
    */
   long allocateSpaceForPayload(in String metadataFilename,
                                in String[] headerKeyValuePairs);
+  /** @hide
+   *
+   * Wait for merge to finish, and clean up necessary files.
+   *
+   * @return SUCCESS if successful. ERROR if transient errors (e.g. merged but
+   * needs reboot). DEVICE_CORRUPTED for permanent errors.
+   */
+  int cleanupSuccessfulUpdate();
 }
