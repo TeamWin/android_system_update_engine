@@ -162,6 +162,16 @@ class UpdateAttempterAndroid
   //   |kPrefsUpdateBootTimestampStart|
   void ClearMetricsPrefs();
 
+  // Return source and target slots for update.
+  BootControlInterface::Slot GetCurrentSlot() const;
+  BootControlInterface::Slot GetTargetSlot() const;
+
+  // Helper of public VerifyPayloadApplicable. Return the parsed manifest in
+  // |manifest|.
+  static bool VerifyPayloadParseManifest(const std::string& metadata_filename,
+                                         DeltaArchiveManifest* manifest,
+                                         brillo::ErrorPtr* error);
+
   DaemonStateInterface* daemon_state_;
 
   // DaemonStateAndroid pointers.
