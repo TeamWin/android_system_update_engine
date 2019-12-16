@@ -98,6 +98,34 @@ bool GetHeaderAsBool(const string& header, bool default_value) {
   return default_value;
 }
 
+bool ParseKeyValuePairHeaders(const vector<string>& key_value_pair_headers,
+                              std::map<string, string>* headers,
+                              brillo::ErrorPtr* error) {
+  for (const string& key_value_pair : key_value_pair_headers) {
+    string key;
+    string value;
+    if (!brillo::string_utils::SplitAtFirst(
+            key_value_pair, "=", &key, &value, false)) {
+      return LogAndSetError(
+          error, FROM_HERE, "Passed invalid header: " + key_value_pair);
+    }
+    if (!headers->emplace(key, value).second)
+      return LogAndSetError(error, FROM_HERE, "Passed repeated key: " + key);
+  }
+  return true;
+}
+
+// Unique identifier for the payload. An empty string means that the payload
+// can't be resumed.
+string GetPayloadId(const std::map<string, string>& headers) {
+  return (headers.count(kPayloadPropertyFileHash)
+              ? headers.at(kPayloadPropertyFileHash)
+              : "") +
+         (headers.count(kPayloadPropertyMetadataHash)
+              ? headers.at(kPayloadPropertyMetadataHash)
+              : "");
+}
+
 }  // namespace
 
 UpdateAttempterAndroid::UpdateAttempterAndroid(
@@ -149,22 +177,11 @@ bool UpdateAttempterAndroid::ApplyPayload(
   DCHECK(status_ == UpdateStatus::IDLE);
 
   std::map<string, string> headers;
-  for (const string& key_value_pair : key_value_pair_headers) {
-    string key;
-    string value;
-    if (!brillo::string_utils::SplitAtFirst(
-            key_value_pair, "=", &key, &value, false)) {
-      return LogAndSetError(
-          error, FROM_HERE, "Passed invalid header: " + key_value_pair);
-    }
-    if (!headers.emplace(key, value).second)
-      return LogAndSetError(error, FROM_HERE, "Passed repeated key: " + key);
+  if (!ParseKeyValuePairHeaders(key_value_pair_headers, &headers, error)) {
+    return false;
   }
 
-  // Unique identifier for the payload. An empty string means that the payload
-  // can't be resumed.
-  string payload_id = (headers[kPayloadPropertyFileHash] +
-                       headers[kPayloadPropertyMetadataHash]);
+  string payload_id = GetPayloadId(headers);
 
   // Setup the InstallPlan based on the request.
   install_plan_ = InstallPlan();
@@ -207,8 +224,8 @@ bool UpdateAttempterAndroid::ApplyPayload(
       LOG(WARNING) << "Unable to save the update check response hash.";
     }
   }
-  install_plan_.source_slot = boot_control_->GetCurrentSlot();
-  install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
+  install_plan_.source_slot = GetCurrentSlot();
+  install_plan_.target_slot = GetTargetSlot();
 
   install_plan_.powerwash_required =
       GetHeaderAsBool(headers[kPayloadPropertyPowerwash], false);
@@ -342,7 +359,7 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
       ClearMetricsPrefs();
 
       // Update the boot flags so the current slot has higher priority.
-      if (!boot_control_->SetActiveBootSlot(boot_control_->GetCurrentSlot()))
+      if (!boot_control_->SetActiveBootSlot(GetCurrentSlot()))
         ret_value = false;
 
       // Mark the current slot as successful again, since marking it as active
@@ -372,8 +389,10 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
   }
 }
 
-bool UpdateAttempterAndroid::VerifyPayloadApplicable(
-    const std::string& metadata_filename, brillo::ErrorPtr* error) {
+bool UpdateAttempterAndroid::VerifyPayloadParseManifest(
+    const std::string& metadata_filename,
+    DeltaArchiveManifest* manifest,
+    brillo::ErrorPtr* error) {
   FileDescriptorPtr fd(new EintrSafeFileDescriptor);
   if (!fd->Open(metadata_filename.c_str(), O_RDONLY)) {
     return LogAndSetError(
@@ -431,12 +450,23 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
                           "Failed to validate metadata signature: " +
                               utils::ErrorCodeToString(errorcode));
   }
-  DeltaArchiveManifest manifest;
-  if (!payload_metadata.GetManifest(metadata, &manifest)) {
+  if (!payload_metadata.GetManifest(metadata, manifest)) {
     return LogAndSetError(error, FROM_HERE, "Failed to parse manifest.");
   }
 
-  BootControlInterface::Slot current_slot = boot_control_->GetCurrentSlot();
+  return true;
+}
+
+bool UpdateAttempterAndroid::VerifyPayloadApplicable(
+    const std::string& metadata_filename, brillo::ErrorPtr* error) {
+  DeltaArchiveManifest manifest;
+  TEST_AND_RETURN_FALSE(
+      VerifyPayloadParseManifest(metadata_filename, &manifest, error));
+
+  FileDescriptorPtr fd(new EintrSafeFileDescriptor);
+  ErrorCode errorcode;
+
+  BootControlInterface::Slot current_slot = GetCurrentSlot();
   for (const PartitionUpdate& partition : manifest.partitions()) {
     if (!partition.has_old_partition_info())
       continue;
@@ -861,6 +891,14 @@ void UpdateAttempterAndroid::ClearMetricsPrefs() {
   prefs_->Delete(kPrefsSystemUpdatedMarker);
   prefs_->Delete(kPrefsUpdateTimestampStart);
   prefs_->Delete(kPrefsUpdateBootTimestampStart);
+}
+
+BootControlInterface::Slot UpdateAttempterAndroid::GetCurrentSlot() const {
+  return boot_control_->GetCurrentSlot();
+}
+
+BootControlInterface::Slot UpdateAttempterAndroid::GetTargetSlot() const {
+  return GetCurrentSlot() == 0 ? 1 : 0;
 }
 
 }  // namespace chromeos_update_engine
