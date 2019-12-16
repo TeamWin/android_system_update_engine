@@ -83,6 +83,7 @@ enum class ErrorCode : int {
   kInternalLibCurlError = 57,
   kUnresolvedHostError = 58,
   kUnresolvedHostRecovered = 59,
+  kNotEnoughSpace = 60,
 
   // VERY IMPORTANT! When adding new error codes:
   //
