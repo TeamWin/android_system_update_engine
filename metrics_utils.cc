@@ -73,6 +73,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kVerityCalculationError:
     case ErrorCode::kNotEnoughSpace:
+    case ErrorCode::kDeviceCorrupted:
       return metrics::AttemptResult::kOperationExecutionError;
 
     case ErrorCode::kDownloadMetadataSignatureMismatch:
@@ -238,6 +239,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
     case ErrorCode::kVerityCalculationError:
     case ErrorCode::kNotEnoughSpace:
+    case ErrorCode::kDeviceCorrupted:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
