@@ -92,6 +92,7 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
   metadata_size_ = manifest_offset + manifest_size_;
   if (metadata_size_ < manifest_size_) {
     // Overflow detected.
+    LOG(ERROR) << "Overflow detected on manifest size.";
     *error = ErrorCode::kDownloadInvalidMetadataSize;
     return MetadataParseResult::kError;
   }
@@ -108,6 +109,7 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
 
   if (metadata_size_ + metadata_signature_size_ < metadata_size_) {
     // Overflow detected.
+    LOG(ERROR) << "Overflow detected on metadata and signature size.";
     *error = ErrorCode::kDownloadInvalidMetadataSize;
     return MetadataParseResult::kError;
   }

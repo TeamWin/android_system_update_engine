@@ -458,6 +458,21 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
         return MetadataParseResult::kError;
       }
     }
+
+    // Check that the |metadata signature size_| and |metadata_size_| are not
+    // very big numbers. This is necessary since |update_engine| needs to write
+    // these values into the buffer before being able to use them, and if an
+    // attacker sets these values to a very big number, the buffer will overflow
+    // and |update_engine| will crash. A simple way of solving this is to check
+    // that the size of both values is smaller than the payload itself.
+    if (metadata_size_ + metadata_signature_size_ > payload_->size) {
+      LOG(ERROR) << "The size of the metadata_size(" << metadata_size_ << ")"
+                 << " or metadata signature(" << metadata_signature_size_ << ")"
+                 << " is greater than the size of the payload"
+                 << "(" << payload_->size << ")";
+      *error = ErrorCode::kDownloadInvalidMetadataSize;
+      return MetadataParseResult::kError;
+    }
   }
 
   // Now that we have validated the metadata size, we should wait for the full

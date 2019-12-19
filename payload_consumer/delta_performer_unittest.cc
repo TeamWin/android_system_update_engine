@@ -43,6 +43,7 @@
 #include "update_engine/payload_consumer/fake_file_descriptor.h"
 #include "update_engine/payload_consumer/mock_download_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/payload_file.h"
@@ -272,6 +273,7 @@ class DeltaPerformerTest : public ::testing::Test {
     test_utils::ScopedTempFile new_part("Partition-XXXXXX");
     EXPECT_TRUE(test_utils::WriteFileVector(new_part.path(), target_data));
 
+    payload_.size = payload_data.size();
     // We installed the operations only in the rootfs partition, but the
     // delta performer needs to access all the partitions.
     fake_boot_control_.SetPartitionDevice(
@@ -308,6 +310,7 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_TRUE(performer_.Write(&version, 8));
 
     payload_.metadata_size = expected_metadata_size;
+    payload_.size = actual_metadata_size + 1;
     ErrorCode error_code;
     // When filling in size in manifest, exclude the size of the 24-byte header.
     uint64_t size_in_manifest = htobe64(actual_metadata_size - 24);
@@ -325,7 +328,7 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_LT(performer_.Close(), 0);
   }
 
-  // Generates a valid delta file but tests the delta performer by suppling
+  // Generates a valid delta file but tests the delta performer by supplying
   // different metadata signatures as per metadata_signature_test flag and
   // sees if the result of the parsing are as per hash_checks_mandatory flag.
   void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
@@ -338,6 +341,7 @@ class DeltaPerformerTest : public ::testing::Test {
                                            kBrilloMajorPayloadVersion,
                                            kFullPayloadMinorVersion);
 
+    payload_.size = payload.size();
     LOG(INFO) << "Payload size: " << payload.size();
 
     install_plan_.hash_checks_mandatory = hash_checks_mandatory;
@@ -866,15 +870,27 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
 
   uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
-  EXPECT_TRUE(performer_.Write(&major_version, 8));
+  EXPECT_TRUE(
+      performer_.Write(&major_version, PayloadMetadata::kDeltaVersionSize));
 
   uint64_t manifest_size = rand_r(&seed) % 256;
-  uint64_t manifest_size_be = htobe64(manifest_size);
-  EXPECT_TRUE(performer_.Write(&manifest_size_be, 8));
-
   uint32_t metadata_signature_size = rand_r(&seed) % 256;
+
+  // The payload size has to be bigger than the |metadata_size| and
+  // |metadata_signature_size|
+  payload_.size = PayloadMetadata::kDeltaManifestSizeOffset +
+                  PayloadMetadata::kDeltaManifestSizeSize +
+                  PayloadMetadata::kDeltaMetadataSignatureSizeSize +
+                  manifest_size + metadata_signature_size + 1;
+
+  uint64_t manifest_size_be = htobe64(manifest_size);
+  EXPECT_TRUE(performer_.Write(&manifest_size_be,
+                               PayloadMetadata::kDeltaManifestSizeSize));
+
   uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
-  EXPECT_TRUE(performer_.Write(&metadata_signature_size_be, 4));
+  EXPECT_TRUE(
+      performer_.Write(&metadata_signature_size_be,
+                       PayloadMetadata::kDeltaMetadataSignatureSizeSize));
 
   EXPECT_LT(performer_.Close(), 0);
 
@@ -884,11 +900,75 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   EXPECT_EQ(metadata_signature_size, performer_.metadata_signature_size_);
 }
 
+TEST_F(DeltaPerformerTest, BrilloMetadataSizeNOKTest) {
+  unsigned int seed = time(nullptr);
+  EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
+
+  uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
+  EXPECT_TRUE(
+      performer_.Write(&major_version, PayloadMetadata::kDeltaVersionSize));
+
+  uint64_t manifest_size = UINT64_MAX - 600;  // Subtract to avoid wrap around.
+  uint64_t manifest_offset = PayloadMetadata::kDeltaManifestSizeOffset +
+                             PayloadMetadata::kDeltaManifestSizeSize +
+                             PayloadMetadata::kDeltaMetadataSignatureSizeSize;
+  payload_.metadata_size = manifest_offset + manifest_size;
+  uint32_t metadata_signature_size = rand_r(&seed) % 256;
+
+  // The payload size is greater than the payload header but smaller than
+  // |metadata_signature_size| + |metadata_size|
+  payload_.size = manifest_offset + metadata_signature_size + 1;
+
+  uint64_t manifest_size_be = htobe64(manifest_size);
+  EXPECT_TRUE(performer_.Write(&manifest_size_be,
+                               PayloadMetadata::kDeltaManifestSizeSize));
+  uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
+
+  ErrorCode error;
+  EXPECT_FALSE(
+      performer_.Write(&metadata_signature_size_be,
+                       PayloadMetadata::kDeltaMetadataSignatureSizeSize + 1,
+                       &error));
+
+  EXPECT_EQ(ErrorCode::kDownloadInvalidMetadataSize, error);
+}
+
+TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeNOKTest) {
+  unsigned int seed = time(nullptr);
+  EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
+
+  uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
+  EXPECT_TRUE(
+      performer_.Write(&major_version, PayloadMetadata::kDeltaVersionSize));
+
+  uint64_t manifest_size = rand_r(&seed) % 256;
+  // Subtract from UINT32_MAX to avoid wrap around.
+  uint32_t metadata_signature_size = UINT32_MAX - 600;
+
+  // The payload size is greater than |manifest_size| but smaller than
+  // |metadata_signature_size|
+  payload_.size = manifest_size + 1;
+
+  uint64_t manifest_size_be = htobe64(manifest_size);
+  EXPECT_TRUE(performer_.Write(&manifest_size_be,
+                               PayloadMetadata::kDeltaManifestSizeSize));
+
+  uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
+  ErrorCode error;
+  EXPECT_FALSE(
+      performer_.Write(&metadata_signature_size_be,
+                       PayloadMetadata::kDeltaMetadataSignatureSizeSize + 1,
+                       &error));
+
+  EXPECT_EQ(ErrorCode::kDownloadInvalidMetadataSize, error);
+}
+
 TEST_F(DeltaPerformerTest, BrilloParsePayloadMetadataTest) {
   brillo::Blob payload_data = GeneratePayload(
       {}, {}, true, kBrilloMajorPayloadVersion, kSourceMinorPayloadVersion);
   install_plan_.hash_checks_mandatory = true;
   performer_.set_public_key_path(GetBuildArtifactsPath(kUnittestPublicKeyPath));
+  payload_.size = payload_data.size();
   ErrorCode error;
   EXPECT_EQ(MetadataParseResult::kSuccess,
             performer_.ParsePayloadMetadata(payload_data, &error));
