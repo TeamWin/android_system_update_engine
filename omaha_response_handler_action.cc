@@ -97,7 +97,8 @@ void OmahaResponseHandlerAction::PerformAction() {
       return;
     }
     install_plan_.payloads.push_back(
-        {.size = package.size,
+        {.payload_urls = package.payload_urls,
+         .size = package.size,
          .metadata_size = package.metadata_size,
          .metadata_signature = package.metadata_signature,
          .hash = raw_hash,

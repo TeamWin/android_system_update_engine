@@ -19,6 +19,7 @@
 #include <base/format_macros.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/common/utils.h"
@@ -27,6 +28,11 @@
 using std::string;
 
 namespace chromeos_update_engine {
+
+string PayloadUrlsToString(
+    const decltype(InstallPlan::Payload::payload_urls)& payload_urls) {
+  return "(" + base::JoinString(payload_urls, ",") + ")";
+}
 
 string InstallPayloadTypeToString(InstallPayloadType type) {
   switch (type) {
@@ -65,8 +71,9 @@ void InstallPlan::Dump() const {
   string payloads_str;
   for (const auto& payload : payloads) {
     payloads_str += base::StringPrintf(
-        ", payload: (size: %" PRIu64 ", metadata_size: %" PRIu64
+        ", payload: (urls: %s, size: %" PRIu64 ", metadata_size: %" PRIu64
         ", metadata signature: %s, hash: %s, payload type: %s)",
+        PayloadUrlsToString(payload.payload_urls).c_str(),
         payload.size,
         payload.metadata_size,
         payload.metadata_signature.c_str(),
@@ -84,8 +91,8 @@ void InstallPlan::Dump() const {
             << version_str
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
-            << ", url: " << download_url << payloads_str << partitions_str
-            << ", hash_checks_mandatory: "
+            << ", initial url: " << download_url << payloads_str
+            << partitions_str << ", hash_checks_mandatory: "
             << utils::ToString(hash_checks_mandatory)
             << ", powerwash_required: " << utils::ToString(powerwash_required)
             << ", switch_slot_on_reboot: "
