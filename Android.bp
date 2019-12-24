@@ -195,12 +195,14 @@ cc_defaults {
     defaults: ["update_metadata-protos_exports"],
 
     static_libs: [
+        "libcutils",
+        "libfs_mgr_binder",
+        "libgsi",
         "libsnapshot",
         "update_metadata-protos",
     ],
     shared_libs: [
         "libbootloader_message",
-        "libfs_mgr",
         "libhidlbase",
         "liblp",
         "libutils",
@@ -209,8 +211,14 @@ cc_defaults {
     ],
     target: {
         recovery: {
-            static_libs: ["libsnapshot_nobinder"],
-            exclude_static_libs: ["libsnapshot"],
+            static_libs: [
+                "libfs_mgr",
+                "libsnapshot_nobinder",
+            ],
+            exclude_static_libs: [
+                "libfs_mgr_binder",
+                "libsnapshot",
+            ],
         },
     },
 }
