@@ -17,8 +17,10 @@
 #ifndef UPDATE_ENGINE_DBUS_TEST_UTILS_H_
 #define UPDATE_ENGINE_DBUS_TEST_UTILS_H_
 
+#include <memory>
 #include <set>
 #include <string>
+#include <utility>
 
 #include <base/bind.h>
 #include <brillo/message_loops/message_loop.h>
@@ -27,13 +29,13 @@
 namespace chromeos_update_engine {
 namespace dbus_test_utils {
 
-#define MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(                           \
-    mock_signal_handler, mock_proxy, signal)                                 \
-  do {                                                                       \
-    EXPECT_CALL((mock_proxy),                                                \
-                Register##signal##SignalHandler(::testing::_, ::testing::_)) \
-        .WillOnce(::chromeos_update_engine::dbus_test_utils::GrabCallbacks(  \
-            &(mock_signal_handler)));                                        \
+#define MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(                             \
+    mock_signal_handler, mock_proxy, signal)                                   \
+  do {                                                                         \
+    EXPECT_CALL((mock_proxy),                                                  \
+                DoRegister##signal##SignalHandler(::testing::_, ::testing::_)) \
+        .WillOnce(::chromeos_update_engine::dbus_test_utils::GrabCallbacks(    \
+            &(mock_signal_handler)));                                          \
   } while (false)
 
 template <typename T>
@@ -52,10 +54,10 @@ class MockSignalHandler {
 
   void GrabCallbacks(
       const base::Callback<T>& signal_callback,
-      dbus::ObjectProxy::OnConnectedCallback on_connected_callback) {
+      dbus::ObjectProxy::OnConnectedCallback* on_connected_callback) {
     signal_callback_.reset(new base::Callback<T>(signal_callback));
-    on_connected_callback_.reset(
-        new dbus::ObjectProxy::OnConnectedCallback(on_connected_callback));
+    on_connected_callback_.reset(new dbus::ObjectProxy::OnConnectedCallback(
+        std::move(*on_connected_callback)));
     // Notify from the main loop that the callback was connected.
     callback_connected_task_ = brillo::MessageLoop::current()->PostTask(
         FROM_HERE,
@@ -66,7 +68,7 @@ class MockSignalHandler {
  private:
   void OnCallbackConnected() {
     callback_connected_task_ = brillo::MessageLoop::kTaskIdNull;
-    on_connected_callback_->Run("", "", true);
+    std::move(*on_connected_callback_).Run("", "", true);
   }
 
   brillo::MessageLoop::TaskId callback_connected_task_{
