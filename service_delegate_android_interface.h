@@ -96,6 +96,13 @@ class ServiceDelegateAndroidInterface {
       const std::vector<std::string>& key_value_pair_headers,
       brillo::ErrorPtr* error) = 0;
 
+  // Wait for merge to complete, then clean up merge after an update has been
+  // successful.
+  //
+  // This function returns immediately if no merge is needed, but may block
+  // for a long time (up to several minutes) in the worst case.
+  virtual int32_t CleanupSuccessfulUpdate(brillo::ErrorPtr* error) = 0;
+
  protected:
   ServiceDelegateAndroidInterface() = default;
 };
