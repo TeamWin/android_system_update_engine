@@ -81,6 +81,7 @@ class UpdateAttempterAndroid
       const std::string& metadata_filename,
       const std::vector<std::string>& key_value_pair_headers,
       brillo::ErrorPtr* error) override;
+  int32_t CleanupSuccessfulUpdate(brillo::ErrorPtr* error) override;
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
