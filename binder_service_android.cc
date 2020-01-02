@@ -199,4 +199,23 @@ bool BinderUpdateEngineAndroidService::UnbindCallback(const IBinder* callback) {
   return true;
 }
 
+Status BinderUpdateEngineAndroidService::allocateSpaceForPayload(
+    const android::String16& metadata_filename,
+    const vector<android::String16>& header_kv_pairs,
+    int64_t* return_value) {
+  const std::string payload_metadata{
+      android::String8{metadata_filename}.string()};
+  vector<string> str_headers = ToVecString(header_kv_pairs);
+  LOG(INFO) << "Received a request of allocating space for " << payload_metadata
+            << ".";
+  brillo::ErrorPtr error;
+  *return_value =
+      static_cast<int64_t>(service_delegate_->AllocateSpaceForPayload(
+          payload_metadata, str_headers, &error));
+  if (error != nullptr)
+    return ErrorPtrToStatus(error);
+
+  return Status::ok();
+}
+
 }  // namespace chromeos_update_engine

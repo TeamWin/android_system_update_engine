@@ -83,6 +83,19 @@ class ServiceDelegateAndroidInterface {
   virtual bool VerifyPayloadApplicable(const std::string& metadata_filename,
                                        brillo::ErrorPtr* error) = 0;
 
+  // Allocates space for a payload.
+  // Returns 0 if space is successfully preallocated.
+  // Return non-zero if not enough space is not available; returned value is
+  // the total space required (in bytes) to be free on the device for this
+  // update to be applied, and |error| is unset.
+  // In case of error, returns 0, and sets |error| accordingly.
+  //
+  // This function may block for several minutes in the worst case.
+  virtual uint64_t AllocateSpaceForPayload(
+      const std::string& metadata_filename,
+      const std::vector<std::string>& key_value_pair_headers,
+      brillo::ErrorPtr* error) = 0;
+
  protected:
   ServiceDelegateAndroidInterface() = default;
 };
