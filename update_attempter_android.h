@@ -77,6 +77,10 @@ class UpdateAttempterAndroid
   bool ResetStatus(brillo::ErrorPtr* error) override;
   bool VerifyPayloadApplicable(const std::string& metadata_filename,
                                brillo::ErrorPtr* error) override;
+  uint64_t AllocateSpaceForPayload(
+      const std::string& metadata_filename,
+      const std::vector<std::string>& key_value_pair_headers,
+      brillo::ErrorPtr* error) override;
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
