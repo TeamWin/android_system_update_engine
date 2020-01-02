@@ -214,7 +214,15 @@ Status BinderUpdateEngineAndroidService::allocateSpaceForPayload(
           payload_metadata, str_headers, &error));
   if (error != nullptr)
     return ErrorPtrToStatus(error);
+  return Status::ok();
+}
 
+Status BinderUpdateEngineAndroidService::cleanupSuccessfulUpdate(
+    int32_t* return_value) {
+  brillo::ErrorPtr error;
+  *return_value = service_delegate_->CleanupSuccessfulUpdate(&error);
+  if (error != nullptr)
+    return ErrorPtrToStatus(error);
   return Status::ok();
 }
 
