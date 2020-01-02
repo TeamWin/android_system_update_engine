@@ -901,4 +901,13 @@ BootControlInterface::Slot UpdateAttempterAndroid::GetTargetSlot() const {
   return GetCurrentSlot() == 0 ? 1 : 0;
 }
 
+uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
+    const std::string& metadata_filename,
+    const vector<string>& key_value_pair_headers,
+    brillo::ErrorPtr* error) {
+  // TODO(elsk): implement b/138808058
+  LogAndSetError(error, FROM_HERE, "Not implemented.");
+  return 0;
+}
+
 }  // namespace chromeos_update_engine
