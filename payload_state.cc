@@ -369,6 +369,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kUnresolvedHostError:
     case ErrorCode::kUnresolvedHostRecovered:
     case ErrorCode::kNotEnoughSpace:
+    case ErrorCode::kDeviceCorrupted:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 

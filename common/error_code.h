@@ -84,6 +84,7 @@ enum class ErrorCode : int {
   kUnresolvedHostError = 58,
   kUnresolvedHostRecovered = 59,
   kNotEnoughSpace = 60,
+  kDeviceCorrupted = 61,
 
   // VERY IMPORTANT! When adding new error codes:
   //
