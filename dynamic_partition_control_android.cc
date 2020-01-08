@@ -50,6 +50,7 @@ using android::fs_mgr::MetadataBuilder;
 using android::fs_mgr::Partition;
 using android::fs_mgr::PartitionOpener;
 using android::fs_mgr::SlotSuffixForSlotNumber;
+using android::snapshot::SnapshotManager;
 using android::snapshot::SourceCopyOperationIsClone;
 
 namespace chromeos_update_engine {
@@ -92,7 +93,7 @@ DynamicPartitionControlAndroid::DynamicPartitionControlAndroid()
           GetFeatureFlag(kUseDynamicPartitions, kRetrfoitDynamicPartitions)),
       virtual_ab_(GetFeatureFlag(kVirtualAbEnabled, kVirtualAbRetrofit)) {
   if (GetVirtualAbFeatureFlag().IsEnabled()) {
-    snapshot_ = android::snapshot::SnapshotManager::New();
+    snapshot_ = SnapshotManager::New();
     CHECK(snapshot_ != nullptr) << "Cannot initialize SnapshotManager.";
   }
 }
@@ -372,9 +373,13 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest,
-    bool update) {
+    bool update,
+    uint64_t* required_size) {
   source_slot_ = source_slot;
   target_slot_ = target_slot;
+  if (required_size != nullptr) {
+    *required_size = 0;
+  }
 
   if (fs_mgr_overlayfs_is_setup()) {
     // Non DAP devices can use overlayfs as well.
@@ -420,7 +425,7 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     // - If !target_supports_snapshot_, explicitly CancelUpdate().
     if (target_supports_snapshot_) {
       return PrepareSnapshotPartitionsForUpdate(
-          source_slot, target_slot, manifest);
+          source_slot, target_slot, manifest, required_size);
     }
     if (!snapshot_->CancelUpdate()) {
       LOG(ERROR) << "Cannot cancel previous update.";
@@ -473,13 +478,19 @@ bool DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
 bool DynamicPartitionControlAndroid::PrepareSnapshotPartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
-    const DeltaArchiveManifest& manifest) {
+    const DeltaArchiveManifest& manifest,
+    uint64_t* required_size) {
   if (!snapshot_->BeginUpdate()) {
     LOG(ERROR) << "Cannot begin new update.";
     return false;
   }
-  if (!snapshot_->CreateUpdateSnapshots(manifest)) {
-    LOG(ERROR) << "Cannot create update snapshots.";
+  auto ret = snapshot_->CreateUpdateSnapshots(manifest);
+  if (!ret) {
+    LOG(ERROR) << "Cannot create update snapshots: " << ret.string();
+    if (required_size != nullptr &&
+        ret.error_code() == SnapshotManager::Return::ErrorCode::NO_SPACE) {
+      *required_size = ret.required_size();
+    }
     return false;
   }
   return true;
