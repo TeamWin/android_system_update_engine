@@ -2278,4 +2278,127 @@ TEST_F(UpdateAttempterTest, FailedEolTest) {
   EXPECT_EQ(eol_date, status.eol_date);
 }
 
+TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0 =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append(dlc_id);
+
+  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  attempter_.is_install_ = true;
+  attempter_.dlc_module_ids_ = {dlc_id};
+  attempter_.CalculateDlcParams();
+
+  OmahaRequestParams* params = fake_system_state_.request_params();
+  EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
+  OmahaRequestParams::AppParams dlc_app_params =
+      params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
+  EXPECT_STREQ(dlc_id.c_str(), dlc_app_params.name.c_str());
+  EXPECT_EQ(false, dlc_app_params.send_ping);
+  // When the DLC gets installed, a ping is not sent, therefore we don't store
+  // the values sent by Omaha.
+  EXPECT_FALSE(
+      base::PathExists(metadata_path_dlc0.Append(kPrefsPingLastActive)));
+  EXPECT_FALSE(
+      base::PathExists(metadata_path_dlc0.Append(kPrefsPingLastRollcall)));
+}
+
+TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0 =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append(dlc_id);
+  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+      .WillOnce(
+          DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+
+  attempter_.is_install_ = false;
+  attempter_.CalculateDlcParams();
+
+  OmahaRequestParams* params = fake_system_state_.request_params();
+  EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
+  OmahaRequestParams::AppParams dlc_app_params =
+      params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
+  EXPECT_STREQ(dlc_id.c_str(), dlc_app_params.name.c_str());
+
+  EXPECT_EQ(true, dlc_app_params.send_ping);
+  EXPECT_EQ(0, dlc_app_params.ping_active);
+  EXPECT_EQ(-1, dlc_app_params.ping_date_last_active);
+  EXPECT_EQ(-1, dlc_app_params.ping_date_last_rollcall);
+}
+
+TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0 =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append(dlc_id);
+  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+      .WillOnce(
+          DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+
+  // Write non numeric values in the metadata files.
+  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingActive), "z2yz", 4);
+  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastActive), "z2yz", 4);
+  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastRollcall), "z2yz", 4);
+  attempter_.is_install_ = false;
+  attempter_.CalculateDlcParams();
+
+  OmahaRequestParams* params = fake_system_state_.request_params();
+  EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
+  OmahaRequestParams::AppParams dlc_app_params =
+      params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
+  EXPECT_STREQ(dlc_id.c_str(), dlc_app_params.name.c_str());
+
+  EXPECT_EQ(true, dlc_app_params.send_ping);
+  EXPECT_EQ(0, dlc_app_params.ping_active);
+  EXPECT_EQ(-2, dlc_app_params.ping_date_last_active);
+  EXPECT_EQ(-2, dlc_app_params.ping_date_last_rollcall);
+}
+
+TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0 =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append(dlc_id);
+  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+      .WillOnce(
+          DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+
+  // Write numeric values in the metadata files.
+  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingActive), "1", 1);
+  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastActive), "78", 2);
+  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastRollcall), "99", 2);
+  attempter_.is_install_ = false;
+  attempter_.CalculateDlcParams();
+
+  OmahaRequestParams* params = fake_system_state_.request_params();
+  EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
+  OmahaRequestParams::AppParams dlc_app_params =
+      params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
+  EXPECT_STREQ(dlc_id.c_str(), dlc_app_params.name.c_str());
+
+  EXPECT_EQ(true, dlc_app_params.send_ping);
+  EXPECT_EQ(1, dlc_app_params.ping_active);
+  EXPECT_EQ(78, dlc_app_params.ping_date_last_active);
+  EXPECT_EQ(99, dlc_app_params.ping_date_last_rollcall);
+}
 }  // namespace chromeos_update_engine

@@ -35,6 +35,7 @@
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
+#include <expat.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_libpolicy.h>
@@ -347,7 +348,7 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_rollback_allowed(false);
     request_params_.set_is_powerwash_allowed(false);
     request_params_.set_is_install(false);
-    request_params_.set_dlc_module_ids({});
+    request_params_.set_dlc_apps_params({});
 
     fake_system_state_.set_request_params(&request_params_);
     fake_system_state_.set_prefs(&fake_prefs_);
@@ -367,8 +368,8 @@ class OmahaRequestActionTest : public ::testing::Test {
     };
   }
 
-  // This function uses the paramets in |tuc_params_| to do an update check. It
-  // will fill out |post_str| with the result data and |response| with
+  // This function uses the parameters in |tuc_params_| to do an update check.
+  // It will fill out |post_str| with the result data and |response| with
   // |OmahaResponse|. Returns true iff an output response was obtained from the
   // |OmahaRequestAction|. If |fail_http_response_code| is non-negative, the
   // transfer will fail with that code. |ping_only| is passed through to the
@@ -404,6 +405,12 @@ class OmahaRequestActionTest : public ::testing::Test {
                bool expected_allow_p2p_for_downloading,
                bool expected_allow_p2p_for_sharing,
                const string& expected_p2p_url);
+
+  // Helper function used to test the Ping request.
+  // Create the test directory and setup the Omaha response.
+  void SetUpStorePingReply(const string& dlc_id,
+                           base::FilePath* metadata_path_dlc,
+                           base::ScopedTempDir* tempdir);
 
   FakeSystemState fake_system_state_;
   FakeUpdateResponse fake_update_response_;
@@ -2660,15 +2667,15 @@ TEST_F(OmahaRequestActionTest,
 
 TEST_F(OmahaRequestActionTest, InstallTest) {
   request_params_.set_is_install(true);
-  request_params_.set_dlc_module_ids({"dlc_no_0", "dlc_no_1"});
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
+       {request_params_.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}});
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  for (const auto& dlc_module_id : request_params_.dlc_module_ids()) {
-    EXPECT_NE(string::npos,
-              post_str.find("appid=\"" + fake_update_response_.app_id + "_" +
-                            dlc_module_id + "\""));
+  for (const auto& it : request_params_.dlc_apps_params()) {
+    EXPECT_NE(string::npos, post_str.find("appid=\"" + it.first + "\""));
   }
   EXPECT_NE(string::npos,
             post_str.find("appid=\"" + fake_update_response_.app_id + "\""));
@@ -2680,14 +2687,16 @@ TEST_F(OmahaRequestActionTest, InstallTest) {
     updatecheck_count++;
     pos++;
   }
-  EXPECT_EQ(request_params_.dlc_module_ids().size(), updatecheck_count);
+  EXPECT_EQ(request_params_.dlc_apps_params().size(), updatecheck_count);
 }
 
 TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
   fake_update_response_.multi_app_skip_updatecheck = true;
   fake_update_response_.multi_app_no_update = false;
   request_params_.set_is_install(true);
-  request_params_.set_dlc_module_ids({"dlc_no_0", "dlc_no_1"});
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
+       {request_params_.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}});
   request_params_.set_app_id(fake_update_response_.app_id_skip_updatecheck);
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
@@ -2837,6 +2846,108 @@ TEST_F(OmahaRequestActionTest, PersistEolBadDateTest) {
   EXPECT_TRUE(
       fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
   EXPECT_EQ(kEolDateInvalid, StringToEolDate(eol_date));
+}
+
+void OmahaRequestActionTest::SetUpStorePingReply(
+    const string& dlc_id,
+    base::FilePath* metadata_path_dlc,
+    base::ScopedTempDir* tempdir) {
+  // Create a uniquely named test directory.
+  ASSERT_TRUE(tempdir->CreateUniqueTempDir());
+  request_params_.set_root(tempdir->GetPath().value());
+  *metadata_path_dlc =
+      base::FilePath(request_params_.dlc_prefs_root()).Append(dlc_id);
+  ASSERT_TRUE(base::CreateDirectory(*metadata_path_dlc));
+
+  tuc_params_.http_response =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+      "protocol=\"3.0\"><daystart elapsed_days=\"4763\" "
+      "elapsed_seconds=\"36540\"/><app appid=\"test-app-id\" status=\"ok\">\""
+      "<updatecheck status=\"noupdate\"/></app><app appid=\"test-app-id_dlc0\" "
+      "status=\"ok\"><ping status=\"ok\"/><updatecheck status=\"noupdate\"/>"
+      "</app></response>";
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+}
+
+TEST_F(OmahaRequestActionTest, StorePingReplyNoPing) {
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0;
+  base::ScopedTempDir tempdir;
+  SetUpStorePingReply(dlc_id, &metadata_path_dlc0, &tempdir);
+  int64_t temp_int;
+  Prefs prefs;
+  ASSERT_TRUE(prefs.Init(metadata_path_dlc0));
+
+  OmahaRequestParams::AppParams app_param = {.name = dlc_id};
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(dlc_id), app_param}});
+
+  ASSERT_TRUE(TestUpdateCheck());
+  // If there was no ping, the metadata files shouldn't exist yet.
+  EXPECT_FALSE(prefs.GetInt64(kPrefsPingActive, &temp_int));
+  EXPECT_FALSE(prefs.GetInt64(kPrefsPingLastActive, &temp_int));
+  EXPECT_FALSE(prefs.GetInt64(kPrefsPingLastRollcall, &temp_int));
+}
+
+TEST_F(OmahaRequestActionTest, StorePingReplyActiveTest) {
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0;
+  base::ScopedTempDir tempdir;
+  SetUpStorePingReply(dlc_id, &metadata_path_dlc0, &tempdir);
+  int64_t temp_int;
+  Prefs prefs;
+  ASSERT_TRUE(prefs.Init(metadata_path_dlc0));
+  // Create Active value
+  prefs.SetInt64(kPrefsPingActive, 0);
+
+  OmahaRequestParams::AppParams app_param = {
+      .active_counting_type = OmahaRequestParams::kDateBased,
+      .name = dlc_id,
+      .ping_active = 1,
+      .send_ping = true};
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(dlc_id), app_param}});
+
+  ASSERT_TRUE(TestUpdateCheck());
+  EXPECT_TRUE(prefs.GetInt64(kPrefsPingActive, &temp_int));
+  EXPECT_EQ(temp_int, kPingInactiveValue);
+  EXPECT_TRUE(prefs.GetInt64(kPrefsPingLastActive, &temp_int));
+  EXPECT_EQ(temp_int, 4763);
+  EXPECT_TRUE(prefs.GetInt64(kPrefsPingLastRollcall, &temp_int));
+  EXPECT_EQ(temp_int, 4763);
+}
+
+TEST_F(OmahaRequestActionTest, StorePingReplyInactiveTest) {
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0;
+  base::ScopedTempDir tempdir;
+  SetUpStorePingReply(dlc_id, &metadata_path_dlc0, &tempdir);
+  int64_t temp_int;
+  Prefs prefs;
+  ASSERT_TRUE(prefs.Init(metadata_path_dlc0));
+  // Create Active value
+  prefs.SetInt64(kPrefsPingActive, 0);
+
+  OmahaRequestParams::AppParams app_param = {
+      .active_counting_type = OmahaRequestParams::kDateBased,
+      .name = dlc_id,
+      .ping_active = 0,
+      .send_ping = true};
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(dlc_id), app_param}});
+
+  // Set the previous active value to an older value than 4763.
+  prefs.SetInt64(kPrefsPingLastActive, 555);
+
+  ASSERT_TRUE(TestUpdateCheck());
+  ASSERT_TRUE(prefs.Init(metadata_path_dlc0));
+  EXPECT_TRUE(prefs.GetInt64(kPrefsPingActive, &temp_int));
+  EXPECT_EQ(temp_int, kPingInactiveValue);
+  EXPECT_TRUE(prefs.GetInt64(kPrefsPingLastActive, &temp_int));
+  EXPECT_EQ(temp_int, 555);
+  EXPECT_TRUE(prefs.GetInt64(kPrefsPingLastRollcall, &temp_int));
+  EXPECT_EQ(temp_int, 4763);
 }
 
 }  // namespace chromeos_update_engine

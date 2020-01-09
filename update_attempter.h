@@ -249,6 +249,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedOmahaRequestTest);
   FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
   FRIEND_TEST(UpdateAttempterTest, BroadcastCompleteDownloadTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsInstallTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsValidValuesTest);
   FRIEND_TEST(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest);
   FRIEND_TEST(UpdateAttempterTest, CheckForInstallNotIdleFails);
   FRIEND_TEST(UpdateAttempterTest, CheckForUpdateAUDlcTest);
@@ -429,6 +433,18 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Resets interactivity and forced update flags.
   void ResetInteractivityFlags();
+
+  // Get the integer values from the metadata directory set in |prefs| for
+  // |kPrefsPingLastActive| or |kPrefsPingLastRollcall|.
+  // The value is equal to -2 when the value cannot be read or is not numeric.
+  // The value is equal to -1 the first time it is being sent, which is
+  // when the metadata file doesn't exist.
+  int64_t GetPingMetadata(const PrefsInterface& prefs,
+                          const std::string& metadata_name) const;
+
+  // Calculates the update parameters for DLCs. Sets the |dlc_modules_|
+  // parameter on the |omaha_request_params_| object.
+  void CalculateDlcParams();
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is

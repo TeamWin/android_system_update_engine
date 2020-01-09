@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -29,6 +30,7 @@
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
@@ -46,6 +48,7 @@
 #include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/common/prefs.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
@@ -70,6 +73,7 @@
 
 using base::Bind;
 using base::Callback;
+using base::FilePath;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
@@ -427,14 +431,13 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     omaha_request_params_->UpdateDownloadChannel();
   }
 
-  // Set the |dlc_module_ids_| only for an update. This is required to get the
-  // currently installed DLC(s).
-  if (!is_install_ &&
-      !system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
-    LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
-                 "state of dlcservice, will not update DLC modules.";
-  }
-  omaha_request_params_->set_dlc_module_ids(dlc_module_ids_);
+  // The function |CalculateDlcParams| makes use of the function |GetAppId| from
+  // |OmahaRequestParams|, so to ensure that the return from |GetAppId|
+  // doesn't change, no changes to the values |download_channel_|,
+  // |image_props_.product_id| and |image_props_.canary_product_id| from
+  // |omaha_request_params_| shall be made below this line.
+  CalculateDlcParams();
+
   omaha_request_params_->set_is_install(is_install_);
 
   // Set Quick Fix Build token if policy is set and the device is enterprise
@@ -651,6 +654,66 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
       prefs_->Delete(kPrefsWallClockScatteringWaitPeriod);
       scatter_factor_ = TimeDelta();
   }
+}
+
+int64_t UpdateAttempter::GetPingMetadata(
+    const PrefsInterface& prefs, const std::string& metadata_name) const {
+  // The first time a ping is sent, the metadata files containing the values
+  // sent back by the server still don't exist. A value of -1 is used to
+  // indicate this.
+  if (!prefs.Exists(metadata_name))
+    return kPingNeverPinged;
+
+  int64_t value;
+  if (prefs.GetInt64(metadata_name, &value))
+    return value;
+
+  // Return -2 when the file exists and there is a problem reading from it, or
+  // the value cannot be converted to an integer.
+  return kPingUnknownValue;
+}
+
+void UpdateAttempter::CalculateDlcParams() {
+  // Set the |dlc_module_ids_| only for an update. This is required to get the
+  // currently installed DLC(s).
+  if (!is_install_ &&
+      !system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
+    LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
+                 "state of dlcservice, will not update DLC modules.";
+  }
+  std::map<std::string, OmahaRequestParams::AppParams> dlc_apps_params;
+  for (auto dlc_id : dlc_module_ids_) {
+    OmahaRequestParams::AppParams dlc_params{
+        .active_counting_type = OmahaRequestParams::kDateBased,
+        .name = dlc_id,
+        .send_ping = false};
+    // Only send the ping when the request is to update DLCs. When installing
+    // DLCs, we don't want to send the ping yet, since the DLCs might fail to
+    // install or might not really be active yet.
+    if (!is_install_) {
+      base::FilePath metadata_path =
+          base::FilePath(omaha_request_params_->dlc_prefs_root())
+              .Append(dlc_id);
+      Prefs prefs;
+      if (!prefs.Init(metadata_path)) {
+        LOG(ERROR) << "Failed to initialize the preferences path:"
+                   << metadata_path.value() << ".";
+      } else {
+        dlc_params.ping_active = kPingActiveValue;
+        if (!prefs.GetInt64(kPrefsPingActive, &dlc_params.ping_active) ||
+            dlc_params.ping_active != kPingActiveValue) {
+          dlc_params.ping_active = kPingInactiveValue;
+        }
+        dlc_params.ping_date_last_active =
+            GetPingMetadata(prefs, kPrefsPingLastActive);
+        dlc_params.ping_date_last_rollcall =
+            GetPingMetadata(prefs, kPrefsPingLastRollcall);
+        dlc_params.send_ping = true;
+      }
+    }
+    dlc_apps_params[omaha_request_params_->GetDlcAppId(dlc_id)] = dlc_params;
+  }
+  omaha_request_params_->set_dlc_apps_params(dlc_apps_params);
 }
 
 void UpdateAttempter::BuildUpdateActions(bool interactive) {

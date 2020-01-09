@@ -124,7 +124,7 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   // Set the interactive flag accordingly.
   interactive_ = in_interactive;
 
-  dlc_module_ids_.clear();
+  dlc_apps_params_.clear();
   // Set false so it will do update by default.
   is_install_ = false;
   return true;
@@ -215,6 +215,7 @@ bool OmahaRequestParams::IsValidChannel(const string& channel,
 void OmahaRequestParams::set_root(const string& root) {
   root_ = root;
   test::SetImagePropertiesRootPrefix(root_.c_str());
+  dlc_prefs_root_ = root + kDlcMetadataRootpath;
 }
 
 int OmahaRequestParams::GetChannelIndex(const string& channel) const {
@@ -246,6 +247,12 @@ bool OmahaRequestParams::ShouldPowerwash() const {
 string OmahaRequestParams::GetAppId() const {
   return download_channel_ == "canary-channel" ? image_props_.canary_product_id
                                                : image_props_.product_id;
+}
+
+string OmahaRequestParams::GetDlcAppId(std::string dlc_id) const {
+  // Create APP ID according to |dlc_id| (sticking the current AppID to the
+  // DLC module ID with an underscode).
+  return GetAppId() + "_" + dlc_id;
 }
 
 }  // namespace chromeos_update_engine

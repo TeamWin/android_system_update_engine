@@ -26,6 +26,7 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
 #include <base/strings/string_number_conversions.h>
@@ -43,6 +44,7 @@
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/common/prefs.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_manager_interface.h"
@@ -299,7 +301,7 @@ OmahaRequestAction::~OmahaRequestAction() {}
 
 // Calculates the value to use for the ping days parameter.
 int OmahaRequestAction::CalculatePingDays(const string& key) {
-  int days = kNeverPinged;
+  int days = kPingNeverPinged;
   int64_t last_ping = 0;
   if (system_state_->prefs()->GetInt64(key, &last_ping) && last_ping >= 0) {
     days = (Time::Now() - Time::FromInternalValue(last_ping)).InDays();
@@ -330,8 +332,8 @@ void OmahaRequestAction::InitPingDays() {
 }
 
 bool OmahaRequestAction::ShouldPing() const {
-  if (ping_active_days_ == kNeverPinged &&
-      ping_roll_call_days_ == kNeverPinged) {
+  if (ping_active_days_ == kPingNeverPinged &&
+      ping_roll_call_days_ == kPingNeverPinged) {
     int powerwash_count = system_state_->hardware()->GetPowerwashCount();
     if (powerwash_count > 0) {
       LOG(INFO) << "Not sending ping with a=-1 r=-1 to omaha because "
@@ -410,6 +412,59 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
             << " days";
 
   return num_days;
+}
+
+// static
+void OmahaRequestAction::StorePingReply(
+    const OmahaParserData& parser_data) const {
+  for (const auto& app : parser_data.apps) {
+    auto it = params_->dlc_apps_params().find(app.id);
+    if (it == params_->dlc_apps_params().end())
+      continue;
+
+    const OmahaRequestParams::AppParams& dlc_params = it->second;
+
+    // Skip if the ping for this DLC was not sent.
+    if (!dlc_params.send_ping)
+      continue;
+
+    base::FilePath metadata_path =
+        base::FilePath(params_->dlc_prefs_root()).Append(dlc_params.name);
+    if (!base::PathExists(metadata_path)) {
+      LOG(ERROR) << "Metadata path (" << metadata_path.value() << ") "
+                 << "doesn't exist.";
+      // Skip this DLC if the metadata directory is missing.
+      continue;
+    }
+
+    Prefs prefs;
+    if (!prefs.Init(metadata_path)) {
+      LOG(ERROR) << "Failed to initialize the preferences path:"
+                 << metadata_path.value() << ".";
+      continue;
+    }
+    // Reset the active metadata value to |kPingInactiveValue|.
+    // Only write into this file if the file exists, otherwise the file will be
+    // created with different owner/permissions.
+    if (prefs.Exists(kPrefsPingActive) &&
+        !prefs.SetInt64(kPrefsPingActive, kPingInactiveValue))
+      LOG(ERROR) << "Failed to set the value of ping metadata '"
+                 << kPrefsPingActive << "'.";
+
+    if (!prefs.SetString(kPrefsPingLastRollcall,
+                         parser_data.daystart_elapsed_days))
+      LOG(ERROR) << "Failed to set the value of ping metadata '"
+                 << kPrefsPingLastRollcall << "'.";
+
+    if (dlc_params.ping_active) {
+      // Write the value of elapsed_days into |kPrefsPingLastActive| only if
+      // the previous ping was an active one.
+      if (!prefs.SetString(kPrefsPingLastActive,
+                           parser_data.daystart_elapsed_days))
+        LOG(ERROR) << "Failed to set the value of ping metadata '"
+                   << kPrefsPingLastActive << "'.";
+    }
+  }
 }
 
 void OmahaRequestAction::PerformAction() {
@@ -921,6 +976,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
           ErrorCode::kFirstActiveOmahaPingSentPersistenceError);
     }
   }
+
+  // Create/update the metadata files for each DLC app received.
+  StorePingReply(parser_data);
 
   if (!HasOutputPipe()) {
     // Just set success to whether or not the http transfer succeeded,

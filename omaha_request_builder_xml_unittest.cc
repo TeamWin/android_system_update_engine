@@ -198,7 +198,9 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateTest) {
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateWithDlcsTest) {
   OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_dlc_module_ids({"dlc_1", "dlc_2"});
+  omaha_request_params.set_dlc_apps_params(
+      {{omaha_request_params.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
+       {omaha_request_params.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}});
   OmahaRequestBuilderXml omaha_request{nullptr,
                                        &omaha_request_params,
                                        false,
@@ -215,8 +217,10 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateWithDlcsTest) {
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcInstallationTest) {
   OmahaRequestParams omaha_request_params{&fake_system_state_};
-  const vector<string> dlcs = {"dlc_1", "dlc_2"};
-  omaha_request_params.set_dlc_module_ids(dlcs);
+  const std::map<std::string, OmahaRequestParams::AppParams> dlcs = {
+      {omaha_request_params.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
+      {omaha_request_params.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}};
+  omaha_request_params.set_dlc_apps_params(dlcs);
   omaha_request_params.set_is_install(true);
   OmahaRequestBuilderXml omaha_request{nullptr,
                                        &omaha_request_params,
@@ -250,4 +254,69 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcInstallationTest) {
   }
 }
 
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcNoPing) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_dlc_apps_params(
+      {{omaha_request_params.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}}});
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "<ping")) << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallNoActive) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_dlc_apps_params(
+      {{omaha_request_params.GetDlcAppId("dlc_no_0"),
+        {.active_counting_type = OmahaRequestParams::kDateBased,
+         .name = "dlc_no_0",
+         .ping_date_last_active = 25,
+         .ping_date_last_rollcall = 36,
+         .send_ping = true}}});
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "<ping rd=\"36\""))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallAndActive) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_dlc_apps_params(
+      {{omaha_request_params.GetDlcAppId("dlc_no_0"),
+        {.active_counting_type = OmahaRequestParams::kDateBased,
+         .name = "dlc_no_0",
+         .ping_active = 1,
+         .ping_date_last_active = 25,
+         .ping_date_last_rollcall = 36,
+         .send_ping = true}}});
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1,
+            CountSubstringInString(request_xml,
+                                   "<ping active=\"1\" ad=\"25\" rd=\"36\""))
+      << request_xml;
+}
 }  // namespace chromeos_update_engine

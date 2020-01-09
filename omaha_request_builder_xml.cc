@@ -36,8 +36,11 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-const int kNeverPinged = -1;
 const char kNoVersion[] = "0.0.0.0";
+const int kPingNeverPinged = -1;
+const int kPingUnknownValue = -2;
+const int kPingActiveValue = 1;
+const int kPingInactiveValue = 0;
 
 bool XmlEncode(const string& input, string* output) {
   if (std::find_if(input.begin(), input.end(), [](const char c) {
@@ -87,7 +90,7 @@ string OmahaRequestBuilderXml::GetPing() const {
   // |name| and value |ping_days| if |ping_days| has a value that needs
   // to be sent, or an empty string otherwise.
   auto GetPingAttribute = [](const char* name, int ping_days) -> string {
-    if (ping_days > 0 || ping_days == kNeverPinged)
+    if (ping_days > 0 || ping_days == kPingNeverPinged)
       return base::StringPrintf(" %s=\"%d\"", name, ping_days);
     return "";
   };
@@ -102,13 +105,45 @@ string OmahaRequestBuilderXml::GetPing() const {
   return "";
 }
 
-string OmahaRequestBuilderXml::GetAppBody(bool skip_updatecheck) const {
+string OmahaRequestBuilderXml::GetPingDateBased(
+    const OmahaRequestParams::AppParams& app_params) const {
+  if (!app_params.send_ping)
+    return "";
+  string ping_active = "";
+  string ping_ad = "";
+  if (app_params.ping_active == kPingActiveValue) {
+    ping_active =
+        base::StringPrintf(" active=\"%" PRId64 "\"", app_params.ping_active);
+    ping_ad = base::StringPrintf(" ad=\"%" PRId64 "\"",
+                                 app_params.ping_date_last_active);
+  }
+
+  string ping_rd = base::StringPrintf(" rd=\"%" PRId64 "\"",
+                                      app_params.ping_date_last_rollcall);
+
+  return base::StringPrintf("        <ping%s%s%s></ping>\n",
+                            ping_active.c_str(),
+                            ping_ad.c_str(),
+                            ping_rd.c_str());
+}
+
+string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
   string app_body;
   if (event_ == nullptr) {
-    if (include_ping_)
-      app_body = GetPing();
+    if (app_data.app_params.send_ping) {
+      switch (app_data.app_params.active_counting_type) {
+        case OmahaRequestParams::kDayBased:
+          app_body = GetPing();
+          break;
+        case OmahaRequestParams::kDateBased:
+          app_body = GetPingDateBased(app_data.app_params);
+          break;
+        default:
+          NOTREACHED();
+      }
+    }
     if (!ping_only_) {
-      if (!skip_updatecheck) {
+      if (!app_data.skip_update) {
         app_body += "        <updatecheck";
         if (!params_->target_version_prefix().empty()) {
           app_body += base::StringPrintf(
@@ -211,7 +246,7 @@ bool IsValidComponentID(const string& id) {
 }
 
 string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
-  string app_body = GetAppBody(app_data.skip_update);
+  string app_body = GetAppBody(app_data);
   string app_versions;
 
   // If we are downgrading to a more stable channel and we are allowed to do
@@ -370,23 +405,28 @@ string OmahaRequestBuilderXml::GetApps() const {
       .product_components = params_->product_components(),
       // Skips updatecheck for platform app in case of an install operation.
       .skip_update = params_->is_install(),
-      .is_dlc = false};
+      .is_dlc = false,
+
+      .app_params = {.active_counting_type = OmahaRequestParams::kDayBased,
+                     .send_ping = include_ping_}};
   app_xml += GetApp(product_app);
   if (!params_->system_app_id().empty()) {
-    OmahaAppData system_app = {.id = params_->system_app_id(),
-                               .version = params_->system_version(),
-                               .skip_update = false,
-                               .is_dlc = false};
+    OmahaAppData system_app = {
+        .id = params_->system_app_id(),
+        .version = params_->system_version(),
+        .skip_update = false,
+        .is_dlc = false,
+        .app_params = {.active_counting_type = OmahaRequestParams::kDayBased,
+                       .send_ping = include_ping_}};
     app_xml += GetApp(system_app);
   }
-  // Create APP ID according to |dlc_module_id| (sticking the current AppID to
-  // the DLC module ID with an underscode).
-  for (const auto& dlc_module_id : params_->dlc_module_ids()) {
+  for (const auto& it : params_->dlc_apps_params()) {
     OmahaAppData dlc_module_app = {
-        .id = params_->GetAppId() + "_" + dlc_module_id,
+        .id = it.first,
         .version = params_->is_install() ? kNoVersion : params_->app_version(),
         .skip_update = false,
-        .is_dlc = true};
+        .is_dlc = true,
+        .app_params = it.second};
     app_xml += GetApp(dlc_module_app);
   }
   return app_xml;

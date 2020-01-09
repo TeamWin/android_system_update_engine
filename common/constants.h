@@ -19,6 +19,10 @@
 
 namespace chromeos_update_engine {
 
+// The root path of all DLC modules metadata.
+// Keep this in sync with the one in dlcservice.
+extern const char kDlcMetadataRootpath[];
+
 // Directory for AU prefs that are preserved across powerwash.
 extern const char kPowerwashSafePrefsSubDirectory[];
 
@@ -61,6 +65,9 @@ extern const char kPrefsP2PEnabled[];
 extern const char kPrefsP2PFirstAttemptTimestamp[];
 extern const char kPrefsP2PNumAttempts[];
 extern const char kPrefsPayloadAttemptNumber[];
+extern const char kPrefsPingActive[];
+extern const char kPrefsPingLastActive[];
+extern const char kPrefsPingLastRollcall[];
 extern const char kPrefsPostInstallSucceeded[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];

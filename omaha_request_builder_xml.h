@@ -33,13 +33,17 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
+#include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response.h"
 #include "update_engine/system_state.h"
 
 namespace chromeos_update_engine {
 
-extern const int kNeverPinged;
 extern const char kNoVersion[];
+extern const int kPingNeverPinged;
+extern const int kPingUnknownValue;
+extern const int kPingActiveValue;
+extern const int kPingInactiveValue;
 
 // This struct encapsulates the Omaha event information. For a
 // complete list of defined event types and results, see
@@ -87,6 +91,7 @@ struct OmahaAppData {
   std::string product_components;
   bool skip_update;
   bool is_dlc;
+  OmahaRequestParams::AppParams app_params;
 };
 
 // Encodes XML entities in a given string. Input must be ASCII-7 valid. If
@@ -158,9 +163,7 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
 
   // Returns an XML that goes into the body of the <app> element of the Omaha
   // request based on the given parameters.
-  // The skip_updatecheck argument if set to true will omit the emission of
-  // the updatecheck xml tag in the body of the <app> element.
-  std::string GetAppBody(bool skip_updatecheck) const;
+  std::string GetAppBody(const OmahaAppData& app_data) const;
 
   // Returns the cohort* argument to include in the <app> tag for the passed
   // |arg_name| and |prefs_key|, if any. The return value is suitable to
@@ -172,6 +175,11 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
   // Returns an XML ping element if any of the elapsed days need to be
   // sent, or an empty string otherwise.
   std::string GetPing() const;
+
+  // Returns an XML ping element if any of the elapsed days need to be
+  // sent, or an empty string otherwise.
+  std::string GetPingDateBased(
+      const OmahaRequestParams::AppParams& app_params) const;
 
   const OmahaEvent* event_;
   OmahaRequestParams* params_;

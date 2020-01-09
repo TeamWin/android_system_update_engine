@@ -200,6 +200,10 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // send to Omaha and thus we should include them in the response.
   bool ShouldPing() const;
 
+  // Process Omaha's response to a ping request and store the results in the DLC
+  // metadata directory.
+  void StorePingReply(const OmahaParserData& parser_data) const;
+
   // Returns true if the download of a new update should be deferred.
   // False if the update can be downloaded.
   bool ShouldDeferDownload(OmahaResponse* output_object);

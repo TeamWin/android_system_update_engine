@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/common/constants.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/image_properties.h"
 
@@ -56,9 +58,25 @@ class OmahaRequestParams {
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
         max_update_checks_allowed_(kDefaultMaxUpdateChecks),
+        dlc_prefs_root_(kDlcMetadataRootpath),
         is_install_(false) {}
 
   virtual ~OmahaRequestParams();
+
+  enum ActiveCountingType {
+    kDayBased = 0,
+    kDateBased,
+  };
+
+  struct AppParams {
+    ActiveCountingType active_counting_type;
+    // |name| is only used for DLCs to store the DLC ID.
+    std::string name;
+    int64_t ping_active;
+    int64_t ping_date_last_active;
+    int64_t ping_date_last_rollcall;
+    bool send_ping;
+  };
 
   // Setters and getters for the various properties.
   inline std::string os_platform() const { return os_platform_; }
@@ -184,12 +202,12 @@ class OmahaRequestParams {
   inline int64_t max_update_checks_allowed() const {
     return max_update_checks_allowed_;
   }
-  inline void set_dlc_module_ids(
-      const std::vector<std::string>& dlc_module_ids) {
-    dlc_module_ids_ = dlc_module_ids;
+  inline void set_dlc_apps_params(
+      const std::map<std::string, AppParams>& dlc_apps_params) {
+    dlc_apps_params_ = dlc_apps_params;
   }
-  inline std::vector<std::string> dlc_module_ids() const {
-    return dlc_module_ids_;
+  inline const std::map<std::string, AppParams>& dlc_apps_params() const {
+    return dlc_apps_params_;
   }
   inline void set_is_install(bool is_install) { is_install_ = is_install; }
   inline bool is_install() const { return is_install_; }
@@ -201,9 +219,15 @@ class OmahaRequestParams {
     return autoupdate_token_;
   }
 
-  // Returns the app id corresponding to the current value of the
+  inline std::string dlc_prefs_root() const { return dlc_prefs_root_; }
+
+  // Returns the App ID corresponding to the current value of the
   // download channel.
   virtual std::string GetAppId() const;
+
+  // Returns the DLC app ID corresponding to the current value of the
+  // download channel.
+  virtual std::string GetDlcAppId(std::string dlc_id) const;
 
   // Suggested defaults
   static const char kOsVersion[];
@@ -377,8 +401,11 @@ class OmahaRequestParams {
   // When reading files, prepend root_ to the paths. Useful for testing.
   std::string root_;
 
-  // A list of DLC module IDs to install.
-  std::vector<std::string> dlc_module_ids_;
+  // The metadata/prefs root path for DLCs.
+  std::string dlc_prefs_root_;
+
+  // A list of DLC modules to install.
+  std::map<std::string, AppParams> dlc_apps_params_;
 
   // This variable defines whether the payload is being installed in the current
   // partition. At the moment, this is used for installing DLC modules on the
