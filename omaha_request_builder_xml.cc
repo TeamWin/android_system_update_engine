@@ -309,14 +309,18 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
       product_components_args +
       fingerprint_arg +
       buildtype_arg +
-      "lang=\"" + XmlEncodeWithDefault(params_->app_lang(), "en-US") + "\" " +
       "board=\"" + XmlEncodeWithDefault(params_->os_board()) + "\" " +
       "hardware_class=\"" + XmlEncodeWithDefault(params_->hwid()) + "\" " +
-      "delta_okay=\"" + delta_okay_str + "\" "
+      "delta_okay=\"" + delta_okay_str + "\" " +
+      install_date_in_days_str +
+
+      // DLC excluded for installs and updates.
+      (app_data.is_dlc ? "" :
+      "lang=\"" + XmlEncodeWithDefault(params_->app_lang(), "en-US") + "\" " +
       "fw_version=\"" + XmlEncodeWithDefault(params_->fw_version()) + "\" " +
       "ec_version=\"" + XmlEncodeWithDefault(params_->ec_version()) + "\" " +
-      install_date_in_days_str +
-      requisition_arg +
+      requisition_arg) +
+
       ">\n" +
          app_body +
       "    </app>\n";
@@ -363,12 +367,14 @@ string OmahaRequestBuilderXml::GetApps() const {
       .version = params_->app_version(),
       .product_components = params_->product_components(),
       // Skips updatecheck for platform app in case of an install operation.
-      .skip_update = params_->is_install()};
+      .skip_update = params_->is_install(),
+      .is_dlc = false};
   app_xml += GetApp(product_app);
   if (!params_->system_app_id().empty()) {
     OmahaAppData system_app = {.id = params_->system_app_id(),
                                .version = params_->system_version(),
-                               .skip_update = false};
+                               .skip_update = false,
+                               .is_dlc = false};
     app_xml += GetApp(system_app);
   }
   // Create APP ID according to |dlc_module_id| (sticking the current AppID to
@@ -377,7 +383,8 @@ string OmahaRequestBuilderXml::GetApps() const {
     OmahaAppData dlc_module_app = {
         .id = params_->GetAppId() + "_" + dlc_module_id,
         .version = params_->app_version(),
-        .skip_update = false};
+        .skip_update = false,
+        .is_dlc = true};
     app_xml += GetApp(dlc_module_app);
   }
   return app_xml;

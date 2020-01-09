@@ -80,6 +80,56 @@ TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeWithDefaultTest) {
   EXPECT_EQ("<not escaped>", XmlEncodeWithDefault("\xc2", "<not escaped>"));
 }
 
+TEST_F(OmahaRequestBuilderXmlTest, PlatformGetAppTest) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_device_requisition("device requisition");
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  OmahaAppData dlc_module_app = {.id = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+                                 .version = "",
+                                 .skip_update = false,
+                                 .is_dlc = false};
+
+  // Verify that the attributes that shouldn't be missing for Platform AppID are
+  // in fact present in the <app ...></app>.
+  const string app = omaha_request.GetApp(dlc_module_app);
+  EXPECT_NE(string::npos, app.find("lang="));
+  EXPECT_NE(string::npos, app.find("fw_version="));
+  EXPECT_NE(string::npos, app.find("ec_version="));
+  EXPECT_NE(string::npos, app.find("requisition="));
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, DlcGetAppTest) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_device_requisition("device requisition");
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  OmahaAppData dlc_module_app = {
+      .id = "_dlc_id", .version = "", .skip_update = false, .is_dlc = true};
+
+  // Verify that the attributes that should be missing for DLC AppIDs are in
+  // fact not present in the <app ...></app>.
+  const string app = omaha_request.GetApp(dlc_module_app);
+  EXPECT_EQ(string::npos, app.find("lang="));
+  EXPECT_EQ(string::npos, app.find("fw_version="));
+  EXPECT_EQ(string::npos, app.find("ec_version="));
+  EXPECT_EQ(string::npos, app.find("requisition="));
+}
+
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
   OmahaEvent omaha_event;
   OmahaRequestParams omaha_request_params{&fake_system_state_};

@@ -85,6 +85,7 @@ struct OmahaAppData {
   std::string version;
   std::string product_components;
   bool skip_update;
+  bool is_dlc;
 };
 
 // Encodes XML entities in a given string. Input must be ASCII-7 valid. If
@@ -139,6 +140,9 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
   std::string GetRequest() const override;
 
  private:
+  FRIEND_TEST(OmahaRequestBuilderXmlTest, PlatformGetAppTest);
+  FRIEND_TEST(OmahaRequestBuilderXmlTest, DlcGetAppTest);
+
   // Returns an XML that corresponds to the entire <os> node of the Omaha
   // request based on the member variables.
   std::string GetOs() const;
