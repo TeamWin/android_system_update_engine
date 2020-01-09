@@ -39,6 +39,7 @@
 namespace chromeos_update_engine {
 
 extern const int kNeverPinged;
+extern const char kNoVersion[];
 
 // This struct encapsulates the Omaha event information. For a
 // complete list of defined event types and results, see

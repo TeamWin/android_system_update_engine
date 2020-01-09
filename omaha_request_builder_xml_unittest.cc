@@ -44,6 +44,13 @@ static string FindAttributeKeyValueInXml(const string& xml,
     return "";
   return xml.substr(val_start_pos + key_with_quotes.size(), val_size);
 }
+// Helper to find the count of substring in a string.
+static size_t CountSubstringInString(const string& str, const string& substr) {
+  size_t count = 0, pos = 0;
+  while ((pos = str.find(substr, pos ? pos + 1 : 0)) != string::npos)
+    ++count;
+  return count;
+}
 }  // namespace
 
 class OmahaRequestBuilderXmlTest : public ::testing::Test {
@@ -131,9 +138,8 @@ TEST_F(OmahaRequestBuilderXmlTest, DlcGetAppTest) {
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
-  OmahaEvent omaha_event;
   OmahaRequestParams omaha_request_params{&fake_system_state_};
-  OmahaRequestBuilderXml omaha_request{&omaha_event,
+  OmahaRequestBuilderXml omaha_request{nullptr,
                                        &omaha_request_params,
                                        false,
                                        false,
@@ -153,9 +159,8 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
   const string gen_session_id = base::GenerateGUID();
-  OmahaEvent omaha_event;
   OmahaRequestParams omaha_request_params{&fake_system_state_};
-  OmahaRequestBuilderXml omaha_request{&omaha_event,
+  OmahaRequestBuilderXml omaha_request{nullptr,
                                        &omaha_request_params,
                                        false,
                                        false,
@@ -173,6 +178,76 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
     EXPECT_TRUE(base::IsValidGUID(session_id));
   }
   EXPECT_EQ(gen_session_id, session_id);
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateTest) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "<updatecheck"))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateWithDlcsTest) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_dlc_module_ids({"dlc_1", "dlc_2"});
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(3, CountSubstringInString(request_xml, "<updatecheck"))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcInstallationTest) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  const vector<string> dlcs = {"dlc_1", "dlc_2"};
+  omaha_request_params.set_dlc_module_ids(dlcs);
+  omaha_request_params.set_is_install(true);
+  OmahaRequestBuilderXml omaha_request{nullptr,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(2, CountSubstringInString(request_xml, "<updatecheck"))
+      << request_xml;
+
+  auto FindAppId = [request_xml](size_t pos) -> size_t {
+    return request_xml.find("<app appid", pos);
+  };
+  // Skip over the Platform AppID, which is always first.
+  size_t pos = FindAppId(0);
+  for (auto&& _ : dlcs) {
+    (void)_;
+    EXPECT_NE(string::npos, (pos = FindAppId(pos + 1))) << request_xml;
+    const string dlc_app_id_version = FindAttributeKeyValueInXml(
+        request_xml.substr(pos), "version", string(kNoVersion).size());
+    EXPECT_EQ(kNoVersion, dlc_app_id_version);
+
+    const string false_str = "false";
+    const string dlc_app_id_delta_okay = FindAttributeKeyValueInXml(
+        request_xml.substr(pos), "delta_okay", false_str.length());
+    EXPECT_EQ(false_str, dlc_app_id_delta_okay);
+  }
 }
 
 }  // namespace chromeos_update_engine

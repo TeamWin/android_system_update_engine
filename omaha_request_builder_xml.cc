@@ -37,6 +37,7 @@ using std::string;
 namespace chromeos_update_engine {
 
 const int kNeverPinged = -1;
+const char kNoVersion[] = "0.0.0.0";
 
 bool XmlEncode(const string& input, string* output) {
   if (std::find_if(input.begin(), input.end(), [](const char c) {
@@ -131,7 +132,7 @@ string OmahaRequestBuilderXml::GetAppBody(bool skip_updatecheck) const {
       // sent for this new version with a previous updatecheck.
       string prev_version;
       if (!prefs_->GetString(kPrefsPreviousVersion, &prev_version)) {
-        prev_version = "0.0.0.0";
+        prev_version = kNoVersion;
       }
       // We only store a non-empty previous version value after a successful
       // update in the previous boot. After reporting it back to the server,
@@ -142,7 +143,7 @@ string OmahaRequestBuilderXml::GetAppBody(bool skip_updatecheck) const {
             "previousversion=\"%s\"></event>\n",
             OmahaEvent::kTypeRebootedAfterUpdate,
             OmahaEvent::kResultSuccess,
-            XmlEncodeWithDefault(prev_version, "0.0.0.0").c_str());
+            XmlEncodeWithDefault(prev_version, kNoVersion).c_str());
         LOG_IF(WARNING, !prefs_->SetString(kPrefsPreviousVersion, ""))
             << "Unable to reset the previous version.";
       }
@@ -219,11 +220,11 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
   if (params_->ShouldPowerwash()) {
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
-    app_versions = "version=\"0.0.0.0\" from_version=\"" +
-                   XmlEncodeWithDefault(app_data.version, "0.0.0.0") + "\" ";
+    app_versions = "version=\"" + string(kNoVersion) + "\" from_version=\"" +
+                   XmlEncodeWithDefault(app_data.version, kNoVersion) + "\" ";
   } else {
     app_versions = "version=\"" +
-                   XmlEncodeWithDefault(app_data.version, "0.0.0.0") + "\" ";
+                   XmlEncodeWithDefault(app_data.version, kNoVersion) + "\" ";
   }
 
   string download_channel = params_->download_channel();
@@ -234,7 +235,8 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
                     XmlEncodeWithDefault(params_->current_channel()) + "\" ";
   }
 
-  string delta_okay_str = params_->delta_okay() ? "true" : "false";
+  string delta_okay_str =
+      params_->delta_okay() && !params_->is_install() ? "true" : "false";
 
   // If install_date_days is not set (e.g. its value is -1 ), don't
   // include the attribute.
@@ -382,7 +384,7 @@ string OmahaRequestBuilderXml::GetApps() const {
   for (const auto& dlc_module_id : params_->dlc_module_ids()) {
     OmahaAppData dlc_module_app = {
         .id = params_->GetAppId() + "_" + dlc_module_id,
-        .version = params_->app_version(),
+        .version = params_->is_install() ? kNoVersion : params_->app_version(),
         .skip_update = false,
         .is_dlc = true};
     app_xml += GetApp(dlc_module_app);
