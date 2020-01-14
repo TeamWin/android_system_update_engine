@@ -1959,7 +1959,10 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
   return true;
 }
 
-bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
+bool DeltaPerformer::ResetUpdateProgress(
+    PrefsInterface* prefs,
+    bool quick,
+    bool skip_dynamic_partititon_metadata_updated) {
   TEST_AND_RETURN_FALSE(prefs->SetInt64(kPrefsUpdateStateNextOperation,
                                         kUpdateStateOperationInvalid));
   if (!quick) {
@@ -1973,7 +1976,11 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
     prefs->Delete(kPrefsPostInstallSucceeded);
     prefs->Delete(kPrefsVerityWritten);
-    prefs->Delete(kPrefsDynamicPartitionMetadataUpdated);
+
+    if (!skip_dynamic_partititon_metadata_updated) {
+      LOG(INFO) << "Resetting recorded hash for prepared partitions.";
+      prefs->Delete(kPrefsDynamicPartitionMetadataUpdated);
+    }
   }
   return true;
 }
