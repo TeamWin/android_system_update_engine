@@ -53,6 +53,7 @@ using android::fs_mgr::SlotSuffixForSlotNumber;
 using android::snapshot::Return;
 using android::snapshot::SnapshotManager;
 using android::snapshot::SourceCopyOperationIsClone;
+using android::snapshot::UpdateState;
 
 namespace chromeos_update_engine {
 
@@ -695,6 +696,21 @@ DynamicPartitionControlAndroid::GetDynamicPartitionDevice(
 void DynamicPartitionControlAndroid::set_fake_mapped_devices(
     const std::set<std::string>& fake) {
   mapped_devices_ = fake;
+}
+
+ErrorCode DynamicPartitionControlAndroid::CleanupSuccessfulUpdate() {
+  // Already reboot into new boot. Clean up.
+  if (!GetVirtualAbFeatureFlag().IsEnabled()) {
+    return ErrorCode::kSuccess;
+  }
+  auto ret = snapshot_->WaitForMerge();
+  if (ret.is_ok()) {
+    return ErrorCode::kSuccess;
+  }
+  if (ret.error_code() == Return::ErrorCode::NEEDS_REBOOT) {
+    return ErrorCode::kError;
+  }
+  return ErrorCode::kDeviceCorrupted;
 }
 
 }  // namespace chromeos_update_engine

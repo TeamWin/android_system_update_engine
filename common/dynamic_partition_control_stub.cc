@@ -52,4 +52,8 @@ bool DynamicPartitionControlStub::FinishUpdate() {
   return true;
 }
 
+ErrorCode DynamicPartitionControlStub::CleanupSuccessfulUpdate() {
+  return ErrorCode::kError;
+}
+
 }  // namespace chromeos_update_engine
