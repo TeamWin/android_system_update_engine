@@ -69,6 +69,8 @@ class DynamicPartitionControlInterface {
                                           const DeltaArchiveManifest& manifest,
                                           bool update) = 0;
 
+  // After writing to new partitions, before rebooting into the new slot, call
+  // this function to indicate writes to new partitions are done.
   virtual bool FinishUpdate() = 0;
 };
 
