@@ -102,6 +102,8 @@ class PostinstallRunnerActionTest : public ::testing::Test {
                             bool powerwash_required,
                             bool is_rollback);
 
+  void RunPostinstallActionWithInstallPlan(const InstallPlan& install_plan);
+
  public:
   void ResumeRunningAction() {
     ASSERT_NE(nullptr, postinstall_action_);
@@ -171,9 +173,6 @@ void PostinstallRunnerActionTest::RunPostinstallAction(
     const string& postinstall_program,
     bool powerwash_required,
     bool is_rollback) {
-  ActionProcessor processor;
-  processor_ = &processor;
-  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
   InstallPlan::Partition part;
   part.name = "part";
   part.target_path = device_path;
@@ -184,6 +183,14 @@ void PostinstallRunnerActionTest::RunPostinstallAction(
   install_plan.download_url = "http://127.0.0.1:8080/update";
   install_plan.powerwash_required = powerwash_required;
   install_plan.is_rollback = is_rollback;
+  RunPostinstallActionWithInstallPlan(install_plan);
+}
+
+void PostinstallRunnerActionTest::RunPostinstallActionWithInstallPlan(
+    const chromeos_update_engine::InstallPlan& install_plan) {
+  ActionProcessor processor;
+  processor_ = &processor;
+  auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
   feeder_action->set_obj(install_plan);
   auto runner_action = std::make_unique<PostinstallRunnerAction>(
       &fake_boot_control_, &fake_hardware_);
@@ -303,6 +310,27 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
   // was requested.
   EXPECT_FALSE(fake_hardware_.IsPowerwashScheduled());
   EXPECT_FALSE(fake_hardware_.GetIsRollbackPowerwashScheduled());
+}
+
+TEST_F(PostinstallRunnerActionTest, RunAsRootSkipOptionalPostinstallTest) {
+  InstallPlan::Partition part;
+  part.name = "part";
+  part.target_path = "/dev/null";
+  part.run_postinstall = true;
+  part.postinstall_path = kPostinstallDefaultScript;
+  part.postinstall_optional = true;
+  InstallPlan install_plan;
+  install_plan.partitions = {part};
+  install_plan.download_url = "http://127.0.0.1:8080/update";
+
+  // Optional postinstalls will be skipped, and the postinstall action succeeds.
+  RunPostinstallActionWithInstallPlan(install_plan);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
+
+  part.postinstall_optional = false;
+  install_plan.partitions = {part};
+  RunPostinstallActionWithInstallPlan(install_plan);
+  EXPECT_EQ(ErrorCode::kPostinstallRunnerError, processor_delegate_.code_);
 }
 
 // Check that the failures from the postinstall script cause the action to

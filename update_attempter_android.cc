@@ -233,20 +233,8 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.switch_slot_on_reboot =
       GetHeaderAsBool(headers[kPayloadPropertySwitchSlotOnReboot], true);
 
-  install_plan_.run_post_install = true;
-  // Optionally skip post install if and only if:
-  // a) we're resuming
-  // b) post install has already succeeded before
-  // c) RUN_POST_INSTALL is set to 0.
-  if (install_plan_.is_resume && prefs_->Exists(kPrefsPostInstallSucceeded)) {
-    bool post_install_succeeded = false;
-    if (prefs_->GetBoolean(kPrefsPostInstallSucceeded,
-                           &post_install_succeeded) &&
-        post_install_succeeded) {
-      install_plan_.run_post_install =
-          GetHeaderAsBool(headers[kPayloadPropertyRunPostInstall], true);
-    }
-  }
+  install_plan_.run_post_install =
+      GetHeaderAsBool(headers[kPayloadPropertyRunPostInstall], true);
 
   // Skip writing verity if we're resuming and verity has already been written.
   install_plan_.write_verity = true;
