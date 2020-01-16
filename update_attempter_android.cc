@@ -893,8 +893,34 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
     const std::string& metadata_filename,
     const vector<string>& key_value_pair_headers,
     brillo::ErrorPtr* error) {
-  // TODO(elsk): implement b/138808058
-  LogAndSetError(error, FROM_HERE, "Not implemented.");
+  DeltaArchiveManifest manifest;
+  if (!VerifyPayloadParseManifest(metadata_filename, &manifest, error)) {
+    return 0;
+  }
+  std::map<string, string> headers;
+  if (!ParseKeyValuePairHeaders(key_value_pair_headers, &headers, error)) {
+    return 0;
+  }
+
+  string payload_id = GetPayloadId(headers);
+  uint64_t required_size = 0;
+  if (!DeltaPerformer::PreparePartitionsForUpdate(prefs_,
+                                                  boot_control_,
+                                                  GetTargetSlot(),
+                                                  manifest,
+                                                  payload_id,
+                                                  &required_size)) {
+    if (required_size == 0) {
+      LogAndSetError(error, FROM_HERE, "Failed to allocate space for payload.");
+      return 0;
+    } else {
+      LOG(ERROR) << "Insufficient space for payload: " << required_size
+                 << " bytes";
+      return required_size;
+    }
+  }
+
+  LOG(INFO) << "Successfully allocated space for payload.";
   return 0;
 }
 
