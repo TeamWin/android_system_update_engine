@@ -217,7 +217,14 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.is_resume = !payload_id.empty() &&
                             DeltaPerformer::CanResumeUpdate(prefs_, payload_id);
   if (!install_plan_.is_resume) {
-    if (!DeltaPerformer::ResetUpdateProgress(prefs_, false)) {
+    // No need to reset dynamic_partititon_metadata_updated. If previous calls
+    // to AllocateSpaceForPayload uses the same payload_id, reuse preallocated
+    // space. Otherwise, DeltaPerformer re-allocates space when the payload is
+    // applied.
+    if (!DeltaPerformer::ResetUpdateProgress(
+            prefs_,
+            false /* quick */,
+            true /* skip_dynamic_partititon_metadata_updated */)) {
       LOG(WARNING) << "Unable to reset the update progress.";
     }
     if (!prefs_->SetString(kPrefsUpdateCheckResponseHash, payload_id)) {
