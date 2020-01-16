@@ -925,8 +925,13 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   }
 
   if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
-    if (!PreparePartitionsForUpdate()) {
-      *error = ErrorCode::kInstallDeviceOpenError;
+    uint64_t required_size = 0;
+    if (!PreparePartitionsForUpdate(&required_size)) {
+      if (required_size > 0) {
+        *error = ErrorCode::kNotEnoughSpace;
+      } else {
+        *error = ErrorCode::kInstallDeviceOpenError;
+      }
       return false;
     }
   }
@@ -944,21 +949,56 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   return true;
 }
 
-bool DeltaPerformer::PreparePartitionsForUpdate() {
-  bool metadata_updated = false;
-  prefs_->GetBoolean(kPrefsDynamicPartitionMetadataUpdated, &metadata_updated);
-  if (!boot_control_->GetDynamicPartitionControl()->PreparePartitionsForUpdate(
-          boot_control_->GetCurrentSlot(),
-          install_plan_->target_slot,
-          manifest_,
-          !metadata_updated,
-          nullptr /* required_size */)) {
+bool DeltaPerformer::PreparePartitionsForUpdate(uint64_t* required_size) {
+  // Call static PreparePartitionsForUpdate with hash from
+  // kPrefsUpdateCheckResponseHash to ensure hash of payload that space is
+  // preallocated for is the same as the hash of payload being applied.
+  string update_check_response_hash;
+  ignore_result(prefs_->GetString(kPrefsUpdateCheckResponseHash,
+                                  &update_check_response_hash));
+  return PreparePartitionsForUpdate(prefs_,
+                                    boot_control_,
+                                    install_plan_->target_slot,
+                                    manifest_,
+                                    update_check_response_hash,
+                                    required_size);
+}
+
+bool DeltaPerformer::PreparePartitionsForUpdate(
+    PrefsInterface* prefs,
+    BootControlInterface* boot_control,
+    BootControlInterface::Slot target_slot,
+    const DeltaArchiveManifest& manifest,
+    const std::string& update_check_response_hash,
+    uint64_t* required_size) {
+  string last_hash;
+  ignore_result(
+      prefs->GetString(kPrefsDynamicPartitionMetadataUpdated, &last_hash));
+
+  bool is_resume = !update_check_response_hash.empty() &&
+                   last_hash == update_check_response_hash;
+
+  if (is_resume) {
+    LOG(INFO) << "Using previously prepared partitions for update. hash = "
+              << last_hash;
+  } else {
+    LOG(INFO) << "Preparing partitions for new update. last hash = "
+              << last_hash << ", new hash = " << update_check_response_hash;
+  }
+
+  if (!boot_control->GetDynamicPartitionControl()->PreparePartitionsForUpdate(
+          boot_control->GetCurrentSlot(),
+          target_slot,
+          manifest,
+          !is_resume /* should update */,
+          required_size)) {
     LOG(ERROR) << "Unable to initialize partition metadata for slot "
-               << BootControlInterface::SlotName(install_plan_->target_slot);
+               << BootControlInterface::SlotName(target_slot);
     return false;
   }
-  TEST_AND_RETURN_FALSE(
-      prefs_->SetBoolean(kPrefsDynamicPartitionMetadataUpdated, true));
+
+  TEST_AND_RETURN_FALSE(prefs->SetString(kPrefsDynamicPartitionMetadataUpdated,
+                                         update_check_response_hash));
   LOG(INFO) << "PreparePartitionsForUpdate done.";
 
   return true;

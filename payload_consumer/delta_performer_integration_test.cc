@@ -728,7 +728,7 @@ static void ApplyDeltaFile(bool full_kernel,
       .WillRepeatedly(Return(true));
   EXPECT_CALL(prefs, SetString(kPrefsUpdateStateSignedSHA256Context, _))
       .WillRepeatedly(Return(true));
-  EXPECT_CALL(prefs, SetBoolean(kPrefsDynamicPartitionMetadataUpdated, _))
+  EXPECT_CALL(prefs, SetString(kPrefsDynamicPartitionMetadataUpdated, _))
       .WillRepeatedly(Return(true));
   if (op_hash_test == kValidOperationData && signature_test != kSignatureNone) {
     EXPECT_CALL(prefs, SetString(kPrefsUpdateStateSignatureBlob, _))
