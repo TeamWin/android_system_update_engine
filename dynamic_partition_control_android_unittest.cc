@@ -120,7 +120,11 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
   }
   bool PreparePartitionsForUpdate(const PartitionSizes& partition_sizes) {
     return dynamicControl().PreparePartitionsForUpdate(
-        source(), target(), PartitionSizesToManifest(partition_sizes), true);
+        source(),
+        target(),
+        PartitionSizesToManifest(partition_sizes),
+        true,
+        nullptr);
   }
   void SetSlots(const TestParam& slots) { slots_ = slots; }
 
@@ -317,7 +321,7 @@ TEST_P(DynamicPartitionControlAndroidTestP,
   // DynamicPartitionControlAndroidTest::PreparePartitionsForUpdate(), since we
   // don't want any default group in the PartitionMetadata.
   EXPECT_TRUE(dynamicControl().PreparePartitionsForUpdate(
-      source(), target(), {}, true));
+      source(), target(), {}, true, nullptr));
 
   // Should use dynamic source partitions.
   EXPECT_CALL(dynamicControl(), GetState(S("system")))
@@ -371,7 +375,8 @@ TEST_P(DynamicPartitionControlAndroidTestP,
       source(),
       target(),
       PartitionSizesToManifest({{"system", 2_GiB}, {"vendor", 1_GiB}}),
-      false));
+      false,
+      nullptr));
 
   // Dynamic partition "system".
   EXPECT_CALL(dynamicControl(), GetState(S("system")))
@@ -622,7 +627,11 @@ TEST_F(DynamicPartitionControlAndroidTest, ApplyingToCurrentSlot) {
 
 TEST_P(DynamicPartitionControlAndroidTestP, ShouldSkipOperationTest) {
   ASSERT_TRUE(dynamicControl().PreparePartitionsForUpdate(
-      source(), target(), PartitionSizesToManifest({{"foo", 4_MiB}}), false));
+      source(),
+      target(),
+      PartitionSizesToManifest({{"foo", 4_MiB}}),
+      false,
+      nullptr));
   dynamicControl().set_fake_mapped_devices({T("foo")});
 
   InstallOperation iop;
