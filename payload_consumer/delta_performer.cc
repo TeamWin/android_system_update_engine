@@ -951,7 +951,8 @@ bool DeltaPerformer::PreparePartitionsForUpdate() {
           boot_control_->GetCurrentSlot(),
           install_plan_->target_slot,
           manifest_,
-          !metadata_updated)) {
+          !metadata_updated,
+          nullptr /* required_size */)) {
     LOG(ERROR) << "Unable to initialize partition metadata for slot "
                << BootControlInterface::SlotName(install_plan_->target_slot);
     return false;

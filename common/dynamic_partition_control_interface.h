@@ -64,10 +64,15 @@ class DynamicPartitionControlInterface {
   // This is needed before calling MapPartitionOnDeviceMapper(), otherwise the
   // device would be mapped in an inconsistent way.
   // If |update| is set, create snapshots and writes super partition metadata.
+  // If |required_size| is not null and call fails due to insufficient space,
+  // |required_size| will be set to total free space required on userdata
+  // partition to apply the update. Otherwise (call succeeds, or fails
+  // due to other errors), |required_size| is set to zero.
   virtual bool PreparePartitionsForUpdate(uint32_t source_slot,
                                           uint32_t target_slot,
                                           const DeltaArchiveManifest& manifest,
-                                          bool update) = 0;
+                                          bool update,
+                                          uint64_t* required_size) = 0;
 
   // After writing to new partitions, before rebooting into the new slot, call
   // this function to indicate writes to new partitions are done.
