@@ -264,7 +264,6 @@ cc_defaults {
         "libcurl",
         "libcutils",
         "liblog",
-        "libmetricslogger",
         "libssl",
         "libstatslog",
         "libutils",
