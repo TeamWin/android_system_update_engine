@@ -50,6 +50,7 @@ using android::fs_mgr::MetadataBuilder;
 using android::fs_mgr::Partition;
 using android::fs_mgr::PartitionOpener;
 using android::fs_mgr::SlotSuffixForSlotNumber;
+using android::snapshot::Return;
 using android::snapshot::SnapshotManager;
 using android::snapshot::SourceCopyOperationIsClone;
 
@@ -488,7 +489,7 @@ bool DynamicPartitionControlAndroid::PrepareSnapshotPartitionsForUpdate(
   if (!ret) {
     LOG(ERROR) << "Cannot create update snapshots: " << ret.string();
     if (required_size != nullptr &&
-        ret.error_code() == SnapshotManager::Return::ErrorCode::NO_SPACE) {
+        ret.error_code() == Return::ErrorCode::NO_SPACE) {
       *required_size = ret.required_size();
     }
     return false;
