@@ -368,7 +368,7 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
   }
   ErrorCode errorcode;
   PayloadMetadata payload_metadata;
-  if (payload_metadata.ParsePayloadHeader(metadata, &errorcode) !=
+  if (payload_metadata.ParsePayloadHeader(metadata, nullptr, &errorcode) !=
       MetadataParseResult::kSuccess) {
     return LogAndSetError(error,
                           FROM_HERE,

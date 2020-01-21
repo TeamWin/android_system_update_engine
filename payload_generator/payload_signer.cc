@@ -94,7 +94,7 @@ bool AddSignatureBlobToPayload(const string& payload_path,
   brillo::Blob payload;
   TEST_AND_RETURN_FALSE(utils::ReadFile(payload_path, &payload));
   PayloadMetadata payload_metadata;
-  TEST_AND_RETURN_FALSE(payload_metadata.ParsePayloadHeader(payload));
+  TEST_AND_RETURN_FALSE(payload_metadata.ParsePayloadHeader(payload, nullptr));
   uint64_t metadata_size = payload_metadata.GetMetadataSize();
   uint32_t metadata_signature_size =
       payload_metadata.GetMetadataSignatureSize();
@@ -218,7 +218,7 @@ bool PayloadSigner::VerifySignedPayload(const string& payload_path,
   brillo::Blob payload;
   TEST_AND_RETURN_FALSE(utils::ReadFile(payload_path, &payload));
   PayloadMetadata payload_metadata;
-  TEST_AND_RETURN_FALSE(payload_metadata.ParsePayloadHeader(payload));
+  TEST_AND_RETURN_FALSE(payload_metadata.ParsePayloadHeader(payload, nullptr));
   DeltaArchiveManifest manifest;
   TEST_AND_RETURN_FALSE(payload_metadata.GetManifest(payload, &manifest));
   TEST_AND_RETURN_FALSE(manifest.has_signatures_offset() &&

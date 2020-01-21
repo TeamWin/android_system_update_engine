@@ -26,7 +26,7 @@
 namespace chromeos_update_engine {
 
 // The major version used by Chrome OS.
-// extern const uint64_t kChromeOSMajorPayloadVersion;  DEPRECATED
+extern const uint64_t kChromeOSMajorPayloadVersion;
 
 // The major version used by Brillo.
 extern const uint64_t kBrilloMajorPayloadVersion;

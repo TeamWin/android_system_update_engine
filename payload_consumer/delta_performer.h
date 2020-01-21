@@ -237,6 +237,11 @@ class DeltaPerformer : public FileWriter {
   FileDescriptorPtr ChooseSourceFD(const InstallOperation& operation,
                                    ErrorCode* error);
 
+  // Extracts the payload signature message from the blob on the |operation| if
+  // the offset matches the one specified by the manifest. Returns whether the
+  // signature was extracted.
+  bool ExtractSignatureMessageFromOperation(const InstallOperation& operation);
+
   // Extracts the payload signature message from the current |buffer_| if the
   // offset matches the one specified by the manifest. Returns whether the
   // signature was extracted.
