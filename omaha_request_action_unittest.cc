@@ -91,11 +91,7 @@ const char kTestAppIdSkipUpdatecheck[] = "test-app-id-skip-updatecheck";
 struct FakeUpdateResponse {
   string GetRollbackVersionAttributes() const {
     string num_milestones;
-#if BASE_VER < 576279
-    num_milestones = base::IntToString(rollback_allowed_milestones);
-#else
     num_milestones = base::NumberToString(rollback_allowed_milestones);
-#endif
     const string rollback_version =
         " _firmware_version_" + num_milestones + "=\"" +
         past_rollback_key_version.first + "\"" + " _kernel_version_" +

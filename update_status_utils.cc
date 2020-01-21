@@ -74,19 +74,11 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
 string UpdateEngineStatusToString(const UpdateEngineStatus& status) {
   KeyValueStore key_value_store;
 
-#if BASE_VER < 576279
-  key_value_store.SetString(kLastCheckedTime,
-                            base::Int64ToString(status.last_checked_time));
-  key_value_store.SetString(kProgress, base::DoubleToString(status.progress));
-  key_value_store.SetString(kNewSize,
-                            base::Uint64ToString(status.new_size_bytes));
-#else
   key_value_store.SetString(kLastCheckedTime,
                             base::NumberToString(status.last_checked_time));
   key_value_store.SetString(kProgress, base::NumberToString(status.progress));
   key_value_store.SetString(kNewSize,
                             base::NumberToString(status.new_size_bytes));
-#endif
   key_value_store.SetString(kCurrentOp, UpdateStatusToString(status.status));
   key_value_store.SetString(kNewVersion, status.new_version);
   key_value_store.SetBoolean(kIsEnterpriseRollback,

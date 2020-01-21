@@ -562,13 +562,8 @@ int UpdateEngineClient::ProcessFlags() {
       ErrorCode code = static_cast<ErrorCode>(last_attempt_error);
 
       KeyValueStore last_attempt_error_store;
-#if BASE_VER < 576279
-      last_attempt_error_store.SetString(
-          "ERROR_CODE", base::Int64ToString(last_attempt_error));
-#else
       last_attempt_error_store.SetString(
           "ERROR_CODE", base::NumberToString(last_attempt_error));
-#endif
       last_attempt_error_store.SetString("ERROR_MESSAGE",
                                          ErrorCodeToString(code));
       printf("%s", last_attempt_error_store.SaveToString().c_str());

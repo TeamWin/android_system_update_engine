@@ -24,11 +24,7 @@ namespace chromeos_update_engine {
 const EolDate kEolDateInvalid = -9999;
 
 std::string EolDateToString(EolDate eol_date) {
-#if BASE_VER < 576279
-  return base::Int64ToString(eol_date);
-#else
   return base::NumberToString(eol_date);
-#endif
 }
 
 EolDate StringToEolDate(const std::string& eol_date) {
