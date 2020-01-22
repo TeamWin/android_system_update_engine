@@ -39,6 +39,7 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
                                   uint64_t* required_size) override;
 
   bool FinishUpdate() override;
+  ErrorCode CleanupSuccessfulUpdate() override;
 };
 
 }  // namespace chromeos_update_engine

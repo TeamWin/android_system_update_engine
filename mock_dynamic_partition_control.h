@@ -43,6 +43,7 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
       bool(uint32_t, uint32_t, const DeltaArchiveManifest&, bool, uint64_t*));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
   MOCK_METHOD0(FinishUpdate, bool());
+  MOCK_METHOD0(CleanupSuccessfulUpdate, ErrorCode());
 };
 
 class MockDynamicPartitionControlAndroid
