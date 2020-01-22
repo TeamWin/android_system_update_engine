@@ -144,7 +144,10 @@ int UpdateEngineClientAndroid::OnInit() {
               false,
               "Follow status update changes until a final state is reached. "
               "Exit status is 0 if the update succeeded, and 1 otherwise.");
-
+  DEFINE_bool(merge,
+              false,
+              "Wait for previous update to merge. "
+              "Only available after rebooting to new slot.");
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
   brillo::FlagHelper::Init(argc_, argv_, "Android Update Engine Client");
@@ -218,6 +221,16 @@ int UpdateEngineClientAndroid::OnInit() {
       }
     } else {
       LOG(INFO) << "Allocation failed.";
+    }
+    return ExitWhenIdle(status);
+  }
+
+  if (FLAGS_merge) {
+    int32_t ret = 0;
+    Status status = service_->cleanupSuccessfulUpdate(&ret);
+    if (status.isOk()) {
+      LOG(INFO) << "CleanupSuccessfulUpdate exits with "
+                << utils::ErrorCodeToString(static_cast<ErrorCode>(ret));
     }
     return ExitWhenIdle(status);
   }
