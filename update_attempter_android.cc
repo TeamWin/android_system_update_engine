@@ -933,9 +933,15 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
 
 int32_t UpdateAttempterAndroid::CleanupSuccessfulUpdate(
     brillo::ErrorPtr* error) {
-  // TODO(elsk): implement b/138808328
-  LogAndSetError(error, FROM_HERE, "Not implemented.");
-  return static_cast<int32_t>(ErrorCode::kError);
+  ErrorCode error_code =
+      boot_control_->GetDynamicPartitionControl()->CleanupSuccessfulUpdate();
+  if (error_code == ErrorCode::kSuccess) {
+    LOG(INFO) << "Previous update is merged and cleaned up successfully.";
+  } else {
+    LOG(ERROR) << "CleanupSuccessfulUpdate failed with "
+               << utils::ErrorCodeToString(error_code);
+  }
+  return static_cast<int32_t>(error_code);
 }
 
 }  // namespace chromeos_update_engine
