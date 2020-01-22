@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 
+#include "update_engine/common/error_code.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -77,6 +78,14 @@ class DynamicPartitionControlInterface {
   // After writing to new partitions, before rebooting into the new slot, call
   // this function to indicate writes to new partitions are done.
   virtual bool FinishUpdate() = 0;
+
+  // Before applying the next update, call this function to clean up previous
+  // update files. This function blocks until delta files are merged into
+  // current OS partitions and finished cleaning up.
+  // - If successful, return kSuccess.
+  // - If any error, but caller should retry after reboot, return kError.
+  // - If any irrecoverable failures, return kDeviceCorrupted.
+  virtual ErrorCode CleanupSuccessfulUpdate() = 0;
 };
 
 }  // namespace chromeos_update_engine
