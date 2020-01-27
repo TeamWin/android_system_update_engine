@@ -30,9 +30,7 @@ std::string EolDateToString(EolDate eol_date) {
 EolDate StringToEolDate(const std::string& eol_date) {
   EolDate date = kEolDateInvalid;
   if (!base::StringToInt64(eol_date, &date)) {
-    // TODO(b/142823480): Once Omaha is passing _eol_date attribute, this log
-    // may be turned back on.
-    // LOG(WARNING) << "Invalid EOL date attribute: " << eol_date;
+    LOG(WARNING) << "Invalid EOL date attribute: " << eol_date;
     return kEolDateInvalid;
   }
   return date;
