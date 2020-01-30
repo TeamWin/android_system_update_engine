@@ -61,7 +61,8 @@ ue_common_c_includes := \
 ue_common_shared_libraries := \
     libbrillo-stream \
     libbrillo \
-    libchrome
+    libchrome \
+    libcutils
 ue_common_static_libraries := \
     libgtest_prod \
 
