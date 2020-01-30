@@ -68,8 +68,14 @@ constexpr std::chrono::milliseconds kMapTimeout{1000};
 // needs to be mapped, this timeout is longer than |kMapTimeout|.
 constexpr std::chrono::milliseconds kMapSnapshotTimeout{5000};
 
+#ifdef __ANDROID_RECOVERY__
+constexpr bool kIsRecovery = true;
+#else
+constexpr bool kIsRecovery = false;
+#endif
+
 DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
-  CleanupInternal();
+  Cleanup();
 }
 
 static FeatureFlag GetFeatureFlag(const char* enable_prop,
@@ -234,8 +240,7 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
   return true;
 }
 
-void DynamicPartitionControlAndroid::CleanupInternal() {
-  metadata_device_.reset();
+void DynamicPartitionControlAndroid::UnmapAllPartitions() {
   if (mapped_devices_.empty()) {
     return;
   }
@@ -249,7 +254,8 @@ void DynamicPartitionControlAndroid::CleanupInternal() {
 }
 
 void DynamicPartitionControlAndroid::Cleanup() {
-  CleanupInternal();
+  UnmapAllPartitions();
+  metadata_device_.reset();
 }
 
 bool DynamicPartitionControlAndroid::DeviceExists(const std::string& path) {
@@ -419,28 +425,53 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
   if (!update)
     return true;
 
+  bool delete_source = false;
+
   if (GetVirtualAbFeatureFlag().IsEnabled()) {
     // On Virtual A/B device, either CancelUpdate() or BeginUpdate() must be
     // called before calling UnmapUpdateSnapshot.
     // - If target_supports_snapshot_, PrepareSnapshotPartitionsForUpdate()
     //   calls BeginUpdate() which resets update state
-    // - If !target_supports_snapshot_, explicitly CancelUpdate().
+    // - If !target_supports_snapshot_ or PrepareSnapshotPartitionsForUpdate
+    //   failed in recovery, explicitly CancelUpdate().
     if (target_supports_snapshot_) {
-      return PrepareSnapshotPartitionsForUpdate(
-          source_slot, target_slot, manifest, required_size);
+      if (PrepareSnapshotPartitionsForUpdate(
+              source_slot, target_slot, manifest, required_size)) {
+        return true;
+      }
+
+      // Virtual A/B device doing Virtual A/B update in Android mode must use
+      // snapshots.
+      if (!IsRecovery()) {
+        LOG(ERROR) << "PrepareSnapshotPartitionsForUpdate failed in Android "
+                   << "mode";
+        return false;
+      }
+
+      delete_source = true;
+      LOG(INFO) << "PrepareSnapshotPartitionsForUpdate failed in recovery. "
+                << "Attempt to overwrite existing partitions if possible";
+    } else {
+      // Downgrading to an non-Virtual A/B build or is secondary OTA.
+      LOG(INFO) << "Using regular A/B on Virtual A/B because package disabled "
+                << "snapshots.";
     }
+
     if (!snapshot_->CancelUpdate()) {
       LOG(ERROR) << "Cannot cancel previous update.";
       return false;
     }
   }
-  return PrepareDynamicPartitionsForUpdate(source_slot, target_slot, manifest);
+
+  return PrepareDynamicPartitionsForUpdate(
+      source_slot, target_slot, manifest, delete_source);
 }
 
 bool DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
-    const DeltaArchiveManifest& manifest) {
+    const DeltaArchiveManifest& manifest,
+    bool delete_source) {
   const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
 
   // Unmap all the target dynamic partitions because they would become
@@ -466,6 +497,11 @@ bool DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
     LOG(ERROR) << "No metadata at "
                << BootControlInterface::SlotName(source_slot);
     return false;
+  }
+
+  if (delete_source) {
+    TEST_AND_RETURN_FALSE(
+        DeleteSourcePartitions(builder.get(), source_slot, manifest));
   }
 
   if (!UpdatePartitionMetadata(builder.get(), target_slot, manifest)) {
@@ -585,7 +621,7 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
 }
 
 bool DynamicPartitionControlAndroid::FinishUpdate() {
-  if (GetVirtualAbFeatureFlag().IsEnabled() && target_supports_snapshot_) {
+  if (snapshot_->GetUpdateState() == UpdateState::Initiated) {
     LOG(INFO) << "Snapshot writes are done.";
     return snapshot_->FinishedSnapshotWrites();
   }
@@ -711,6 +747,42 @@ ErrorCode DynamicPartitionControlAndroid::CleanupSuccessfulUpdate() {
     return ErrorCode::kError;
   }
   return ErrorCode::kDeviceCorrupted;
+}
+
+bool DynamicPartitionControlAndroid::IsRecovery() {
+  return kIsRecovery;
+}
+
+static bool IsIncrementalUpdate(const DeltaArchiveManifest& manifest) {
+  const auto& partitions = manifest.partitions();
+  return std::any_of(partitions.begin(), partitions.end(), [](const auto& p) {
+    return p.has_old_partition_info();
+  });
+}
+
+bool DynamicPartitionControlAndroid::DeleteSourcePartitions(
+    MetadataBuilder* builder,
+    uint32_t source_slot,
+    const DeltaArchiveManifest& manifest) {
+  TEST_AND_RETURN_FALSE(IsRecovery());
+
+  if (IsIncrementalUpdate(manifest)) {
+    LOG(ERROR) << "Cannot sideload incremental OTA because snapshots cannot "
+               << "be created.";
+    if (GetVirtualAbFeatureFlag().IsLaunch()) {
+      LOG(ERROR) << "Sideloading incremental updates on devices launches "
+                 << " Virtual A/B is not supported.";
+    }
+    return false;
+  }
+
+  LOG(INFO) << "Will overwrite existing partitions. Slot "
+            << BootControlInterface::SlotName(source_slot)
+            << "may be unbootable until update finishes!";
+  const std::string source_suffix = SlotSuffixForSlotNumber(source_slot);
+  DeleteGroupsWithSuffix(builder, source_suffix);
+
+  return true;
 }
 
 }  // namespace chromeos_update_engine
