@@ -78,7 +78,7 @@ class SideloadDaemonState : public DaemonStateInterface,
       ReportStatus(base::StringPrintf("progress 0.5 0"));
     }
     if (status_ != status || fabs(progress - progress_) > 0.005) {
-      ReportStatus(base::StringPrintf("set_progress %.lf", progress));
+      ReportStatus(base::StringPrintf("set_progress %.2lf", progress));
     }
     progress_ = progress;
     status_ = status;
