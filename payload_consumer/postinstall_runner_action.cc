@@ -94,7 +94,8 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
 
   // Skip all the partitions that don't have a post-install step.
   while (current_partition_ < install_plan_.partitions.size() &&
-         !install_plan_.partitions[current_partition_].run_postinstall) {
+         (install_plan_.partitions[current_partition_].name != "system" &&
+         !install_plan_.partitions[current_partition_].run_postinstall)) {
     VLOG(1) << "Skipping post-install on partition "
             << install_plan_.partitions[current_partition_].name;
     current_partition_++;
