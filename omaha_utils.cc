@@ -29,10 +29,8 @@ std::string EolDateToString(EolDate eol_date) {
 
 EolDate StringToEolDate(const std::string& eol_date) {
   EolDate date = kEolDateInvalid;
-  if (!base::StringToInt64(eol_date, &date)) {
-    LOG(WARNING) << "Invalid EOL date attribute: " << eol_date;
+  if (!base::StringToInt64(eol_date, &date))
     return kEolDateInvalid;
-  }
   return date;
 }
 
