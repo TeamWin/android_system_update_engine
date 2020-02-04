@@ -621,7 +621,8 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
 }
 
 bool DynamicPartitionControlAndroid::FinishUpdate() {
-  if (snapshot_->GetUpdateState() == UpdateState::Initiated) {
+  if (GetVirtualAbFeatureFlag().IsEnabled() &&
+      snapshot_->GetUpdateState() == UpdateState::Initiated) {
     LOG(INFO) << "Snapshot writes are done.";
     return snapshot_->FinishedSnapshotWrites();
   }
