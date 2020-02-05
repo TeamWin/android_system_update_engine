@@ -208,6 +208,9 @@ cc_defaults {
         "libutils",
         "android.hardware.boot@1.0",
         "android.hardware.boot@1.1",
+
+        //TODO(b/148818798): remove when parent bug fixed
+        "libutilscallstack",
     ],
     target: {
         recovery: {
@@ -218,6 +221,9 @@ cc_defaults {
             exclude_static_libs: [
                 "libfs_mgr_binder",
                 "libsnapshot",
+            ],
+            exclude_shared_libs: [
+                "libutilscallstack",
             ],
         },
     },
