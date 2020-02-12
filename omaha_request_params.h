@@ -225,9 +225,12 @@ class OmahaRequestParams {
   // download channel.
   virtual std::string GetAppId() const;
 
-  // Returns the DLC app ID corresponding to the current value of the
-  // download channel.
-  virtual std::string GetDlcAppId(std::string dlc_id) const;
+  // Returns the DLC app ID.
+  virtual std::string GetDlcAppId(const std::string& dlc_id) const;
+
+  // Returns true if the App ID is a DLC App ID that is currently part of the
+  // request parameters.
+  virtual bool IsDlcAppId(const std::string& app_id) const;
 
   // Suggested defaults
   static const char kOsVersion[];
@@ -404,7 +407,7 @@ class OmahaRequestParams {
   // The metadata/prefs root path for DLCs.
   std::string dlc_prefs_root_;
 
-  // A list of DLC modules to install.
+  // A list of DLC modules to install. A mapping from DLC App ID to |AppParams|.
   std::map<std::string, AppParams> dlc_apps_params_;
 
   // This variable defines whether the payload is being installed in the current

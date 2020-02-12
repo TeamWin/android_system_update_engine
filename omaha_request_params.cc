@@ -249,10 +249,14 @@ string OmahaRequestParams::GetAppId() const {
                                                : image_props_.product_id;
 }
 
-string OmahaRequestParams::GetDlcAppId(std::string dlc_id) const {
+string OmahaRequestParams::GetDlcAppId(const std::string& dlc_id) const {
   // Create APP ID according to |dlc_id| (sticking the current AppID to the
   // DLC module ID with an underscode).
   return GetAppId() + "_" + dlc_id;
+}
+
+bool OmahaRequestParams::IsDlcAppId(const std::string& app_id) const {
+  return dlc_apps_params().find(app_id) != dlc_apps_params().end();
 }
 
 }  // namespace chromeos_update_engine

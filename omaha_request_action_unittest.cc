@@ -86,6 +86,8 @@ const char kCurrentVersion[] = "0.1.0.0";
 const char kTestAppId[] = "test-app-id";
 const char kTestAppId2[] = "test-app2-id";
 const char kTestAppIdSkipUpdatecheck[] = "test-app-id-skip-updatecheck";
+const char kDlcId1[] = "dlc-id-1";
+const char kDlcId2[] = "dlc-id-2";
 
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
@@ -131,6 +133,8 @@ struct FakeUpdateResponse {
   }
 
   string GetUpdateResponse() const {
+    chromeos_update_engine::OmahaRequestParams request_params{nullptr};
+    request_params.set_app_id(app_id);
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
            "protocol=\"3.0\">"
            "<daystart elapsed_seconds=\"100\"" +
@@ -196,6 +200,21 @@ struct FakeUpdateResponse {
            (multi_app_skip_updatecheck
                 ? "<app appid=\"" + app_id_skip_updatecheck + "\"></app>"
                 : "") +
+           (dlc_app_update
+                ? "<app appid=\"" + request_params.GetDlcAppId(kDlcId1) +
+                      "\" status=\"ok\">"
+                      "<updatecheck status=\"ok\"><urls><url codebase=\"" +
+                      codebase + "\"/></urls><manifest version=\"" + version +
+                      "\"><packages><package name=\"package3\" size=\"333\" "
+                      "hash_sha256=\"hash3\"/></packages><actions>"
+                      "<action event=\"install\" run=\".signed\"/>"
+                      "<action event=\"postinstall\" MetadataSize=\"33\"/>"
+                      "</actions></manifest></updatecheck></app>"
+                : "") +
+           (dlc_app_no_update
+                ? "<app appid=\"" + request_params.GetDlcAppId(kDlcId2) +
+                      "\"><updatecheck status=\"noupdate\"/></app>"
+                : "") +
            "</response>";
   }
 
@@ -244,6 +263,10 @@ struct FakeUpdateResponse {
   bool multi_app_skip_updatecheck = false;
   // Whether to include more than one package in an app.
   bool multi_package = false;
+  // Whether to include a DLC app with updatecheck tag.
+  bool dlc_app_update = false;
+  // Whether to include a DLC app with no updatecheck tag.
+  bool dlc_app_no_update = false;
 
   // Whether the payload is a rollback.
   bool rollback = false;
@@ -2688,6 +2711,7 @@ TEST_F(OmahaRequestActionTest, InstallTest) {
     pos++;
   }
   EXPECT_EQ(request_params_.dlc_apps_params().size(), updatecheck_count);
+  EXPECT_TRUE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
@@ -2704,6 +2728,38 @@ TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
 
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.current_version, response.version);
+}
+
+TEST_F(OmahaRequestActionTest, UpdateWithDlcTest) {
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  fake_update_response_.dlc_app_update = true;
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_TRUE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, UpdateWithDeprecatedDlcTest) {
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId2), {.name = kDlcId2}}});
+  fake_update_response_.dlc_app_no_update = true;
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_TRUE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, UpdateWithDlcAndDeprecatedDlcTest) {
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}},
+       {request_params_.GetDlcAppId(kDlcId2), {.name = kDlcId2}}});
+  fake_update_response_.dlc_app_update = true;
+  fake_update_response_.dlc_app_no_update = true;
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_TRUE(response.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, PastRollbackVersionsNoEntries) {

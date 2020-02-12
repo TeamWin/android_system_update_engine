@@ -788,6 +788,13 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
   for (const auto& app : parser_data->apps) {
     const string& status = app.updatecheck_status;
     if (status == kValNoUpdate) {
+      // If the app is a DLC, allow status "noupdate" to support DLC
+      // deprecations.
+      if (params_->IsDlcAppId(app.id)) {
+        LOG(INFO) << "No update for <app> " << app.id
+                  << " but update continuing since a DLC.";
+        continue;
+      }
       // Don't update if any app has status="noupdate".
       LOG(INFO) << "No update for <app> " << app.id;
       output_object->update_exists = false;
