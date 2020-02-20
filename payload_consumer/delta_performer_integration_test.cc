@@ -25,6 +25,7 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>
@@ -848,7 +849,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 
   brillo::Blob updated_kernel_partition;
   EXPECT_TRUE(utils::ReadFile(state->result_kernel, &updated_kernel_partition));
-  ASSERT_GE(updated_kernel_partition.size(), arraysize(kNewData));
+  ASSERT_GE(updated_kernel_partition.size(), base::size(kNewData));
   EXPECT_TRUE(std::equal(std::begin(kNewData),
                          std::end(kNewData),
                          updated_kernel_partition.begin()));

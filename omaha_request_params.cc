@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <base/files/file_util.h>
+#include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/key_value_store.h>
@@ -217,7 +218,7 @@ void OmahaRequestParams::set_root(const string& root) {
 }
 
 int OmahaRequestParams::GetChannelIndex(const string& channel) const {
-  for (size_t t = 0; t < arraysize(kChannelsByStability); ++t)
+  for (size_t t = 0; t < base::size(kChannelsByStability); ++t)
     if (channel == kChannelsByStability[t])
       return t;
 

@@ -89,7 +89,8 @@ bool ConnectionManager::IsUpdateAllowedOver(
   if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
     // The update setting is enforced by the device policy.
 
-    if (!base::ContainsKey(allowed_types, shill::kTypeCellular)) {
+    // TODO(crbug.com/1054279): Use base::Contains after uprev to r680000.
+    if (allowed_types.find(shill::kTypeCellular) == allowed_types.end()) {
       LOG(INFO) << "Disabling updates over cellular connection as it's not "
                    "allowed in the device policy.";
       return false;

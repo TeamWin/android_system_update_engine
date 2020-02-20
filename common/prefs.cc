@@ -54,7 +54,7 @@ bool PrefsBase::GetInt64(const string& key, int64_t* value) const {
 }
 
 bool PrefsBase::SetInt64(const string& key, const int64_t value) {
-  return SetString(key, base::Int64ToString(value));
+  return SetString(key, base::NumberToString(value));
 }
 
 bool PrefsBase::GetBoolean(const string& key, bool* value) const {

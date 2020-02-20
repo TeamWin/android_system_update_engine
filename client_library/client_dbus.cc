@@ -214,7 +214,7 @@ bool DBusUpdateEngineClient::UnregisterStatusUpdateHandler(
 
 bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
-  if (!base::MessageLoopForIO::current()) {
+  if (!base::MessageLoopCurrent::IsSet()) {
     LOG(FATAL) << "Cannot get UpdateEngineClient outside of message loop.";
     return false;
   }

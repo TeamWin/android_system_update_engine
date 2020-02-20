@@ -20,6 +20,7 @@
 #include <vector>
 
 #include <base/logging.h>
+#include <base/stl_util.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/hash_calculator.h"
@@ -124,8 +125,8 @@ TEST_F(PayloadSignerTest, SignSimpleTextTest) {
   const Signatures_Signature& signature = signatures.signatures(0);
   EXPECT_EQ(1U, signature.version());
   const string& sig_data = signature.data();
-  ASSERT_EQ(arraysize(kDataSignature), sig_data.size());
-  for (size_t i = 0; i < arraysize(kDataSignature); i++) {
+  ASSERT_EQ(base::size(kDataSignature), sig_data.size());
+  for (size_t i = 0; i < base::size(kDataSignature); i++) {
     EXPECT_EQ(kDataSignature[i], static_cast<uint8_t>(sig_data[i]));
   }
 }

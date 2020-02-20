@@ -27,6 +27,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
+#include <base/stl_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -715,12 +716,12 @@ TEST_F(DeltaPerformerTest, ChooseSourceFDTest) {
 
 TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
   uint64_t test[] = {1, 1, 4, 2, 0, 1};
-  static_assert(arraysize(test) % 2 == 0, "Array size uneven");
+  static_assert(base::size(test) % 2 == 0, "Array size uneven");
   const uint64_t block_size = 4096;
   const uint64_t file_length = 4 * block_size - 13;
 
   google::protobuf::RepeatedPtrField<Extent> extents;
-  for (size_t i = 0; i < arraysize(test); i += 2) {
+  for (size_t i = 0; i < base::size(test); i += 2) {
     *(extents.Add()) = ExtentForRange(test[i], test[i + 1]);
   }
 
