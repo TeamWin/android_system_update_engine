@@ -85,6 +85,9 @@ class BootControlInterface {
   // of the operation.
   virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
 
+  // Check if |slot| is marked boot successfully.
+  virtual bool IsSlotMarkedSuccessful(Slot slot) const = 0;
+
   // Return the dynamic partition control interface.
   virtual DynamicPartitionControlInterface* GetDynamicPartitionControl() = 0;
 
