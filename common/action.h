@@ -229,7 +229,8 @@ class NoOpAction : public AbstractAction {
   void PerformAction() override {
     processor_->ActionComplete(this, ErrorCode::kSuccess);
   }
-  std::string Type() const override { return "NoOpAction"; }
+  static std::string StaticType() { return "NoOpAction"; }
+  std::string Type() const override { return StaticType(); }
 };
 
 };  // namespace chromeos_update_engine

@@ -62,8 +62,13 @@ interface IUpdateEngine {
    *
    * Wait for merge to finish, and clean up necessary files.
    *
-   * @return SUCCESS if successful. ERROR if transient errors (e.g. merged but
-   * needs reboot). DEVICE_CORRUPTED for permanent errors.
+   * @param callback Report status updates in callback (not the one previously
+   * bound with {@link #bind()}).
+   * {@link IUpdateEngineCallback#onStatusUpdate} is called with
+   * CLEANUP_PREVIOUS_UPDATE and a progress value during the cleanup.
+   * {@link IUpdateEngineCallback#onPayloadApplicationComplete} is called at
+   * the end with SUCCESS if successful. ERROR if transient errors (e.g. merged
+   * but needs reboot). DEVICE_CORRUPTED for permanent errors.
    */
-  int cleanupSuccessfulUpdate();
+  void cleanupSuccessfulUpdate(IUpdateEngineCallback callback);
 }
