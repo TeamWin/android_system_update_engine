@@ -62,6 +62,13 @@ class FilesystemInterface {
     // indicating the starting block, and the number of consecutive blocks.
     std::vector<Extent> extents;
 
+    // If true, the file is already compressed on the disk, so we don't need to
+    // parse it again for deflates. For example, image .gz files inside a
+    // compressed SquashFS image. They might have already been compressed by the
+    // mksquashfs, so we can't really parse the file and look for deflate
+    // compressed parts anymore.
+    bool is_compressed = false;
+
     // All the deflate locations in the file. These locations are not relative
     // to the extents. They are relative to the file system itself.
     std::vector<puffin::BitExtent> deflates;

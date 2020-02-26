@@ -296,7 +296,7 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
       }
     }
 
-    if (extract_deflates) {
+    if (extract_deflates && !file.is_compressed) {
       // Search for deflates if the file is in zip or gzip format.
       // .zvoice files may eventually move out of rootfs. If that happens,
       // remove ".zvoice" (crbug.com/782918).

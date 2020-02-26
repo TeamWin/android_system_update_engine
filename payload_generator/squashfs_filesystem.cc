@@ -166,6 +166,7 @@ bool SquashfsFilesystem::Init(const string& map,
     uint64_t start;
     TEST_AND_RETURN_FALSE(base::StringToUint64(splits[1], &start));
     uint64_t cur_offset = start;
+    bool is_compressed = false;
     for (size_t i = 2; i < splits.size(); ++i) {
       uint64_t blk_size;
       TEST_AND_RETURN_FALSE(base::StringToUint64(splits[i], &blk_size));
@@ -173,10 +174,11 @@ bool SquashfsFilesystem::Init(const string& map,
       auto new_blk_size = blk_size & ~kSquashfsCompressedBit;
       TEST_AND_RETURN_FALSE(new_blk_size <= header.block_size);
       if (new_blk_size > 0 && !(blk_size & kSquashfsCompressedBit)) {
-        // Compressed block
+        // It is a compressed block.
         if (is_zlib && extract_deflates) {
           zlib_blks.emplace_back(cur_offset, new_blk_size);
         }
+        is_compressed = true;
       }
       cur_offset += new_blk_size;
     }
@@ -186,6 +188,7 @@ bool SquashfsFilesystem::Init(const string& map,
       File file;
       file.name = splits[0].as_string();
       file.extents = {ExtentForBytes(kBlockSize, start, cur_offset - start)};
+      file.is_compressed = is_compressed;
       files_.emplace_back(file);
     }
   }
