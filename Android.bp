@@ -303,6 +303,7 @@ cc_library_static {
         "daemon_state_android.cc",
         "hardware_android.cc",
         "libcurl_http_fetcher.cc",
+        "logging_android.cc",
         "metrics_reporter_android.cc",
         "metrics_utils.cc",
         "network_selector_android.cc",
