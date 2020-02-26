@@ -16,13 +16,14 @@
 <configuration description="Config to run update_engine_unittests on device">
     <option name="test-suite-tag" value="apct" />
     <option name="test-suite-tag" value="apct-native" />
+    <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer" />
     <target_preparer class="com.android.tradefed.targetprep.PushFilePreparer">
         <option name="cleanup" value="true" />
-        <option name="push" value="update_engine_unittests->/data/local/tmp/update_engine_unittests" />
+        <option name="push" value="update_engine_unittests->/data/nativetest/update_engine_unittests" />
     </target_preparer>
 
     <test class="com.android.tradefed.testtype.GTest" >
-        <option name="native-test-device-path" value="/data/local/tmp" />
+        <option name="native-test-device-path" value="/data/nativetest" />
         <!-- The following rules avoid test runner from calling the following helper executables
              directly as gtests. -->
         <option name="file-exclusion-filter-regex" value=".*/delta_generator$" />
