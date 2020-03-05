@@ -736,21 +736,6 @@ void DynamicPartitionControlAndroid::set_fake_mapped_devices(
   mapped_devices_ = fake;
 }
 
-ErrorCode DynamicPartitionControlAndroid::CleanupSuccessfulUpdate() {
-  // Already reboot into new boot. Clean up.
-  if (!GetVirtualAbFeatureFlag().IsEnabled()) {
-    return ErrorCode::kSuccess;
-  }
-  auto ret = snapshot_->WaitForMerge();
-  if (ret.is_ok()) {
-    return ErrorCode::kSuccess;
-  }
-  if (ret.error_code() == Return::ErrorCode::NEEDS_REBOOT) {
-    return ErrorCode::kError;
-  }
-  return ErrorCode::kDeviceCorrupted;
-}
-
 bool DynamicPartitionControlAndroid::IsRecovery() {
   return kIsRecovery;
 }
