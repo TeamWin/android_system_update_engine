@@ -337,6 +337,10 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
             << android::snapshot::UpdateState_Name(report.state()) << " in "
             << passed_ms.count() << "ms (resumed " << report.resume_count()
             << " times)";
+  android::util::stats_write(android::util::SNAPSHOT_MERGE_REPORTED,
+                             static_cast<int32_t>(report.state()),
+                             static_cast<int64_t>(passed_ms.count()),
+                             static_cast<int32_t>(report.resume_count()));
 #endif
 }
 
