@@ -157,6 +157,7 @@ void UpdateAttempterAndroid::Init() {
   } else {
     SetStatusAndNotify(UpdateStatus::IDLE);
     UpdatePrefsAndReportUpdateMetricsOnReboot();
+    ScheduleCleanupPreviousUpdate();
   }
 }
 
@@ -502,6 +503,11 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
                                             ErrorCode code) {
   LOG(INFO) << "Processing Done.";
 
+  if (status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE) {
+    TerminateUpdateAndNotify(code);
+    return;
+  }
+
   switch (code) {
     case ErrorCode::kSuccess:
       // Update succeeded.
@@ -622,6 +628,12 @@ void UpdateAttempterAndroid::ScheduleProcessingStart() {
 void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   if (status_ == UpdateStatus::IDLE) {
     LOG(ERROR) << "No ongoing update, but TerminatedUpdate() called.";
+    return;
+  }
+
+  if (status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE) {
+    LOG(INFO) << "Terminating cleanup previous update.";
+    SetStatusAndNotify(UpdateStatus::IDLE);
     return;
   }
 
@@ -943,5 +955,25 @@ int32_t UpdateAttempterAndroid::CleanupSuccessfulUpdate(
   }
   return static_cast<int32_t>(error_code);
 }
+
+void UpdateAttempterAndroid::ScheduleCleanupPreviousUpdate() {
+  // If a previous CleanupSuccessfulUpdate call has not finished, or an update
+  // is in progress, skip enqueueing the action.
+  if (processor_->IsRunning()) {
+    LOG(INFO) << "Already processing an update. CleanupPreviousUpdate should "
+              << "be done when the current update finishes.";
+    return;
+  }
+  LOG(INFO) << "Scheduling CleanupPreviousUpdateAction.";
+  auto action =
+      boot_control_->GetDynamicPartitionControl()
+          ->GetCleanupPreviousUpdateAction(boot_control_, prefs_, this);
+  processor_->EnqueueAction(std::move(action));
+  processor_->set_delegate(this);
+  SetStatusAndNotify(UpdateStatus::CLEANUP_PREVIOUS_UPDATE);
+  processor_->StartProcessing();
+}
+
+void UpdateAttempterAndroid::OnCleanupProgressUpdate(double progress) {}
 
 }  // namespace chromeos_update_engine
