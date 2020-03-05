@@ -74,14 +74,20 @@ class FakeBootControl : public BootControlInterface {
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override {
     // We run the callback directly from here to avoid having to setup a message
     // loop in the test environment.
+    is_marked_successful_[GetCurrentSlot()] = true;
     callback.Run(true);
     return true;
+  }
+
+  bool IsSlotMarkedSuccessful(Slot slot) const override {
+    return slot < num_slots_ && is_marked_successful_[slot];
   }
 
   // Setters
   void SetNumSlots(unsigned int num_slots) {
     num_slots_ = num_slots;
     is_bootable_.resize(num_slots_, false);
+    is_marked_successful_.resize(num_slots_, false);
     devices_.resize(num_slots_);
   }
 
@@ -108,6 +114,7 @@ class FakeBootControl : public BootControlInterface {
   BootControlInterface::Slot current_slot_{0};
 
   std::vector<bool> is_bootable_;
+  std::vector<bool> is_marked_successful_;
   std::vector<std::map<std::string, std::string>> devices_;
 
   std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;
