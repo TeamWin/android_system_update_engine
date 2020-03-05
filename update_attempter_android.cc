@@ -564,6 +564,9 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
     // If an action failed, the ActionProcessor will cancel the whole thing.
     return;
   }
+  if (type == UpdateBootFlagsAction::StaticType()) {
+    SetStatusAndNotify(UpdateStatus::CLEANUP_PREVIOUS_UPDATE);
+  }
   if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
   } else if (type == FilesystemVerifierAction::StaticType()) {
@@ -688,6 +691,9 @@ void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
   // Actions:
   auto update_boot_flags_action =
       std::make_unique<UpdateBootFlagsAction>(boot_control_);
+  auto cleanup_previous_update_action =
+      boot_control_->GetDynamicPartitionControl()
+          ->GetCleanupPreviousUpdateAction(boot_control_, prefs_, this);
   auto install_plan_action = std::make_unique<InstallPlanAction>(install_plan_);
   auto download_action =
       std::make_unique<DownloadAction>(prefs_,
@@ -712,6 +718,7 @@ void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
               postinstall_runner_action.get());
 
   processor_->EnqueueAction(std::move(update_boot_flags_action));
+  processor_->EnqueueAction(std::move(cleanup_previous_update_action));
   processor_->EnqueueAction(std::move(install_plan_action));
   processor_->EnqueueAction(std::move(download_action));
   processor_->EnqueueAction(std::move(filesystem_verifier_action));
