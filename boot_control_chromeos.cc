@@ -329,6 +329,11 @@ int BootControlChromeOS::GetPartitionNumber(
   return -1;
 }
 
+bool BootControlChromeOS::IsSlotMarkedSuccessful(Slot slot) const {
+  LOG(ERROR) << __func__ << " not supported.";
+  return false;
+}
+
 DynamicPartitionControlInterface*
 BootControlChromeOS::GetDynamicPartitionControl() {
   return dynamic_partition_control_.get();
