@@ -84,15 +84,6 @@ class DynamicPartitionControlInterface {
   // this function to indicate writes to new partitions are done.
   virtual bool FinishUpdate() = 0;
 
-  // Deprecated. Use GetCleanupPreviousUpdateAction instead.
-  // Before applying the next update, call this function to clean up previous
-  // update files. This function blocks until delta files are merged into
-  // current OS partitions and finished cleaning up.
-  // - If successful, return kSuccess.
-  // - If any error, but caller should retry after reboot, return kError.
-  // - If any irrecoverable failures, return kDeviceCorrupted.
-  virtual ErrorCode CleanupSuccessfulUpdate() = 0;
-
   // Get an action to clean up previous update.
   // Return NoOpAction on non-Virtual A/B devices.
   // Before applying the next update, run this action to clean up previous
