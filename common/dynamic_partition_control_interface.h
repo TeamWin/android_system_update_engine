@@ -22,6 +22,8 @@
 #include <memory>
 #include <string>
 
+#include "update_engine/common/action.h"
+#include "update_engine/common/cleanup_previous_update_action_delegate.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -37,6 +39,9 @@ struct FeatureFlag {
  private:
   Value value_;
 };
+
+class BootControlInterface;
+class PrefsInterface;
 
 class DynamicPartitionControlInterface {
  public:
@@ -79,6 +84,7 @@ class DynamicPartitionControlInterface {
   // this function to indicate writes to new partitions are done.
   virtual bool FinishUpdate() = 0;
 
+  // Deprecated. Use GetCleanupPreviousUpdateAction instead.
   // Before applying the next update, call this function to clean up previous
   // update files. This function blocks until delta files are merged into
   // current OS partitions and finished cleaning up.
@@ -86,6 +92,20 @@ class DynamicPartitionControlInterface {
   // - If any error, but caller should retry after reboot, return kError.
   // - If any irrecoverable failures, return kDeviceCorrupted.
   virtual ErrorCode CleanupSuccessfulUpdate() = 0;
+
+  // Get an action to clean up previous update.
+  // Return NoOpAction on non-Virtual A/B devices.
+  // Before applying the next update, run this action to clean up previous
+  // update files. This function blocks until delta files are merged into
+  // current OS partitions and finished cleaning up.
+  // - If successful, action completes with kSuccess.
+  // - If any error, but caller should retry after reboot, action completes with
+  //   kError.
+  // - If any irrecoverable failures, action completes with kDeviceCorrupted.
+  virtual std::unique_ptr<AbstractAction> GetCleanupPreviousUpdateAction(
+      BootControlInterface* boot_control,
+      PrefsInterface* prefs,
+      CleanupPreviousUpdateActionDelegateInterface* delegate) = 0;
 };
 
 }  // namespace chromeos_update_engine
