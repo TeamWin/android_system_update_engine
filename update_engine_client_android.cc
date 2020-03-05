@@ -80,6 +80,7 @@ class UpdateEngineClientAndroid : public brillo::Daemon {
 
   android::sp<android::os::IUpdateEngine> service_;
   android::sp<android::os::BnUpdateEngineCallback> callback_;
+  android::sp<android::os::BnUpdateEngineCallback> cleanup_callback_;
 
   brillo::BinderWatcher binder_watcher_;
 };
@@ -226,13 +227,14 @@ int UpdateEngineClientAndroid::OnInit() {
   }
 
   if (FLAGS_merge) {
-    int32_t ret = 0;
-    Status status = service_->cleanupSuccessfulUpdate(&ret);
-    if (status.isOk()) {
-      LOG(INFO) << "CleanupSuccessfulUpdate exits with "
-                << utils::ErrorCodeToString(static_cast<ErrorCode>(ret));
+    // Register a callback object with the service.
+    cleanup_callback_ = new UECallback(this);
+    Status status = service_->cleanupSuccessfulUpdate(cleanup_callback_);
+    if (!status.isOk()) {
+      LOG(ERROR) << "Failed to call cleanupSuccessfulUpdate.";
+      return ExitWhenIdle(status);
     }
-    return ExitWhenIdle(status);
+    keep_running = true;
   }
 
   if (FLAGS_follow) {

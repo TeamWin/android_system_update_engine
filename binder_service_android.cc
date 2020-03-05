@@ -16,6 +16,8 @@
 
 #include "update_engine/binder_service_android.h"
 
+#include <memory>
+
 #include <base/bind.h>
 #include <base/logging.h>
 #include <binderwrapper/binder_wrapper.h>
@@ -217,10 +219,37 @@ Status BinderUpdateEngineAndroidService::allocateSpaceForPayload(
   return Status::ok();
 }
 
+class CleanupSuccessfulUpdateCallback
+    : public CleanupSuccessfulUpdateCallbackInterface {
+ public:
+  CleanupSuccessfulUpdateCallback(
+      const android::sp<IUpdateEngineCallback>& callback)
+      : callback_(callback) {}
+  void OnCleanupComplete(int32_t error_code) {
+    ignore_result(callback_->onPayloadApplicationComplete(error_code));
+  }
+  void OnCleanupProgressUpdate(double progress) {
+    ignore_result(callback_->onStatusUpdate(
+        static_cast<int32_t>(
+            update_engine::UpdateStatus::CLEANUP_PREVIOUS_UPDATE),
+        progress));
+  }
+  void RegisterForDeathNotifications(base::Closure unbind) {
+    const android::sp<android::IBinder>& callback_binder =
+        IUpdateEngineCallback::asBinder(callback_);
+    auto binder_wrapper = android::BinderWrapper::Get();
+    binder_wrapper->RegisterForDeathNotifications(callback_binder, unbind);
+  }
+
+ private:
+  android::sp<IUpdateEngineCallback> callback_;
+};
+
 Status BinderUpdateEngineAndroidService::cleanupSuccessfulUpdate(
-    int32_t* return_value) {
+    const android::sp<IUpdateEngineCallback>& callback) {
   brillo::ErrorPtr error;
-  *return_value = service_delegate_->CleanupSuccessfulUpdate(&error);
+  service_delegate_->CleanupSuccessfulUpdate(
+      std::make_unique<CleanupSuccessfulUpdateCallback>(callback), &error);
   if (error != nullptr)
     return ErrorPtrToStatus(error);
   return Status::ok();
