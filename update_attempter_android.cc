@@ -31,6 +31,7 @@
 #include <brillo/strings/string_utils.h>
 #include <log/log_safetynet.h>
 
+#include "update_engine/cleanup_previous_update_action.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/file_fetcher.h"
@@ -552,6 +553,12 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
   // Reset download progress regardless of whether or not the download
   // action succeeded.
   const string type = action->Type();
+  if (type == CleanupPreviousUpdateAction::StaticType() ||
+      (type == NoOpAction::StaticType() &&
+       status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE)) {
+    cleanup_previous_update_code_ = code;
+    NotifyCleanupPreviousUpdateCallbacksAndClear();
+  }
   if (type == DownloadAction::StaticType()) {
     download_progress_ = 0;
   }
@@ -950,17 +957,27 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
   return 0;
 }
 
-int32_t UpdateAttempterAndroid::CleanupSuccessfulUpdate(
+void UpdateAttempterAndroid::CleanupSuccessfulUpdate(
+    std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface> callback,
     brillo::ErrorPtr* error) {
-  ErrorCode error_code =
-      boot_control_->GetDynamicPartitionControl()->CleanupSuccessfulUpdate();
-  if (error_code == ErrorCode::kSuccess) {
-    LOG(INFO) << "Previous update is merged and cleaned up successfully.";
-  } else {
-    LOG(ERROR) << "CleanupSuccessfulUpdate failed with "
-               << utils::ErrorCodeToString(error_code);
+  if (cleanup_previous_update_code_.has_value()) {
+    LOG(INFO) << "CleanupSuccessfulUpdate has previously completed with "
+              << utils::ErrorCodeToString(*cleanup_previous_update_code_);
+    if (callback) {
+      callback->OnCleanupComplete(
+          static_cast<int32_t>(*cleanup_previous_update_code_));
+    }
+    return;
   }
-  return static_cast<int32_t>(error_code);
+  if (callback) {
+    auto callback_ptr = callback.get();
+    cleanup_previous_update_callbacks_.emplace_back(std::move(callback));
+    callback_ptr->RegisterForDeathNotifications(
+        base::Bind(&UpdateAttempterAndroid::RemoveCleanupPreviousUpdateCallback,
+                   base::Unretained(this),
+                   base::Unretained(callback_ptr)));
+  }
+  ScheduleCleanupPreviousUpdate();
 }
 
 void UpdateAttempterAndroid::ScheduleCleanupPreviousUpdate() {
@@ -981,6 +998,29 @@ void UpdateAttempterAndroid::ScheduleCleanupPreviousUpdate() {
   processor_->StartProcessing();
 }
 
-void UpdateAttempterAndroid::OnCleanupProgressUpdate(double progress) {}
+void UpdateAttempterAndroid::OnCleanupProgressUpdate(double progress) {
+  for (auto&& callback : cleanup_previous_update_callbacks_) {
+    callback->OnCleanupProgressUpdate(progress);
+  }
+}
+
+void UpdateAttempterAndroid::NotifyCleanupPreviousUpdateCallbacksAndClear() {
+  CHECK(cleanup_previous_update_code_.has_value());
+  for (auto&& callback : cleanup_previous_update_callbacks_) {
+    callback->OnCleanupComplete(
+        static_cast<int32_t>(*cleanup_previous_update_code_));
+  }
+  cleanup_previous_update_callbacks_.clear();
+}
+
+void UpdateAttempterAndroid::RemoveCleanupPreviousUpdateCallback(
+    CleanupSuccessfulUpdateCallbackInterface* callback) {
+  auto end_it =
+      std::remove_if(cleanup_previous_update_callbacks_.begin(),
+                     cleanup_previous_update_callbacks_.end(),
+                     [&](const auto& e) { return e.get() == callback; });
+  cleanup_previous_update_callbacks_.erase(
+      end_it, cleanup_previous_update_callbacks_.end());
+}
 
 }  // namespace chromeos_update_engine
