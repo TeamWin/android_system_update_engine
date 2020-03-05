@@ -47,7 +47,8 @@ class UpdateAttempterAndroid
     : public ServiceDelegateAndroidInterface,
       public ActionProcessorDelegate,
       public DownloadActionDelegate,
-      public PostinstallRunnerAction::DelegateInterface {
+      public PostinstallRunnerAction::DelegateInterface,
+      public CleanupPreviousUpdateActionDelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
 
@@ -100,6 +101,9 @@ class UpdateAttempterAndroid
 
   // PostinstallRunnerAction::DelegateInterface
   void ProgressUpdate(double progress) override;
+
+  // CleanupPreviousUpdateActionDelegateInterface
+  void OnCleanupProgressUpdate(double progress) override;
 
  private:
   friend class UpdateAttempterAndroidTest;
@@ -176,6 +180,9 @@ class UpdateAttempterAndroid
   static bool VerifyPayloadParseManifest(const std::string& metadata_filename,
                                          DeltaArchiveManifest* manifest,
                                          brillo::ErrorPtr* error);
+
+  // Enqueue and run a CleanupPreviousUpdateAction.
+  void ScheduleCleanupPreviousUpdate();
 
   DaemonStateInterface* daemon_state_;
 

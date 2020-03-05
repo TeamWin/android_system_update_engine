@@ -44,6 +44,11 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
   MOCK_METHOD0(FinishUpdate, bool());
   MOCK_METHOD0(CleanupSuccessfulUpdate, ErrorCode());
+  MOCK_METHOD3(GetCleanupPreviousUpdateAction,
+               std::unique_ptr<AbstractAction>(
+                   BootControlInterface*,
+                   PrefsInterface*,
+                   CleanupPreviousUpdateActionDelegateInterface*));
 };
 
 class MockDynamicPartitionControlAndroid
