@@ -17,10 +17,13 @@
 #ifndef UPDATE_ENGINE_CLEANUP_PREVIOUS_UPDATE_ACTION_H_
 #define UPDATE_ENGINE_CLEANUP_PREVIOUS_UPDATE_ACTION_H_
 
+#include <chrono>  // NOLINT(build/c++11) -- for merge times
+#include <memory>
 #include <string>
 
 #include <brillo/message_loops/message_loop.h>
 #include <libsnapshot/snapshot.h>
+#include <libsnapshot/snapshot_stats.h>
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/boot_control_interface.h"
@@ -69,6 +72,7 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
   bool running_{false};
   bool cancel_failed_{false};
   unsigned int last_percentage_{0};
+  android::snapshot::SnapshotMergeStats* merge_stats_;
 
   void StartActionInternal();
   void ScheduleWaitBootCompleted();
@@ -78,6 +82,7 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
   void ScheduleWaitForMerge();
   void WaitForMergeOrSchedule();
   void InitiateMergeAndWait();
+  void ReportMergeStats();
 
   // Callbacks to ProcessUpdateState.
   bool OnMergePercentageUpdate();

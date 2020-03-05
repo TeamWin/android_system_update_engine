@@ -206,6 +206,7 @@ cc_defaults {
         "libbootloader_message",
         "libhidlbase",
         "liblp",
+        "libstatslog",
         "libutils",
         "android.hardware.boot@1.0",
         "android.hardware.boot@1.1",
@@ -224,6 +225,7 @@ cc_defaults {
                 "libsnapshot",
             ],
             exclude_shared_libs: [
+                "libstatslog",
                 "libutilscallstack",
             ],
         },
