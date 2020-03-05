@@ -75,7 +75,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
       const std::vector<android::String16>& header_kv_pairs,
       int64_t* return_value) override;
   android::binder::Status cleanupSuccessfulUpdate(
-      int32_t* return_value) override;
+      const android::sp<android::os::IUpdateEngineCallback>& callback) override;
 
  private:
   // Remove the passed |callback| from the list of registered callbacks. Called

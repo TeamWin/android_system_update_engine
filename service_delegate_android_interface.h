@@ -19,12 +19,25 @@
 
 #include <inttypes.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <brillo/errors/error.h>
 
 namespace chromeos_update_engine {
+
+// See ServiceDelegateAndroidInterface.CleanupSuccessfulUpdate
+// Wraps a IUpdateEngineCallback binder object used specifically for
+// CleanupSuccessfulUpdate.
+class CleanupSuccessfulUpdateCallbackInterface {
+ public:
+  virtual ~CleanupSuccessfulUpdateCallbackInterface() {}
+  virtual void OnCleanupProgressUpdate(double progress) = 0;
+  virtual void OnCleanupComplete(int32_t error_code) = 0;
+  // Call RegisterForDeathNotifications on the internal binder object.
+  virtual void RegisterForDeathNotifications(base::Closure unbind) = 0;
+};
 
 // This class defines the interface exposed by the Android version of the
 // daemon service. This interface only includes the method calls that such
@@ -99,9 +112,11 @@ class ServiceDelegateAndroidInterface {
   // Wait for merge to complete, then clean up merge after an update has been
   // successful.
   //
-  // This function returns immediately if no merge is needed, but may block
-  // for a long time (up to several minutes) in the worst case.
-  virtual int32_t CleanupSuccessfulUpdate(brillo::ErrorPtr* error) = 0;
+  // This function returns immediately. Progress updates are provided in
+  // |callback|.
+  virtual void CleanupSuccessfulUpdate(
+      std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface> callback,
+      brillo::ErrorPtr* error) = 0;
 
  protected:
   ServiceDelegateAndroidInterface() = default;
