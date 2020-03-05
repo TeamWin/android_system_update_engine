@@ -46,6 +46,10 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                   uint64_t* required_size) override;
   bool FinishUpdate() override;
   ErrorCode CleanupSuccessfulUpdate() override;
+  std::unique_ptr<AbstractAction> GetCleanupPreviousUpdateAction(
+      BootControlInterface* boot_control,
+      PrefsInterface* prefs,
+      CleanupPreviousUpdateActionDelegateInterface* delegate) override;
 
   // Return the device for partition |partition_name| at slot |slot|.
   // |current_slot| should be set to the current active slot.
