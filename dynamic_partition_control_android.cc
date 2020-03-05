@@ -35,6 +35,7 @@
 #include <libdm/dm.h>
 #include <libsnapshot/snapshot.h>
 
+#include "update_engine/cleanup_previous_update_action.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/dynamic_partition_utils.h"
@@ -784,6 +785,18 @@ bool DynamicPartitionControlAndroid::DeleteSourcePartitions(
   DeleteGroupsWithSuffix(builder, source_suffix);
 
   return true;
+}
+
+std::unique_ptr<AbstractAction>
+DynamicPartitionControlAndroid::GetCleanupPreviousUpdateAction(
+    BootControlInterface* boot_control,
+    PrefsInterface* prefs,
+    CleanupPreviousUpdateActionDelegateInterface* delegate) {
+  if (!GetVirtualAbFeatureFlag().IsEnabled()) {
+    return std::make_unique<NoOpAction>();
+  }
+  return std::make_unique<CleanupPreviousUpdateAction>(
+      prefs, boot_control, snapshot_.get(), delegate);
 }
 
 }  // namespace chromeos_update_engine
