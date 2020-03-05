@@ -41,6 +41,7 @@ enum class UpdateStatus {
   // Broadcast this state when an update aborts because user preferences do not
   // allow updates, e.g. over cellular network.
   NEED_PERMISSION_TO_UPDATE = 10,
+  CLEANUP_PREVIOUS_UPDATE = 11,
 };
 
 // Enum of bit-wise flags for controlling how updates are attempted.

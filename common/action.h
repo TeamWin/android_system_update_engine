@@ -222,6 +222,16 @@ class Action : public AbstractAction {
       out_pipe_;
 };
 
+// An action that does nothing and completes with kSuccess immediately.
+class NoOpAction : public AbstractAction {
+ public:
+  ~NoOpAction() override {}
+  void PerformAction() override {
+    processor_->ActionComplete(this, ErrorCode::kSuccess);
+  }
+  std::string Type() const override { return "NoOpAction"; }
+};
+
 };  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_COMMON_ACTION_H_
