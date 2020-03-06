@@ -198,6 +198,7 @@ cc_defaults {
         "libcutils",
         "libfs_mgr_binder",
         "libgsi",
+        "libpayload_consumer",
         "libsnapshot",
         "update_metadata-protos",
     ],
@@ -234,11 +235,13 @@ cc_library_static {
     defaults: [
         "ue_defaults",
         "libupdate_engine_boot_control_exports",
+        "libpayload_consumer_exports",
     ],
     recovery_available: true,
 
     srcs: [
         "boot_control_android.cc",
+        "cleanup_previous_update_action.cc",
         "dynamic_partition_control_android.cc",
         "dynamic_partition_utils.cc",
     ],
