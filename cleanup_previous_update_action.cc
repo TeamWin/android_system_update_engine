@@ -15,16 +15,22 @@
 //
 #include "update_engine/cleanup_previous_update_action.h"
 
+#include <chrono>  // NOLINT(build/c++11) -- for merge times
 #include <functional>
 #include <string>
 
 #include <android-base/properties.h>
 #include <base/bind.h>
 
+#ifndef __ANDROID_RECOVERY__
+#include <statslog.h>
+#endif
+
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 
 using android::snapshot::SnapshotManager;
+using android::snapshot::SnapshotMergeStats;
 using android::snapshot::UpdateState;
 using brillo::MessageLoop;
 
@@ -50,7 +56,8 @@ CleanupPreviousUpdateAction::CleanupPreviousUpdateAction(
       delegate_(delegate),
       running_(false),
       cancel_failed_(false),
-      last_percentage_(0) {}
+      last_percentage_(0),
+      merge_stats_(SnapshotMergeStats::GetInstance(*snapshot)) {}
 
 void CleanupPreviousUpdateAction::PerformAction() {
   ResumeAction();
@@ -76,6 +83,7 @@ void CleanupPreviousUpdateAction::SuspendAction() {
 
 void CleanupPreviousUpdateAction::ActionCompleted(ErrorCode error_code) {
   running_ = false;
+  ReportMergeStats();
 }
 
 std::string CleanupPreviousUpdateAction::Type() const {
@@ -135,6 +143,11 @@ void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
   if (!boot_control_->IsSlotMarkedSuccessful(boot_control_->GetCurrentSlot())) {
     ScheduleWaitMarkBootSuccessful();
   }
+  if (!merge_stats_->Start()) {
+    // Not an error because CleanupPreviousUpdateAction may be paused and
+    // resumed while kernel continues merging snapshots in the background.
+    LOG(WARNING) << "SnapshotMergeStats::Start failed.";
+  }
   LOG(INFO) << "Waiting for any previous merge request to complete. "
             << "This can take up to several minutes.";
   WaitForMergeOrSchedule();
@@ -154,8 +167,8 @@ void CleanupPreviousUpdateAction::WaitForMergeOrSchedule() {
   auto state = snapshot_->ProcessUpdateState(
       std::bind(&CleanupPreviousUpdateAction::OnMergePercentageUpdate, this),
       std::bind(&CleanupPreviousUpdateAction::BeforeCancel, this));
+  merge_stats_->set_state(state);
 
-  // TODO(elsk): log stats
   switch (state) {
     case UpdateState::None: {
       LOG(INFO) << "Can't find any snapshot to merge.";
@@ -271,6 +284,7 @@ void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
 
   LOG(WARNING) << "InitiateMerge failed.";
   auto state = snapshot_->GetUpdateState();
+  merge_stats_->set_state(state);
   if (state == UpdateState::Unverified) {
     // We are stuck at unverified state. This can happen if the update has
     // been applied, but it has not even been attempted yet (in libsnapshot,
@@ -294,6 +308,36 @@ void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
                << ", try to wait for merge again.";
   WaitForMergeOrSchedule();
   return;
+}
+
+void CleanupPreviousUpdateAction::ReportMergeStats() {
+  auto result = merge_stats_->Finish();
+  if (result == nullptr) {
+    LOG(WARNING) << "Not reporting merge stats because "
+                    "SnapshotMergeStats::Finish failed.";
+    return;
+  }
+
+#ifdef __ANDROID_RECOVERY__
+  LOG(INFO) << "Skip reporting merge stats in recovery.";
+#else
+  const auto& report = result->report();
+
+  if (report.state() == UpdateState::None ||
+      report.state() == UpdateState::Initiated ||
+      report.state() == UpdateState::Unverified) {
+    LOG(INFO) << "Not reporting merge stats because state is "
+              << android::snapshot::UpdateState_Name(report.state());
+    return;
+  }
+
+  auto passed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      result->merge_time());
+  LOG(INFO) << "Reporting merge stats: "
+            << android::snapshot::UpdateState_Name(report.state()) << " in "
+            << passed_ms.count() << "ms (resumed " << report.resume_count()
+            << " times)";
+#endif
 }
 
 }  // namespace chromeos_update_engine
