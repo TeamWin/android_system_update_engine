@@ -53,10 +53,6 @@ bool DynamicPartitionControlStub::FinishUpdate() {
   return true;
 }
 
-ErrorCode DynamicPartitionControlStub::CleanupSuccessfulUpdate() {
-  return ErrorCode::kError;
-}
-
 std::unique_ptr<AbstractAction>
 DynamicPartitionControlStub::GetCleanupPreviousUpdateAction(
     BootControlInterface* boot_control,
