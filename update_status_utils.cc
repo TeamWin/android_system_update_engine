@@ -46,6 +46,8 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
       return update_engine::kUpdateStatusAttemptingRollback;
     case UpdateStatus::DISABLED:
       return update_engine::kUpdateStatusDisabled;
+    case UpdateStatus::CLEANUP_PREVIOUS_UPDATE:
+      return update_engine::kUpdateStatusCleanupPreviousUpdate;
   }
 
   NOTREACHED();
@@ -85,6 +87,9 @@ bool StringToUpdateStatus(const std::string& s, UpdateStatus* status) {
     return true;
   } else if (s == update_engine::kUpdateStatusDisabled) {
     *status = UpdateStatus::DISABLED;
+    return true;
+  } else if (s == update_engine::kUpdateStatusCleanupPreviousUpdate) {
+    *status = UpdateStatus::CLEANUP_PREVIOUS_UPDATE;
     return true;
   }
   return false;
