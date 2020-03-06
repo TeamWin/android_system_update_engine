@@ -150,6 +150,22 @@ bool BootControlAndroid::MarkBootSuccessfulAsync(
          brillo::MessageLoop::kTaskIdNull;
 }
 
+bool BootControlAndroid::IsSlotMarkedSuccessful(
+    BootControlInterface::Slot slot) const {
+  Return<BoolResult> ret = module_->isSlotMarkedSuccessful(slot);
+  CommandResult result;
+  if (!ret.isOk()) {
+    LOG(ERROR) << "Unable to determine if slot " << SlotName(slot)
+               << " is marked successful: " << ret.description();
+    return false;
+  }
+  if (ret == BoolResult::INVALID_SLOT) {
+    LOG(ERROR) << "Invalid slot: " << SlotName(slot);
+    return false;
+  }
+  return ret == BoolResult::TRUE;
+}
+
 DynamicPartitionControlInterface*
 BootControlAndroid::GetDynamicPartitionControl() {
   return dynamic_control_.get();
