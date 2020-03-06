@@ -20,13 +20,20 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <functional>
+#include <iomanip>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include <android-base/file.h>
+#include <android-base/strings.h>
+#include <android-base/unique_fd.h>
 #include <base/files/dir_reader_posix.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <log/log.h>
 
 #include "update_engine/common/utils.h"
 
@@ -83,27 +90,146 @@ string SetupLogFile(const string& kLogsRoot) {
                             utils::GetTimeAsString(::time(nullptr)).c_str());
 }
 
+const char* LogPriorityToCString(int priority) {
+  switch (priority) {
+    case ANDROID_LOG_VERBOSE:
+      return "VERBOSE";
+    case ANDROID_LOG_DEBUG:
+      return "DEBUG";
+    case ANDROID_LOG_INFO:
+      return "INFO";
+    case ANDROID_LOG_WARN:
+      return "WARN";
+    case ANDROID_LOG_ERROR:
+      return "ERROR";
+    case ANDROID_LOG_FATAL:
+      return "FATAL";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+using LoggerFunction = std::function<void(const struct __android_logger_data*,
+                                          const char* message)>;
+
+class FileLogger {
+ public:
+  explicit FileLogger(const string& path) {
+    fd_.reset(TEMP_FAILURE_RETRY(
+        open(path.c_str(),
+             O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW | O_SYNC,
+             0644)));
+    if (fd_ == -1) {
+      // Use ALOGE that logs to logd before __android_log_set_logger.
+      ALOGE("Cannot open persistent log %s: %s", path.c_str(), strerror(errno));
+      return;
+    }
+    // The log file will have AID_LOG as group ID; this GID is inherited from
+    // the parent directory "/data/misc/update_engine_log" which sets the SGID
+    // bit.
+    if (fchmod(fd_.get(), 0640) == -1) {
+      // Use ALOGE that logs to logd before __android_log_set_logger.
+      ALOGE("Cannot chmod 0640 persistent log %s: %s",
+            path.c_str(),
+            strerror(errno));
+      return;
+    }
+  }
+  // Copy-constructor needed to be converted to std::function.
+  FileLogger(const FileLogger& other) { fd_.reset(dup(other.fd_)); }
+  void operator()(const struct __android_logger_data* logger_data,
+                  const char* message) {
+    if (fd_ == -1) {
+      return;
+    }
+
+    // libchrome add a newline character to |message|. Strip it.
+    std::string_view message_no_newline = message != nullptr ? message : "";
+    ignore_result(android::base::ConsumeSuffix(&message_no_newline, "\n"));
+
+    WriteToFd(GetPrefix(logger_data));
+    WriteToFd(message_no_newline);
+    WriteToFd("\n");
+  }
+
+ private:
+  android::base::unique_fd fd_;
+  void WriteToFd(std::string_view message) {
+    ignore_result(
+        android::base::WriteFully(fd_, message.data(), message.size()));
+  }
+
+  string GetPrefix(const struct __android_logger_data* logger_data) {
+    std::stringstream ss;
+    timeval tv;
+    gettimeofday(&tv, nullptr);
+    time_t t = tv.tv_sec;
+    struct tm local_time;
+    localtime_r(&t, &local_time);
+    struct tm* tm_time = &local_time;
+    ss << "[" << std::setfill('0') << std::setw(2) << 1 + tm_time->tm_mon
+       << std::setw(2) << tm_time->tm_mday << '/' << std::setw(2)
+       << tm_time->tm_hour << std::setw(2) << tm_time->tm_min << std::setw(2)
+       << tm_time->tm_sec << '.' << std::setw(6) << tv.tv_usec << "] ";
+    // libchrome logs prepends |message| with severity, file and line, but
+    // leave logger_data->file as nullptr.
+    // libbase / liblog logs doesn't. Hence, add them to match the style.
+    // For liblog logs that doesn't set logger_data->file, not printing the
+    // priority is acceptable.
+    if (logger_data->file) {
+      ss << "[" << LogPriorityToCString(logger_data->priority) << ':'
+         << logger_data->file << '(' << logger_data->line << ")] ";
+    }
+    return ss.str();
+  }
+};
+
+class CombinedLogger {
+ public:
+  CombinedLogger(bool log_to_system, bool log_to_file) {
+    if (log_to_system) {
+      loggers_.push_back(__android_log_logd_logger);
+    }
+    if (log_to_file) {
+      loggers_.push_back(std::move(FileLogger(SetupLogFile(kSystemLogsRoot))));
+    }
+  }
+  void operator()(const struct __android_logger_data* logger_data,
+                  const char* message) {
+    for (auto&& logger : loggers_) {
+      logger(logger_data, message != nullptr ? message : "");
+    }
+  }
+
+ private:
+  std::vector<LoggerFunction> loggers_;
+};
+
 }  // namespace
 
 void SetupLogging(bool log_to_system, bool log_to_file) {
+  // Note that libchrome logging uses liblog.
+  // By calling liblog's __android_log_set_logger function, all of libchrome
+  // (used by update_engine) / libbase / liblog (used by depended modules)
+  // logging eventually redirects to CombinedLogger.
+  static auto g_logger =
+      std::make_unique<CombinedLogger>(log_to_system, log_to_file);
+  __android_log_set_logger(
+      [](const struct __android_logger_data* logger_data, const char* message) {
+        (*g_logger)(logger_data, message);
+      });
+
+  // libchrome logging should not log to file.
   logging::LoggingSettings log_settings;
   log_settings.lock_log = logging::DONT_LOCK_LOG_FILE;
   log_settings.logging_dest = static_cast<logging::LoggingDestination>(
-      (log_to_system ? logging::LOG_TO_SYSTEM_DEBUG_LOG : 0) |
-      (log_to_file ? logging::LOG_TO_FILE : 0));
+      logging::LOG_TO_SYSTEM_DEBUG_LOG);
   log_settings.log_file = nullptr;
-
-  string log_file;
-  if (log_to_file) {
-    log_file = SetupLogFile(kSystemLogsRoot);
-    log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
-    log_settings.log_file = log_file.c_str();
-  }
   logging::InitLogging(log_settings);
-
-  // The log file will have AID_LOG as group ID; this GID is inherited from the
-  // parent directory "/data/misc/update_engine_log" which sets the SGID bit.
-  chmod(log_file.c_str(), 0640);
+  logging::SetLogItems(false /* enable_process_id */,
+                       false /* enable_thread_id */,
+                       false /* enable_timestamp */,
+                       false /* enable_tickcount */);
 }
 
 }  // namespace chromeos_update_engine
