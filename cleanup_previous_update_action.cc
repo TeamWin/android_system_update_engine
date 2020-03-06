@@ -1,0 +1,299 @@
+//
+// Copyright (C) 2020 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+#include "update_engine/cleanup_previous_update_action.h"
+
+#include <functional>
+#include <string>
+
+#include <android-base/properties.h>
+#include <base/bind.h>
+
+#include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/delta_performer.h"
+
+using android::snapshot::SnapshotManager;
+using android::snapshot::UpdateState;
+using brillo::MessageLoop;
+
+constexpr char kBootCompletedProp[] = "sys.boot_completed";
+// Interval to check sys.boot_completed.
+constexpr auto kCheckBootCompletedInterval = base::TimeDelta::FromSeconds(2);
+// Interval to check IBootControl::isSlotMarkedSuccessful
+constexpr auto kCheckSlotMarkedSuccessfulInterval =
+    base::TimeDelta::FromSeconds(2);
+// Interval to call SnapshotManager::ProcessUpdateState
+constexpr auto kWaitForMergeInterval = base::TimeDelta::FromSeconds(2);
+
+namespace chromeos_update_engine {
+
+CleanupPreviousUpdateAction::CleanupPreviousUpdateAction(
+    PrefsInterface* prefs,
+    BootControlInterface* boot_control,
+    android::snapshot::SnapshotManager* snapshot,
+    CleanupPreviousUpdateActionDelegateInterface* delegate)
+    : prefs_(prefs),
+      boot_control_(boot_control),
+      snapshot_(snapshot),
+      delegate_(delegate),
+      running_(false),
+      cancel_failed_(false),
+      last_percentage_(0) {}
+
+void CleanupPreviousUpdateAction::PerformAction() {
+  ResumeAction();
+}
+
+void CleanupPreviousUpdateAction::TerminateProcessing() {
+  SuspendAction();
+}
+
+void CleanupPreviousUpdateAction::ResumeAction() {
+  CHECK(prefs_);
+  CHECK(boot_control_);
+
+  LOG(INFO) << "Starting/resuming CleanupPreviousUpdateAction";
+  running_ = true;
+  StartActionInternal();
+}
+
+void CleanupPreviousUpdateAction::SuspendAction() {
+  LOG(INFO) << "Stopping/suspending CleanupPreviousUpdateAction";
+  running_ = false;
+}
+
+void CleanupPreviousUpdateAction::ActionCompleted(ErrorCode error_code) {
+  running_ = false;
+}
+
+std::string CleanupPreviousUpdateAction::Type() const {
+  return StaticType();
+}
+
+std::string CleanupPreviousUpdateAction::StaticType() {
+  return "CleanupPreviousUpdateAction";
+}
+
+void CleanupPreviousUpdateAction::StartActionInternal() {
+  // Do nothing on non-VAB device.
+  if (!boot_control_->GetDynamicPartitionControl()
+           ->GetVirtualAbFeatureFlag()
+           .IsEnabled()) {
+    processor_->ActionComplete(this, ErrorCode::kSuccess);
+    return;
+  }
+  // SnapshotManager is only available on VAB devices.
+  CHECK(snapshot_);
+  WaitBootCompletedOrSchedule();
+}
+
+void CleanupPreviousUpdateAction::ScheduleWaitBootCompleted() {
+  TEST_AND_RETURN(running_);
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule,
+                 base::Unretained(this)),
+      kCheckBootCompletedInterval);
+}
+
+void CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule() {
+  TEST_AND_RETURN(running_);
+  if (!android::base::GetBoolProperty(kBootCompletedProp, false)) {
+    // repeat
+    ScheduleWaitBootCompleted();
+    return;
+  }
+
+  LOG(INFO) << "Boot completed, waiting on markBootSuccessful()";
+  CheckSlotMarkedSuccessfulOrSchedule();
+}
+
+void CleanupPreviousUpdateAction::ScheduleWaitMarkBootSuccessful() {
+  TEST_AND_RETURN(running_);
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(
+          &CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule,
+          base::Unretained(this)),
+      kCheckSlotMarkedSuccessfulInterval);
+}
+
+void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
+  TEST_AND_RETURN(running_);
+  if (!boot_control_->IsSlotMarkedSuccessful(boot_control_->GetCurrentSlot())) {
+    ScheduleWaitMarkBootSuccessful();
+  }
+  LOG(INFO) << "Waiting for any previous merge request to complete. "
+            << "This can take up to several minutes.";
+  WaitForMergeOrSchedule();
+}
+
+void CleanupPreviousUpdateAction::ScheduleWaitForMerge() {
+  TEST_AND_RETURN(running_);
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&CleanupPreviousUpdateAction::WaitForMergeOrSchedule,
+                 base::Unretained(this)),
+      kWaitForMergeInterval);
+}
+
+void CleanupPreviousUpdateAction::WaitForMergeOrSchedule() {
+  TEST_AND_RETURN(running_);
+  auto state = snapshot_->ProcessUpdateState(
+      std::bind(&CleanupPreviousUpdateAction::OnMergePercentageUpdate, this),
+      std::bind(&CleanupPreviousUpdateAction::BeforeCancel, this));
+
+  // TODO(elsk): log stats
+  switch (state) {
+    case UpdateState::None: {
+      LOG(INFO) << "Can't find any snapshot to merge.";
+      processor_->ActionComplete(this, ErrorCode::kSuccess);
+      return;
+    }
+
+    case UpdateState::Initiated: {
+      LOG(ERROR) << "Previous update has not been completed, not cleaning up";
+      processor_->ActionComplete(this, ErrorCode::kSuccess);
+      return;
+    }
+
+    case UpdateState::Unverified: {
+      InitiateMergeAndWait();
+      return;
+    }
+
+    case UpdateState::Merging: {
+      ScheduleWaitForMerge();
+      return;
+    }
+
+    case UpdateState::MergeNeedsReboot: {
+      LOG(ERROR) << "Need reboot to finish merging.";
+      processor_->ActionComplete(this, ErrorCode::kError);
+      return;
+    }
+
+    case UpdateState::MergeCompleted: {
+      LOG(INFO) << "Merge finished with state MergeCompleted.";
+      processor_->ActionComplete(this, ErrorCode::kSuccess);
+      return;
+    }
+
+    case UpdateState::MergeFailed: {
+      LOG(ERROR) << "Merge failed. Device may be corrupted.";
+      processor_->ActionComplete(this, ErrorCode::kDeviceCorrupted);
+      return;
+    }
+
+    case UpdateState::Cancelled: {
+      // DeltaPerformer::ResetUpdateProgress failed, hence snapshots are
+      // not deleted to avoid inconsistency.
+      // Nothing can be done here; just try next time.
+      ErrorCode error_code =
+          cancel_failed_ ? ErrorCode::kError : ErrorCode::kSuccess;
+      processor_->ActionComplete(this, error_code);
+      return;
+    }
+
+    default: {
+      // Protobuf has some reserved enum values, so a default case is needed.
+      LOG(FATAL) << "SnapshotManager::ProcessUpdateState returns "
+                 << static_cast<int32_t>(state);
+    }
+  }
+}
+
+bool CleanupPreviousUpdateAction::OnMergePercentageUpdate() {
+  double percentage = 0.0;
+  snapshot_->GetUpdateState(&percentage);
+  if (delegate_) {
+    // libsnapshot uses [0, 100] percentage but update_engine uses [0, 1].
+    delegate_->OnCleanupProgressUpdate(percentage / 100);
+  }
+
+  // Log if percentage increments by at least 1.
+  if (last_percentage_ < static_cast<unsigned int>(percentage)) {
+    last_percentage_ = percentage;
+    LOG(INFO) << "Waiting for merge to complete: " << last_percentage_ << "%.";
+  }
+
+  // Do not continue to wait for merge. Instead, let ProcessUpdateState
+  // return Merging directly so that we can ScheduleWaitForMerge() in
+  // MessageLoop.
+  return false;
+}
+
+bool CleanupPreviousUpdateAction::BeforeCancel() {
+  if (DeltaPerformer::ResetUpdateProgress(
+          prefs_,
+          false /* quick */,
+          false /* skip dynamic partitions metadata*/)) {
+    return true;
+  }
+
+  // ResetUpdateProgress might not work on stub prefs. Do additional checks.
+  LOG(WARNING) << "ProcessUpdateState returns Cancelled but cleanup failed.";
+
+  std::string val;
+  ignore_result(prefs_->GetString(kPrefsDynamicPartitionMetadataUpdated, &val));
+  if (val.empty()) {
+    LOG(INFO) << kPrefsDynamicPartitionMetadataUpdated
+              << " is empty, assuming successful cleanup";
+    return true;
+  }
+  LOG(WARNING)
+      << kPrefsDynamicPartitionMetadataUpdated << " is " << val
+      << ", not deleting snapshots even though UpdateState is Cancelled.";
+  cancel_failed_ = true;
+  return false;
+}
+
+void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
+  TEST_AND_RETURN(running_);
+  LOG(INFO) << "Attempting to initiate merge.";
+
+  if (snapshot_->InitiateMerge()) {
+    WaitForMergeOrSchedule();
+    return;
+  }
+
+  LOG(WARNING) << "InitiateMerge failed.";
+  auto state = snapshot_->GetUpdateState();
+  if (state == UpdateState::Unverified) {
+    // We are stuck at unverified state. This can happen if the update has
+    // been applied, but it has not even been attempted yet (in libsnapshot,
+    // rollback indicator does not exist); for example, if update_engine
+    // restarts before the device reboots, then this state may be reached.
+    // Nothing should be done here.
+    LOG(WARNING) << "InitiateMerge leaves the device at "
+                 << "UpdateState::Unverified. (Did update_engine "
+                 << "restarted?)";
+    processor_->ActionComplete(this, ErrorCode::kSuccess);
+    return;
+  }
+
+  // State does seems to be advanced.
+  // It is possibly racy. For example, on a userdebug build, the user may
+  // manually initiate a merge with snapshotctl between last time
+  // update_engine checks UpdateState. Hence, just call
+  // WaitForMergeOrSchedule one more time.
+  LOG(WARNING) << "IniitateMerge failed but GetUpdateState returned "
+               << android::snapshot::UpdateState_Name(state)
+               << ", try to wait for merge again.";
+  WaitForMergeOrSchedule();
+  return;
+}
+
+}  // namespace chromeos_update_engine
