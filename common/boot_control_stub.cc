@@ -63,6 +63,11 @@ bool BootControlStub::MarkBootSuccessfulAsync(
   return false;
 }
 
+bool BootControlStub::IsSlotMarkedSuccessful(Slot slot) const {
+  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+  return false;
+}
+
 DynamicPartitionControlInterface*
 BootControlStub::GetDynamicPartitionControl() {
   return dynamic_partition_control_.get();
