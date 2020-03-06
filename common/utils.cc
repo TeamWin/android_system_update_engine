@@ -30,6 +30,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -1072,6 +1073,14 @@ string GetFilePath(int fd) {
     return "not found";
   }
   return file_name.value();
+}
+
+string GetTimeAsString(time_t utime) {
+  struct tm tm;
+  CHECK_EQ(localtime_r(&utime, &tm), &tm);
+  char str[16];
+  CHECK_EQ(strftime(str, sizeof(str), "%Y%m%d-%H%M%S", &tm), 15u);
+  return str;
 }
 
 }  // namespace utils

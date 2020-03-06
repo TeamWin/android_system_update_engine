@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_COMMON_UTILS_H_
 
 #include <errno.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -328,6 +329,9 @@ int VersionPrefix(const std::string& version);
 void ParseRollbackKeyVersion(const std::string& raw_version,
                              uint16_t* high_version,
                              uint16_t* low_version);
+
+// Return a string representation of |utime| for log file names.
+std::string GetTimeAsString(time_t utime);
 
 }  // namespace utils
 
