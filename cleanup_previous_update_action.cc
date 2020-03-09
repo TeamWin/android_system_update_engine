@@ -172,7 +172,12 @@ void CleanupPreviousUpdateAction::WaitForMergeOrSchedule() {
   switch (state) {
     case UpdateState::None: {
       LOG(INFO) << "Can't find any snapshot to merge.";
-      processor_->ActionComplete(this, ErrorCode::kSuccess);
+      ErrorCode error_code = ErrorCode::kSuccess;
+      if (!snapshot_->CancelUpdate()) {
+        error_code = ErrorCode::kError;
+        LOG(INFO) << "Failed to call SnapshotManager::CancelUpdate().";
+      }
+      processor_->ActionComplete(this, error_code);
       return;
     }
 
