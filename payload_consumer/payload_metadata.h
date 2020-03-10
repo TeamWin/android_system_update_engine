@@ -26,7 +26,6 @@
 #include <brillo/secure_blob.h>
 
 #include "update_engine/common/error_code.h"
-#include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -55,11 +54,9 @@ class PayloadMetadata {
   // metadata. Returns kMetadataParseError if the metadata can't be parsed given
   // the payload.
   MetadataParseResult ParsePayloadHeader(const brillo::Blob& payload,
-                                         HardwareInterface* hardware,
                                          ErrorCode* error);
   // Simpler version of the above, returns true on success.
-  bool ParsePayloadHeader(const brillo::Blob& payload,
-                          HardwareInterface* hardware);
+  bool ParsePayloadHeader(const brillo::Blob& payload);
 
   // Given the |payload|, verifies that the signed hash of its metadata matches
   // |metadata_signature| (if present) or the metadata signature in payload
@@ -97,14 +94,12 @@ class PayloadMetadata {
                         Signatures* metadata_signatures);
 
  private:
-  // Set |*out_offset| to the byte offset at which the manifest protobuf begins
-  // in a payload. Return true on success, false if the offset is unknown.
-  bool GetManifestOffset(uint64_t* out_offset) const;
+  // Returns the byte offset at which the manifest protobuf begins in a payload.
+  uint64_t GetManifestOffset() const;
 
-  // Set |*out_offset| to the byte offset where the size of the metadata
-  // signature is stored in a payload. Return true on success, if this field is
-  // not present in the payload, return false.
-  bool GetMetadataSignatureSizeOffset(uint64_t* out_offset) const;
+  // Returns the byte offset where the size of the metadata signature is stored
+  // in a payload.
+  uint64_t GetMetadataSignatureSizeOffset() const;
 
   uint64_t metadata_size_{0};
   uint64_t manifest_size_{0};

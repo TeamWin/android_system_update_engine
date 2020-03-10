@@ -20,7 +20,7 @@
 
 namespace chromeos_update_engine {
 
-const uint64_t kChromeOSMajorPayloadVersion = 1;
+// const uint64_t kChromeOSMajorPayloadVersion = 1;  DEPRECATED
 const uint64_t kBrilloMajorPayloadVersion = 2;
 
 const uint64_t kMinSupportedMajorPayloadVersion = kBrilloMajorPayloadVersion;

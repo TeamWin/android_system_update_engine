@@ -591,8 +591,7 @@ static void ApplyDeltaFile(bool full_kernel,
   {
     EXPECT_TRUE(utils::ReadFile(state->delta_path, &state->delta));
     PayloadMetadata payload_metadata;
-    EXPECT_TRUE(payload_metadata.ParsePayloadHeader(state->delta,
-                                                    &state->fake_hardware_));
+    EXPECT_TRUE(payload_metadata.ParsePayloadHeader(state->delta));
     state->metadata_size = payload_metadata.GetMetadataSize();
     LOG(INFO) << "Metadata size: " << state->metadata_size;
     state->metadata_signature_size =
