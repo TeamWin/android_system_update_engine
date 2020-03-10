@@ -51,9 +51,9 @@ using android::fs_mgr::MetadataBuilder;
 using android::fs_mgr::Partition;
 using android::fs_mgr::PartitionOpener;
 using android::fs_mgr::SlotSuffixForSlotNumber;
+using android::snapshot::OptimizeSourceCopyOperation;
 using android::snapshot::Return;
 using android::snapshot::SnapshotManager;
-using android::snapshot::SourceCopyOperationIsClone;
 using android::snapshot::UpdateState;
 
 namespace chromeos_update_engine {
@@ -115,15 +115,17 @@ FeatureFlag DynamicPartitionControlAndroid::GetVirtualAbFeatureFlag() {
   return virtual_ab_;
 }
 
-bool DynamicPartitionControlAndroid::ShouldSkipOperation(
-    const std::string& partition_name, const InstallOperation& operation) {
+bool DynamicPartitionControlAndroid::OptimizeOperation(
+    const std::string& partition_name,
+    const InstallOperation& operation,
+    InstallOperation* optimized) {
   switch (operation.type()) {
     case InstallOperation::SOURCE_COPY:
       return target_supports_snapshot_ &&
              GetVirtualAbFeatureFlag().IsEnabled() &&
              mapped_devices_.count(partition_name +
                                    SlotSuffixForSlotNumber(target_slot_)) > 0 &&
-             SourceCopyOperationIsClone(operation);
+             OptimizeSourceCopyOperation(operation, optimized);
       break;
     default:
       break;
