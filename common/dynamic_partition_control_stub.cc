@@ -33,8 +33,10 @@ FeatureFlag DynamicPartitionControlStub::GetVirtualAbFeatureFlag() {
   return FeatureFlag(FeatureFlag::Value::NONE);
 }
 
-bool DynamicPartitionControlStub::ShouldSkipOperation(
-    const std::string& partition_name, const InstallOperation& operation) {
+bool DynamicPartitionControlStub::OptimizeOperation(
+    const std::string& partition_name,
+    const InstallOperation& operation,
+    InstallOperation* optimized) {
   return false;
 }
 
