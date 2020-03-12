@@ -30,8 +30,9 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
  public:
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
-  bool ShouldSkipOperation(const std::string& partition_name,
-                           const InstallOperation& operation) override;
+  bool OptimizeOperation(const std::string& partition_name,
+                         const InstallOperation& operation,
+                         InstallOperation* optimized) override;
   void Cleanup() override;
   bool PreparePartitionsForUpdate(uint32_t source_slot,
                                   uint32_t target_slot,
