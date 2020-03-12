@@ -625,7 +625,7 @@ TEST_F(DynamicPartitionControlAndroidTest, ApplyingToCurrentSlot) {
       << "Should not be able to apply to current slot.";
 }
 
-TEST_P(DynamicPartitionControlAndroidTestP, ShouldSkipOperationTest) {
+TEST_P(DynamicPartitionControlAndroidTestP, OptimizeOperationTest) {
   ASSERT_TRUE(dynamicControl().PreparePartitionsForUpdate(
       source(),
       target(),
@@ -635,16 +635,17 @@ TEST_P(DynamicPartitionControlAndroidTestP, ShouldSkipOperationTest) {
   dynamicControl().set_fake_mapped_devices({T("foo")});
 
   InstallOperation iop;
+  InstallOperation optimized;
   Extent *se, *de;
 
   // Not a SOURCE_COPY operation, cannot skip.
   iop.set_type(InstallOperation::REPLACE);
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
 
   iop.set_type(InstallOperation::SOURCE_COPY);
 
   // By default GetVirtualAbFeatureFlag is disabled. Cannot skip operation.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
 
   // Enable GetVirtualAbFeatureFlag in the mock interface.
   ON_CALL(dynamicControl(), GetVirtualAbFeatureFlag())
@@ -652,19 +653,21 @@ TEST_P(DynamicPartitionControlAndroidTestP, ShouldSkipOperationTest) {
 
   // By default target_supports_snapshot_ is set to false. Cannot skip
   // operation.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
 
   SetSnapshotEnabled(true);
 
   // Empty source and destination. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_TRUE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
+  EXPECT_TRUE(optimized.src_extents().empty());
+  EXPECT_TRUE(optimized.dst_extents().empty());
 
   se = iop.add_src_extents();
   se->set_start_block(0);
   se->set_num_blocks(1);
 
   // There is something in sources, but destinations are empty. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
 
   InstallOperation iop2;
 
@@ -673,45 +676,79 @@ TEST_P(DynamicPartitionControlAndroidTestP, ShouldSkipOperationTest) {
   de->set_num_blocks(1);
 
   // There is something in destinations, but sources are empty. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop2));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("foo", iop2, &optimized));
 
   de = iop.add_dst_extents();
   de->set_start_block(0);
   de->set_num_blocks(1);
 
   // Sources and destinations are identical. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_TRUE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
+  EXPECT_TRUE(optimized.src_extents().empty());
+  EXPECT_TRUE(optimized.dst_extents().empty());
 
   se = iop.add_src_extents();
   se->set_start_block(1);
   se->set_num_blocks(5);
 
   // There is something in source, but not in destination. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
 
   de = iop.add_dst_extents();
   de->set_start_block(1);
   de->set_num_blocks(5);
 
   // There is source and destination are equal. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_TRUE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
+  EXPECT_TRUE(optimized.src_extents().empty());
+  EXPECT_TRUE(optimized.dst_extents().empty());
 
   de = iop.add_dst_extents();
   de->set_start_block(6);
   de->set_num_blocks(5);
 
   // There is something extra in dest. Cannot skip.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
 
   se = iop.add_src_extents();
   se->set_start_block(6);
   se->set_num_blocks(5);
 
   // Source and dest are identical again. Skip.
-  EXPECT_TRUE(dynamicControl().ShouldSkipOperation("foo", iop));
+  EXPECT_TRUE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
+  EXPECT_TRUE(optimized.src_extents().empty());
+  EXPECT_TRUE(optimized.dst_extents().empty());
+
+  iop.Clear();
+  iop.set_type(InstallOperation::SOURCE_COPY);
+  se = iop.add_src_extents();
+  se->set_start_block(1);
+  se->set_num_blocks(1);
+  se = iop.add_src_extents();
+  se->set_start_block(3);
+  se->set_num_blocks(2);
+  se = iop.add_src_extents();
+  se->set_start_block(7);
+  se->set_num_blocks(2);
+  de = iop.add_dst_extents();
+  de->set_start_block(2);
+  de->set_num_blocks(5);
+
+  // [1, 3, 4, 7, 8] -> [2, 3, 4, 5, 6] should return [1, 7, 8] -> [2, 5, 6]
+  EXPECT_TRUE(dynamicControl().OptimizeOperation("foo", iop, &optimized));
+  ASSERT_EQ(2, optimized.src_extents_size());
+  ASSERT_EQ(2, optimized.dst_extents_size());
+  EXPECT_EQ(1u, optimized.src_extents(0).start_block());
+  EXPECT_EQ(1u, optimized.src_extents(0).num_blocks());
+  EXPECT_EQ(2u, optimized.dst_extents(0).start_block());
+  EXPECT_EQ(1u, optimized.dst_extents(0).num_blocks());
+  EXPECT_EQ(7u, optimized.src_extents(1).start_block());
+  EXPECT_EQ(2u, optimized.src_extents(1).num_blocks());
+  EXPECT_EQ(5u, optimized.dst_extents(1).start_block());
+  EXPECT_EQ(2u, optimized.dst_extents(1).num_blocks());
 
   // Don't skip for static partitions.
-  EXPECT_FALSE(dynamicControl().ShouldSkipOperation("bar", iop));
+  EXPECT_FALSE(dynamicControl().OptimizeOperation("bar", iop, &optimized));
 }
 
 }  // namespace chromeos_update_engine
