@@ -152,6 +152,7 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   }
 
 #ifdef __ANDROID__
+#ifdef RUN_BACKUPTOOL
   // Check the currently installed /system partition to see if it's ever
   // been mounted R/W. If it has, we'll run backuptool scripts for it
   // since we can safely assume something on the partition has been
@@ -216,6 +217,7 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   }
 
   utils::UnmountFilesystem(fs_mount_dir_);
+#endif  // RUN_BACKUPTOOL
 
   // In Chromium OS, the postinstall step is allowed to write to the block
   // device on the target image, so we don't mark it as read-only and should
