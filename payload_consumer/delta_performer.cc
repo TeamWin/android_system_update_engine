@@ -1200,8 +1200,11 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   // decide it the operation should be skipped.
   const PartitionUpdate& partition = partitions_[current_partition_];
   const auto& partition_control = boot_control_->GetDynamicPartitionControl();
-  bool should_skip = partition_control->ShouldSkipOperation(
-      partition.partition_name(), operation);
+
+  InstallOperation buf;
+  bool should_optimize = partition_control->OptimizeOperation(
+      partition.partition_name(), operation, &buf);
+  const InstallOperation& optimized = should_optimize ? buf : operation;
 
   if (operation.has_src_sha256_hash()) {
     bool read_ok;
@@ -1213,9 +1216,18 @@ bool DeltaPerformer::PerformSourceCopyOperation(
     // device doesn't match or there was an error reading the source partition.
     // Note that this code will also fall back if writing the target partition
     // fails.
-    if (should_skip) {
-      read_ok = fd_utils::ReadAndHashExtents(
-          source_fd_, operation.src_extents(), block_size_, &source_hash);
+    if (should_optimize) {
+      // Hash operation.src_extents(), then copy optimized.src_extents to
+      // optimized.dst_extents.
+      read_ok =
+          fd_utils::ReadAndHashExtents(
+              source_fd_, operation.src_extents(), block_size_, &source_hash) &&
+          fd_utils::CopyAndHashExtents(source_fd_,
+                                       optimized.src_extents(),
+                                       target_fd_,
+                                       optimized.dst_extents(),
+                                       block_size_,
+                                       nullptr /* skip hashing */);
     } else {
       read_ok = fd_utils::CopyAndHashExtents(source_fd_,
                                              operation.src_extents(),
@@ -1240,9 +1252,16 @@ bool DeltaPerformer::PerformSourceCopyOperation(
                  << base::HexEncode(expected_source_hash.data(),
                                     expected_source_hash.size());
 
-    if (should_skip) {
+    if (should_optimize) {
       TEST_AND_RETURN_FALSE(fd_utils::ReadAndHashExtents(
           source_ecc_fd_, operation.src_extents(), block_size_, &source_hash));
+      TEST_AND_RETURN_FALSE(
+          fd_utils::CopyAndHashExtents(source_ecc_fd_,
+                                       optimized.src_extents(),
+                                       target_fd_,
+                                       optimized.dst_extents(),
+                                       block_size_,
+                                       nullptr /* skip hashing */));
     } else {
       TEST_AND_RETURN_FALSE(
           fd_utils::CopyAndHashExtents(source_ecc_fd_,
@@ -1264,22 +1283,19 @@ bool DeltaPerformer::PerformSourceCopyOperation(
     // at this point, but we fall back to the raw device since the error
     // corrected device can be shorter or not available.
 
-    if (should_skip)
-      return true;
-
     if (OpenCurrentECCPartition() &&
         fd_utils::CopyAndHashExtents(source_ecc_fd_,
-                                     operation.src_extents(),
+                                     optimized.src_extents(),
                                      target_fd_,
-                                     operation.dst_extents(),
+                                     optimized.dst_extents(),
                                      block_size_,
                                      nullptr)) {
       return true;
     }
     TEST_AND_RETURN_FALSE(fd_utils::CopyAndHashExtents(source_fd_,
-                                                       operation.src_extents(),
+                                                       optimized.src_extents(),
                                                        target_fd_,
-                                                       operation.dst_extents(),
+                                                       optimized.dst_extents(),
                                                        block_size_,
                                                        nullptr));
   }
