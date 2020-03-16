@@ -63,6 +63,11 @@ class UpdateEngineClient {
   // Same as above but return the entire struct instead.
   virtual bool GetStatus(UpdateEngineStatus* out_status) const = 0;
 
+  // Sets the DLC as active or inactive. When set to active, the ping metadata
+  // for the DLC is updated accordingly. When set to inactive, the metadata
+  // for the DLC is deleted.
+  virtual bool SetDlcActiveValue(bool is_active, const std::string& dlc_id) = 0;
+
   // Getter and setter for the cohort hint.
   virtual bool SetCohortHint(const std::string& cohort_hint) = 0;
   virtual bool GetCohortHint(std::string* cohort_hint) const = 0;

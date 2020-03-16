@@ -162,6 +162,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // UPDATED_NEED_REBOOT. Returns true on success, false otherwise.
   bool RebootIfNeeded();
 
+  // Sets the DLC as active or inactive. See common_service.h
+  virtual bool SetDlcActiveValue(bool is_active, const std::string& dlc_id);
+
   // DownloadActionDelegate methods:
   void BytesReceived(uint64_t bytes_progressed,
                      uint64_t bytes_received,
@@ -253,6 +256,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest);
   FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest);
   FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsValidValuesTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata);
   FRIEND_TEST(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest);
   FRIEND_TEST(UpdateAttempterTest, CheckForInstallNotIdleFails);
   FRIEND_TEST(UpdateAttempterTest, CheckForUpdateAUDlcTest);

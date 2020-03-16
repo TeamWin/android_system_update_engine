@@ -100,6 +100,20 @@ TEST_F(UpdateEngineServiceTest, AttemptInstallReturnsFalse) {
   EXPECT_FALSE(common_service_.AttemptInstall(&error_, "", {}));
 }
 
+TEST_F(UpdateEngineServiceTest, SetDlcActiveValue) {
+  EXPECT_CALL(*mock_update_attempter_, SetDlcActiveValue(_, _))
+      .WillOnce(Return(true));
+
+  EXPECT_TRUE(common_service_.SetDlcActiveValue(&error_, true, "dlc0"));
+}
+
+TEST_F(UpdateEngineServiceTest, SetDlcActiveValueReturnsFalse) {
+  EXPECT_CALL(*mock_update_attempter_, SetDlcActiveValue(_, _))
+      .WillOnce(Return(false));
+
+  EXPECT_FALSE(common_service_.SetDlcActiveValue(&error_, true, "dlc0"));
+}
+
 // SetChannel is allowed when there's no device policy (the device is not
 // enterprise enrolled).
 TEST_F(UpdateEngineServiceTest, SetChannelWithNoPolicy) {

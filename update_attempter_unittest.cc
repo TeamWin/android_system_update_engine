@@ -2401,4 +2401,60 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
   EXPECT_EQ(78, dlc_app_params.ping_date_last_active);
   EXPECT_EQ(99, dlc_app_params.ping_date_last_rollcall);
 }
+
+TEST_F(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata) {
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0 =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append(dlc_id);
+  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  base::FilePath metadata_path_dlc_stale =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append("stale");
+  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc_stale));
+  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+      .WillOnce(
+          DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+
+  attempter_.is_install_ = false;
+  attempter_.CalculateDlcParams();
+
+  EXPECT_TRUE(base::PathExists(metadata_path_dlc0));
+  EXPECT_FALSE(base::PathExists(metadata_path_dlc_stale));
+}
+
+TEST_F(UpdateAttempterTest, SetDlcActiveValue) {
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0 =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append(dlc_id);
+  attempter_.SetDlcActiveValue(true, dlc_id);
+  Prefs prefs;
+  ASSERT_TRUE(base::PathExists(metadata_path_dlc0));
+  ASSERT_TRUE(prefs.Init(metadata_path_dlc0));
+  int64_t temp_int;
+  EXPECT_TRUE(prefs.GetInt64(kPrefsPingActive, &temp_int));
+  EXPECT_EQ(temp_int, kPingActiveValue);
+}
+
+TEST_F(UpdateAttempterTest, SetDlcInactive) {
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  string dlc_id = "dlc0";
+  base::FilePath metadata_path_dlc0 =
+      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
+          .Append(dlc_id);
+  base::CreateDirectory(metadata_path_dlc0);
+  EXPECT_TRUE(base::PathExists(metadata_path_dlc0));
+  attempter_.SetDlcActiveValue(false, dlc_id);
+  EXPECT_FALSE(base::PathExists(metadata_path_dlc0));
+}
+
 }  // namespace chromeos_update_engine

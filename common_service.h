@@ -70,6 +70,13 @@ class UpdateEngineService {
   // update. This is used for development only.
   bool ResetStatus(brillo::ErrorPtr* error);
 
+  // Sets the DLC as active or inactive. When set to active, the ping metadata
+  // for the DLC is updated accordingly. When set to inactive, the metadata
+  // for the DLC is deleted.
+  bool SetDlcActiveValue(brillo::ErrorPtr* error,
+                         bool is_active,
+                         const std::string& dlc_id);
+
   // Returns the current status of the Update Engine. If an update is in
   // progress, the number of operations, size to download and overall progress
   // is reported.

@@ -51,6 +51,18 @@
     </method>
     <method name="ResetStatus">
     </method>
+    <method name="SetDlcActiveValue">
+      <arg type="b" name="is_active" direction="in">
+        <tp:docstring>
+          If the DLC is being set to active or inactive.
+        </tp:docstring>
+      </arg>
+      <arg type="s" name="dlc_id" direction="in">
+        <tp:docstring>
+          The ID of the DLC module that will be set to active/inactive.
+        </tp:docstring>
+      </arg>
+    </method>
     <method name="GetStatusAdvanced">
       <arg type="ay" name="status" direction="out">
         <tp:docstring>

@@ -414,7 +414,6 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   return num_days;
 }
 
-// static
 void OmahaRequestAction::StorePingReply(
     const OmahaParserData& parser_data) const {
   for (const auto& app : parser_data.apps) {
@@ -430,24 +429,15 @@ void OmahaRequestAction::StorePingReply(
 
     base::FilePath metadata_path =
         base::FilePath(params_->dlc_prefs_root()).Append(dlc_params.name);
-    if (!base::PathExists(metadata_path)) {
-      LOG(ERROR) << "Metadata path (" << metadata_path.value() << ") "
-                 << "doesn't exist.";
-      // Skip this DLC if the metadata directory is missing.
-      continue;
-    }
 
     Prefs prefs;
-    if (!prefs.Init(metadata_path)) {
+    if (!base::CreateDirectory(metadata_path) || !prefs.Init(metadata_path)) {
       LOG(ERROR) << "Failed to initialize the preferences path:"
                  << metadata_path.value() << ".";
       continue;
     }
     // Reset the active metadata value to |kPingInactiveValue|.
-    // Only write into this file if the file exists, otherwise the file will be
-    // created with different owner/permissions.
-    if (prefs.Exists(kPrefsPingActive) &&
-        !prefs.SetInt64(kPrefsPingActive, kPingInactiveValue))
+    if (!prefs.SetInt64(kPrefsPingActive, kPingInactiveValue))
       LOG(ERROR) << "Failed to set the value of ping metadata '"
                  << kPrefsPingActive << "'.";
 

@@ -46,6 +46,8 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
   bool AttemptInstall(const std::string& omaha_url,
                       const std::vector<std::string>& dlc_module_ids) override;
 
+  bool SetDlcActiveValue(bool is_active, const std::string& dlc_id) override;
+
   bool GetStatus(UpdateEngineStatus* out_status) const override;
 
   bool SetCohortHint(const std::string& cohort_hint) override;

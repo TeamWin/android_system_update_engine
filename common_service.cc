@@ -143,6 +143,17 @@ bool UpdateEngineService::ResetStatus(ErrorPtr* error) {
   return true;
 }
 
+bool UpdateEngineService::SetDlcActiveValue(brillo::ErrorPtr* error,
+                                            bool is_active,
+                                            const string& dlc_id) {
+  if (!system_state_->update_attempter()->SetDlcActiveValue(is_active,
+                                                            dlc_id)) {
+    LogAndSetError(error, FROM_HERE, "SetDlcActiveValue failed.");
+    return false;
+  }
+  return true;
+}
+
 bool UpdateEngineService::GetStatus(ErrorPtr* error,
                                     UpdateEngineStatus* out_status) {
   if (!system_state_->update_attempter()->GetStatus(out_status)) {

@@ -110,6 +110,12 @@ bool DBusUpdateEngineService::ResetStatus(ErrorPtr* error) {
   return common_->ResetStatus(error);
 }
 
+bool DBusUpdateEngineService::SetDlcActiveValue(brillo::ErrorPtr* error,
+                                                bool is_active,
+                                                const string& dlc_id) {
+  return common_->SetDlcActiveValue(error, is_active, dlc_id);
+}
+
 bool DBusUpdateEngineService::GetStatusAdvanced(ErrorPtr* error,
                                                 StatusResult* out_status) {
   UpdateEngineStatus status;

@@ -98,6 +98,11 @@ bool DBusUpdateEngineClient::AttemptInstall(const string& omaha_url,
                                 nullptr /* brillo::ErrorPtr* */);
 }
 
+bool DBusUpdateEngineClient::SetDlcActiveValue(bool is_active,
+                                               const std::string& dlc_id) {
+  return proxy_->SetDlcActiveValue(is_active, dlc_id, /*error=*/nullptr);
+}
+
 bool DBusUpdateEngineClient::GetStatus(UpdateEngineStatus* out_status) const {
   StatusResult status;
   if (!proxy_->GetStatusAdvanced(&status, nullptr)) {
