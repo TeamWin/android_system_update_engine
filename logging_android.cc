@@ -109,8 +109,7 @@ const char* LogPriorityToCString(int priority) {
   }
 }
 
-using LoggerFunction = std::function<void(const struct __android_logger_data*,
-                                          const char* message)>;
+using LoggerFunction = std::function<void(const struct __android_log_message*)>;
 
 class FileLogger {
  public:
@@ -137,17 +136,17 @@ class FileLogger {
   }
   // Copy-constructor needed to be converted to std::function.
   FileLogger(const FileLogger& other) { fd_.reset(dup(other.fd_)); }
-  void operator()(const struct __android_logger_data* logger_data,
-                  const char* message) {
+  void operator()(const struct __android_log_message* log_message) {
     if (fd_ == -1) {
       return;
     }
 
     // libchrome add a newline character to |message|. Strip it.
-    std::string_view message_no_newline = message != nullptr ? message : "";
+    std::string_view message_no_newline =
+        log_message->message != nullptr ? log_message->message : "";
     ignore_result(android::base::ConsumeSuffix(&message_no_newline, "\n"));
 
-    WriteToFd(GetPrefix(logger_data));
+    WriteToFd(GetPrefix(log_message));
     WriteToFd(message_no_newline);
     WriteToFd("\n");
   }
@@ -159,7 +158,7 @@ class FileLogger {
         android::base::WriteFully(fd_, message.data(), message.size()));
   }
 
-  string GetPrefix(const struct __android_logger_data* logger_data) {
+  string GetPrefix(const struct __android_log_message* log_message) {
     std::stringstream ss;
     timeval tv;
     gettimeofday(&tv, nullptr);
@@ -176,9 +175,9 @@ class FileLogger {
     // libbase / liblog logs doesn't. Hence, add them to match the style.
     // For liblog logs that doesn't set logger_data->file, not printing the
     // priority is acceptable.
-    if (logger_data->file) {
-      ss << "[" << LogPriorityToCString(logger_data->priority) << ':'
-         << logger_data->file << '(' << logger_data->line << ")] ";
+    if (log_message->file) {
+      ss << "[" << LogPriorityToCString(log_message->priority) << ':'
+         << log_message->file << '(' << log_message->line << ")] ";
     }
     return ss.str();
   }
@@ -194,10 +193,9 @@ class CombinedLogger {
       loggers_.push_back(std::move(FileLogger(SetupLogFile(kSystemLogsRoot))));
     }
   }
-  void operator()(const struct __android_logger_data* logger_data,
-                  const char* message) {
+  void operator()(const struct __android_log_message* log_message) {
     for (auto&& logger : loggers_) {
-      logger(logger_data, message != nullptr ? message : "");
+      logger(log_message);
     }
   }
 
@@ -214,10 +212,9 @@ void SetupLogging(bool log_to_system, bool log_to_file) {
   // logging eventually redirects to CombinedLogger.
   static auto g_logger =
       std::make_unique<CombinedLogger>(log_to_system, log_to_file);
-  __android_log_set_logger(
-      [](const struct __android_logger_data* logger_data, const char* message) {
-        (*g_logger)(logger_data, message);
-      });
+  __android_log_set_logger([](const struct __android_log_message* log_message) {
+    (*g_logger)(log_message);
+  });
 
   // libchrome logging should not log to file.
   logging::LoggingSettings log_settings;
