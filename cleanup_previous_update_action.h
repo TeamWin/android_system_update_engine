@@ -69,6 +69,7 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
   BootControlInterface* boot_control_;
   android::snapshot::SnapshotManager* snapshot_;
   CleanupPreviousUpdateActionDelegateInterface* delegate_;
+  std::unique_ptr<android::snapshot::AutoDevice> metadata_device_;
   bool running_{false};
   bool cancel_failed_{false};
   unsigned int last_percentage_{0};
