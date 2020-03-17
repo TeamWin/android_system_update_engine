@@ -158,7 +158,12 @@ void UpdateAttempterAndroid::Init() {
   } else {
     SetStatusAndNotify(UpdateStatus::IDLE);
     UpdatePrefsAndReportUpdateMetricsOnReboot();
+#ifdef _UE_SIDELOAD
+    LOG(INFO) << "Skip ScheduleCleanupPreviousUpdate in sideload because "
+              << "ApplyPayload will call it later.";
+#else
     ScheduleCleanupPreviousUpdate();
+#endif
   }
 }
 
@@ -644,6 +649,8 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   if (status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE) {
     LOG(INFO) << "Terminating cleanup previous update.";
     SetStatusAndNotify(UpdateStatus::IDLE);
+    for (auto observer : daemon_state_->service_observers())
+      observer->SendPayloadApplicationComplete(error_code);
     return;
   }
 
