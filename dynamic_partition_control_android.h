@@ -51,6 +51,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
       PrefsInterface* prefs,
       CleanupPreviousUpdateActionDelegateInterface* delegate) override;
 
+  bool ResetUpdate(PrefsInterface* prefs) override;
+
   // Return the device for partition |partition_name| at slot |slot|.
   // |current_slot| should be set to the current active slot.
   // Note: this function is only used by BootControl*::GetPartitionDevice.
