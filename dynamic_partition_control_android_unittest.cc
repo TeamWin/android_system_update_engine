@@ -24,6 +24,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/common/mock_prefs.h"
 #include "update_engine/dynamic_partition_test_utils.h"
 #include "update_engine/mock_dynamic_partition_control.h"
 
@@ -749,6 +750,11 @@ TEST_P(DynamicPartitionControlAndroidTestP, OptimizeOperationTest) {
 
   // Don't skip for static partitions.
   EXPECT_FALSE(dynamicControl().OptimizeOperation("bar", iop, &optimized));
+}
+
+TEST_F(DynamicPartitionControlAndroidTest, ResetUpdate) {
+  MockPrefs prefs;
+  ASSERT_TRUE(dynamicControl().ResetUpdate(&prefs));
 }
 
 }  // namespace chromeos_update_engine

@@ -45,6 +45,7 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
       BootControlInterface* boot_control,
       PrefsInterface* prefs,
       CleanupPreviousUpdateActionDelegateInterface* delegate) override;
+  bool ResetUpdate(PrefsInterface* prefs) override;
 };
 
 }  // namespace chromeos_update_engine
