@@ -39,6 +39,7 @@
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/dynamic_partition_utils.h"
+#include "update_engine/payload_consumer/delta_performer.h"
 
 using android::base::GetBoolProperty;
 using android::base::Join;
@@ -784,6 +785,26 @@ DynamicPartitionControlAndroid::GetCleanupPreviousUpdateAction(
   }
   return std::make_unique<CleanupPreviousUpdateAction>(
       prefs, boot_control, snapshot_.get(), delegate);
+}
+
+bool DynamicPartitionControlAndroid::ResetUpdate(PrefsInterface* prefs) {
+  if (!GetVirtualAbFeatureFlag().IsEnabled()) {
+    return true;
+  }
+
+  LOG(INFO) << __func__ << " resetting update state and deleting snapshots.";
+  TEST_AND_RETURN_FALSE(prefs != nullptr);
+
+  // If the device has already booted into the target slot,
+  // ResetUpdateProgress may pass but CancelUpdate fails.
+  // This is expected. A scheduled CleanupPreviousUpdateAction should free
+  // space when it is done.
+  TEST_AND_RETURN_FALSE(DeltaPerformer::ResetUpdateProgress(
+      prefs, false /* quick */, false /* skip dynamic partitions metadata */));
+
+  TEST_AND_RETURN_FALSE(snapshot_->CancelUpdate());
+
+  return true;
 }
 
 }  // namespace chromeos_update_engine
