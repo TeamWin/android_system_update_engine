@@ -18,6 +18,7 @@
 #include <chrono>  // NOLINT(build/c++11) -- for merge times
 #include <functional>
 #include <string>
+#include <type_traits>
 
 #include <android-base/properties.h>
 #include <base/bind.h>
@@ -161,6 +162,36 @@ void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
     LOG(ERROR) << "Failed to mount /metadata.";
     processor_->ActionComplete(this, ErrorCode::kError);
     return;
+  }
+
+  if (kIsRecovery) {
+    auto snapshots_created =
+        snapshot_->RecoveryCreateSnapshotDevices(metadata_device_);
+    switch (snapshots_created) {
+      case android::snapshot::CreateResult::CREATED: {
+        // If previous update has not finished merging, snapshots exists and are
+        // created here so that ProcessUpdateState can proceed.
+        LOG(INFO) << "Snapshot devices are created";
+        break;
+      }
+      case android::snapshot::CreateResult::NOT_CREATED: {
+        // If there is no previous update, no snapshot devices are created and
+        // ProcessUpdateState will return immediately. Hence, NOT_CREATED is not
+        // considered an error.
+        LOG(INFO) << "Snapshot devices are not created";
+        break;
+      }
+      case android::snapshot::CreateResult::ERROR:
+      default: {
+        LOG(ERROR)
+            << "Failed to create snapshot devices (CreateResult = "
+            << static_cast<
+                   std::underlying_type_t<android::snapshot::CreateResult>>(
+                   snapshots_created);
+        processor_->ActionComplete(this, ErrorCode::kError);
+        return;
+      }
+    }
   }
 
   if (!merge_stats_->Start()) {
