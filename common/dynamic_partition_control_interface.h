@@ -87,7 +87,7 @@ class DynamicPartitionControlInterface {
 
   // After writing to new partitions, before rebooting into the new slot, call
   // this function to indicate writes to new partitions are done.
-  virtual bool FinishUpdate() = 0;
+  virtual bool FinishUpdate(bool powerwash_required) = 0;
 
   // Get an action to clean up previous update.
   // Return NoOpAction on non-Virtual A/B devices.
