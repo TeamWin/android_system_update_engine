@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include <bootimg.h>
 #include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
 
@@ -32,18 +33,32 @@ using std::vector;
 class BootImgFilesystemTest : public ::testing::Test {
  protected:
   brillo::Blob GetBootImg(const brillo::Blob& kernel,
-                          const brillo::Blob& ramdisk) {
+                          const brillo::Blob& ramdisk,
+                          bool header_version3 = false) {
     brillo::Blob boot_img(16 * 1024);
-    BootImgFilesystem::boot_img_hdr hdr;
-    memcpy(hdr.magic, BOOT_MAGIC, BOOT_MAGIC_SIZE);
-    hdr.kernel_size = kernel.size();
-    hdr.ramdisk_size = ramdisk.size();
-    hdr.page_size = 4096;
+    constexpr uint32_t page_size = 4096;
+
     size_t offset = 0;
-    memcpy(boot_img.data() + offset, &hdr, sizeof(hdr));
-    offset += utils::RoundUp(sizeof(hdr), hdr.page_size);
+    if (header_version3) {
+      boot_img_hdr_v3 hdr_v3{};
+      memcpy(hdr_v3.magic, BOOT_MAGIC, BOOT_MAGIC_SIZE);
+      hdr_v3.kernel_size = kernel.size();
+      hdr_v3.ramdisk_size = ramdisk.size();
+      hdr_v3.header_version = 3;
+      memcpy(boot_img.data() + offset, &hdr_v3, sizeof(hdr_v3));
+      offset += utils::RoundUp(sizeof(hdr_v3), page_size);
+    } else {
+      boot_img_hdr_v0 hdr_v0{};
+      memcpy(hdr_v0.magic, BOOT_MAGIC, BOOT_MAGIC_SIZE);
+      hdr_v0.kernel_size = kernel.size();
+      hdr_v0.ramdisk_size = ramdisk.size();
+      hdr_v0.page_size = page_size;
+      hdr_v0.header_version = 0;
+      memcpy(boot_img.data() + offset, &hdr_v0, sizeof(hdr_v0));
+      offset += utils::RoundUp(sizeof(hdr_v0), page_size);
+    }
     memcpy(boot_img.data() + offset, kernel.data(), kernel.size());
-    offset += utils::RoundUp(kernel.size(), hdr.page_size);
+    offset += utils::RoundUp(kernel.size(), page_size);
     memcpy(boot_img.data() + offset, ramdisk.data(), ramdisk.size());
     return boot_img;
   }
@@ -55,6 +70,31 @@ TEST_F(BootImgFilesystemTest, SimpleTest) {
   test_utils::WriteFileVector(
       boot_file_.path(),
       GetBootImg(brillo::Blob(1234, 'k'), brillo::Blob(5678, 'r')));
+  unique_ptr<BootImgFilesystem> fs =
+      BootImgFilesystem::CreateFromFile(boot_file_.path());
+  EXPECT_NE(nullptr, fs);
+
+  vector<FilesystemInterface::File> files;
+  EXPECT_TRUE(fs->GetFiles(&files));
+  ASSERT_EQ(2u, files.size());
+
+  EXPECT_EQ("<kernel>", files[0].name);
+  EXPECT_EQ(1u, files[0].extents.size());
+  EXPECT_EQ(1u, files[0].extents[0].start_block());
+  EXPECT_EQ(1u, files[0].extents[0].num_blocks());
+  EXPECT_TRUE(files[0].deflates.empty());
+
+  EXPECT_EQ("<ramdisk>", files[1].name);
+  EXPECT_EQ(1u, files[1].extents.size());
+  EXPECT_EQ(2u, files[1].extents[0].start_block());
+  EXPECT_EQ(2u, files[1].extents[0].num_blocks());
+  EXPECT_TRUE(files[1].deflates.empty());
+}
+
+TEST_F(BootImgFilesystemTest, ImageHeaderVersion3) {
+  test_utils::WriteFileVector(
+      boot_file_.path(),
+      GetBootImg(brillo::Blob(1000, 'k'), brillo::Blob(5000, 'r'), true));
   unique_ptr<BootImgFilesystem> fs =
       BootImgFilesystem::CreateFromFile(boot_file_.path());
   EXPECT_NE(nullptr, fs);
