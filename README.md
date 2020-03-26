@@ -478,7 +478,7 @@ or
 or
 
 ```bash
-(chroot) $ cros_run_unit_tests --board ${BOARD} --test --packages update_engine
+(chroot) $ cros_run_unit_tests --board ${BOARD} --packages update_engine
 ```
 
 The above commands run all the unit tests, but `update_engine` package is quite
