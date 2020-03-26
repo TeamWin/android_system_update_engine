@@ -65,7 +65,6 @@ using brillo::MessageLoop;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateManager;
-using std::map;
 using std::pair;
 using std::string;
 using std::unique_ptr;

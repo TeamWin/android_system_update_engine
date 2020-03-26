@@ -109,7 +109,8 @@ class UpdateEngineService {
   // Sets the current "cohort hint" value to |in_cohort_hint|. The cohort hint
   // is sent back to Omaha on every request and can be used as a hint of what
   // cohort should we be put on.
-  bool SetCohortHint(brillo::ErrorPtr* error, std::string in_cohort_hint);
+  bool SetCohortHint(brillo::ErrorPtr* error,
+                     const std::string& in_cohort_hint);
 
   // Return the current cohort hint. This value can be set with SetCohortHint()
   // and can also be updated from Omaha on every update check request.

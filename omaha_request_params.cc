@@ -39,9 +39,7 @@
 
 #define CALL_MEMBER_FN(object, member) ((object).*(member))
 
-using std::map;
 using std::string;
-using std::vector;
 
 namespace chromeos_update_engine {
 

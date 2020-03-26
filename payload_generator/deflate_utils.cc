@@ -46,7 +46,7 @@ const uint64_t kMinimumSquashfsImageSize = 1 * 1024 * 1024;  // bytes
 // TODO(*): Optimize this so we don't have to read all extents into memory in
 // case it is large.
 bool CopyExtentsToFile(const string& in_path,
-                       const vector<Extent> extents,
+                       const vector<Extent>& extents,
                        const string& out_path,
                        size_t block_size) {
   brillo::Blob data(utils::BlocksInExtents(extents) * block_size);

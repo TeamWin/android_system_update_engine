@@ -742,7 +742,7 @@ void UpdateAttempter::CalculateDlcParams() {
     }
   }
   std::map<std::string, OmahaRequestParams::AppParams> dlc_apps_params;
-  for (auto dlc_id : dlc_module_ids_) {
+  for (const auto& dlc_id : dlc_module_ids_) {
     OmahaRequestParams::AppParams dlc_params{
         .active_counting_type = OmahaRequestParams::kDateBased,
         .name = dlc_id,

@@ -36,7 +36,6 @@
 
 #include "update_engine/common/utils.h"
 
-using brillo::MessageLoop;
 using std::string;
 using std::unique_ptr;
 using std::vector;

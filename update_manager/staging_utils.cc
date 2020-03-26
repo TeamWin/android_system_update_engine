@@ -32,7 +32,6 @@
 using base::TimeDelta;
 using chromeos_update_engine::kPrefsWallClockStagingWaitPeriod;
 using chromeos_update_engine::PrefsInterface;
-using chromeos_update_engine::SystemState;
 using policy::DevicePolicy;
 
 namespace chromeos_update_manager {

@@ -533,7 +533,7 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 #define OP_DURATION_HISTOGRAM(_op_name, _start_time)                         \
   LOCAL_HISTOGRAM_CUSTOM_TIMES(                                              \
       "UpdateEngine.DownloadAction.InstallOperation::" _op_name ".Duration", \
-      base::TimeTicks::Now() - _start_time,                                  \
+      (base::TimeTicks::Now() - _start_time),                                \
       base::TimeDelta::FromMilliseconds(10),                                 \
       base::TimeDelta::FromMinutes(5),                                       \
       20);

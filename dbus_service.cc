@@ -36,7 +36,6 @@ using std::vector;
 using update_engine::Operation;
 using update_engine::StatusResult;
 using update_engine::UpdateEngineStatus;
-using update_engine::UpdateStatus;
 
 namespace {
 // Converts the internal |UpdateEngineStatus| to the protobuf |StatusResult|.

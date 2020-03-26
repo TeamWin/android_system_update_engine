@@ -59,7 +59,6 @@ using base::Time;
 using base::TimeDelta;
 using chromeos_update_manager::kRollforwardInfinity;
 using std::map;
-using std::numeric_limits;
 using std::string;
 using std::vector;
 

@@ -595,6 +595,8 @@ TEST_F(DeltaDiffUtilsTest, GetOldFileTest) {
       "update_engine");
   EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "bin/delta_generator").name,
             "delta_generator");
+  // Check file name with minimum size.
+  EXPECT_EQ(diff_utils::GetOldFile(old_files_map, "a").name, "filename");
 }
 
 }  // namespace chromeos_update_engine

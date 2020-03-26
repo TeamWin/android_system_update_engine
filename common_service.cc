@@ -217,7 +217,7 @@ bool UpdateEngineService::GetChannel(ErrorPtr* /* error */,
 }
 
 bool UpdateEngineService::SetCohortHint(ErrorPtr* error,
-                                        string in_cohort_hint) {
+                                        const string& in_cohort_hint) {
   PrefsInterface* prefs = system_state_->prefs();
 
   // It is ok to override the cohort hint with an invalid value since it is

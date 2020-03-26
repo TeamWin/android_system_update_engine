@@ -202,7 +202,7 @@ class UpdateWaitHandler : public ExitingStatusUpdateHandler {
 
 void UpdateWaitHandler::HandleStatusUpdate(const UpdateEngineStatus& status) {
   if (exit_on_error_ && status.status == UpdateStatus::IDLE) {
-    int last_attempt_error;
+    int last_attempt_error = static_cast<int>(ErrorCode::kSuccess);
     ErrorCode code = ErrorCode::kSuccess;
     if (client_ && client_->GetLastAttemptError(&last_attempt_error))
       code = static_cast<ErrorCode>(last_attempt_error);

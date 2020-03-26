@@ -250,12 +250,13 @@ FilesystemInterface::File GetOldFile(
   if (old_file_iter != old_files_map.end())
     return old_file_iter->second;
 
-  // No old file match for the new file name, use a similar file with the
-  // shortest levenshtein distance.
+  // No old file matches the new file name. Use a similar file with the
+  // shortest levenshtein distance instead.
   // This works great if the file has version number in it, but even for
   // a completely new file, using a similar file can still help.
-  int min_distance = new_file_name.size();
-  const FilesystemInterface::File* old_file;
+  int min_distance =
+      LevenshteinDistance(new_file_name, old_files_map.begin()->first);
+  const FilesystemInterface::File* old_file = &old_files_map.begin()->second;
   for (const auto& pair : old_files_map) {
     int distance = LevenshteinDistance(new_file_name, pair.first);
     if (distance < min_distance) {
@@ -580,6 +581,11 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
   InstallOperation operation;
 
   uint64_t total_blocks = utils::BlocksInExtents(new_extents);
+  if (chunk_blocks == 0) {
+    LOG(ERROR) << "Invalid number of chunk_blocks. Cannot be 0.";
+    return false;
+  }
+
   if (chunk_blocks == -1)
     chunk_blocks = total_blocks;
 

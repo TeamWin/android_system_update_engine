@@ -49,7 +49,6 @@ const int kPostinstallStatusFd = 3;
 
 namespace chromeos_update_engine {
 
-using brillo::MessageLoop;
 using std::string;
 using std::vector;
 
