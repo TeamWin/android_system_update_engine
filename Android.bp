@@ -492,6 +492,9 @@ cc_defaults {
         "update_metadata-protos_exports",
     ],
 
+    header_libs: [
+        "bootimg_headers",
+    ],
     static_libs: [
         "libavb",
         "libbrotli",
