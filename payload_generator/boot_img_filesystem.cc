@@ -17,6 +17,7 @@
 #include "update_engine/payload_generator/boot_img_filesystem.h"
 
 #include <base/logging.h>
+#include <bootimg.h>
 #include <brillo/secure_blob.h>
 #include <puffin/utils.h>
 
@@ -35,16 +36,61 @@ unique_ptr<BootImgFilesystem> BootImgFilesystem::CreateFromFile(
   if (filename.empty())
     return nullptr;
 
-  brillo::Blob header;
-  if (!utils::ReadFileChunk(filename, 0, sizeof(boot_img_hdr), &header) ||
-      header.size() != sizeof(boot_img_hdr) ||
-      memcmp(header.data(), BOOT_MAGIC, BOOT_MAGIC_SIZE) != 0) {
+  if (brillo::Blob header_magic;
+      !utils::ReadFileChunk(filename, 0, BOOT_MAGIC_SIZE, &header_magic) ||
+      memcmp(header_magic.data(), BOOT_MAGIC, BOOT_MAGIC_SIZE) != 0) {
+    return nullptr;
+  }
+
+  // The order of image header fields are different in version 3 from the
+  // previous versions. But the position of "header_version" is fixed at #9
+  // across all image headers.
+  // See details in system/tools/mkbootimg/include/bootimg/bootimg.h
+  constexpr size_t header_version_offset =
+      BOOT_MAGIC_SIZE + 8 * sizeof(uint32_t);
+  brillo::Blob header_version_blob;
+  if (!utils::ReadFileChunk(filename,
+                            header_version_offset,
+                            sizeof(uint32_t),
+                            &header_version_blob)) {
+    return nullptr;
+  }
+  uint32_t header_version =
+      *reinterpret_cast<uint32_t*>(header_version_blob.data());
+  if (header_version > 3) {
+    LOG(WARNING) << "Boot image header version " << header_version
+                 << " isn't supported for parsing";
+    return nullptr;
+  }
+
+  // Read the bytes of boot image header based on the header version.
+  size_t header_size =
+      header_version == 3 ? sizeof(boot_img_hdr_v3) : sizeof(boot_img_hdr_v0);
+  brillo::Blob header_blob;
+  if (!utils::ReadFileChunk(filename, 0, header_size, &header_blob)) {
     return nullptr;
   }
 
   unique_ptr<BootImgFilesystem> result(new BootImgFilesystem());
   result->filename_ = filename;
-  memcpy(&result->hdr_, header.data(), header.size());
+  if (header_version < 3) {
+    auto hdr_v0 = reinterpret_cast<boot_img_hdr_v0*>(header_blob.data());
+    CHECK_EQ(0, memcmp(hdr_v0->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE));
+    CHECK_LT(hdr_v0->header_version, 3u);
+    result->kernel_size_ = hdr_v0->kernel_size;
+    result->ramdisk_size_ = hdr_v0->ramdisk_size;
+    result->page_size_ = hdr_v0->page_size;
+  } else {
+    auto hdr_v3 = reinterpret_cast<boot_img_hdr_v3*>(header_blob.data());
+    CHECK_EQ(0, memcmp(hdr_v3->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE));
+    CHECK_EQ(3u, hdr_v3->header_version);
+    result->kernel_size_ = hdr_v3->kernel_size;
+    result->ramdisk_size_ = hdr_v3->ramdisk_size;
+    result->page_size_ = 4096;
+  }
+
+  CHECK_GT(result->page_size_, 0u);
+
   return result;
 }
 
@@ -87,13 +133,13 @@ bool BootImgFilesystem::GetFiles(vector<File>* files) const {
   files->clear();
   const uint64_t file_size = utils::FileSize(filename_);
   // The first page is header.
-  uint64_t offset = hdr_.page_size;
-  if (hdr_.kernel_size > 0 && offset + hdr_.kernel_size <= file_size) {
-    files->emplace_back(GetFile("<kernel>", offset, hdr_.kernel_size));
+  uint64_t offset = page_size_;
+  if (kernel_size_ > 0 && offset + kernel_size_ <= file_size) {
+    files->emplace_back(GetFile("<kernel>", offset, kernel_size_));
   }
-  offset += utils::RoundUp(hdr_.kernel_size, hdr_.page_size);
-  if (hdr_.ramdisk_size > 0 && offset + hdr_.ramdisk_size <= file_size) {
-    files->emplace_back(GetFile("<ramdisk>", offset, hdr_.ramdisk_size));
+  offset += utils::RoundUp(kernel_size_, page_size_);
+  if (ramdisk_size_ > 0 && offset + ramdisk_size_ <= file_size) {
+    files->emplace_back(GetFile("<ramdisk>", offset, ramdisk_size_));
   }
   return true;
 }
