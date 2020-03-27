@@ -624,11 +624,11 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
   return true;
 }
 
-bool DynamicPartitionControlAndroid::FinishUpdate() {
+bool DynamicPartitionControlAndroid::FinishUpdate(bool powerwash_required) {
   if (GetVirtualAbFeatureFlag().IsEnabled() &&
       snapshot_->GetUpdateState() == UpdateState::Initiated) {
     LOG(INFO) << "Snapshot writes are done.";
-    return snapshot_->FinishedSnapshotWrites();
+    return snapshot_->FinishedSnapshotWrites(powerwash_required);
   }
   return true;
 }
