@@ -45,7 +45,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                   const DeltaArchiveManifest& manifest,
                                   bool update,
                                   uint64_t* required_size) override;
-  bool FinishUpdate() override;
+  bool FinishUpdate(bool powerwash_required) override;
   std::unique_ptr<AbstractAction> GetCleanupPreviousUpdateAction(
       BootControlInterface* boot_control,
       PrefsInterface* prefs,
