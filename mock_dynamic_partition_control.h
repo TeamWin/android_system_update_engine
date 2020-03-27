@@ -42,7 +42,7 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
       PreparePartitionsForUpdate,
       bool(uint32_t, uint32_t, const DeltaArchiveManifest&, bool, uint64_t*));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
-  MOCK_METHOD0(FinishUpdate, bool());
+  MOCK_METHOD1(FinishUpdate, bool(bool));
   MOCK_METHOD0(CleanupSuccessfulUpdate, ErrorCode());
   MOCK_METHOD3(GetCleanupPreviousUpdateAction,
                std::unique_ptr<AbstractAction>(
@@ -76,7 +76,7 @@ class MockDynamicPartitionControlAndroid
   MOCK_METHOD0(GetDynamicPartitionsFeatureFlag, FeatureFlag());
   MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
-  MOCK_METHOD0(FinishUpdate, bool());
+  MOCK_METHOD1(FinishUpdate, bool(bool));
 
   void set_fake_mapped_devices(const std::set<std::string>& fake) override {
     DynamicPartitionControlAndroid::set_fake_mapped_devices(fake);
