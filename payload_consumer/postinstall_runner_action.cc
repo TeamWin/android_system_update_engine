@@ -341,7 +341,8 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   // steps succeeded.
   if (error_code == ErrorCode::kSuccess) {
     if (install_plan_.switch_slot_on_reboot) {
-      if (!boot_control_->GetDynamicPartitionControl()->FinishUpdate() ||
+      if (!boot_control_->GetDynamicPartitionControl()->FinishUpdate(
+              install_plan_.powerwash_required) ||
           !boot_control_->SetActiveBootSlot(install_plan_.target_slot)) {
         error_code = ErrorCode::kPostinstallRunnerError;
       } else {

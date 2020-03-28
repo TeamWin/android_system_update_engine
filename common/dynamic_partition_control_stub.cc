@@ -51,7 +51,7 @@ bool DynamicPartitionControlStub::PreparePartitionsForUpdate(
   return true;
 }
 
-bool DynamicPartitionControlStub::FinishUpdate() {
+bool DynamicPartitionControlStub::FinishUpdate(bool powerwash_required) {
   return true;
 }
 
