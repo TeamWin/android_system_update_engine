@@ -658,5 +658,4 @@ int main(int argc, char** argv) {
       LOG(FATAL) << "ERROR on accept";
     HandleConnection(client_fd);
   }
-  return 0;
 }
