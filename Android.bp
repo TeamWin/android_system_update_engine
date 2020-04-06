@@ -353,6 +353,7 @@ cc_binary {
 
     srcs: [
         "hardware_android.cc",
+        "logging_android.cc",
         "metrics_reporter_stub.cc",
         "metrics_utils.cc",
         "network_selector_stub.cc",
