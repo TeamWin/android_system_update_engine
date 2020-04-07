@@ -439,13 +439,15 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Resets interactivity and forced update flags.
   void ResetInteractivityFlags();
 
-  // Get the integer values from the metadata directory set in |prefs| for
-  // |kPrefsPingLastActive| or |kPrefsPingLastRollcall|.
+  // Resets all the DLC prefs.
+  bool ResetDlcPrefs(const std::string& dlc_id);
+
+  // Get the integer values from the DLC metadata for |kPrefsPingLastActive|
+  // or |kPrefsPingLastRollcall|.
   // The value is equal to -2 when the value cannot be read or is not numeric.
   // The value is equal to -1 the first time it is being sent, which is
   // when the metadata file doesn't exist.
-  int64_t GetPingMetadata(const PrefsInterface& prefs,
-                          const std::string& metadata_name) const;
+  int64_t GetPingMetadata(const std::string& metadata_key) const;
 
   // Calculates the update parameters for DLCs. Sets the |dlc_ids_|
   // parameter on the |omaha_request_params_| object.

@@ -18,9 +18,11 @@
 
 #include <algorithm>
 
+#include <base/files/file_enumerator.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
+#include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 
 #include "update_engine/common/utils.h"
@@ -28,6 +30,8 @@
 using std::string;
 
 namespace chromeos_update_engine {
+
+const char kKeySeparator = '/';
 
 bool PrefsBase::GetString(const string& key, string* value) const {
   return storage_->GetKey(key, value);
@@ -104,6 +108,13 @@ void PrefsBase::RemoveObserver(const string& key, ObserverInterface* observer) {
     observers_for_key.erase(observer_it);
 }
 
+string PrefsInterface::CreateSubKey(const string& name_space,
+                                    const string& sub_pref,
+                                    const string& key) {
+  return base::JoinString({name_space, sub_pref, key},
+                          string(1, kKeySeparator));
+}
+
 // Prefs
 
 bool Prefs::Init(const base::FilePath& prefs_dir) {
@@ -112,6 +123,24 @@ bool Prefs::Init(const base::FilePath& prefs_dir) {
 
 bool Prefs::FileStorage::Init(const base::FilePath& prefs_dir) {
   prefs_dir_ = prefs_dir;
+  // Delete empty directories. Ignore errors when deleting empty directories.
+  base::FileEnumerator namespace_enum(
+      prefs_dir_, false /* recursive */, base::FileEnumerator::DIRECTORIES);
+  for (base::FilePath namespace_path = namespace_enum.Next();
+       !namespace_path.empty();
+       namespace_path = namespace_enum.Next()) {
+    base::FileEnumerator sub_pref_enum(namespace_path,
+                                       false /* recursive */,
+                                       base::FileEnumerator::DIRECTORIES);
+    for (base::FilePath sub_pref_path = sub_pref_enum.Next();
+         !sub_pref_path.empty();
+         sub_pref_path = sub_pref_enum.Next()) {
+      if (base::IsDirectoryEmpty(sub_pref_path))
+        base::DeleteFile(sub_pref_path, false);
+    }
+    if (base::IsDirectoryEmpty(namespace_path))
+      base::DeleteFile(namespace_path, false);
+  }
   return true;
 }
 
@@ -146,7 +175,7 @@ bool Prefs::FileStorage::KeyExists(const string& key) const {
 bool Prefs::FileStorage::DeleteKey(const string& key) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  TEST_AND_RETURN_FALSE(base::DeleteFile(filename, false));
+  TEST_AND_RETURN_FALSE(base::DeleteFile(filename, true));
   return true;
 }
 
@@ -157,7 +186,7 @@ bool Prefs::FileStorage::GetFileNameForKey(const string& key,
   for (size_t i = 0; i < key.size(); ++i) {
     char c = key.at(i);
     TEST_AND_RETURN_FALSE(base::IsAsciiAlpha(c) || base::IsAsciiDigit(c) ||
-                          c == '_' || c == '-');
+                          c == '_' || c == '-' || c == kKeySeparator);
   }
   *filename = prefs_dir_.Append(key);
   return true;

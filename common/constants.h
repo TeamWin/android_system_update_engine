@@ -19,9 +19,8 @@
 
 namespace chromeos_update_engine {
 
-// The root path of all DLC modules metadata.
-// Keep this in sync with the one in dlcservice.
-extern const char kDlcMetadataRootpath[];
+// The root path of all DLC metadata.
+extern const char kDlcPrefsSubDir[];
 
 // Directory for AU prefs that are preserved across powerwash.
 extern const char kPowerwashSafePrefsSubDirectory[];

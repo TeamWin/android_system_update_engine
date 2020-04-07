@@ -214,7 +214,6 @@ bool OmahaRequestParams::IsValidChannel(const string& channel,
 void OmahaRequestParams::set_root(const string& root) {
   root_ = root;
   test::SetImagePropertiesRootPrefix(root_.c_str());
-  dlc_prefs_root_ = root + kDlcMetadataRootpath;
 }
 
 int OmahaRequestParams::GetChannelIndex(const string& channel) const {

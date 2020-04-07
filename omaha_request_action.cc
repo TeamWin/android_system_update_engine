@@ -413,37 +413,33 @@ void OmahaRequestAction::StorePingReply(
       continue;
 
     const OmahaRequestParams::AppParams& dlc_params = it->second;
-
+    const string& dlc_id = dlc_params.name;
     // Skip if the ping for this DLC was not sent.
     if (!dlc_params.send_ping)
       continue;
 
-    base::FilePath metadata_path =
-        base::FilePath(params_->dlc_prefs_root()).Append(dlc_params.name);
-
-    Prefs prefs;
-    if (!base::CreateDirectory(metadata_path) || !prefs.Init(metadata_path)) {
-      LOG(ERROR) << "Failed to initialize the preferences path:"
-                 << metadata_path.value() << ".";
-      continue;
-    }
+    PrefsInterface* prefs = system_state_->prefs();
     // Reset the active metadata value to |kPingInactiveValue|.
-    if (!prefs.SetInt64(kPrefsPingActive, kPingInactiveValue))
-      LOG(ERROR) << "Failed to set the value of ping metadata '"
-                 << kPrefsPingActive << "'.";
+    auto active_key =
+        prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+    if (!prefs->SetInt64(active_key, kPingInactiveValue))
+      LOG(ERROR) << "Failed to set the value of ping metadata '" << active_key
+                 << "'.";
 
-    if (!prefs.SetString(kPrefsPingLastRollcall,
-                         parser_data.daystart_elapsed_days))
+    auto last_rollcall_key =
+        prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+    if (!prefs->SetString(last_rollcall_key, parser_data.daystart_elapsed_days))
       LOG(ERROR) << "Failed to set the value of ping metadata '"
-                 << kPrefsPingLastRollcall << "'.";
+                 << last_rollcall_key << "'.";
 
     if (dlc_params.ping_active) {
       // Write the value of elapsed_days into |kPrefsPingLastActive| only if
       // the previous ping was an active one.
-      if (!prefs.SetString(kPrefsPingLastActive,
-                           parser_data.daystart_elapsed_days))
+      auto last_active_key =
+          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+      if (!prefs->SetString(last_active_key, parser_data.daystart_elapsed_days))
         LOG(ERROR) << "Failed to set the value of ping metadata '"
-                   << kPrefsPingLastActive << "'.";
+                   << last_active_key << "'.";
     }
   }
 }

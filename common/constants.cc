@@ -18,8 +18,7 @@
 
 namespace chromeos_update_engine {
 
-// TODO(andrewlassalle): Move this to the prefs directory.
-const char kDlcMetadataRootpath[] = "/var/lib/dlc/";
+const char kDlcPrefsSubDir[] = "dlc";
 
 const char kPowerwashSafePrefsSubDirectory[] = "update_engine/prefs";
 

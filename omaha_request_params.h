@@ -58,7 +58,6 @@ class OmahaRequestParams {
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
         max_update_checks_allowed_(kDefaultMaxUpdateChecks),
-        dlc_prefs_root_(kDlcMetadataRootpath),
         is_install_(false) {}
 
   virtual ~OmahaRequestParams();
@@ -221,8 +220,6 @@ class OmahaRequestParams {
   inline const std::string& autoupdate_token() const {
     return autoupdate_token_;
   }
-
-  inline std::string dlc_prefs_root() const { return dlc_prefs_root_; }
 
   // Returns the App ID corresponding to the current value of the
   // download channel.
@@ -409,9 +406,6 @@ class OmahaRequestParams {
 
   // When reading files, prepend root_ to the paths. Useful for testing.
   std::string root_;
-
-  // The metadata/prefs root path for DLCs.
-  std::string dlc_prefs_root_;
 
   // A list of DLC modules to install. A mapping from DLC App ID to |AppParams|.
   std::map<std::string, AppParams> dlc_apps_params_;

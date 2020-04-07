@@ -28,7 +28,6 @@
 
 #include <base/bind.h>
 #include <base/compiler_specific.h>
-#include <base/files/file_enumerator.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
@@ -85,6 +84,7 @@ using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::StagingCase;
 using chromeos_update_manager::UpdateCheckParams;
+using std::map;
 using std::string;
 using std::vector;
 using update_engine::UpdateAttemptFlags;
@@ -658,6 +658,22 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
   }
 }
 
+bool UpdateAttempter::ResetDlcPrefs(const string& dlc_id) {
+  vector<string> failures;
+  PrefsInterface* prefs = system_state_->prefs();
+  for (auto& sub_key :
+       {kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall}) {
+    auto key = prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, sub_key);
+    if (!prefs->Delete(key))
+      failures.emplace_back(sub_key);
+  }
+  if (failures.size() != 0)
+    PLOG(ERROR) << "Failed to delete prefs (" << base::JoinString(failures, ",")
+                << " for DLC (" << dlc_id << ").";
+
+  return failures.size() == 0;
+}
+
 bool UpdateAttempter::SetDlcActiveValue(bool is_active, const string& dlc_id) {
   if (dlc_id.empty()) {
     LOG(ERROR) << "Empty DLC ID passed.";
@@ -665,50 +681,30 @@ bool UpdateAttempter::SetDlcActiveValue(bool is_active, const string& dlc_id) {
   }
   LOG(INFO) << "Set DLC (" << dlc_id << ") to "
             << (is_active ? "Active" : "Inactive");
-  // TODO(andrewlassalle): Should dlc_prefs_root be in systemstate instead of
-  //  omaha_request_params_?
-  base::FilePath metadata_path =
-      base::FilePath(omaha_request_params_->dlc_prefs_root()).Append(dlc_id);
+  PrefsInterface* prefs = system_state_->prefs();
   if (is_active) {
-    base::File::Error error;
-    if (!base::CreateDirectoryAndGetError(metadata_path, &error)) {
-      PLOG(ERROR) << "Failed to create metadata directory for DLC (" << dlc_id
-                  << "). Error:" << error;
-      return false;
-    }
-
-    Prefs prefs;
-    if (!prefs.Init(metadata_path)) {
-      LOG(ERROR) << "Failed to initialize the preferences path:"
-                 << metadata_path.value() << ".";
-      return false;
-    }
-
-    if (!prefs.SetInt64(kPrefsPingActive, kPingActiveValue)) {
+    auto ping_active_key =
+        prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+    if (!prefs->SetInt64(ping_active_key, kPingActiveValue)) {
       LOG(ERROR) << "Failed to set the value of ping metadata '"
                  << kPrefsPingActive << "'.";
       return false;
     }
   } else {
-    if (!base::DeleteFile(metadata_path, true)) {
-      PLOG(ERROR) << "Failed to delete metadata directory("
-                  << metadata_path.value() << ") for DLC (" << dlc_id << ").";
-      return false;
-    }
+    return ResetDlcPrefs(dlc_id);
   }
   return true;
 }
 
-int64_t UpdateAttempter::GetPingMetadata(
-    const PrefsInterface& prefs, const std::string& metadata_name) const {
+int64_t UpdateAttempter::GetPingMetadata(const string& metadata_key) const {
   // The first time a ping is sent, the metadata files containing the values
   // sent back by the server still don't exist. A value of -1 is used to
   // indicate this.
-  if (!prefs.Exists(metadata_name))
+  if (!system_state_->prefs()->Exists(metadata_key))
     return kPingNeverPinged;
 
   int64_t value;
-  if (prefs.GetInt64(metadata_name, &value))
+  if (system_state_->prefs()->GetInt64(metadata_key, &value))
     return value;
 
   // Return -2 when the file exists and there is a problem reading from it, or
@@ -724,49 +720,41 @@ void UpdateAttempter::CalculateDlcParams() {
     LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
                  "state of dlcservice, will not update DLC modules.";
   }
-  base::FilePath metadata_root_path =
-      base::FilePath(omaha_request_params_->dlc_prefs_root());
-  // Cleanup any leftover metadata for DLCs which don't exist.
-  base::FileEnumerator dir_enum(metadata_root_path,
-                                false /* recursive */,
-                                base::FileEnumerator::DIRECTORIES);
-  std::unordered_set<string> dlc_ids(dlc_ids_.begin(), dlc_ids_.end());
-  for (base::FilePath name = dir_enum.Next(); !name.empty();
-       name = dir_enum.Next()) {
-    string id = name.BaseName().value();
-    if (dlc_ids.find(id) == dlc_ids.end()) {
-      LOG(INFO) << "Deleting stale metadata for DLC:" << id;
-      if (!base::DeleteFile(name, true))
-        PLOG(WARNING) << "Failed to delete DLC prefs path:" << name.value();
-    }
-  }
-  std::map<std::string, OmahaRequestParams::AppParams> dlc_apps_params;
+  PrefsInterface* prefs = system_state_->prefs();
+  map<string, OmahaRequestParams::AppParams> dlc_apps_params;
   for (const auto& dlc_id : dlc_ids_) {
     OmahaRequestParams::AppParams dlc_params{
         .active_counting_type = OmahaRequestParams::kDateBased,
         .name = dlc_id,
         .send_ping = false};
-    // Only send the ping when the request is to update DLCs. When installing
-    // DLCs, we don't want to send the ping yet, since the DLCs might fail to
-    // install or might not really be active yet.
-    if (!is_install_) {
-      base::FilePath metadata_path = metadata_root_path.Append(dlc_id);
-      Prefs prefs;
-      if (!base::CreateDirectory(metadata_path) || !prefs.Init(metadata_path)) {
-        LOG(ERROR) << "Failed to initialize the preferences path:"
-                   << metadata_path.value() << ".";
-      } else {
-        dlc_params.ping_active = kPingActiveValue;
-        if (!prefs.GetInt64(kPrefsPingActive, &dlc_params.ping_active) ||
-            dlc_params.ping_active != kPingActiveValue) {
-          dlc_params.ping_active = kPingInactiveValue;
-        }
-        dlc_params.ping_date_last_active =
-            GetPingMetadata(prefs, kPrefsPingLastActive);
-        dlc_params.ping_date_last_rollcall =
-            GetPingMetadata(prefs, kPrefsPingLastRollcall);
-        dlc_params.send_ping = true;
+    if (is_install_) {
+      // In some cases, |SetDlcActiveValue| might fail to reset the DLC prefs
+      // when a DLC is uninstalled. To avoid having stale values from that
+      // scenario, we reset the metadata values on a new install request.
+      // Ignore failure to delete stale prefs.
+      ResetDlcPrefs(dlc_id);
+      SetDlcActiveValue(true, dlc_id);
+    } else {
+      // Only send the ping when the request is to update DLCs. When installing
+      // DLCs, we don't want to send the ping yet, since the DLCs might fail to
+      // install or might not really be active yet.
+      dlc_params.ping_active = kPingActiveValue;
+      auto ping_active_key =
+          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+      if (!prefs->GetInt64(ping_active_key, &dlc_params.ping_active) ||
+          dlc_params.ping_active != kPingActiveValue) {
+        dlc_params.ping_active = kPingInactiveValue;
       }
+      auto ping_last_active_key =
+          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+      dlc_params.ping_date_last_active = GetPingMetadata(ping_last_active_key);
+
+      auto ping_last_rollcall_key =
+          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+      dlc_params.ping_date_last_rollcall =
+          GetPingMetadata(ping_last_rollcall_key);
+
+      dlc_params.send_ping = true;
     }
     dlc_apps_params[omaha_request_params_->GetDlcAppId(dlc_id)] = dlc_params;
   }

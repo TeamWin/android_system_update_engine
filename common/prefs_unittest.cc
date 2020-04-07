@@ -31,6 +31,7 @@
 
 using std::string;
 using testing::_;
+using testing::ElementsAre;
 using testing::Eq;
 
 namespace {
@@ -59,6 +60,21 @@ class PrefsTest : public ::testing::Test {
   Prefs prefs_;
 };
 
+TEST(Prefs, Init) {
+  Prefs prefs;
+  const string name_space = "ns";
+  const string sub_pref = "sp";
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath namespace_path = temp_dir.GetPath().Append(name_space);
+
+  EXPECT_TRUE(base::CreateDirectory(namespace_path.Append(sub_pref)));
+  EXPECT_TRUE(base::PathExists(namespace_path.Append(sub_pref)));
+  ASSERT_TRUE(prefs.Init(temp_dir.GetPath()));
+  EXPECT_FALSE(base::PathExists(namespace_path));
+}
+
 TEST_F(PrefsTest, GetFileNameForKey) {
   const char kAllvalidCharsKey[] =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-";
@@ -75,6 +91,18 @@ TEST_F(PrefsTest, GetFileNameForKeyBadCharacter) {
 TEST_F(PrefsTest, GetFileNameForKeyEmpty) {
   base::FilePath path;
   EXPECT_FALSE(prefs_.file_storage_.GetFileNameForKey("", &path));
+}
+
+TEST_F(PrefsTest, CreateSubKey) {
+  const string name_space = "ns";
+  const string sub_pref1 = "sp1";
+  const string sub_pref2 = "sp2";
+  const string sub_key = "sk";
+
+  EXPECT_EQ(PrefsInterface::CreateSubKey(name_space, sub_pref1, sub_key),
+            "ns/sp1/sk");
+  EXPECT_EQ(PrefsInterface::CreateSubKey(name_space, sub_pref2, sub_key),
+            "ns/sp2/sk");
 }
 
 TEST_F(PrefsTest, GetString) {
@@ -279,6 +307,29 @@ TEST_F(PrefsTest, DeleteWorks) {
   EXPECT_FALSE(prefs_.Exists(kKey));
 }
 
+TEST_F(PrefsTest, SetDeleteSubKey) {
+  const string name_space = "ns";
+  const string sub_pref = "sp";
+  const string sub_key1 = "sk1";
+  const string sub_key2 = "sk2";
+  auto key1 = prefs_.CreateSubKey(name_space, sub_pref, sub_key1);
+  auto key2 = prefs_.CreateSubKey(name_space, sub_pref, sub_key2);
+  base::FilePath sub_pref_path = prefs_dir_.Append(name_space).Append(sub_pref);
+
+  ASSERT_TRUE(prefs_.SetInt64(key1, 0));
+  ASSERT_TRUE(prefs_.SetInt64(key2, 0));
+  EXPECT_TRUE(base::PathExists(sub_pref_path.Append(sub_key1)));
+  EXPECT_TRUE(base::PathExists(sub_pref_path.Append(sub_key2)));
+
+  ASSERT_TRUE(prefs_.Delete(key1));
+  EXPECT_FALSE(base::PathExists(sub_pref_path.Append(sub_key1)));
+  EXPECT_TRUE(base::PathExists(sub_pref_path.Append(sub_key2)));
+  ASSERT_TRUE(prefs_.Delete(key2));
+  EXPECT_FALSE(base::PathExists(sub_pref_path.Append(sub_key2)));
+  prefs_.Init(prefs_dir_);
+  EXPECT_FALSE(base::PathExists(prefs_dir_.Append(name_space)));
+}
+
 class MockPrefsObserver : public PrefsInterface::ObserverInterface {
  public:
   MOCK_METHOD1(OnPrefSet, void(const string&));
@@ -297,6 +348,19 @@ TEST_F(PrefsTest, ObserversCalled) {
   EXPECT_CALL(mock_obserser, OnPrefSet(_)).Times(0);
   EXPECT_CALL(mock_obserser, OnPrefDeleted(Eq(kKey)));
   prefs_.Delete(kKey);
+  testing::Mock::VerifyAndClearExpectations(&mock_obserser);
+
+  auto key1 = prefs_.CreateSubKey("ns", "sp1", "key1");
+  prefs_.AddObserver(key1, &mock_obserser);
+
+  EXPECT_CALL(mock_obserser, OnPrefSet(key1));
+  EXPECT_CALL(mock_obserser, OnPrefDeleted(_)).Times(0);
+  prefs_.SetString(key1, "value");
+  testing::Mock::VerifyAndClearExpectations(&mock_obserser);
+
+  EXPECT_CALL(mock_obserser, OnPrefSet(_)).Times(0);
+  EXPECT_CALL(mock_obserser, OnPrefDeleted(Eq(key1)));
+  prefs_.Delete(key1);
   testing::Mock::VerifyAndClearExpectations(&mock_obserser);
 
   prefs_.RemoveObserver(kKey, &mock_obserser);
@@ -358,6 +422,11 @@ TEST_F(MemoryPrefsTest, BasicTest) {
 
   EXPECT_TRUE(prefs_.Delete(kKey));
   EXPECT_FALSE(prefs_.Exists(kKey));
+  EXPECT_TRUE(prefs_.Delete(kKey));
+
+  auto key = prefs_.CreateSubKey("ns", "sp", "sk");
+  ASSERT_TRUE(prefs_.SetInt64(key, 0));
+  EXPECT_TRUE(prefs_.Exists(key));
   EXPECT_TRUE(prefs_.Delete(kKey));
 }
 

@@ -72,6 +72,7 @@ using std::unique_ptr;
 using std::unordered_set;
 using std::vector;
 using testing::_;
+using testing::Contains;
 using testing::DoAll;
 using testing::ElementsAre;
 using testing::Field;
@@ -2349,16 +2350,9 @@ TEST_F(UpdateAttempterTest, FailedEolTest) {
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
-  // Create a uniquely named test directory.
-  base::ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
   string dlc_id = "dlc0";
-  base::FilePath metadata_path_dlc0 =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append(dlc_id);
-
-  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
   attempter_.is_install_ = true;
   attempter_.dlc_ids_ = {dlc_id};
   attempter_.CalculateDlcParams();
@@ -2371,22 +2365,18 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
   EXPECT_EQ(false, dlc_app_params.send_ping);
   // When the DLC gets installed, a ping is not sent, therefore we don't store
   // the values sent by Omaha.
-  EXPECT_FALSE(
-      base::PathExists(metadata_path_dlc0.Append(kPrefsPingLastActive)));
-  EXPECT_FALSE(
-      base::PathExists(metadata_path_dlc0.Append(kPrefsPingLastRollcall)));
+  auto last_active_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_active_key));
+  auto last_rollcall_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_rollcall_key));
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
-  // Create a uniquely named test directory.
-  base::ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
   string dlc_id = "dlc0";
-  base::FilePath metadata_path_dlc0 =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append(dlc_id);
-  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
@@ -2407,23 +2397,23 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
-  // Create a uniquely named test directory.
-  base::ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
   string dlc_id = "dlc0";
-  base::FilePath metadata_path_dlc0 =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append(dlc_id);
-  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  MemoryPrefs prefs;
+  fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
 
   // Write non numeric values in the metadata files.
-  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingActive), "z2yz", 4);
-  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastActive), "z2yz", 4);
-  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastRollcall), "z2yz", 4);
+  auto active_key =
+      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+  auto last_active_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+  auto last_rollcall_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+  fake_system_state_.prefs()->SetString(active_key, "z2yz");
+  fake_system_state_.prefs()->SetString(last_active_key, "z2yz");
+  fake_system_state_.prefs()->SetString(last_rollcall_key, "z2yz");
   attempter_.is_install_ = false;
   attempter_.CalculateDlcParams();
 
@@ -2440,23 +2430,24 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
-  // Create a uniquely named test directory.
-  base::ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
   string dlc_id = "dlc0";
-  base::FilePath metadata_path_dlc0 =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append(dlc_id);
-  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
+  MemoryPrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
 
   // Write numeric values in the metadata files.
-  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingActive), "1", 1);
-  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastActive), "78", 2);
-  base::WriteFile(metadata_path_dlc0.Append(kPrefsPingLastRollcall), "99", 2);
+  auto active_key =
+      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+  auto last_active_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+  auto last_rollcall_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+
+  fake_system_state_.prefs()->SetInt64(active_key, 1);
+  fake_system_state_.prefs()->SetInt64(last_active_key, 78);
+  fake_system_state_.prefs()->SetInt64(last_rollcall_key, 99);
   attempter_.is_install_ = false;
   attempter_.CalculateDlcParams();
 
@@ -2473,58 +2464,64 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata) {
-  base::ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
   string dlc_id = "dlc0";
-  base::FilePath metadata_path_dlc0 =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append(dlc_id);
-  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
-  base::FilePath metadata_path_dlc_stale =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append("stale");
-  ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc_stale));
-  EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
-      .WillOnce(
-          DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  auto active_key =
+      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+  auto last_active_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+  auto last_rollcall_key = PrefsInterface::CreateSubKey(
+      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+  fake_system_state_.prefs()->SetInt64(active_key, kPingInactiveValue);
+  fake_system_state_.prefs()->SetInt64(last_active_key, 0);
+  fake_system_state_.prefs()->SetInt64(last_rollcall_key, 0);
+  EXPECT_TRUE(fake_system_state_.prefs()->Exists(active_key));
+  EXPECT_TRUE(fake_system_state_.prefs()->Exists(last_active_key));
+  EXPECT_TRUE(fake_system_state_.prefs()->Exists(last_rollcall_key));
 
-  attempter_.is_install_ = false;
+  attempter_.dlc_ids_ = {dlc_id};
+  attempter_.is_install_ = true;
   attempter_.CalculateDlcParams();
 
-  EXPECT_TRUE(base::PathExists(metadata_path_dlc0));
-  EXPECT_FALSE(base::PathExists(metadata_path_dlc_stale));
+  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_active_key));
+  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_rollcall_key));
+  // Active key is set on install.
+  EXPECT_TRUE(fake_system_state_.prefs()->Exists(active_key));
+  int64_t temp_int;
+  EXPECT_TRUE(fake_system_state_.prefs()->GetInt64(active_key, &temp_int));
+  EXPECT_EQ(temp_int, kPingActiveValue);
 }
 
 TEST_F(UpdateAttempterTest, SetDlcActiveValue) {
-  base::ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
   string dlc_id = "dlc0";
-  base::FilePath metadata_path_dlc0 =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append(dlc_id);
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
   attempter_.SetDlcActiveValue(true, dlc_id);
-  Prefs prefs;
-  ASSERT_TRUE(base::PathExists(metadata_path_dlc0));
-  ASSERT_TRUE(prefs.Init(metadata_path_dlc0));
   int64_t temp_int;
-  EXPECT_TRUE(prefs.GetInt64(kPrefsPingActive, &temp_int));
+  auto active_key =
+      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+  EXPECT_TRUE(fake_system_state_.prefs()->Exists(active_key));
+  EXPECT_TRUE(fake_system_state_.prefs()->GetInt64(active_key, &temp_int));
   EXPECT_EQ(temp_int, kPingActiveValue);
 }
 
 TEST_F(UpdateAttempterTest, SetDlcInactive) {
-  base::ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
   string dlc_id = "dlc0";
-  base::FilePath metadata_path_dlc0 =
-      base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
-          .Append(dlc_id);
-  base::CreateDirectory(metadata_path_dlc0);
-  EXPECT_TRUE(base::PathExists(metadata_path_dlc0));
+  MemoryPrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  auto sub_keys = {
+      kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall};
+  for (auto& sub_key : sub_keys) {
+    auto key = PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, sub_key);
+    fake_system_state_.prefs()->SetInt64(key, 1);
+    EXPECT_TRUE(fake_system_state_.prefs()->Exists(key));
+  }
   attempter_.SetDlcActiveValue(false, dlc_id);
-  EXPECT_FALSE(base::PathExists(metadata_path_dlc0));
+  for (auto& sub_key : sub_keys) {
+    auto key = PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, sub_key);
+    EXPECT_FALSE(fake_system_state_.prefs()->Exists(key));
+  }
 }
 
 TEST_F(UpdateAttempterTest, GetSuccessfulDlcIds) {

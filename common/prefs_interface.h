@@ -79,6 +79,11 @@ class PrefsInterface {
   // this key. Calling with non-existent keys does nothing.
   virtual bool Delete(const std::string& key) = 0;
 
+  // Creates a key which is part of a sub preference.
+  static std::string CreateSubKey(const std::string& name_space,
+                                  const std::string& sub_pref,
+                                  const std::string& key);
+
   // Add an observer to watch whenever the given |key| is modified. The
   // OnPrefSet() and OnPrefDelete() methods will be called whenever any of the
   // Set*() methods or the Delete() method are called on the given key,
