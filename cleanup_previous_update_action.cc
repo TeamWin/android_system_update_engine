@@ -160,7 +160,10 @@ void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
 
   if (metadata_device_ == nullptr) {
     LOG(ERROR) << "Failed to mount /metadata.";
-    processor_->ActionComplete(this, ErrorCode::kError);
+    // If metadata is erased but not formatted, it is possible to not mount
+    // it in recovery. It is safe to skip CleanupPreviousUpdateAction.
+    processor_->ActionComplete(
+        this, kIsRecovery ? ErrorCode::kSuccess : ErrorCode::kError);
     return;
   }
 

@@ -233,6 +233,28 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                               uint32_t source_slot,
                               const DeltaArchiveManifest& manifest);
 
+  // Returns true if metadata is expected to be mounted, false otherwise.
+  // Note that it returns false on non-Virtual A/B devices.
+  //
+  // Almost all functions of SnapshotManager depends on metadata being mounted.
+  // - In Android mode for Virtual A/B devices, assume it is mounted. If not,
+  //   let caller fails when calling into SnapshotManager.
+  // - In recovery for Virtual A/B devices, it is possible that metadata is not
+  //   formatted, hence it cannot be mounted. Caller should not call into
+  //   SnapshotManager.
+  // - On non-Virtual A/B devices, updates do not depend on metadata partition.
+  //   Caller should not call into SnapshotManager.
+  //
+  // This function does NOT mount metadata partition. Use EnsureMetadataMounted
+  // to mount metadata partition.
+  bool ExpectMetadataMounted();
+
+  // Ensure /metadata is mounted. Returns true if successful, false otherwise.
+  //
+  // Note that this function returns true on non-Virtual A/B devices without
+  // doing anything.
+  bool EnsureMetadataMounted();
+
   std::set<std::string> mapped_devices_;
   const FeatureFlag dynamic_partitions_;
   const FeatureFlag virtual_ab_;
