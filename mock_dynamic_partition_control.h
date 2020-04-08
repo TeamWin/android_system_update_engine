@@ -77,9 +77,33 @@ class MockDynamicPartitionControlAndroid
   MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
   MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
   MOCK_METHOD1(FinishUpdate, bool(bool));
+  MOCK_METHOD5(
+      GetSystemOtherPath,
+      bool(uint32_t, uint32_t, const std::string&, std::string*, bool*));
+  MOCK_METHOD2(EraseSystemOtherAvbFooter, bool(uint32_t, uint32_t));
+  MOCK_METHOD0(IsAvbEnabledOnSystemOther, std::optional<bool>());
 
   void set_fake_mapped_devices(const std::set<std::string>& fake) override {
     DynamicPartitionControlAndroid::set_fake_mapped_devices(fake);
+  }
+
+  bool RealGetSystemOtherPath(uint32_t source_slot,
+                              uint32_t target_slot,
+                              const std::string& partition_name_suffix,
+                              std::string* path,
+                              bool* should_unmap) {
+    return DynamicPartitionControlAndroid::GetSystemOtherPath(
+        source_slot, target_slot, partition_name_suffix, path, should_unmap);
+  }
+
+  bool RealEraseSystemOtherAvbFooter(uint32_t source_slot,
+                                     uint32_t target_slot) {
+    return DynamicPartitionControlAndroid::EraseSystemOtherAvbFooter(
+        source_slot, target_slot);
+  }
+
+  std::optional<bool> RealIsAvbEnabledInFstab(const std::string& path) {
+    return DynamicPartitionControlAndroid::IsAvbEnabledInFstab(path);
   }
 };
 

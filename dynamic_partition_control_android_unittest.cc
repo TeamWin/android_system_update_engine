@@ -23,12 +23,16 @@
 #include <base/strings/string_util.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <libavb/libavb.h>
 
 #include "update_engine/common/mock_prefs.h"
+#include "update_engine/common/test_utils.h"
 #include "update_engine/dynamic_partition_test_utils.h"
 #include "update_engine/mock_dynamic_partition_control.h"
 
 using android::dm::DmDeviceState;
+using chromeos_update_engine::test_utils::ScopedLoopbackDeviceBinder;
+using chromeos_update_engine::test_utils::ScopedTempFile;
 using std::string;
 using testing::_;
 using testing::AnyNumber;
@@ -36,6 +40,7 @@ using testing::AnyOf;
 using testing::Invoke;
 using testing::NiceMock;
 using testing::Not;
+using testing::Optional;
 using testing::Return;
 
 namespace chromeos_update_engine {
@@ -64,6 +69,9 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
           *device = GetDmDevice(partition_name_suffix);
           return true;
         }));
+
+    ON_CALL(dynamicControl(), EraseSystemOtherAvbFooter(_, _))
+        .WillByDefault(Return(true));
   }
 
   // Return the mocked DynamicPartitionControlInterface.
@@ -90,12 +98,15 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
 
   // Set the fake metadata to return when LoadMetadataBuilder is called on
   // |slot|.
-  void SetMetadata(uint32_t slot, const PartitionSuffixSizes& sizes) {
+  void SetMetadata(uint32_t slot,
+                   const PartitionSuffixSizes& sizes,
+                   uint32_t partition_attr = 0) {
     EXPECT_CALL(dynamicControl(),
                 LoadMetadataBuilder(GetSuperDevice(slot), slot, _))
         .Times(AnyNumber())
-        .WillRepeatedly(Invoke([sizes](auto, auto, auto) {
-          return NewFakeMetadata(PartitionSuffixSizesToManifest(sizes));
+        .WillRepeatedly(Invoke([sizes, partition_attr](auto, auto, auto) {
+          return NewFakeMetadata(PartitionSuffixSizesToManifest(sizes),
+                                 partition_attr);
         }));
   }
 
@@ -755,6 +766,130 @@ TEST_P(DynamicPartitionControlAndroidTestP, OptimizeOperationTest) {
 TEST_F(DynamicPartitionControlAndroidTest, ResetUpdate) {
   MockPrefs prefs;
   ASSERT_TRUE(dynamicControl().ResetUpdate(&prefs));
+}
+
+TEST_F(DynamicPartitionControlAndroidTest, IsAvbNotEnabledInFstab) {
+  // clang-format off
+  std::string fstab_content =
+      "system /postinstall ext4 ro,nosuid,nodev,noexec slotselect_other,logical\n"  // NOLINT(whitespace/line_length)
+      "/dev/block/by-name/system /postinstall ext4 ro,nosuid,nodev,noexec slotselect_other\n";  // NOLINT(whitespace/line_length)
+  // clang-format on
+  ScopedTempFile fstab;
+  ASSERT_TRUE(test_utils::WriteFileString(fstab.path(), fstab_content));
+  ASSERT_THAT(dynamicControl().RealIsAvbEnabledInFstab(fstab.path()),
+              Optional(false));
+}
+
+TEST_F(DynamicPartitionControlAndroidTest, IsAvbEnabledInFstab) {
+  // clang-format off
+  std::string fstab_content =
+      "system /postinstall ext4 ro,nosuid,nodev,noexec slotselect_other,logical,avb_keys=/foo\n";  // NOLINT(whitespace/line_length)
+  // clang-format on
+  ScopedTempFile fstab;
+  ASSERT_TRUE(test_utils::WriteFileString(fstab.path(), fstab_content));
+  ASSERT_THAT(dynamicControl().RealIsAvbEnabledInFstab(fstab.path()),
+              Optional(true));
+}
+
+TEST_P(DynamicPartitionControlAndroidTestP, AvbNotEnabledOnSystemOther) {
+  ON_CALL(dynamicControl(), GetSystemOtherPath(_, _, _, _, _))
+      .WillByDefault(Invoke([&](auto source_slot,
+                                auto target_slot,
+                                const auto& name,
+                                auto path,
+                                auto should_unmap) {
+        return dynamicControl().RealGetSystemOtherPath(
+            source_slot, target_slot, name, path, should_unmap);
+      }));
+  ON_CALL(dynamicControl(), IsAvbEnabledOnSystemOther())
+      .WillByDefault(Return(false));
+  EXPECT_TRUE(
+      dynamicControl().RealEraseSystemOtherAvbFooter(source(), target()));
+}
+
+TEST_P(DynamicPartitionControlAndroidTestP, NoSystemOtherToErase) {
+  SetMetadata(source(), {{S("system"), 100_MiB}});
+  ON_CALL(dynamicControl(), IsAvbEnabledOnSystemOther())
+      .WillByDefault(Return(true));
+  std::string path;
+  bool should_unmap;
+  ASSERT_TRUE(dynamicControl().RealGetSystemOtherPath(
+      source(), target(), T("system"), &path, &should_unmap));
+  ASSERT_TRUE(path.empty()) << path;
+  ASSERT_FALSE(should_unmap);
+  ON_CALL(dynamicControl(), GetSystemOtherPath(_, _, _, _, _))
+      .WillByDefault(Invoke([&](auto source_slot,
+                                auto target_slot,
+                                const auto& name,
+                                auto path,
+                                auto should_unmap) {
+        return dynamicControl().RealGetSystemOtherPath(
+            source_slot, target_slot, name, path, should_unmap);
+      }));
+  EXPECT_TRUE(
+      dynamicControl().RealEraseSystemOtherAvbFooter(source(), target()));
+}
+
+TEST_P(DynamicPartitionControlAndroidTestP, SkipEraseUpdatedSystemOther) {
+  PartitionSuffixSizes sizes{{S("system"), 100_MiB}, {T("system"), 100_MiB}};
+  SetMetadata(source(), sizes, LP_PARTITION_ATTR_UPDATED);
+  ON_CALL(dynamicControl(), IsAvbEnabledOnSystemOther())
+      .WillByDefault(Return(true));
+  std::string path;
+  bool should_unmap;
+  ASSERT_TRUE(dynamicControl().RealGetSystemOtherPath(
+      source(), target(), T("system"), &path, &should_unmap));
+  ASSERT_TRUE(path.empty()) << path;
+  ASSERT_FALSE(should_unmap);
+  ON_CALL(dynamicControl(), GetSystemOtherPath(_, _, _, _, _))
+      .WillByDefault(Invoke([&](auto source_slot,
+                                auto target_slot,
+                                const auto& name,
+                                auto path,
+                                auto should_unmap) {
+        return dynamicControl().RealGetSystemOtherPath(
+            source_slot, target_slot, name, path, should_unmap);
+      }));
+  EXPECT_TRUE(
+      dynamicControl().RealEraseSystemOtherAvbFooter(source(), target()));
+}
+
+TEST_P(DynamicPartitionControlAndroidTestP, EraseSystemOtherAvbFooter) {
+  constexpr uint64_t file_size = 1_MiB;
+  static_assert(file_size > AVB_FOOTER_SIZE);
+  ScopedTempFile system_other;
+  brillo::Blob original(file_size, 'X');
+  ASSERT_TRUE(test_utils::WriteFileVector(system_other.path(), original));
+  std::string mnt_path;
+  ScopedLoopbackDeviceBinder dev(system_other.path(), true, &mnt_path);
+  ASSERT_TRUE(dev.is_bound());
+
+  brillo::Blob device_content;
+  ASSERT_TRUE(utils::ReadFile(mnt_path, &device_content));
+  ASSERT_EQ(original, device_content);
+
+  PartitionSuffixSizes sizes{{S("system"), 100_MiB}, {T("system"), file_size}};
+  SetMetadata(source(), sizes);
+  ON_CALL(dynamicControl(), IsAvbEnabledOnSystemOther())
+      .WillByDefault(Return(true));
+  EXPECT_CALL(dynamicControl(),
+              GetSystemOtherPath(source(), target(), T("system"), _, _))
+      .WillRepeatedly(
+          Invoke([&](auto, auto, const auto&, auto path, auto should_unmap) {
+            *path = mnt_path;
+            *should_unmap = false;
+            return true;
+          }));
+  ASSERT_TRUE(
+      dynamicControl().RealEraseSystemOtherAvbFooter(source(), target()));
+
+  device_content.clear();
+  ASSERT_TRUE(utils::ReadFile(mnt_path, &device_content));
+  brillo::Blob new_expected(original);
+  // Clear the last AVB_FOOTER_SIZE bytes.
+  new_expected.resize(file_size - AVB_FOOTER_SIZE);
+  new_expected.resize(file_size, '\0');
+  ASSERT_EQ(new_expected, device_content);
 }
 
 }  // namespace chromeos_update_engine
