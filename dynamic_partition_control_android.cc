@@ -32,6 +32,7 @@
 #include <fs_mgr.h>
 #include <fs_mgr_dm_linear.h>
 #include <fs_mgr_overlayfs.h>
+#include <libavb/libavb.h>
 #include <libdm/dm.h>
 #include <libsnapshot/snapshot.h>
 
@@ -42,12 +43,14 @@
 #include "update_engine/payload_consumer/delta_performer.h"
 
 using android::base::GetBoolProperty;
+using android::base::GetProperty;
 using android::base::Join;
 using android::dm::DeviceMapper;
 using android::dm::DmDeviceState;
 using android::fs_mgr::CreateLogicalPartition;
 using android::fs_mgr::CreateLogicalPartitionParams;
 using android::fs_mgr::DestroyLogicalPartition;
+using android::fs_mgr::Fstab;
 using android::fs_mgr::MetadataBuilder;
 using android::fs_mgr::Partition;
 using android::fs_mgr::PartitionOpener;
@@ -64,6 +67,7 @@ constexpr char kRetrfoitDynamicPartitions[] =
     "ro.boot.dynamic_partitions_retrofit";
 constexpr char kVirtualAbEnabled[] = "ro.virtual_ab.enabled";
 constexpr char kVirtualAbRetrofit[] = "ro.virtual_ab.retrofit";
+constexpr char kPostinstallFstabPrefix[] = "ro.postinstall.fstab.prefix";
 // Map timeout for dynamic partitions.
 constexpr std::chrono::milliseconds kMapTimeout{1000};
 // Map timeout for dynamic partitions with snapshots. Since several devices
@@ -401,6 +405,15 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
         << "run adb enable-verity to deactivate if required and try again.";
   }
 
+  if (GetVirtualAbFeatureFlag().IsEnabled() && metadata_device_ == nullptr) {
+    metadata_device_ = snapshot_->EnsureMetadataMounted();
+    TEST_AND_RETURN_FALSE(metadata_device_ != nullptr);
+  }
+
+  if (update) {
+    TEST_AND_RETURN_FALSE(EraseSystemOtherAvbFooter(source_slot, target_slot));
+  }
+
   if (!GetDynamicPartitionsFeatureFlag().IsEnabled()) {
     return true;
   }
@@ -420,11 +433,6 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
 
   target_supports_snapshot_ =
       manifest.dynamic_partition_metadata().snapshot_enabled();
-
-  if (GetVirtualAbFeatureFlag().IsEnabled()) {
-    metadata_device_ = snapshot_->EnsureMetadataMounted();
-    TEST_AND_RETURN_FALSE(metadata_device_ != nullptr);
-  }
 
   if (!update)
     return true;
@@ -469,6 +477,202 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
 
   return PrepareDynamicPartitionsForUpdate(
       source_slot, target_slot, manifest, delete_source);
+}
+
+namespace {
+// Try our best to erase AVB footer.
+class AvbFooterEraser {
+ public:
+  explicit AvbFooterEraser(const std::string& path) : path_(path) {}
+  bool Erase() {
+    // Try to mark the block device read-only. Ignore any
+    // failure since this won't work when passing regular files.
+    ignore_result(utils::SetBlockDeviceReadOnly(path_, false /* readonly */));
+
+    fd_.reset(new EintrSafeFileDescriptor());
+    int flags = O_WRONLY | O_TRUNC | O_CLOEXEC | O_SYNC;
+    TEST_AND_RETURN_FALSE(fd_->Open(path_.c_str(), flags));
+
+    // Need to write end-AVB_FOOTER_SIZE to end.
+    static_assert(AVB_FOOTER_SIZE > 0);
+    off64_t offset = fd_->Seek(-AVB_FOOTER_SIZE, SEEK_END);
+    TEST_AND_RETURN_FALSE_ERRNO(offset >= 0);
+    uint64_t write_size = AVB_FOOTER_SIZE;
+    LOG(INFO) << "Zeroing " << path_ << " @ [" << offset << ", "
+              << (offset + write_size) << "] (" << write_size << " bytes)";
+    brillo::Blob zeros(write_size);
+    TEST_AND_RETURN_FALSE(utils::WriteAll(fd_, zeros.data(), zeros.size()));
+    return true;
+  }
+  ~AvbFooterEraser() {
+    TEST_AND_RETURN(fd_ != nullptr && fd_->IsOpen());
+    if (!fd_->Close()) {
+      LOG(WARNING) << "Failed to close fd for " << path_;
+    }
+  }
+
+ private:
+  std::string path_;
+  FileDescriptorPtr fd_;
+};
+
+}  // namespace
+
+std::optional<bool>
+DynamicPartitionControlAndroid::IsAvbEnabledOnSystemOther() {
+  auto prefix = GetProperty(kPostinstallFstabPrefix, "");
+  if (prefix.empty()) {
+    LOG(WARNING) << "Cannot get " << kPostinstallFstabPrefix;
+    return std::nullopt;
+  }
+  auto path = base::FilePath(prefix).Append("etc/fstab.postinstall").value();
+  return IsAvbEnabledInFstab(path);
+}
+
+std::optional<bool> DynamicPartitionControlAndroid::IsAvbEnabledInFstab(
+    const std::string& path) {
+  Fstab fstab;
+  if (!ReadFstabFromFile(path, &fstab)) {
+    LOG(WARNING) << "Cannot read fstab from " << path;
+    return std::nullopt;
+  }
+  for (const auto& entry : fstab) {
+    if (!entry.avb_keys.empty()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool DynamicPartitionControlAndroid::GetSystemOtherPath(
+    uint32_t source_slot,
+    uint32_t target_slot,
+    const std::string& partition_name_suffix,
+    std::string* path,
+    bool* should_unmap) {
+  path->clear();
+  *should_unmap = false;
+
+  // In recovery, just erase no matter what.
+  //   - On devices with retrofit dynamic partitions, no logical partitions
+  //     should be mounted at this point. Hence it should be safe to erase.
+  // Otherwise, do check that AVB is enabled on system_other before erasing.
+  if (!IsRecovery()) {
+    auto has_avb = IsAvbEnabledOnSystemOther();
+    TEST_AND_RETURN_FALSE(has_avb.has_value());
+    if (!has_avb.value()) {
+      LOG(INFO) << "AVB is not enabled on system_other. Skip erasing.";
+      return true;
+    }
+
+    // Found unexpected avb_keys for system_other on devices retrofitting
+    // dynamic partitions. Previous crash in update_engine may leave logical
+    // partitions mapped on physical system_other partition. It is difficult to
+    // handle these cases. Just fail.
+    if (GetDynamicPartitionsFeatureFlag().IsRetrofit()) {
+      LOG(ERROR) << "Cannot erase AVB footer on system_other on devices with "
+                 << "retrofit dynamic partitions. They should not have AVB "
+                 << "enabled on system_other.";
+      return false;
+    }
+  }
+
+  std::string device_dir_str;
+  TEST_AND_RETURN_FALSE(GetDeviceDir(&device_dir_str));
+  base::FilePath device_dir(device_dir_str);
+
+  // On devices without dynamic partition, search for static partitions.
+  if (!GetDynamicPartitionsFeatureFlag().IsEnabled()) {
+    *path = device_dir.Append(partition_name_suffix).value();
+    TEST_AND_RETURN_FALSE(DeviceExists(*path));
+    return true;
+  }
+
+  auto source_super_device =
+      device_dir.Append(GetSuperPartitionName(source_slot)).value();
+
+  auto builder = LoadMetadataBuilder(source_super_device, source_slot);
+  if (builder == nullptr) {
+    if (IsRecovery()) {
+      // It might be corrupted for some reason. It should still be able to
+      // sideload.
+      LOG(WARNING) << "Super partition metadata cannot be read from the source "
+                   << "slot, skip erasing.";
+      return true;
+    } else {
+      // Device has booted into Android mode, indicating that the super
+      // partition metadata should be there.
+      LOG(ERROR) << "Super partition metadata cannot be read from the source "
+                 << "slot. This is unexpected on devices with dynamic "
+                 << "partitions enabled.";
+      return false;
+    }
+  }
+  auto p = builder->FindPartition(partition_name_suffix);
+  if (p == nullptr) {
+    // If the source slot is flashed without system_other, it does not exist
+    // in super partition metadata at source slot. It is safe to skip it.
+    LOG(INFO) << "Can't find " << partition_name_suffix
+              << " in metadata source slot, skip erasing.";
+    return true;
+  }
+  // System_other created by flashing tools should be erased.
+  // If partition is created by update_engine (via NewForUpdate), it is a
+  // left-over partition from the previous update and does not contain
+  // system_other, hence there is no need to erase.
+  // Note the reverse is not necessary true. If the flag is not set, we don't
+  // know if the partition is created by update_engine or by flashing tools
+  // because older versions of super partition metadata does not contain this
+  // flag. It is okay to erase the AVB footer anyways.
+  if (p->attributes() & LP_PARTITION_ATTR_UPDATED) {
+    LOG(INFO) << partition_name_suffix
+              << " does not contain system_other, skip erasing.";
+    return true;
+  }
+
+  // Delete any pre-existing device with name |partition_name_suffix| and
+  // also remove it from |mapped_devices_|.
+  TEST_AND_RETURN_FALSE(UnmapPartitionOnDeviceMapper(partition_name_suffix));
+  // Use CreateLogicalPartition directly to avoid mapping with existing
+  // snapshots.
+  CreateLogicalPartitionParams params = {
+      .block_device = source_super_device,
+      .metadata_slot = source_slot,
+      .partition_name = partition_name_suffix,
+      .force_writable = true,
+      .timeout_ms = kMapTimeout,
+  };
+  TEST_AND_RETURN_FALSE(CreateLogicalPartition(params, path));
+  *should_unmap = true;
+  return true;
+}
+
+bool DynamicPartitionControlAndroid::EraseSystemOtherAvbFooter(
+    uint32_t source_slot, uint32_t target_slot) {
+  LOG(INFO) << "Erasing AVB footer of system_other partition before update.";
+
+  const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
+  const std::string partition_name_suffix = "system" + target_suffix;
+
+  std::string path;
+  bool should_unmap = false;
+
+  TEST_AND_RETURN_FALSE(GetSystemOtherPath(
+      source_slot, target_slot, partition_name_suffix, &path, &should_unmap));
+
+  if (path.empty()) {
+    return true;
+  }
+
+  bool ret = AvbFooterEraser(path).Erase();
+
+  // Delete |partition_name_suffix| from device mapper and from
+  // |mapped_devices_| again so that it does not interfere with update process.
+  if (should_unmap) {
+    TEST_AND_RETURN_FALSE(UnmapPartitionOnDeviceMapper(partition_name_suffix));
+  }
+
+  return ret;
 }
 
 bool DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
