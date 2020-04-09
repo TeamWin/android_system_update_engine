@@ -152,10 +152,12 @@ bool DynamicPartitionControlAndroid::MapPartitionInternal(
   };
   bool success = false;
   if (GetVirtualAbFeatureFlag().IsEnabled() && target_supports_snapshot_ &&
-      force_writable) {
+      force_writable && ExpectMetadataMounted()) {
     // Only target partitions are mapped with force_writable. On Virtual
     // A/B devices, target partitions may overlap with source partitions, so
     // they must be mapped with snapshot.
+    // One exception is when /metadata is not mounted. Fallback to
+    // CreateLogicalPartition as snapshots are not created in the first place.
     params.timeout_ms = kMapSnapshotTimeout;
     success = snapshot_->MapUpdateSnapshot(params, path);
   } else {
@@ -232,8 +234,11 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
 
     // On a Virtual A/B device, |target_partition_name| may be a leftover from
     // a paused update. Clean up any underlying devices.
-    if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    if (ExpectMetadataMounted()) {
       success &= snapshot_->UnmapUpdateSnapshot(target_partition_name);
+    } else {
+      LOG(INFO) << "Skip UnmapUpdateSnapshot(" << target_partition_name
+                << ") because metadata is not mounted";
     }
 
     if (!success) {
@@ -405,10 +410,10 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
         << "run adb enable-verity to deactivate if required and try again.";
   }
 
-  if (GetVirtualAbFeatureFlag().IsEnabled() && metadata_device_ == nullptr) {
-    metadata_device_ = snapshot_->EnsureMetadataMounted();
-    TEST_AND_RETURN_FALSE(metadata_device_ != nullptr);
-  }
+  // If metadata is erased but not formatted, it is possible to not mount
+  // it in recovery. It is acceptable to skip mounting and choose fallback path
+  // (PrepareDynamicPartitionsForUpdate) when sideloading full OTAs.
+  TEST_AND_RETURN_FALSE(EnsureMetadataMounted() || IsRecovery());
 
   if (update) {
     TEST_AND_RETURN_FALSE(EraseSystemOtherAvbFooter(source_slot, target_slot));
@@ -469,9 +474,18 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
                 << "snapshots.";
     }
 
-    if (!snapshot_->CancelUpdate()) {
-      LOG(ERROR) << "Cannot cancel previous update.";
-      return false;
+    // In recovery, if /metadata is not mounted, it is likely that metadata
+    // partition is erased and not formatted yet. After sideloading, when
+    // rebooting into the new version, init will erase metadata partition,
+    // hence the failure of CancelUpdate() can be ignored here.
+    // However, if metadata is mounted and CancelUpdate fails, sideloading
+    // should not proceed because during next boot, snapshots will overlay on
+    // the devices incorrectly.
+    if (ExpectMetadataMounted()) {
+      TEST_AND_RETURN_FALSE(snapshot_->CancelUpdate());
+    } else {
+      LOG(INFO) << "Skip canceling previous update because metadata is not "
+                << "mounted";
     }
   }
 
@@ -632,6 +646,9 @@ bool DynamicPartitionControlAndroid::GetSystemOtherPath(
 
   // Delete any pre-existing device with name |partition_name_suffix| and
   // also remove it from |mapped_devices_|.
+  // In recovery, metadata might not be mounted, and
+  // UnmapPartitionOnDeviceMapper might fail. However,
+  // it is unusual that system_other has already been mapped. Hence, just skip.
   TEST_AND_RETURN_FALSE(UnmapPartitionOnDeviceMapper(partition_name_suffix));
   // Use CreateLogicalPartition directly to avoid mapping with existing
   // snapshots.
@@ -668,6 +685,10 @@ bool DynamicPartitionControlAndroid::EraseSystemOtherAvbFooter(
 
   // Delete |partition_name_suffix| from device mapper and from
   // |mapped_devices_| again so that it does not interfere with update process.
+  // In recovery, metadata might not be mounted, and
+  // UnmapPartitionOnDeviceMapper might fail. However, DestroyLogicalPartition
+  // should be called. If DestroyLogicalPartition does fail, it is still okay
+  // to skip the error here and let Prepare*() fail later.
   if (should_unmap) {
     TEST_AND_RETURN_FALSE(UnmapPartitionOnDeviceMapper(partition_name_suffix));
   }
@@ -726,6 +747,7 @@ bool DynamicPartitionControlAndroid::PrepareSnapshotPartitionsForUpdate(
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest,
     uint64_t* required_size) {
+  TEST_AND_RETURN_FALSE(ExpectMetadataMounted());
   if (!snapshot_->BeginUpdate()) {
     LOG(ERROR) << "Cannot begin new update.";
     return false;
@@ -829,10 +851,14 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
 }
 
 bool DynamicPartitionControlAndroid::FinishUpdate(bool powerwash_required) {
-  if (GetVirtualAbFeatureFlag().IsEnabled() &&
-      snapshot_->GetUpdateState() == UpdateState::Initiated) {
-    LOG(INFO) << "Snapshot writes are done.";
-    return snapshot_->FinishedSnapshotWrites(powerwash_required);
+  if (ExpectMetadataMounted()) {
+    if (snapshot_->GetUpdateState() == UpdateState::Initiated) {
+      LOG(INFO) << "Snapshot writes are done.";
+      return snapshot_->FinishedSnapshotWrites(powerwash_required);
+    }
+  } else {
+    LOG(INFO) << "Skip FinishedSnapshotWrites() because /metadata is not "
+              << "mounted";
   }
   return true;
 }
@@ -1006,9 +1032,41 @@ bool DynamicPartitionControlAndroid::ResetUpdate(PrefsInterface* prefs) {
   TEST_AND_RETURN_FALSE(DeltaPerformer::ResetUpdateProgress(
       prefs, false /* quick */, false /* skip dynamic partitions metadata */));
 
-  TEST_AND_RETURN_FALSE(snapshot_->CancelUpdate());
+  if (ExpectMetadataMounted()) {
+    TEST_AND_RETURN_FALSE(snapshot_->CancelUpdate());
+  } else {
+    LOG(INFO) << "Skip cancelling update in ResetUpdate because /metadata is "
+              << "not mounted";
+  }
 
   return true;
+}
+
+bool DynamicPartitionControlAndroid::ExpectMetadataMounted() {
+  // No need to mount metadata for non-Virtual A/B devices.
+  if (!GetVirtualAbFeatureFlag().IsEnabled()) {
+    return false;
+  }
+  // Intentionally not checking |metadata_device_| in Android mode.
+  // /metadata should always be mounted in Android mode. If it isn't, let caller
+  // fails when calling into SnapshotManager.
+  if (!IsRecovery()) {
+    return true;
+  }
+  // In recovery mode, explicitly check |metadata_device_|.
+  return metadata_device_ != nullptr;
+}
+
+bool DynamicPartitionControlAndroid::EnsureMetadataMounted() {
+  // No need to mount metadata for non-Virtual A/B devices.
+  if (!GetVirtualAbFeatureFlag().IsEnabled()) {
+    return true;
+  }
+
+  if (metadata_device_ == nullptr) {
+    metadata_device_ = snapshot_->EnsureMetadataMounted();
+  }
+  return metadata_device_ != nullptr;
 }
 
 }  // namespace chromeos_update_engine
