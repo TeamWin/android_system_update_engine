@@ -33,4 +33,11 @@ bool DlcServiceStub::GetInstalled(std::vector<std::string>* dlc_module_ids) {
   return true;
 }
 
+bool DlcServiceStub::InstallCompleted(const vector<string>& ids) {
+  return true;
+}
+bool DlcServiceStub::UpdateCompleted(const vector<string>& ids) {
+  return true;
+}
+
 }  // namespace chromeos_update_engine

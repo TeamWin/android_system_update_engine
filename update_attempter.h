@@ -292,6 +292,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
+  FRIEND_TEST(UpdateAttempterTest, GetSuccessfulDlcIds);
 
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
@@ -449,6 +450,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Calculates the update parameters for DLCs. Sets the |dlc_modules_|
   // parameter on the |omaha_request_params_| object.
   void CalculateDlcParams();
+
+  // Returns the list of DLC IDs that were installed/updated, excluding the ones
+  // which had "noupdate" in the Omaha response.
+  std::vector<std::string> GetSuccessfulDlcIds();
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is

@@ -16,6 +16,7 @@
 
 #include "update_engine/dlcservice_chromeos.h"
 
+#include <brillo/errors/error.h>
 #include <dlcservice/proto_bindings/dlcservice.pb.h>
 // NOLINTNEXTLINE(build/include_alpha) "dbus-proxies.h" needs "dlcservice.pb.h"
 #include <dlcservice/dbus-proxies.h>
@@ -28,6 +29,12 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
+namespace {
+org::chromium::DlcServiceInterfaceProxy GetDlcServiceProxy() {
+  return {DBusConnection::Get()->GetDBus()};
+}
+}  // namespace
+
 std::unique_ptr<DlcServiceInterface> CreateDlcService() {
   return std::make_unique<DlcServiceChromeOS>();
 }
@@ -37,16 +44,33 @@ bool DlcServiceChromeOS::GetInstalled(vector<string>* dlc_module_ids) {
     return false;
   dlc_module_ids->clear();
 
-  org::chromium::DlcServiceInterfaceProxy dlcservice_proxy(
-      DBusConnection::Get()->GetDBus());
-
   dlcservice::DlcModuleList dlc_module_list;
-  if (!dlcservice_proxy.GetInstalled(&dlc_module_list, nullptr)) {
+  if (!GetDlcServiceProxy().GetInstalled(&dlc_module_list, nullptr)) {
     LOG(ERROR) << "dlcservice does not return installed DLC module list.";
     return false;
   }
   for (const auto& dlc_module_info : dlc_module_list.dlc_module_infos()) {
     dlc_module_ids->emplace_back(dlc_module_info.dlc_id());
+  }
+  return true;
+}
+
+bool DlcServiceChromeOS::InstallCompleted(const std::vector<std::string>& ids) {
+  brillo::ErrorPtr err;
+  if (!GetDlcServiceProxy().InstallCompleted(ids, &err)) {
+    LOG(ERROR) << "dlcservice failed to complete install. ErrCode="
+               << err->GetCode() << ", ErrMsg=" << err->GetMessage();
+    return false;
+  }
+  return true;
+}
+
+bool DlcServiceChromeOS::UpdateCompleted(const std::vector<std::string>& ids) {
+  brillo::ErrorPtr err;
+  if (!GetDlcServiceProxy().UpdateCompleted(ids, &err)) {
+    LOG(ERROR) << "dlcservice failed to complete updated. ErrCode="
+               << err->GetCode() << ", ErrMsg=" << err->GetMessage();
+    return false;
   }
   return true;
 }

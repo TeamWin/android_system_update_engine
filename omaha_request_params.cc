@@ -258,4 +258,11 @@ bool OmahaRequestParams::IsDlcAppId(const std::string& app_id) const {
   return dlc_apps_params().find(app_id) != dlc_apps_params().end();
 }
 
+void OmahaRequestParams::SetDlcNoUpdate(const string& app_id) {
+  auto itr = dlc_apps_params_.find(app_id);
+  if (itr == dlc_apps_params_.end())
+    return;
+  itr->second.updated = false;
+}
+
 }  // namespace chromeos_update_engine

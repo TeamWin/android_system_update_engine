@@ -19,7 +19,9 @@
 #include <stdint.h>
 
 #include <limits>
+#include <map>
 #include <memory>
+#include <string>
 #include <unordered_set>
 
 #include <base/files/file_util.h>
@@ -64,12 +66,14 @@ using chromeos_update_manager::MockUpdateManager;
 using chromeos_update_manager::StagingSchedule;
 using chromeos_update_manager::UpdateCheckParams;
 using policy::DevicePolicy;
+using std::map;
 using std::string;
 using std::unique_ptr;
 using std::unordered_set;
 using std::vector;
 using testing::_;
 using testing::DoAll;
+using testing::ElementsAre;
 using testing::Field;
 using testing::InSequence;
 using testing::Invoke;
@@ -135,16 +139,23 @@ struct ProcessingDoneTestParams {
   UpdateStatus status = UpdateStatus::CHECKING_FOR_UPDATE;
   ActionProcessor* processor = nullptr;
   ErrorCode code = ErrorCode::kSuccess;
+  map<string, OmahaRequestParams::AppParams> dlc_apps_params;
 
   // Expects:
   const bool kExpectedIsInstall = false;
   bool should_schedule_updates_be_called = true;
   UpdateStatus expected_exit_status = UpdateStatus::IDLE;
+  bool should_install_completed_be_called = false;
+  bool should_update_completed_be_called = false;
+  vector<string> args_to_install_completed;
+  vector<string> args_to_update_completed;
 };
 
 class MockDlcService : public DlcServiceInterface {
  public:
   MOCK_METHOD1(GetInstalled, bool(vector<string>*));
+  MOCK_METHOD1(InstallCompleted, bool(const vector<string>&));
+  MOCK_METHOD1(UpdateCompleted, bool(const vector<string>&));
 };
 
 }  // namespace
@@ -376,6 +387,22 @@ void UpdateAttempterTest::TestProcessingDone() {
   attempter_.DisableScheduleUpdates();
   attempter_.is_install_ = pd_params_.is_install;
   attempter_.status_ = pd_params_.status;
+  attempter_.omaha_request_params_->set_dlc_apps_params(
+      pd_params_.dlc_apps_params);
+
+  // Expects
+  if (pd_params_.should_install_completed_be_called)
+    EXPECT_CALL(mock_dlcservice_,
+                InstallCompleted(pd_params_.args_to_install_completed))
+        .WillOnce(Return(true));
+  else
+    EXPECT_CALL(mock_dlcservice_, InstallCompleted(_)).Times(0);
+  if (pd_params_.should_update_completed_be_called)
+    EXPECT_CALL(mock_dlcservice_,
+                UpdateCompleted(pd_params_.args_to_update_completed))
+        .WillOnce(Return(true));
+  else
+    EXPECT_CALL(mock_dlcservice_, UpdateCompleted(_)).Times(0);
 
   // Invocation
   attempter_.ProcessingDone(pd_params_.processor, pd_params_.code);
@@ -2001,6 +2028,25 @@ TEST_F(UpdateAttempterTest,
 TEST_F(UpdateAttempterTest, ProcessingDoneUpdated) {
   // GIVEN an update finished.
 
+  // THEN update_engine should call update completion.
+  pd_params_.should_update_completed_be_called = true;
+  // THEN need reboot since update applied.
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  // THEN install indication should be false.
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneUpdatedDlcFilter) {
+  // GIVEN an update finished.
+  // GIVEN DLC |AppParams| list.
+  auto dlc_1 = "dlc_1", dlc_2 = "dlc_2";
+  pd_params_.dlc_apps_params = {{dlc_1, {.name = dlc_1, .updated = false}},
+                                {dlc_2, {.name = dlc_2}}};
+
+  // THEN update_engine should call update completion.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.args_to_update_completed = {dlc_2};
   // THEN need reboot since update applied.
   pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
   // THEN install indication should be false.
@@ -2012,6 +2058,25 @@ TEST_F(UpdateAttempterTest, ProcessingDoneInstalled) {
   // GIVEN an install finished.
   pd_params_.is_install = true;
 
+  // THEN update_engine should call install completion.
+  pd_params_.should_install_completed_be_called = true;
+  // THEN go idle.
+  // THEN install indication should be false.
+
+  TestProcessingDone();
+}
+
+TEST_F(UpdateAttempterTest, ProcessingDoneInstalledDlcFilter) {
+  // GIVEN an install finished.
+  pd_params_.is_install = true;
+  // GIVEN DLC |AppParams| list.
+  auto dlc_1 = "dlc_1", dlc_2 = "dlc_2";
+  pd_params_.dlc_apps_params = {{dlc_1, {.name = dlc_1, .updated = false}},
+                                {dlc_2, {.name = dlc_2}}};
+
+  // THEN update_engine should call install completion.
+  pd_params_.should_install_completed_be_called = true;
+  pd_params_.args_to_install_completed = {dlc_2};
   // THEN go idle.
   // THEN install indication should be false.
 
@@ -2024,6 +2089,7 @@ TEST_F(UpdateAttempterTest, ProcessingDoneInstallReportingError) {
   // GIVEN a reporting error occurred.
   pd_params_.status = UpdateStatus::REPORTING_ERROR_EVENT;
 
+  // THEN update_engine should not call install completion.
   // THEN go idle.
   // THEN install indication should be false.
 
@@ -2035,6 +2101,7 @@ TEST_F(UpdateAttempterTest, ProcessingDoneNoUpdate) {
   // GIVEN an action error occured.
   pd_params_.code = ErrorCode::kNoUpdate;
 
+  // THEN update_engine should not call update completion.
   // THEN go idle.
   // THEN install indication should be false.
 
@@ -2047,6 +2114,7 @@ TEST_F(UpdateAttempterTest, ProcessingDoneNoInstall) {
   // GIVEN an action error occured.
   pd_params_.code = ErrorCode::kNoUpdate;
 
+  // THEN update_engine should not call install completion.
   // THEN go idle.
   // THEN install indication should be false.
 
@@ -2066,6 +2134,7 @@ TEST_F(UpdateAttempterTest, ProcessingDoneUpdateError) {
   pd_params_.expected_exit_status = UpdateStatus::REPORTING_ERROR_EVENT;
   // THEN install indication should be false.
 
+  // THEN update_engine should not call update completion.
   // THEN expect critical actions of |ScheduleErrorEventAction()|.
   EXPECT_CALL(*processor_, EnqueueAction(Pointee(_))).Times(1);
   EXPECT_CALL(*processor_, StartProcessing()).Times(1);
@@ -2089,6 +2158,7 @@ TEST_F(UpdateAttempterTest, ProcessingDoneInstallError) {
   pd_params_.expected_exit_status = UpdateStatus::REPORTING_ERROR_EVENT;
   // THEN install indication should be false.
 
+  // THEN update_engine should not call install completion.
   // THEN expect critical actions of |ScheduleErrorEventAction()|.
   EXPECT_CALL(*processor_, EnqueueAction(Pointee(_))).Times(1);
   EXPECT_CALL(*processor_, StartProcessing()).Times(1);
@@ -2455,6 +2525,15 @@ TEST_F(UpdateAttempterTest, SetDlcInactive) {
   EXPECT_TRUE(base::PathExists(metadata_path_dlc0));
   attempter_.SetDlcActiveValue(false, dlc_id);
   EXPECT_FALSE(base::PathExists(metadata_path_dlc0));
+}
+
+TEST_F(UpdateAttempterTest, GetSuccessfulDlcIds) {
+  auto dlc_1 = "1", dlc_2 = "2", dlc_3 = "3";
+  attempter_.omaha_request_params_->set_dlc_apps_params(
+      {{dlc_1, {.name = dlc_1, .updated = false}},
+       {dlc_2, {.name = dlc_2}},
+       {dlc_3, {.name = dlc_3, .updated = false}}});
+  EXPECT_THAT(attempter_.GetSuccessfulDlcIds(), ElementsAre(dlc_2));
 }
 
 }  // namespace chromeos_update_engine

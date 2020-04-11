@@ -76,6 +76,9 @@ class OmahaRequestParams {
     int64_t ping_date_last_active;
     int64_t ping_date_last_rollcall;
     bool send_ping;
+    // |updated| is only used for DLCs to decide sending DBus message to
+    // dlcservice on an install/update completion.
+    bool updated = true;
   };
 
   // Setters and getters for the various properties.
@@ -231,6 +234,9 @@ class OmahaRequestParams {
   // Returns true if the App ID is a DLC App ID that is currently part of the
   // request parameters.
   virtual bool IsDlcAppId(const std::string& app_id) const;
+
+  // If the App ID is a DLC App ID will set to no update.
+  void SetDlcNoUpdate(const std::string& app_id);
 
   // Suggested defaults
   static const char kOsVersion[];

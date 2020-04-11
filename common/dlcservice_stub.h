@@ -32,6 +32,8 @@ class DlcServiceStub : public DlcServiceInterface {
 
   // BootControlInterface overrides.
   bool GetInstalled(std::vector<std::string>* dlc_module_ids) override;
+  bool InstallCompleted(const std::vector<std::string>& ids) override;
+  bool UpdateCompleted(const std::vector<std::string>& ids) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DlcServiceStub);

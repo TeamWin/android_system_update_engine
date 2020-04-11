@@ -1219,8 +1219,18 @@ void UpdateAttempter::ProcessingDoneInternal(const ActionProcessor* processor,
   }
 }
 
+vector<string> UpdateAttempter::GetSuccessfulDlcIds() {
+  vector<string> dlc_ids;
+  for (const auto& pr : omaha_request_params_->dlc_apps_params())
+    if (pr.second.updated)
+      dlc_ids.push_back(pr.second.name);
+  return dlc_ids;
+}
+
 void UpdateAttempter::ProcessingDoneInstall(const ActionProcessor* processor,
                                             ErrorCode code) {
+  if (!system_state_->dlcservice()->InstallCompleted(GetSuccessfulDlcIds()))
+    LOG(WARNING) << "dlcservice didn't successfully handle install completion.";
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
   LOG(INFO) << "DLC successfully installed, no reboot needed.";
@@ -1230,6 +1240,8 @@ void UpdateAttempter::ProcessingDoneUpdate(const ActionProcessor* processor,
                                            ErrorCode code) {
   WriteUpdateCompletedMarker();
 
+  if (!system_state_->dlcservice()->UpdateCompleted(GetSuccessfulDlcIds()))
+    LOG(WARNING) << "dlcservice didn't successfully handle update completion.";
   SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
   ScheduleUpdates();
   LOG(INFO) << "Update successfully applied, waiting to reboot.";

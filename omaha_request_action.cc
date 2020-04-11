@@ -782,6 +782,7 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
       if (params_->IsDlcAppId(app.id)) {
         LOG(INFO) << "No update for <app> " << app.id
                   << " but update continuing since a DLC.";
+        params_->SetDlcNoUpdate(app.id);
         continue;
       }
       // Don't update if any app has status="noupdate".
