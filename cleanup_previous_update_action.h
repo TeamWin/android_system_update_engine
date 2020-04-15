@@ -49,7 +49,7 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
   CleanupPreviousUpdateAction(
       PrefsInterface* prefs,
       BootControlInterface* boot_control,
-      android::snapshot::SnapshotManager* snapshot,
+      android::snapshot::ISnapshotManager* snapshot,
       CleanupPreviousUpdateActionDelegateInterface* delegate);
 
   void PerformAction() override;
@@ -67,13 +67,13 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
  private:
   PrefsInterface* prefs_;
   BootControlInterface* boot_control_;
-  android::snapshot::SnapshotManager* snapshot_;
+  android::snapshot::ISnapshotManager* snapshot_;
   CleanupPreviousUpdateActionDelegateInterface* delegate_;
   std::unique_ptr<android::snapshot::AutoDevice> metadata_device_;
   bool running_{false};
   bool cancel_failed_{false};
   unsigned int last_percentage_{0};
-  android::snapshot::SnapshotMergeStats* merge_stats_;
+  android::snapshot::ISnapshotMergeStats* merge_stats_;
 
   void StartActionInternal();
   void ScheduleWaitBootCompleted();
