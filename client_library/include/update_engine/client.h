@@ -54,11 +54,10 @@ class UpdateEngineClient {
   //     empty indicates update_engine should use its default value. Note that
   //     update_engine will ignore this parameter in production mode to avoid
   //     pulling untrusted updates.
-  // |dlc_module_ids|
+  // |dlc_ids|
   //     A list of DLC module IDs.
-  virtual bool AttemptInstall(
-      const std::string& omaha_url,
-      const std::vector<std::string>& dlc_module_ids) = 0;
+  virtual bool AttemptInstall(const std::string& omaha_url,
+                              const std::vector<std::string>& dlc_ids) = 0;
 
   // Same as above but return the entire struct instead.
   virtual bool GetStatus(UpdateEngineStatus* out_status) const = 0;

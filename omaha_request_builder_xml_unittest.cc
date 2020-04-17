@@ -99,14 +99,14 @@ TEST_F(OmahaRequestBuilderXmlTest, PlatformGetAppTest) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  OmahaAppData dlc_module_app = {.id = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
-                                 .version = "",
-                                 .skip_update = false,
-                                 .is_dlc = false};
+  OmahaAppData dlc_app_data = {.id = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+                               .version = "",
+                               .skip_update = false,
+                               .is_dlc = false};
 
   // Verify that the attributes that shouldn't be missing for Platform AppID are
   // in fact present in the <app ...></app>.
-  const string app = omaha_request.GetApp(dlc_module_app);
+  const string app = omaha_request.GetApp(dlc_app_data);
   EXPECT_NE(string::npos, app.find("lang="));
   EXPECT_NE(string::npos, app.find("fw_version="));
   EXPECT_NE(string::npos, app.find("ec_version="));
@@ -125,12 +125,12 @@ TEST_F(OmahaRequestBuilderXmlTest, DlcGetAppTest) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  OmahaAppData dlc_module_app = {
+  OmahaAppData dlc_app_data = {
       .id = "_dlc_id", .version = "", .skip_update = false, .is_dlc = true};
 
   // Verify that the attributes that should be missing for DLC AppIDs are in
   // fact not present in the <app ...></app>.
-  const string app = omaha_request.GetApp(dlc_module_app);
+  const string app = omaha_request.GetApp(dlc_app_data);
   EXPECT_EQ(string::npos, app.find("lang="));
   EXPECT_EQ(string::npos, app.find("fw_version="));
   EXPECT_EQ(string::npos, app.find("ec_version="));

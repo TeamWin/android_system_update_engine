@@ -717,10 +717,10 @@ int64_t UpdateAttempter::GetPingMetadata(
 }
 
 void UpdateAttempter::CalculateDlcParams() {
-  // Set the |dlc_module_ids_| only for an update. This is required to get the
+  // Set the |dlc_ids_| only for an update. This is required to get the
   // currently installed DLC(s).
   if (!is_install_ &&
-      !system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
+      !system_state_->dlcservice()->GetDlcsToUpdate(&dlc_ids_)) {
     LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
                  "state of dlcservice, will not update DLC modules.";
   }
@@ -730,8 +730,7 @@ void UpdateAttempter::CalculateDlcParams() {
   base::FileEnumerator dir_enum(metadata_root_path,
                                 false /* recursive */,
                                 base::FileEnumerator::DIRECTORIES);
-  std::unordered_set<string> dlc_ids(dlc_module_ids_.begin(),
-                                     dlc_module_ids_.end());
+  std::unordered_set<string> dlc_ids(dlc_ids_.begin(), dlc_ids_.end());
   for (base::FilePath name = dir_enum.Next(); !name.empty();
        name = dir_enum.Next()) {
     string id = name.BaseName().value();
@@ -742,7 +741,7 @@ void UpdateAttempter::CalculateDlcParams() {
     }
   }
   std::map<std::string, OmahaRequestParams::AppParams> dlc_apps_params;
-  for (const auto& dlc_id : dlc_module_ids_) {
+  for (const auto& dlc_id : dlc_ids_) {
     OmahaRequestParams::AppParams dlc_params{
         .active_counting_type = OmahaRequestParams::kDateBased,
         .name = dlc_id,
@@ -1012,7 +1011,7 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
   return true;
 }
 
-bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
+bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_ids,
                                       const string& omaha_url) {
   if (status_ != UpdateStatus::IDLE) {
     LOG(INFO) << "Refusing to do an install as there is an "
@@ -1021,7 +1020,7 @@ bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
     return false;
   }
 
-  dlc_module_ids_ = dlc_module_ids;
+  dlc_ids_ = dlc_ids;
   is_install_ = true;
   forced_omaha_url_.clear();
 

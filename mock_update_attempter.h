@@ -55,7 +55,7 @@ class MockUpdateAttempter : public UpdateAttempter {
                     UpdateAttemptFlags flags));
 
   MOCK_METHOD2(CheckForInstall,
-               bool(const std::vector<std::string>& dlc_module_ids,
+               bool(const std::vector<std::string>& dlc_ids,
                     const std::string& omaha_url));
 
   MOCK_METHOD2(SetDlcActiveValue, bool(bool, const std::string&));

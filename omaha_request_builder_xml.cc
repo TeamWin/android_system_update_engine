@@ -421,13 +421,13 @@ string OmahaRequestBuilderXml::GetApps() const {
     app_xml += GetApp(system_app);
   }
   for (const auto& it : params_->dlc_apps_params()) {
-    OmahaAppData dlc_module_app = {
+    OmahaAppData dlc_app_data = {
         .id = it.first,
         .version = params_->is_install() ? kNoVersion : params_->app_version(),
         .skip_update = false,
         .is_dlc = true,
         .app_params = it.second};
-    app_xml += GetApp(dlc_module_app);
+    app_xml += GetApp(dlc_app_data);
   }
   return app_xml;
 }

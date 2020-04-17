@@ -55,10 +55,10 @@ class UpdateEngineService {
 
   // Attempts a DLC module install operation.
   // |omaha_url|: the URL to query for update.
-  // |dlc_module_ids|: a list of DLC module IDs.
+  // |dlc_ids|: a list of DLC module IDs.
   bool AttemptInstall(brillo::ErrorPtr* error,
                       const std::string& omaha_url,
-                      const std::vector<std::string>& dlc_module_ids);
+                      const std::vector<std::string>& dlc_ids);
 
   bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash);
 

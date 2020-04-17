@@ -23,7 +23,6 @@
 
 #include "update_engine/dbus_connection.h"
 
-using dlcservice::DlcModuleList;
 using std::string;
 using std::vector;
 
@@ -39,25 +38,25 @@ std::unique_ptr<DlcServiceInterface> CreateDlcService() {
   return std::make_unique<DlcServiceChromeOS>();
 }
 
-bool DlcServiceChromeOS::GetInstalled(vector<string>* dlc_module_ids) {
-  if (!dlc_module_ids)
+bool DlcServiceChromeOS::GetDlcsToUpdate(vector<string>* dlc_ids) {
+  if (!dlc_ids)
     return false;
-  dlc_module_ids->clear();
+  dlc_ids->clear();
 
-  dlcservice::DlcModuleList dlc_module_list;
-  if (!GetDlcServiceProxy().GetInstalled(&dlc_module_list, nullptr)) {
-    LOG(ERROR) << "dlcservice does not return installed DLC module list.";
+  brillo::ErrorPtr err;
+  if (!GetDlcServiceProxy().GetDlcsToUpdate(dlc_ids, &err)) {
+    LOG(ERROR) << "dlcservice failed to return DLCs that need to be updated. "
+               << "ErrorCode=" << err->GetCode()
+               << ", ErrMsg=" << err->GetMessage();
+    dlc_ids->clear();
     return false;
-  }
-  for (const auto& dlc_module_info : dlc_module_list.dlc_module_infos()) {
-    dlc_module_ids->emplace_back(dlc_module_info.dlc_id());
   }
   return true;
 }
 
-bool DlcServiceChromeOS::InstallCompleted(const std::vector<std::string>& ids) {
+bool DlcServiceChromeOS::InstallCompleted(const vector<string>& dlc_ids) {
   brillo::ErrorPtr err;
-  if (!GetDlcServiceProxy().InstallCompleted(ids, &err)) {
+  if (!GetDlcServiceProxy().InstallCompleted(dlc_ids, &err)) {
     LOG(ERROR) << "dlcservice failed to complete install. ErrCode="
                << err->GetCode() << ", ErrMsg=" << err->GetMessage();
     return false;
@@ -65,9 +64,9 @@ bool DlcServiceChromeOS::InstallCompleted(const std::vector<std::string>& ids) {
   return true;
 }
 
-bool DlcServiceChromeOS::UpdateCompleted(const std::vector<std::string>& ids) {
+bool DlcServiceChromeOS::UpdateCompleted(const vector<string>& dlc_ids) {
   brillo::ErrorPtr err;
-  if (!GetDlcServiceProxy().UpdateCompleted(ids, &err)) {
+  if (!GetDlcServiceProxy().UpdateCompleted(dlc_ids, &err)) {
     LOG(ERROR) << "dlcservice failed to complete updated. ErrCode="
                << err->GetCode() << ", ErrMsg=" << err->GetMessage();
     return false;

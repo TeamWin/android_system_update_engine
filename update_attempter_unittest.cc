@@ -153,7 +153,7 @@ struct ProcessingDoneTestParams {
 
 class MockDlcService : public DlcServiceInterface {
  public:
-  MOCK_METHOD1(GetInstalled, bool(vector<string>*));
+  MOCK_METHOD1(GetDlcsToUpdate, bool(vector<string>*));
   MOCK_METHOD1(InstallCompleted, bool(const vector<string>&));
   MOCK_METHOD1(UpdateCompleted, bool(const vector<string>&));
 };
@@ -2360,7 +2360,7 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
 
   ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
   attempter_.is_install_ = true;
-  attempter_.dlc_module_ids_ = {dlc_id};
+  attempter_.dlc_ids_ = {dlc_id};
   attempter_.CalculateDlcParams();
 
   OmahaRequestParams* params = fake_system_state_.request_params();
@@ -2387,7 +2387,7 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
       base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
           .Append(dlc_id);
   ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
-  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+  EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
 
@@ -2416,7 +2416,7 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
       base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
           .Append(dlc_id);
   ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
-  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+  EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
 
@@ -2449,7 +2449,7 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
       base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
           .Append(dlc_id);
   ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc0));
-  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+  EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
 
@@ -2485,7 +2485,7 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata) {
       base::FilePath(fake_system_state_.request_params()->dlc_prefs_root())
           .Append("stale");
   ASSERT_TRUE(base::CreateDirectory(metadata_path_dlc_stale));
-  EXPECT_CALL(mock_dlcservice_, GetInstalled(_))
+  EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
 

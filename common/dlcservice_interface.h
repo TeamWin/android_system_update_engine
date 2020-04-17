@@ -30,17 +30,17 @@ class DlcServiceInterface {
  public:
   virtual ~DlcServiceInterface() = default;
 
-  // Returns true and a list of installed DLC module ids in |dlc_module_ids|.
+  // Returns true and a list of installed DLC ids in |dlc_ids|.
   // On failure it returns false.
-  virtual bool GetInstalled(std::vector<std::string>* dlc_module_ids) = 0;
+  virtual bool GetDlcsToUpdate(std::vector<std::string>* dlc_ids) = 0;
 
   // Returns true if dlcservice successfully handled the install completion
   // method call, otherwise false.
-  virtual bool InstallCompleted(const std::vector<std::string>& ids) = 0;
+  virtual bool InstallCompleted(const std::vector<std::string>& dlc_ids) = 0;
 
   // Returns true if dlcservice successfully handled the update completion
   // method call, otherwise false.
-  virtual bool UpdateCompleted(const std::vector<std::string>& ids) = 0;
+  virtual bool UpdateCompleted(const std::vector<std::string>& dlc_ids) = 0;
 
  protected:
   DlcServiceInterface() = default;
