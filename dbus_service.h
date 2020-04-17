@@ -21,10 +21,10 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <base/memory/ref_counted.h>
 #include <brillo/errors/error.h>
-#include <dlcservice/proto_bindings/dlcservice.pb.h>
 #include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/common_service.h"
@@ -52,7 +52,8 @@ class DBusUpdateEngineService
                               int32_t in_flags_as_int) override;
 
   bool AttemptInstall(brillo::ErrorPtr* error,
-                      const dlcservice::DlcModuleList& request) override;
+                      const std::string& in_omaha_url,
+                      const std::vector<std::string>& dlc_ids) override;
 
   bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash) override;
 

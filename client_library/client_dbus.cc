@@ -21,7 +21,6 @@
 #include <memory>
 
 #include <dbus/bus.h>
-#include <dlcservice/proto_bindings/dlcservice.pb.h>
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/update_status_utils.h"
@@ -86,16 +85,7 @@ bool DBusUpdateEngineClient::AttemptUpdate(const string& in_app_version,
 
 bool DBusUpdateEngineClient::AttemptInstall(const string& omaha_url,
                                             const vector<string>& dlc_ids) {
-  // Convert parameters into protobuf.
-  dlcservice::DlcModuleList dlc_parameters;
-  dlc_parameters.set_omaha_url(omaha_url);
-  for (const auto& dlc_id : dlc_ids) {
-    dlcservice::DlcModuleInfo* dlc_module_info =
-        dlc_parameters.add_dlc_module_infos();
-    dlc_module_info->set_dlc_id(dlc_id);
-  }
-  return proxy_->AttemptInstall(dlc_parameters,
-                                nullptr /* brillo::ErrorPtr* */);
+  return proxy_->AttemptInstall(omaha_url, dlc_ids, nullptr);
 }
 
 bool DBusUpdateEngineClient::SetDlcActiveValue(bool is_active,

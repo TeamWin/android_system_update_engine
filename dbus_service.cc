@@ -19,7 +19,6 @@
 #include <string>
 #include <vector>
 
-#include <dlcservice/proto_bindings/dlcservice.pb.h>
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/dbus_connection.h"
@@ -30,7 +29,6 @@ namespace chromeos_update_engine {
 
 using brillo::ErrorPtr;
 using chromeos_update_engine::UpdateEngineService;
-using dlcservice::DlcModuleList;
 using std::string;
 using std::vector;
 using update_engine::Operation;
@@ -82,17 +80,9 @@ bool DBusUpdateEngineService::AttemptUpdateWithFlags(
 }
 
 bool DBusUpdateEngineService::AttemptInstall(ErrorPtr* error,
-                                             const DlcModuleList& request) {
-  vector<string> dlc_ids;
-  for (const auto& dlc_module_info : request.dlc_module_infos()) {
-    if (dlc_module_info.dlc_id().empty()) {
-      *error = brillo::Error::Create(
-          FROM_HERE, "update_engine", "INTERNAL", "Empty DLC ID passed.");
-      return false;
-    }
-    dlc_ids.push_back(dlc_module_info.dlc_id());
-  }
-  return common_->AttemptInstall(error, request.omaha_url(), dlc_ids);
+                                             const string& in_omaha_url,
+                                             const vector<string>& dlc_ids) {
+  return common_->AttemptInstall(error, in_omaha_url, dlc_ids);
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,

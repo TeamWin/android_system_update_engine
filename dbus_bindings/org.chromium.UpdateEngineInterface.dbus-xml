@@ -35,12 +35,11 @@
       <arg type="i" name="flags" direction="in" />
     </method>
     <method name="AttemptInstall">
-      <arg type="ay" name="request" direction="in">
+      <arg type="s" name="omaha_url" direction="in" />
+      <arg type="as" name="dlc_ids" direction="in">
         <tp:docstring>
-          The information about DLC modules that needs to be installed.
+          The list of DLC IDs that needs to be installed.
         </tp:docstring>
-        <annotation name="org.chromium.DBus.Argument.ProtobufClass"
-                    value="dlcservice::DlcModuleList"/>
       </arg>
     </method>
     <method name="AttemptRollback">
