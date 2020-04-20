@@ -31,34 +31,47 @@ namespace chromeos_update_engine {
 class MockDynamicPartitionControlAndroid
     : public DynamicPartitionControlAndroid {
  public:
-  MOCK_METHOD5(MapPartitionOnDeviceMapper,
-               bool(const std::string&,
-                    const std::string&,
-                    uint32_t,
-                    bool,
-                    std::string*));
-  MOCK_METHOD1(UnmapPartitionOnDeviceMapper, bool(const std::string&));
-  MOCK_METHOD0(Cleanup, void());
-  MOCK_METHOD1(DeviceExists, bool(const std::string&));
-  MOCK_METHOD1(GetState, ::android::dm::DmDeviceState(const std::string&));
-  MOCK_METHOD2(GetDmDevicePathByName, bool(const std::string&, std::string*));
-  MOCK_METHOD3(LoadMetadataBuilder,
-               std::unique_ptr<::android::fs_mgr::MetadataBuilder>(
-                   const std::string&, uint32_t, uint32_t));
-  MOCK_METHOD3(StoreMetadata,
-               bool(const std::string&,
-                    android::fs_mgr::MetadataBuilder*,
-                    uint32_t));
-  MOCK_METHOD1(GetDeviceDir, bool(std::string*));
-  MOCK_METHOD0(GetDynamicPartitionsFeatureFlag, FeatureFlag());
-  MOCK_METHOD1(GetSuperPartitionName, std::string(uint32_t));
-  MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
-  MOCK_METHOD1(FinishUpdate, bool(bool));
-  MOCK_METHOD5(
-      GetSystemOtherPath,
-      bool(uint32_t, uint32_t, const std::string&, std::string*, bool*));
-  MOCK_METHOD2(EraseSystemOtherAvbFooter, bool(uint32_t, uint32_t));
-  MOCK_METHOD0(IsAvbEnabledOnSystemOther, std::optional<bool>());
+  MOCK_METHOD(
+      bool,
+      MapPartitionOnDeviceMapper,
+      (const std::string&, const std::string&, uint32_t, bool, std::string*),
+      (override));
+  MOCK_METHOD(bool,
+              UnmapPartitionOnDeviceMapper,
+              (const std::string&),
+              (override));
+  MOCK_METHOD(void, Cleanup, (), (override));
+  MOCK_METHOD(bool, DeviceExists, (const std::string&), (override));
+  MOCK_METHOD(::android::dm::DmDeviceState,
+              GetState,
+              (const std::string&),
+              (override));
+  MOCK_METHOD(bool,
+              GetDmDevicePathByName,
+              (const std::string&, std::string*),
+              (override));
+  MOCK_METHOD(std::unique_ptr<::android::fs_mgr::MetadataBuilder>,
+              LoadMetadataBuilder,
+              (const std::string&, uint32_t, uint32_t),
+              (override));
+  MOCK_METHOD(bool,
+              StoreMetadata,
+              (const std::string&, android::fs_mgr::MetadataBuilder*, uint32_t),
+              (override));
+  MOCK_METHOD(bool, GetDeviceDir, (std::string*), (override));
+  MOCK_METHOD(FeatureFlag, GetDynamicPartitionsFeatureFlag, (), (override));
+  MOCK_METHOD(std::string, GetSuperPartitionName, (uint32_t), (override));
+  MOCK_METHOD(FeatureFlag, GetVirtualAbFeatureFlag, (), (override));
+  MOCK_METHOD(bool, FinishUpdate, (bool), (override));
+  MOCK_METHOD(bool,
+              GetSystemOtherPath,
+              (uint32_t, uint32_t, const std::string&, std::string*, bool*),
+              (override));
+  MOCK_METHOD(bool,
+              EraseSystemOtherAvbFooter,
+              (uint32_t, uint32_t),
+              (override));
+  MOCK_METHOD(std::optional<bool>, IsAvbEnabledOnSystemOther, (), (override));
 
   void set_fake_mapped_devices(const std::set<std::string>& fake) override {
     DynamicPartitionControlAndroid::set_fake_mapped_devices(fake);
