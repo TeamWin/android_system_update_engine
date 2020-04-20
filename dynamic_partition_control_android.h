@@ -258,7 +258,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   std::set<std::string> mapped_devices_;
   const FeatureFlag dynamic_partitions_;
   const FeatureFlag virtual_ab_;
-  std::unique_ptr<android::snapshot::SnapshotManager> snapshot_;
+  std::unique_ptr<android::snapshot::ISnapshotManager> snapshot_;
   std::unique_ptr<android::snapshot::AutoDevice> metadata_device_;
   bool target_supports_snapshot_ = false;
   // Whether the target partitions should be loaded as dynamic partitions. Set

@@ -35,6 +35,7 @@
 #include <libavb/libavb.h>
 #include <libdm/dm.h>
 #include <libsnapshot/snapshot.h>
+#include <libsnapshot/snapshot_stub.h>
 
 #include "update_engine/cleanup_previous_update_action.h"
 #include "update_engine/common/boot_control_interface.h"
@@ -58,6 +59,7 @@ using android::fs_mgr::SlotSuffixForSlotNumber;
 using android::snapshot::OptimizeSourceCopyOperation;
 using android::snapshot::Return;
 using android::snapshot::SnapshotManager;
+using android::snapshot::SnapshotManagerStub;
 using android::snapshot::UpdateState;
 
 namespace chromeos_update_engine {
@@ -108,8 +110,10 @@ DynamicPartitionControlAndroid::DynamicPartitionControlAndroid()
       virtual_ab_(GetFeatureFlag(kVirtualAbEnabled, kVirtualAbRetrofit)) {
   if (GetVirtualAbFeatureFlag().IsEnabled()) {
     snapshot_ = SnapshotManager::New();
-    CHECK(snapshot_ != nullptr) << "Cannot initialize SnapshotManager.";
+  } else {
+    snapshot_ = SnapshotManagerStub::New();
   }
+  CHECK(snapshot_ != nullptr) << "Cannot initialize SnapshotManager.";
 }
 
 FeatureFlag DynamicPartitionControlAndroid::GetDynamicPartitionsFeatureFlag() {

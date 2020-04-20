@@ -30,7 +30,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 
-using android::snapshot::SnapshotManager;
+using android::snapshot::ISnapshotManager;
 using android::snapshot::SnapshotMergeStats;
 using android::snapshot::UpdateState;
 using brillo::MessageLoop;
@@ -55,7 +55,7 @@ namespace chromeos_update_engine {
 CleanupPreviousUpdateAction::CleanupPreviousUpdateAction(
     PrefsInterface* prefs,
     BootControlInterface* boot_control,
-    android::snapshot::SnapshotManager* snapshot,
+    android::snapshot::ISnapshotManager* snapshot,
     CleanupPreviousUpdateActionDelegateInterface* delegate)
     : prefs_(prefs),
       boot_control_(boot_control),
@@ -64,7 +64,7 @@ CleanupPreviousUpdateAction::CleanupPreviousUpdateAction(
       running_(false),
       cancel_failed_(false),
       last_percentage_(0),
-      merge_stats_(SnapshotMergeStats::GetInstance(*snapshot)) {}
+      merge_stats_(nullptr) {}
 
 void CleanupPreviousUpdateAction::PerformAction() {
   ResumeAction();
@@ -110,8 +110,10 @@ void CleanupPreviousUpdateAction::StartActionInternal() {
     processor_->ActionComplete(this, ErrorCode::kSuccess);
     return;
   }
-  // SnapshotManager is only available on VAB devices.
-  CHECK(snapshot_);
+  // SnapshotManager must be available on VAB devices.
+  CHECK(snapshot_ != nullptr);
+  merge_stats_ = snapshot_->GetSnapshotMergeStatsInstance();
+  CHECK(merge_stats_ != nullptr);
   WaitBootCompletedOrSchedule();
 }
 
