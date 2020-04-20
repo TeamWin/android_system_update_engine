@@ -173,8 +173,19 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   virtual bool EraseSystemOtherAvbFooter(uint32_t source_slot,
                                          uint32_t target_slot);
 
+  // Helper for PreparePartitionsForUpdate. Used for devices with dynamic
+  // partitions updating without snapshots.
+  // If |delete_source| is set, source partitions are deleted before resizing
+  // target partitions (using DeleteSourcePartitions).
+  virtual bool PrepareDynamicPartitionsForUpdate(
+      uint32_t source_slot,
+      uint32_t target_slot,
+      const DeltaArchiveManifest& manifest,
+      bool delete_source);
+
  private:
   friend class DynamicPartitionControlAndroidTest;
+  friend class SnapshotPartitionTestP;
 
   void UnmapAllPartitions();
   bool MapPartitionInternal(const std::string& super_device,
@@ -188,15 +199,6 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   bool UpdatePartitionMetadata(android::fs_mgr::MetadataBuilder* builder,
                                uint32_t target_slot,
                                const DeltaArchiveManifest& manifest);
-
-  // Helper for PreparePartitionsForUpdate. Used for devices with dynamic
-  // partitions updating without snapshots.
-  // If |delete_source| is set, source partitions are deleted before resizing
-  // target partitions (using DeleteSourcePartitions).
-  bool PrepareDynamicPartitionsForUpdate(uint32_t source_slot,
-                                         uint32_t target_slot,
-                                         const DeltaArchiveManifest& manifest,
-                                         bool delete_source);
 
   // Helper for PreparePartitionsForUpdate. Used for snapshotted partitions for
   // Virtual A/B update.
