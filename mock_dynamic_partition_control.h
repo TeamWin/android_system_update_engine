@@ -72,6 +72,11 @@ class MockDynamicPartitionControlAndroid
               (uint32_t, uint32_t),
               (override));
   MOCK_METHOD(std::optional<bool>, IsAvbEnabledOnSystemOther, (), (override));
+  MOCK_METHOD(bool, IsRecovery, (), (override));
+  MOCK_METHOD(bool,
+              PrepareDynamicPartitionsForUpdate,
+              (uint32_t, uint32_t, const DeltaArchiveManifest&, bool),
+              (override));
 
   void set_fake_mapped_devices(const std::set<std::string>& fake) override {
     DynamicPartitionControlAndroid::set_fake_mapped_devices(fake);
@@ -94,6 +99,15 @@ class MockDynamicPartitionControlAndroid
 
   std::optional<bool> RealIsAvbEnabledInFstab(const std::string& path) {
     return DynamicPartitionControlAndroid::IsAvbEnabledInFstab(path);
+  }
+
+  bool RealPrepareDynamicPartitionsForUpdate(
+      uint32_t source_slot,
+      uint32_t target_slot,
+      const DeltaArchiveManifest& manifest,
+      bool delete_source) {
+    return DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
+        source_slot, target_slot, manifest, delete_source);
   }
 };
 
