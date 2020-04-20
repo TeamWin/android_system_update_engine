@@ -88,6 +88,8 @@ pkg_config("target_defaults") {
     "${platform2_root}",
     "${platform2_root}/update_engine/client_library/include",
   ]
+
+  # NOSORT
   pkg_deps = [
     "libbrillo",
     "libchrome-${libbase_ver}",
@@ -108,25 +110,19 @@ pkg_config("target_defaults") {
 proto_library("update_metadata-protos") {
   proto_in_dir = "."
   proto_out_dir = "include/update_engine"
-  sources = [
-    "update_metadata.proto",
-  ]
+  sources = [ "update_metadata.proto" ]
 }
 
 # Chrome D-Bus bindings.
 generate_dbus_adaptors("update_engine-dbus-adaptor") {
   dbus_adaptors_out_dir = "include/dbus_bindings"
-  sources = [
-    "dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml",
-  ]
+  sources = [ "dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml" ]
 }
 
 generate_dbus_proxies("update_engine-dbus-kiosk-app-client") {
   mock_output_file = "include/kiosk-app/dbus-proxy-mocks.h"
   proxy_output_file = "include/kiosk-app/dbus-proxies.h"
-  sources = [
-    "dbus_bindings/org.chromium.KioskAppService.dbus-xml",
-  ]
+  sources = [ "dbus_bindings/org.chromium.KioskAppService.dbus-xml" ]
 }
 
 # The payload application component and common dependencies.
@@ -177,14 +173,12 @@ static_library("libpayload_consumer") {
   # TODO(deymo): Remove unused dependencies once we stop including files
   # from the root directory.
   all_dependent_pkg_deps = [
-    "libcrypto",
-    "xz-embedded",
     "libbspatch",
+    "libcrypto",
     "libpuffpatch",
+    "xz-embedded",
   ]
-  deps = [
-    ":update_metadata-protos",
-  ]
+  deps = [ ":update_metadata-protos" ]
 }
 
 # The main daemon static_library with all the code used to check for updates
@@ -289,13 +283,9 @@ static_library("libupdate_engine") {
 
 # update_engine daemon.
 executable("update_engine") {
-  sources = [
-    "main.cc",
-  ]
+  sources = [ "main.cc" ]
   configs += [ ":target_defaults" ]
-  deps = [
-    ":libupdate_engine",
-  ]
+  deps = [ ":libupdate_engine" ]
 }
 
 # update_engine client library.
@@ -320,9 +310,7 @@ executable("update_engine_client") {
     "update_engine_client.cc",
   ]
   configs += [ ":target_defaults" ]
-  deps = [
-    ":libupdate_engine_client",
-  ]
+  deps = [ ":libupdate_engine_client" ]
 }
 
 # server-side code. This is used for delta_generator and unittests but not
@@ -357,8 +345,8 @@ static_library("libpayload_generator") {
   all_dependent_pkg_deps = [
     "ext2fs",
     "libbsdiff",
-    "libpuffdiff",
     "liblzma",
+    "libpuffdiff",
   ]
   deps = [
     ":libpayload_consumer",
@@ -368,9 +356,7 @@ static_library("libpayload_generator") {
 
 # server-side delta generator.
 executable("delta_generator") {
-  sources = [
-    "payload_generator/generate_delta_main.cc",
-  ]
+  sources = [ "payload_generator/generate_delta_main.cc" ]
   configs += [ ":target_defaults" ]
   configs -= [ "//common-mk:pie" ]
   deps = [
@@ -400,9 +386,7 @@ if (use.test || use.fuzzer) {
       ":target_defaults",
     ]
     pkg_deps = [ "libshill-client-test" ]
-    deps = [
-      ":libupdate_engine",
-    ]
+    deps = [ ":libupdate_engine" ]
   }
 }
 
@@ -420,9 +404,7 @@ if (use.test) {
   # Unpacks sample images used for testing.
   tar_bunzip2("update_engine-test_images") {
     image_out_dir = "."
-    sources = [
-      "sample_images/sample_images.tar.bz2",
-    ]
+    sources = [ "sample_images/sample_images.tar.bz2" ]
   }
 
   # Test HTTP Server.
@@ -442,9 +424,7 @@ if (use.test) {
 
   # Test subprocess helper.
   executable("test_subprocess") {
-    sources = [
-      "test_subprocess.cc",
-    ]
+    sources = [ "test_subprocess.cc" ]
 
     # //common-mk:test should be on the top.
     # TODO(crbug.com/887845): Remove this after library odering issue is fixed.
@@ -561,9 +541,7 @@ if (use.test) {
 # Fuzzer target.
 if (use.fuzzer) {
   executable("update_engine_delta_performer_fuzzer") {
-    sources = [
-      "payload_consumer/delta_performer_fuzzer.cc",
-    ]
+    sources = [ "payload_consumer/delta_performer_fuzzer.cc" ]
     configs += [
       "//common-mk/common_fuzzer",
       ":target_defaults",
@@ -578,9 +556,7 @@ if (use.fuzzer) {
     ]
   }
   executable("update_engine_omaha_request_action_fuzzer") {
-    sources = [
-      "omaha_request_action_fuzzer.cc",
-    ]
+    sources = [ "omaha_request_action_fuzzer.cc" ]
     configs += [
       "//common-mk/common_fuzzer",
       ":target_defaults",

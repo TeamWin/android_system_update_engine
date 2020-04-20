@@ -17,17 +17,13 @@
 import("//common-mk/generate-dbus-proxies.gni")
 
 group("all") {
-  deps = [
-    ":libupdate_engine-client-headers",
-  ]
+  deps = [ ":libupdate_engine-client-headers" ]
 }
 
 # update_engine client library generated headers. Used by other daemons and
 # by the update_engine_client console program to interact with update_engine.
 generate_dbus_proxies("libupdate_engine-client-headers") {
-  sources = [
-    "../dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml",
-  ]
+  sources = [ "../dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml" ]
   dbus_service_config = "../dbus_bindings/dbus-service-config.json"
   mock_output_file = "include/update_engine/dbus-proxy-mocks.h"
   proxy_output_file = "include/update_engine/dbus-proxies.h"

@@ -21,9 +21,7 @@ template("tar_bunzip2") {
   action_foreach(target_name) {
     sources = invoker.sources
     script = "//common-mk/file_generator_wrapper.py"
-    outputs = [
-      "${out_dir}/{{source_name_part}}.flag",
-    ]
+    outputs = [ "${out_dir}/{{source_name_part}}.flag" ]
     args = [
       "sh",
       "-c",
