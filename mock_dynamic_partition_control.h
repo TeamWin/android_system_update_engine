@@ -28,29 +28,6 @@
 
 namespace chromeos_update_engine {
 
-class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
- public:
-  MOCK_METHOD5(MapPartitionOnDeviceMapper,
-               bool(const std::string&,
-                    const std::string&,
-                    uint32_t,
-                    bool,
-                    std::string*));
-  MOCK_METHOD0(Cleanup, void());
-  MOCK_METHOD0(GetDynamicPartitionsFeatureFlag, FeatureFlag());
-  MOCK_METHOD5(
-      PreparePartitionsForUpdate,
-      bool(uint32_t, uint32_t, const DeltaArchiveManifest&, bool, uint64_t*));
-  MOCK_METHOD0(GetVirtualAbFeatureFlag, FeatureFlag());
-  MOCK_METHOD1(FinishUpdate, bool(bool));
-  MOCK_METHOD0(CleanupSuccessfulUpdate, ErrorCode());
-  MOCK_METHOD3(GetCleanupPreviousUpdateAction,
-               std::unique_ptr<AbstractAction>(
-                   BootControlInterface*,
-                   PrefsInterface*,
-                   CleanupPreviousUpdateActionDelegateInterface*));
-};
-
 class MockDynamicPartitionControlAndroid
     : public DynamicPartitionControlAndroid {
  public:
