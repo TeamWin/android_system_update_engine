@@ -24,6 +24,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <libavb/libavb.h>
+#include <libsnapshot/mock_snapshot.h>
 
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/test_utils.h"
@@ -31,6 +32,7 @@
 #include "update_engine/mock_dynamic_partition_control.h"
 
 using android::dm::DmDeviceState;
+using android::snapshot::MockSnapshotManager;
 using chromeos_update_engine::test_utils::ScopedLoopbackDeviceBinder;
 using chromeos_update_engine::test_utils::ScopedTempFile;
 using std::string;
@@ -72,6 +74,17 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
 
     ON_CALL(dynamicControl(), EraseSystemOtherAvbFooter(_, _))
         .WillByDefault(Return(true));
+
+    ON_CALL(dynamicControl(), IsRecovery()).WillByDefault(Return(false));
+
+    ON_CALL(dynamicControl(), PrepareDynamicPartitionsForUpdate(_, _, _, _))
+        .WillByDefault(Invoke([&](uint32_t source_slot,
+                                  uint32_t target_slot,
+                                  const DeltaArchiveManifest& manifest,
+                                  bool delete_source) {
+          return dynamicControl().RealPrepareDynamicPartitionsForUpdate(
+              source_slot, target_slot, manifest, delete_source);
+        }));
   }
 
   // Return the mocked DynamicPartitionControlInterface.
@@ -891,5 +904,113 @@ TEST_P(DynamicPartitionControlAndroidTestP, EraseSystemOtherAvbFooter) {
   new_expected.resize(file_size, '\0');
   ASSERT_EQ(new_expected, device_content);
 }
+
+class FakeAutoDevice : public android::snapshot::AutoDevice {
+ public:
+  FakeAutoDevice() : AutoDevice("") {}
+};
+
+class SnapshotPartitionTestP : public DynamicPartitionControlAndroidTestP {
+ public:
+  void SetUp() override {
+    DynamicPartitionControlAndroidTestP::SetUp();
+    ON_CALL(dynamicControl(), GetVirtualAbFeatureFlag())
+        .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+
+    snapshot_ = new NiceMock<MockSnapshotManager>();
+    dynamicControl().snapshot_.reset(snapshot_);  // takes ownership
+    EXPECT_CALL(*snapshot_, BeginUpdate()).WillOnce(Return(true));
+    EXPECT_CALL(*snapshot_, EnsureMetadataMounted())
+        .WillRepeatedly(
+            Invoke([]() { return std::make_unique<FakeAutoDevice>(); }));
+
+    manifest_ =
+        PartitionSizesToManifest({{"system", 3_GiB}, {"vendor", 1_GiB}});
+  }
+  void ExpectCreateUpdateSnapshots(android::snapshot::Return val) {
+    manifest_.mutable_dynamic_partition_metadata()->set_snapshot_enabled(true);
+    EXPECT_CALL(*snapshot_, CreateUpdateSnapshots(_))
+        .WillRepeatedly(Invoke([&, val](const auto& manifest) {
+          // Deep comparison requires full protobuf library. Comparing the
+          // pointers are sufficient.
+          EXPECT_EQ(&manifest_, &manifest);
+          LOG(WARNING) << "CreateUpdateSnapshots returning " << val.string();
+          return val;
+        }));
+  }
+  bool PreparePartitionsForUpdate(uint64_t* required_size) {
+    return dynamicControl().PreparePartitionsForUpdate(
+        source(), target(), manifest_, true /* update */, required_size);
+  }
+  MockSnapshotManager* snapshot_ = nullptr;
+  DeltaArchiveManifest manifest_;
+};
+
+// Test happy path of PreparePartitionsForUpdate on a Virtual A/B device.
+TEST_P(SnapshotPartitionTestP, PreparePartitions) {
+  ExpectCreateUpdateSnapshots(android::snapshot::Return::Ok());
+  uint64_t required_size = 0;
+  EXPECT_TRUE(PreparePartitionsForUpdate(&required_size));
+  EXPECT_EQ(0u, required_size);
+}
+
+// Test that if not enough space, required size returned by SnapshotManager is
+// passed up.
+TEST_P(SnapshotPartitionTestP, PreparePartitionsNoSpace) {
+  ExpectCreateUpdateSnapshots(android::snapshot::Return::NoSpace(1_GiB));
+  uint64_t required_size = 0;
+  EXPECT_FALSE(PreparePartitionsForUpdate(&required_size));
+  EXPECT_EQ(1_GiB, required_size);
+}
+
+// Test that in recovery, use empty space in super partition for a snapshot
+// update first.
+TEST_P(SnapshotPartitionTestP, RecoveryUseSuperEmpty) {
+  ExpectCreateUpdateSnapshots(android::snapshot::Return::Ok());
+  EXPECT_CALL(dynamicControl(), IsRecovery()).WillRepeatedly(Return(true));
+  // Must not call PrepareDynamicPartitionsForUpdate if
+  // PrepareSnapshotPartitionsForUpdate succeeds.
+  EXPECT_CALL(dynamicControl(), PrepareDynamicPartitionsForUpdate(_, _, _, _))
+      .Times(0);
+  uint64_t required_size = 0;
+  EXPECT_TRUE(PreparePartitionsForUpdate(&required_size));
+  EXPECT_EQ(0u, required_size);
+}
+
+// Test that in recovery, if CreateUpdateSnapshots throws an error, try
+// the flashing path for full updates.
+TEST_P(SnapshotPartitionTestP, RecoveryErrorShouldDeleteSource) {
+  // Expectation on PreparePartitionsForUpdate
+  ExpectCreateUpdateSnapshots(android::snapshot::Return::NoSpace(1_GiB));
+  EXPECT_CALL(dynamicControl(), IsRecovery()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*snapshot_, CancelUpdate()).WillOnce(Return(true));
+  EXPECT_CALL(dynamicControl(), PrepareDynamicPartitionsForUpdate(_, _, _, _))
+      .WillRepeatedly(Invoke([&](auto source_slot,
+                                 auto target_slot,
+                                 const auto& manifest,
+                                 auto delete_source) {
+        EXPECT_EQ(source(), source_slot);
+        EXPECT_EQ(target(), target_slot);
+        // Deep comparison requires full protobuf library. Comparing the
+        // pointers are sufficient.
+        EXPECT_EQ(&manifest_, &manifest);
+        EXPECT_TRUE(delete_source);
+        return dynamicControl().RealPrepareDynamicPartitionsForUpdate(
+            source_slot, target_slot, manifest, delete_source);
+      }));
+  // Expectation on PrepareDynamicPartitionsForUpdate
+  SetMetadata(source(), {{S("system"), 2_GiB}, {S("vendor"), 1_GiB}});
+  ExpectUnmap({T("system"), T("vendor")});
+  // Expect that the source partitions aren't present in target super metadata.
+  ExpectStoreMetadata({{T("system"), 3_GiB}, {T("vendor"), 1_GiB}});
+
+  uint64_t required_size = 0;
+  EXPECT_TRUE(PreparePartitionsForUpdate(&required_size));
+  EXPECT_EQ(0u, required_size);
+}
+
+INSTANTIATE_TEST_CASE_P(DynamicPartitionControlAndroidTest,
+                        SnapshotPartitionTestP,
+                        testing::Values(TestParam{0, 1}, TestParam{1, 0}));
 
 }  // namespace chromeos_update_engine
