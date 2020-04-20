@@ -493,8 +493,13 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     }
   }
 
-  return PrepareDynamicPartitionsForUpdate(
-      source_slot, target_slot, manifest, delete_source);
+  TEST_AND_RETURN_FALSE(PrepareDynamicPartitionsForUpdate(
+      source_slot, target_slot, manifest, delete_source));
+
+  if (required_size != nullptr) {
+    *required_size = 0;
+  }
+  return true;
 }
 
 namespace {
