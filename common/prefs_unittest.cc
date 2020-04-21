@@ -358,7 +358,7 @@ TEST_F(MemoryPrefsTest, BasicTest) {
 
   EXPECT_TRUE(prefs_.Delete(kKey));
   EXPECT_FALSE(prefs_.Exists(kKey));
-  EXPECT_FALSE(prefs_.Delete(kKey));
+  EXPECT_TRUE(prefs_.Delete(kKey));
 }
 
 }  // namespace chromeos_update_engine

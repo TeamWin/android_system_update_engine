@@ -186,9 +186,8 @@ bool MemoryPrefs::MemoryStorage::KeyExists(const string& key) const {
 
 bool MemoryPrefs::MemoryStorage::DeleteKey(const string& key) {
   auto it = values_.find(key);
-  if (it == values_.end())
-    return false;
-  values_.erase(it);
+  if (it != values_.end())
+    values_.erase(it);
   return true;
 }
 
