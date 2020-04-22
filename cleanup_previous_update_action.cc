@@ -30,6 +30,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 
+using android::base::GetBoolProperty;
 using android::snapshot::ISnapshotManager;
 using android::snapshot::SnapshotMergeStats;
 using android::snapshot::UpdateState;
@@ -337,6 +338,12 @@ bool CleanupPreviousUpdateAction::BeforeCancel() {
 void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
   TEST_AND_RETURN(running_);
   LOG(INFO) << "Attempting to initiate merge.";
+  // suspend the VAB merge when running a DSU
+  if (GetBoolProperty("ro.gsid.image_running", false)) {
+    LOG(WARNING) << "Suspend the VAB merge when running a DSU.";
+    processor_->ActionComplete(this, ErrorCode::kError);
+    return;
+  }
 
   if (snapshot_->InitiateMerge()) {
     WaitForMergeOrSchedule();
