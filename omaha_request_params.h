@@ -266,8 +266,10 @@ class OmahaRequestParams {
   // or Init is called again.
   virtual void UpdateDownloadChannel();
 
-  // Returns whether we should powerwash for this update.
-  virtual bool ShouldPowerwash() const;
+  // Returns whether we should powerwash for this update. Note that this is
+  // just an indication, the final decision to powerwash or not is made in the
+  // response handler.
+  bool ShouldPowerwash() const;
 
   // Check if the provided update URL is official, meaning either the default
   // autoupdate server or the autoupdate autotest server.

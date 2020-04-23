@@ -21,6 +21,7 @@
 
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
+#include <base/version.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/common/constants.h"
@@ -183,8 +184,26 @@ void OmahaResponseHandlerAction::PerformAction() {
         params->rollback_data_save_requested();
   }
 
-  if (response.powerwash_required || params->ShouldPowerwash())
+  // Powerwash if either the response requires it or the parameters indicated
+  // powerwash and we are downgrading the version.
+  if (response.powerwash_required) {
     install_plan_.powerwash_required = true;
+  } else if (params->ShouldPowerwash()) {
+    base::Version new_version(response.version);
+    base::Version current_version(params->app_version());
+
+    if (!new_version.IsValid()) {
+      LOG(WARNING) << "Not powerwashing,"
+                   << " the update's version number is unreadable."
+                   << " Update's version number: " << response.version;
+    } else if (!current_version.IsValid()) {
+      LOG(WARNING) << "Not powerwashing,"
+                   << " the current version number is unreadable."
+                   << " Current version number: " << params->app_version();
+    } else if (new_version < current_version) {
+      install_plan_.powerwash_required = true;
+    }
+  }
 
   TEST_AND_RETURN(HasOutputPipe());
   if (HasOutputPipe())

@@ -430,10 +430,11 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   EXPECT_EQ(in.version, install_plan.version);
 }
 
-TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableVersionAndChannelTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.version = "a.b.c.d";
+  in.version = "1.0.0.0";
   in.packages.push_back({.payload_urls = {"https://MoreStableChannelTest"},
                          .size = 1,
                          .hash = kPayloadHashHex});
@@ -454,7 +455,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
 #endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_TRUE(params.ShouldPowerwash());
+  params.set_app_version("2.0.0.0");
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
@@ -462,10 +463,79 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   EXPECT_TRUE(install_plan.powerwash_required);
 }
 
-TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableVersionAndChannelPowerwashNotAllowedTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.version = "a.b.c.d";
+  in.version = "1.0.0.0";
+  in.packages.push_back({.payload_urls = {"https://MoreStableChannelTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("canary-channel");
+  // The |ImageProperties| in Android uses prefs to store
+  // |MutableImageProperties|.
+#ifdef __ANDROID__
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
+      .WillOnce(Return(true));
+#endif  // __ANDROID__
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("2.0.0.0");
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.powerwash_required);
+}
+
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableChannelButNewerVersionTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "12345.96.0.0";
+  in.packages.push_back({.payload_urls = {"https://ChannelDownVersionUp"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("beta-channel");
+  // The |ImageProperties| in Android uses prefs to store
+  // |MutableImageProperties|.
+#ifdef __ANDROID__
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
+      .WillOnce(Return(true));
+#endif  // __ANDROID__
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("12345.48.0.0");
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.powerwash_required);
+}
+
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToLessStableVersionAndChannelTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "2.0.0.0";
   in.packages.push_back({.payload_urls = {"https://LessStableChannelTest"},
                          .size = 15,
                          .hash = kPayloadHashHex});
@@ -486,7 +556,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
 #endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_FALSE(params.ShouldPowerwash());
+  params.set_app_version("1.0.0.0");
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
