@@ -28,6 +28,7 @@
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/optional.h>
 #include <base/rand_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
@@ -55,6 +56,7 @@
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
 
+using base::Optional;
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_manager::kRollforwardInfinity;
@@ -139,12 +141,9 @@ struct OmahaParserData {
     string manifest_version;
     map<string, string> action_postinstall_attrs;
     string updatecheck_status;
-    string cohort;
-    string cohorthint;
-    string cohortname;
-    bool cohort_set = false;
-    bool cohorthint_set = false;
-    bool cohortname_set = false;
+    Optional<string> cohort;
+    Optional<string> cohorthint;
+    Optional<string> cohortname;
 
     struct Package {
       string name;
@@ -180,21 +179,14 @@ void ParserHandlerStart(void* user_data,
 
   if (data->current_path == "/response/app") {
     OmahaParserData::App app;
-    if (attrs.find(kAttrAppId) != attrs.end()) {
+    if (attrs.find(kAttrAppId) != attrs.end())
       app.id = attrs[kAttrAppId];
-    }
-    if (attrs.find(kAttrCohort) != attrs.end()) {
-      app.cohort_set = true;
+    if (attrs.find(kAttrCohort) != attrs.end())
       app.cohort = attrs[kAttrCohort];
-    }
-    if (attrs.find(kAttrCohortHint) != attrs.end()) {
-      app.cohorthint_set = true;
+    if (attrs.find(kAttrCohortHint) != attrs.end())
       app.cohorthint = attrs[kAttrCohortHint];
-    }
-    if (attrs.find(kAttrCohortName) != attrs.end()) {
-      app.cohortname_set = true;
+    if (attrs.find(kAttrCohortName) != attrs.end())
       app.cohortname = attrs[kAttrCohortName];
-    }
     data->apps.push_back(std::move(app));
   } else if (data->current_path == "/response/app/updatecheck") {
     if (!data->apps.empty())
@@ -733,12 +725,12 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   // We persist the cohorts sent by omaha even if the status is "noupdate".
   for (const auto& app : parser_data->apps) {
     if (app.id == params_->GetAppId()) {
-      if (app.cohort_set)
-        PersistCohortData(kPrefsOmahaCohort, app.cohort);
-      if (app.cohorthint_set)
-        PersistCohortData(kPrefsOmahaCohortHint, app.cohorthint);
-      if (app.cohortname_set)
-        PersistCohortData(kPrefsOmahaCohortName, app.cohortname);
+      if (app.cohort)
+        PersistCohortData(kPrefsOmahaCohort, app.cohort.value());
+      if (app.cohorthint)
+        PersistCohortData(kPrefsOmahaCohortHint, app.cohorthint.value());
+      if (app.cohortname)
+        PersistCohortData(kPrefsOmahaCohortName, app.cohortname.value());
       break;
     }
   }
@@ -916,11 +908,13 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   }
 
   if (!successful) {
-    LOG(ERROR) << "Omaha request network transfer failed.";
     int code = GetHTTPResponseCode();
+    LOG(ERROR) << "Omaha request network transfer failed with HTTPResponseCode="
+               << code;
     // Makes sure we send sane error values.
     if (code < 0 || code >= 1000) {
       code = 999;
+      LOG(WARNING) << "Converting to sane HTTPResponseCode=" << code;
     }
     completer.set_code(static_cast<ErrorCode>(
         static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + code));
