@@ -556,7 +556,10 @@ std::optional<bool> DynamicPartitionControlAndroid::IsAvbEnabledInFstab(
     const std::string& path) {
   Fstab fstab;
   if (!ReadFstabFromFile(path, &fstab)) {
-    LOG(WARNING) << "Cannot read fstab from " << path;
+    PLOG(WARNING) << "Cannot read fstab from " << path;
+    if (errno == ENOENT) {
+      return false;
+    }
     return std::nullopt;
   }
   for (const auto& entry : fstab) {
