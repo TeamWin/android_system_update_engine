@@ -38,6 +38,7 @@ const char kLastCheckedTime[] = "LAST_CHECKED_TIME";
 const char kNewSize[] = "NEW_SIZE";
 const char kNewVersion[] = "NEW_VERSION";
 const char kProgress[] = "PROGRESS";
+const char kWillPowerwashAfterReboot[] = "WILL_POWERWASH_AFTER_REBOOT";
 
 }  // namespace
 
@@ -84,6 +85,8 @@ string UpdateEngineStatusToString(const UpdateEngineStatus& status) {
   key_value_store.SetBoolean(kIsEnterpriseRollback,
                              status.is_enterprise_rollback);
   key_value_store.SetBoolean(kIsInstall, status.is_install);
+  key_value_store.SetBoolean(kWillPowerwashAfterReboot,
+                             status.will_powerwash_after_reboot);
 
   return key_value_store.SaveToString();
 }

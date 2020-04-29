@@ -90,6 +90,8 @@ struct UpdateEngineStatus {
   bool is_install;
   // The end-of-life date of the device in the number of days since Unix Epoch.
   int64_t eol_date;
+  // The system will powerwash once the update is applied.
+  bool will_powerwash_after_reboot;
 };
 
 }  // namespace update_engine

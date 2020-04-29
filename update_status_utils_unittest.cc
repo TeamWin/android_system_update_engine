@@ -35,6 +35,7 @@ TEST(UpdateStatusUtilsTest, UpdateEngineStatusToStringTest) {
       .new_version = "12345.0.0",
       .is_enterprise_rollback = true,
       .is_install = true,
+      .will_powerwash_after_reboot = true,
   };
   string print =
       R"(CURRENT_OP=UPDATE_STATUS_CHECKING_FOR_UPDATE
@@ -44,6 +45,7 @@ LAST_CHECKED_TIME=156000000
 NEW_SIZE=888
 NEW_VERSION=12345.0.0
 PROGRESS=0.5
+WILL_POWERWASH_AFTER_REBOOT=true
 )";
   EXPECT_EQ(print, UpdateEngineStatusToString(update_engine_status));
 }

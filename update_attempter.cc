@@ -1507,6 +1507,12 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   system_state_->prefs()->GetString(kPrefsOmahaEolDate, &str_eol_date);
   out_status->eol_date = StringToEolDate(str_eol_date);
 
+  // A powerwash will take place either if the install plan says it is required
+  // or if an enterprise rollback is happening.
+  out_status->will_powerwash_after_reboot =
+      install_plan_ &&
+      (install_plan_->powerwash_required || install_plan_->is_rollback);
+
   return true;
 }
 

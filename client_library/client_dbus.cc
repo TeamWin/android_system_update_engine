@@ -56,6 +56,8 @@ void ConvertToUpdateEngineStatus(const StatusResult& status,
   out_status->is_enterprise_rollback = status.is_enterprise_rollback();
   out_status->is_install = status.is_install();
   out_status->eol_date = status.eol_date();
+  out_status->will_powerwash_after_reboot =
+      status.will_powerwash_after_reboot();
 }
 }  // namespace
 

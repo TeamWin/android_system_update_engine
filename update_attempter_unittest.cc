@@ -2317,6 +2317,30 @@ TEST_F(UpdateAttempterTest, IsEnterpriseRollbackInGetStatusTrue) {
   EXPECT_TRUE(status.is_enterprise_rollback);
 }
 
+TEST_F(UpdateAttempterTest, PowerwashInGetStatusDefault) {
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_FALSE(status.will_powerwash_after_reboot);
+}
+
+TEST_F(UpdateAttempterTest, PowerwashInGetStatusTrueBecausePowerwashRequired) {
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->powerwash_required = true;
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_TRUE(status.will_powerwash_after_reboot);
+}
+
+TEST_F(UpdateAttempterTest, PowerwashInGetStatusTrueBecauseRollback) {
+  attempter_.install_plan_.reset(new InstallPlan);
+  attempter_.install_plan_->is_rollback = true;
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_TRUE(status.will_powerwash_after_reboot);
+}
+
 TEST_F(UpdateAttempterTest, FutureEolTest) {
   EolDate eol_date = std::numeric_limits<int64_t>::max();
   EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
