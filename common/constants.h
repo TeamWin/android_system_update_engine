@@ -19,6 +19,9 @@
 
 namespace chromeos_update_engine {
 
+// The root path of all exclusion prefs.
+extern const char kExclusionPrefsSubDir[];
+
 // The root path of all DLC metadata.
 extern const char kDlcPrefsSubDir[];
 

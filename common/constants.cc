@@ -18,6 +18,8 @@
 
 namespace chromeos_update_engine {
 
+const char kExclusionPrefsSubDir[] = "exclusion";
+
 const char kDlcPrefsSubDir[] = "dlc";
 
 const char kPowerwashSafePrefsSubDirectory[] = "update_engine/prefs";
