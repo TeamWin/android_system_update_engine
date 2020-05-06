@@ -37,6 +37,7 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/cpu_limiter.h"
+#include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/proxy_resolver.h"
 #include "update_engine/omaha_request_builder_xml.h"
 #include "update_engine/omaha_request_params.h"
@@ -183,6 +184,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Called at update_engine startup to do various house-keeping.
   void UpdateEngineStarted();
+
+  // Returns the |Excluder| that is currently held onto.
+  virtual ExcluderInterface* GetExcluder() const { return excluder_.get(); }
 
   // Reloads the device policy from libbrillo. Note: This method doesn't
   // cause a real-time policy fetch from the policy server. It just reloads the
@@ -570,6 +574,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // This is the session ID used to track update flow to Omaha.
   std::string session_id_;
+
+  // Interface for excluder.
+  std::unique_ptr<ExcluderInterface> excluder_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

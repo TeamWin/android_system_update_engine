@@ -60,6 +60,8 @@ class MockUpdateAttempter : public UpdateAttempter {
 
   MOCK_METHOD2(SetDlcActiveValue, bool(bool, const std::string&));
 
+  MOCK_CONST_METHOD0(GetExcluder, ExcluderInterface*(void));
+
   MOCK_METHOD0(RefreshDevicePolicy, void(void));
 
   MOCK_CONST_METHOD0(consecutive_failed_update_checks, unsigned int(void));

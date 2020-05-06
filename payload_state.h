@@ -24,6 +24,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/metrics_constants.h"
 #include "update_engine/payload_state_interface.h"
@@ -428,6 +429,11 @@ class PayloadState : public PayloadStateInterface {
   // be set by calling the Initialize method before calling any other method.
   // This object persists across powerwashes.
   PrefsInterface* powerwash_safe_prefs_;
+
+  // Interface object with which we determine exclusion decisions for
+  // payloads/partitions during the update. This must be set by calling the
+  // Initialize method before calling any other method.
+  ExcluderInterface* excluder_;
 
   // This is the current response object from Omaha.
   OmahaResponse response_;

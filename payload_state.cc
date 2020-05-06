@@ -37,6 +37,7 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_attempter.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -60,6 +61,8 @@ static const uint64_t kUptimeResolution = 1;
 
 PayloadState::PayloadState()
     : prefs_(nullptr),
+      powerwash_safe_prefs_(nullptr),
+      excluder_(nullptr),
       using_p2p_for_downloading_(false),
       p2p_num_attempts_(0),
       payload_attempt_number_(0),
@@ -79,6 +82,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
   system_state_ = system_state;
   prefs_ = system_state_->prefs();
   powerwash_safe_prefs_ = system_state_->powerwash_safe_prefs();
+  excluder_ = system_state_->update_attempter()->GetExcluder();
   LoadResponseSignature();
   LoadPayloadAttemptNumber();
   LoadFullPayloadAttemptNumber();

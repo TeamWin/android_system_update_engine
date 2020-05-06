@@ -47,6 +47,7 @@
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/dlcservice_interface.h"
+#include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs.h"
@@ -1762,6 +1763,8 @@ void UpdateAttempter::UpdateEngineStarted() {
 
   system_state_->payload_state()->UpdateEngineStarted();
   StartP2PAtStartup();
+
+  excluder_ = CreateExcluder(system_state_->prefs());
 }
 
 bool UpdateAttempter::StartP2PAtStartup() {
