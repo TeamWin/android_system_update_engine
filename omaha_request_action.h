@@ -68,12 +68,12 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                            public HttpFetcherDelegate {
  public:
   static const int kPingTimeJump = -2;
-  // We choose this value of 10 as a heuristic for a work day in trying
+  // We choose this value of 3 as a heuristic for a work day in trying
   // each URL, assuming we check roughly every 45 mins. This is a good time to
-  // wait - neither too long nor too little - so we don't give up the preferred
-  // URLs that appear earlier in list too quickly before moving on to the
-  // fallback ones.
-  static const int kDefaultMaxFailureCountPerUrl = 10;
+  // wait so we don't give up the preferred URLs, but allow using the URL that
+  // appears earlier in list for every payload before resorting to the fallback
+  // URLs in the candiate URL list.
+  static const int kDefaultMaxFailureCountPerUrl = 3;
 
   // If staging is enabled, set the maximum wait time to 28 days, since that is
   // the predetermined wait time for staging.

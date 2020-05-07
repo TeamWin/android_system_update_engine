@@ -469,9 +469,7 @@ void PayloadState::IncrementFullPayloadAttemptNumber() {
 
 void PayloadState::IncrementUrlIndex() {
   size_t next_url_index = url_index_ + 1;
-  size_t max_url_size = 0;
-  for (const auto& urls : candidate_urls_)
-    max_url_size = std::max(max_url_size, urls.size());
+  size_t max_url_size = candidate_urls_[payload_index_].size();
   if (next_url_index < max_url_size) {
     LOG(INFO) << "Incrementing the URL index for next attempt";
     SetUrlIndex(next_url_index);
@@ -902,6 +900,7 @@ void PayloadState::SetPayloadIndex(size_t payload_index) {
 bool PayloadState::NextPayload() {
   if (payload_index_ + 1 >= candidate_urls_.size())
     return false;
+  SetUrlIndex(0);
   SetPayloadIndex(payload_index_ + 1);
   return true;
 }

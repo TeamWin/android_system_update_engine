@@ -1655,4 +1655,31 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   EXPECT_EQ(null_time, payload_state.GetP2PFirstAttemptTimestamp());
 }
 
+TEST(PayloadStateTest, NextPayloadResetsUrlIndex) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  OmahaResponse response;
+  response.packages.push_back(
+      {.payload_urls = {"http://test1a", "http://test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash"});
+  response.packages.push_back({.payload_urls = {"http://test1b"},
+                               .size = 123456789,
+                               .metadata_size = 58123,
+                               .metadata_signature = "msign",
+                               .hash = "hash"});
+  payload_state.SetResponse(response);
+
+  EXPECT_EQ(payload_state.GetCurrentUrl(), "http://test1a");
+  payload_state.IncrementUrlIndex();
+  EXPECT_EQ(payload_state.GetCurrentUrl(), "http://test2a");
+
+  EXPECT_TRUE(payload_state.NextPayload());
+  EXPECT_EQ(payload_state.GetCurrentUrl(), "http://test1b");
+}
+
 }  // namespace chromeos_update_engine

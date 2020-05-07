@@ -156,6 +156,7 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, RollbackHappened);
   FRIEND_TEST(PayloadStateTest, RollbackVersion);
   FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
+  FRIEND_TEST(PayloadStateTest, NextPayloadResetsUrlIndex);
 
   // Helper called when an attempt has begun, is called by
   // UpdateResumed(), UpdateRestarted() and Rollback().
