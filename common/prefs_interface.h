@@ -83,6 +83,10 @@ class PrefsInterface {
   // Creates a key which is part of a sub preference.
   static std::string CreateSubKey(const std::vector<std::string>& ns_with_key);
 
+  // Returns a list of keys within the namespace.
+  virtual bool GetSubKeys(const std::string& ns,
+                          std::vector<std::string>* keys) const = 0;
+
   // Add an observer to watch whenever the given |key| is modified. The
   // OnPrefSet() and OnPrefDelete() methods will be called whenever any of the
   // Set*() methods or the Delete() method are called on the given key,

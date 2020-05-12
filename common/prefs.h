@@ -42,6 +42,11 @@ class PrefsBase : public PrefsInterface {
     // Returns whether the operation succeeded.
     virtual bool GetKey(const std::string& key, std::string* value) const = 0;
 
+    // Get the keys stored within the namespace. If there are no keys in the
+    // namespace, |keys| will be empty. Returns whether the operation succeeded.
+    virtual bool GetSubKeys(const std::string& ns,
+                            std::vector<std::string>* keys) const = 0;
+
     // Set the value of the key named |key| to |value| regardless of the
     // previous value. Returns whether the operation succeeded.
     virtual bool SetKey(const std::string& key, const std::string& value) = 0;
@@ -69,6 +74,9 @@ class PrefsBase : public PrefsInterface {
 
   bool Exists(const std::string& key) const override;
   bool Delete(const std::string& key) override;
+
+  bool GetSubKeys(const std::string& ns,
+                  std::vector<std::string>* keys) const override;
 
   void AddObserver(const std::string& key,
                    ObserverInterface* observer) override;
@@ -111,6 +119,8 @@ class Prefs : public PrefsBase {
 
     // PrefsBase::StorageInterface overrides.
     bool GetKey(const std::string& key, std::string* value) const override;
+    bool GetSubKeys(const std::string& ns,
+                    std::vector<std::string>* keys) const override;
     bool SetKey(const std::string& key, const std::string& value) override;
     bool KeyExists(const std::string& key) const override;
     bool DeleteKey(const std::string& key) override;
@@ -149,6 +159,8 @@ class MemoryPrefs : public PrefsBase {
 
     // PrefsBase::StorageInterface overrides.
     bool GetKey(const std::string& key, std::string* value) const override;
+    bool GetSubKeys(const std::string& ns,
+                    std::vector<std::string>* keys) const override;
     bool SetKey(const std::string& key, const std::string& value) override;
     bool KeyExists(const std::string& key) const override;
     bool DeleteKey(const std::string& key) override;

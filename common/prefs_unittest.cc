@@ -20,6 +20,7 @@
 
 #include <limits>
 #include <string>
+#include <vector>
 
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
@@ -30,9 +31,11 @@
 #include <gtest/gtest.h>
 
 using std::string;
+using std::vector;
 using testing::_;
 using testing::ElementsAre;
 using testing::Eq;
+using testing::UnorderedElementsAre;
 
 namespace {
 // Test key used along the tests.
@@ -41,12 +44,92 @@ const char kKey[] = "test-key";
 
 namespace chromeos_update_engine {
 
-class PrefsTest : public ::testing::Test {
+class BasePrefsTest : public ::testing::Test {
+ protected:
+  void MultiNamespaceKeyTest() {
+    ASSERT_TRUE(common_prefs_);
+    auto key0 = common_prefs_->CreateSubKey({"ns1", "key"});
+    // Corner case for "ns1".
+    auto key0corner = common_prefs_->CreateSubKey({"ns11", "key"});
+    auto key1A = common_prefs_->CreateSubKey({"ns1", "nsA", "keyA"});
+    auto key1B = common_prefs_->CreateSubKey({"ns1", "nsA", "keyB"});
+    auto key2 = common_prefs_->CreateSubKey({"ns1", "nsB", "key"});
+    // Corner case for "ns1/nsB".
+    auto key2corner = common_prefs_->CreateSubKey({"ns1", "nsB1", "key"});
+    EXPECT_FALSE(common_prefs_->Exists(key0));
+    EXPECT_FALSE(common_prefs_->Exists(key1A));
+    EXPECT_FALSE(common_prefs_->Exists(key1B));
+    EXPECT_FALSE(common_prefs_->Exists(key2));
+
+    EXPECT_TRUE(common_prefs_->SetString(key0, ""));
+    EXPECT_TRUE(common_prefs_->SetString(key0corner, ""));
+    EXPECT_TRUE(common_prefs_->SetString(key1A, ""));
+    EXPECT_TRUE(common_prefs_->SetString(key1B, ""));
+    EXPECT_TRUE(common_prefs_->SetString(key2, ""));
+    EXPECT_TRUE(common_prefs_->SetString(key2corner, ""));
+
+    EXPECT_TRUE(common_prefs_->Exists(key0));
+    EXPECT_TRUE(common_prefs_->Exists(key0corner));
+    EXPECT_TRUE(common_prefs_->Exists(key1A));
+    EXPECT_TRUE(common_prefs_->Exists(key1B));
+    EXPECT_TRUE(common_prefs_->Exists(key2));
+    EXPECT_TRUE(common_prefs_->Exists(key2corner));
+
+    vector<string> keys2;
+    EXPECT_TRUE(common_prefs_->GetSubKeys("ns1/nsB/", &keys2));
+    EXPECT_THAT(keys2, ElementsAre(key2));
+    for (const auto& key : keys2)
+      EXPECT_TRUE(common_prefs_->Delete(key));
+    EXPECT_TRUE(common_prefs_->Exists(key0));
+    EXPECT_TRUE(common_prefs_->Exists(key0corner));
+    EXPECT_TRUE(common_prefs_->Exists(key1A));
+    EXPECT_TRUE(common_prefs_->Exists(key1B));
+    EXPECT_FALSE(common_prefs_->Exists(key2));
+    EXPECT_TRUE(common_prefs_->Exists(key2corner));
+
+    vector<string> keys2corner;
+    EXPECT_TRUE(common_prefs_->GetSubKeys("ns1/nsB", &keys2corner));
+    EXPECT_THAT(keys2corner, ElementsAre(key2corner));
+    for (const auto& key : keys2corner)
+      EXPECT_TRUE(common_prefs_->Delete(key));
+    EXPECT_FALSE(common_prefs_->Exists(key2corner));
+
+    vector<string> keys1;
+    EXPECT_TRUE(common_prefs_->GetSubKeys("ns1/nsA/", &keys1));
+    EXPECT_THAT(keys1, UnorderedElementsAre(key1A, key1B));
+    for (const auto& key : keys1)
+      EXPECT_TRUE(common_prefs_->Delete(key));
+    EXPECT_TRUE(common_prefs_->Exists(key0));
+    EXPECT_TRUE(common_prefs_->Exists(key0corner));
+    EXPECT_FALSE(common_prefs_->Exists(key1A));
+    EXPECT_FALSE(common_prefs_->Exists(key1B));
+
+    vector<string> keys0;
+    EXPECT_TRUE(common_prefs_->GetSubKeys("ns1/", &keys0));
+    EXPECT_THAT(keys0, ElementsAre(key0));
+    for (const auto& key : keys0)
+      EXPECT_TRUE(common_prefs_->Delete(key));
+    EXPECT_FALSE(common_prefs_->Exists(key0));
+    EXPECT_TRUE(common_prefs_->Exists(key0corner));
+
+    vector<string> keys0corner;
+    EXPECT_TRUE(common_prefs_->GetSubKeys("ns1", &keys0corner));
+    EXPECT_THAT(keys0corner, ElementsAre(key0corner));
+    for (const auto& key : keys0corner)
+      EXPECT_TRUE(common_prefs_->Delete(key));
+    EXPECT_FALSE(common_prefs_->Exists(key0corner));
+  }
+
+  PrefsInterface* common_prefs_;
+};
+
+class PrefsTest : public BasePrefsTest {
  protected:
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     prefs_dir_ = temp_dir_.GetPath();
     ASSERT_TRUE(prefs_.Init(prefs_dir_));
+    common_prefs_ = &prefs_;
   }
 
   bool SetValue(const string& key, const string& value) {
@@ -415,8 +498,14 @@ TEST_F(PrefsTest, UnsuccessfulCallsNotObserved) {
   prefs_.RemoveObserver(kInvalidKey, &mock_obserser);
 }
 
-class MemoryPrefsTest : public ::testing::Test {
+TEST_F(PrefsTest, MultiNamespaceKeyTest) {
+  MultiNamespaceKeyTest();
+}
+
+class MemoryPrefsTest : public BasePrefsTest {
  protected:
+  void SetUp() override { common_prefs_ = &prefs_; }
+
   MemoryPrefs prefs_;
 };
 
@@ -438,6 +527,10 @@ TEST_F(MemoryPrefsTest, BasicTest) {
   ASSERT_TRUE(prefs_.SetInt64(key, 0));
   EXPECT_TRUE(prefs_.Exists(key));
   EXPECT_TRUE(prefs_.Delete(kKey));
+}
+
+TEST_F(MemoryPrefsTest, MultiNamespaceKeyTest) {
+  MultiNamespaceKeyTest();
 }
 
 }  // namespace chromeos_update_engine

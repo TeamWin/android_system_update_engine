@@ -32,9 +32,9 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-const char kKeySeparator = '/';
-
 namespace {
+
+const char kKeySeparator = '/';
 
 void DeleteEmptyDirectories(const base::FilePath& path) {
   base::FileEnumerator path_enum(
@@ -112,6 +112,10 @@ bool PrefsBase::Delete(const string& key) {
   return true;
 }
 
+bool PrefsBase::GetSubKeys(const string& ns, vector<string>* keys) const {
+  return storage_->GetSubKeys(ns, keys);
+}
+
 void PrefsBase::AddObserver(const string& key, ObserverInterface* observer) {
   observers_[key].push_back(observer);
 }
@@ -150,6 +154,24 @@ bool Prefs::FileStorage::GetKey(const string& key, string* value) const {
   return true;
 }
 
+bool Prefs::FileStorage::GetSubKeys(const string& ns,
+                                    vector<string>* keys) const {
+  base::FilePath filename;
+  TEST_AND_RETURN_FALSE(GetFileNameForKey(ns, &filename));
+  base::FileEnumerator namespace_enum(
+      prefs_dir_, true, base::FileEnumerator::FILES);
+  for (base::FilePath f = namespace_enum.Next(); !f.empty();
+       f = namespace_enum.Next()) {
+    auto filename_str = filename.value();
+    if (f.value().compare(0, filename_str.length(), filename_str) == 0) {
+      // Only return the key portion excluding the |prefs_dir_| with slash.
+      keys->push_back(f.value().substr(
+          prefs_dir_.AsEndingWithSeparator().value().length()));
+    }
+  }
+  return true;
+}
+
 bool Prefs::FileStorage::SetKey(const string& key, const string& value) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
@@ -172,19 +194,17 @@ bool Prefs::FileStorage::KeyExists(const string& key) const {
 bool Prefs::FileStorage::DeleteKey(const string& key) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  TEST_AND_RETURN_FALSE(base::DeleteFile(filename, true));
+  TEST_AND_RETURN_FALSE(base::DeleteFile(filename, false));
   return true;
 }
 
 bool Prefs::FileStorage::GetFileNameForKey(const string& key,
                                            base::FilePath* filename) const {
-  // Allows only non-empty keys containing [A-Za-z0-9_-].
+  // Allows only non-empty keys containing [A-Za-z0-9_-/].
   TEST_AND_RETURN_FALSE(!key.empty());
-  for (size_t i = 0; i < key.size(); ++i) {
-    char c = key.at(i);
+  for (char c : key)
     TEST_AND_RETURN_FALSE(base::IsAsciiAlpha(c) || base::IsAsciiDigit(c) ||
                           c == '_' || c == '-' || c == kKeySeparator);
-  }
   *filename = prefs_dir_.Append(key);
   return true;
 }
@@ -197,6 +217,24 @@ bool MemoryPrefs::MemoryStorage::GetKey(const string& key,
   if (it == values_.end())
     return false;
   *value = it->second;
+  return true;
+}
+
+bool MemoryPrefs::MemoryStorage::GetSubKeys(const string& ns,
+                                            vector<string>* keys) const {
+  using value_type = decltype(values_)::value_type;
+  using key_type = decltype(values_)::key_type;
+  auto lower_comp = [](const value_type& pr, const key_type& ns) {
+    return pr.first.substr(0, ns.length()) < ns;
+  };
+  auto upper_comp = [](const key_type& ns, const value_type& pr) {
+    return ns < pr.first.substr(0, ns.length());
+  };
+  auto lower_it =
+      std::lower_bound(begin(values_), end(values_), ns, lower_comp);
+  auto upper_it = std::upper_bound(lower_it, end(values_), ns, upper_comp);
+  while (lower_it != upper_it)
+    keys->push_back((lower_it++)->first);
   return true;
 }
 
