@@ -28,10 +28,26 @@
 #include "update_engine/common/utils.h"
 
 using std::string;
+using std::vector;
 
 namespace chromeos_update_engine {
 
 const char kKeySeparator = '/';
+
+namespace {
+
+void DeleteEmptyDirectories(const base::FilePath& path) {
+  base::FileEnumerator path_enum(
+      path, false /* recursive */, base::FileEnumerator::DIRECTORIES);
+  for (base::FilePath dir_path = path_enum.Next(); !dir_path.empty();
+       dir_path = path_enum.Next()) {
+    DeleteEmptyDirectories(dir_path);
+    if (base::IsDirectoryEmpty(dir_path))
+      base::DeleteFile(dir_path, false);
+  }
+}
+
+}  // namespace
 
 bool PrefsBase::GetString(const string& key, string* value) const {
   return storage_->GetKey(key, value);
@@ -108,11 +124,8 @@ void PrefsBase::RemoveObserver(const string& key, ObserverInterface* observer) {
     observers_for_key.erase(observer_it);
 }
 
-string PrefsInterface::CreateSubKey(const string& name_space,
-                                    const string& sub_pref,
-                                    const string& key) {
-  return base::JoinString({name_space, sub_pref, key},
-                          string(1, kKeySeparator));
+string PrefsInterface::CreateSubKey(const vector<string>& ns_and_key) {
+  return base::JoinString(ns_and_key, string(1, kKeySeparator));
 }
 
 // Prefs
@@ -124,23 +137,7 @@ bool Prefs::Init(const base::FilePath& prefs_dir) {
 bool Prefs::FileStorage::Init(const base::FilePath& prefs_dir) {
   prefs_dir_ = prefs_dir;
   // Delete empty directories. Ignore errors when deleting empty directories.
-  base::FileEnumerator namespace_enum(
-      prefs_dir_, false /* recursive */, base::FileEnumerator::DIRECTORIES);
-  for (base::FilePath namespace_path = namespace_enum.Next();
-       !namespace_path.empty();
-       namespace_path = namespace_enum.Next()) {
-    base::FileEnumerator sub_pref_enum(namespace_path,
-                                       false /* recursive */,
-                                       base::FileEnumerator::DIRECTORIES);
-    for (base::FilePath sub_pref_path = sub_pref_enum.Next();
-         !sub_pref_path.empty();
-         sub_pref_path = sub_pref_enum.Next()) {
-      if (base::IsDirectoryEmpty(sub_pref_path))
-        base::DeleteFile(sub_pref_path, false);
-    }
-    if (base::IsDirectoryEmpty(namespace_path))
-      base::DeleteFile(namespace_path, false);
-  }
+  DeleteEmptyDirectories(prefs_dir_);
   return true;
 }
 

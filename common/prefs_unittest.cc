@@ -62,17 +62,27 @@ class PrefsTest : public ::testing::Test {
 
 TEST(Prefs, Init) {
   Prefs prefs;
-  const string name_space = "ns";
+  const string ns1 = "ns1";
+  const string ns2A = "ns2A";
+  const string ns2B = "ns2B";
   const string sub_pref = "sp";
 
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  base::FilePath namespace_path = temp_dir.GetPath().Append(name_space);
+  auto ns1_path = temp_dir.GetPath().Append(ns1);
+  auto ns2A_path = ns1_path.Append(ns2A);
+  auto ns2B_path = ns1_path.Append(ns2B);
+  auto sub_pref_path = ns2A_path.Append(sub_pref);
 
-  EXPECT_TRUE(base::CreateDirectory(namespace_path.Append(sub_pref)));
-  EXPECT_TRUE(base::PathExists(namespace_path.Append(sub_pref)));
+  EXPECT_TRUE(base::CreateDirectory(ns2B_path));
+  EXPECT_TRUE(base::PathExists(ns2B_path));
+
+  EXPECT_TRUE(base::CreateDirectory(sub_pref_path));
+  EXPECT_TRUE(base::PathExists(sub_pref_path));
+
+  EXPECT_TRUE(base::PathExists(ns1_path));
   ASSERT_TRUE(prefs.Init(temp_dir.GetPath()));
-  EXPECT_FALSE(base::PathExists(namespace_path));
+  EXPECT_FALSE(base::PathExists(ns1_path));
 }
 
 TEST_F(PrefsTest, GetFileNameForKey) {
@@ -99,9 +109,9 @@ TEST_F(PrefsTest, CreateSubKey) {
   const string sub_pref2 = "sp2";
   const string sub_key = "sk";
 
-  EXPECT_EQ(PrefsInterface::CreateSubKey(name_space, sub_pref1, sub_key),
+  EXPECT_EQ(PrefsInterface::CreateSubKey({name_space, sub_pref1, sub_key}),
             "ns/sp1/sk");
-  EXPECT_EQ(PrefsInterface::CreateSubKey(name_space, sub_pref2, sub_key),
+  EXPECT_EQ(PrefsInterface::CreateSubKey({name_space, sub_pref2, sub_key}),
             "ns/sp2/sk");
 }
 
@@ -312,8 +322,8 @@ TEST_F(PrefsTest, SetDeleteSubKey) {
   const string sub_pref = "sp";
   const string sub_key1 = "sk1";
   const string sub_key2 = "sk2";
-  auto key1 = prefs_.CreateSubKey(name_space, sub_pref, sub_key1);
-  auto key2 = prefs_.CreateSubKey(name_space, sub_pref, sub_key2);
+  auto key1 = prefs_.CreateSubKey({name_space, sub_pref, sub_key1});
+  auto key2 = prefs_.CreateSubKey({name_space, sub_pref, sub_key2});
   base::FilePath sub_pref_path = prefs_dir_.Append(name_space).Append(sub_pref);
 
   ASSERT_TRUE(prefs_.SetInt64(key1, 0));
@@ -350,7 +360,7 @@ TEST_F(PrefsTest, ObserversCalled) {
   prefs_.Delete(kKey);
   testing::Mock::VerifyAndClearExpectations(&mock_obserser);
 
-  auto key1 = prefs_.CreateSubKey("ns", "sp1", "key1");
+  auto key1 = prefs_.CreateSubKey({"ns", "sp1", "key1"});
   prefs_.AddObserver(key1, &mock_obserser);
 
   EXPECT_CALL(mock_obserser, OnPrefSet(key1));
@@ -424,7 +434,7 @@ TEST_F(MemoryPrefsTest, BasicTest) {
   EXPECT_FALSE(prefs_.Exists(kKey));
   EXPECT_TRUE(prefs_.Delete(kKey));
 
-  auto key = prefs_.CreateSubKey("ns", "sp", "sk");
+  auto key = prefs_.CreateSubKey({"ns", "sp", "sk"});
   ASSERT_TRUE(prefs_.SetInt64(key, 0));
   EXPECT_TRUE(prefs_.Exists(key));
   EXPECT_TRUE(prefs_.Delete(kKey));

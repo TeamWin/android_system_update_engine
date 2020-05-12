@@ -20,6 +20,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <vector>
 
 namespace chromeos_update_engine {
 
@@ -80,9 +81,7 @@ class PrefsInterface {
   virtual bool Delete(const std::string& key) = 0;
 
   // Creates a key which is part of a sub preference.
-  static std::string CreateSubKey(const std::string& name_space,
-                                  const std::string& sub_pref,
-                                  const std::string& key);
+  static std::string CreateSubKey(const std::vector<std::string>& ns_with_key);
 
   // Add an observer to watch whenever the given |key| is modified. The
   // OnPrefSet() and OnPrefDelete() methods will be called whenever any of the

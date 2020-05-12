@@ -421,13 +421,13 @@ void OmahaRequestAction::StorePingReply(
     PrefsInterface* prefs = system_state_->prefs();
     // Reset the active metadata value to |kPingInactiveValue|.
     auto active_key =
-        prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
     if (!prefs->SetInt64(active_key, kPingInactiveValue))
       LOG(ERROR) << "Failed to set the value of ping metadata '" << active_key
                  << "'.";
 
     auto last_rollcall_key =
-        prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
     if (!prefs->SetString(last_rollcall_key, parser_data.daystart_elapsed_days))
       LOG(ERROR) << "Failed to set the value of ping metadata '"
                  << last_rollcall_key << "'.";
@@ -436,7 +436,7 @@ void OmahaRequestAction::StorePingReply(
       // Write the value of elapsed_days into |kPrefsPingLastActive| only if
       // the previous ping was an active one.
       auto last_active_key =
-          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
       if (!prefs->SetString(last_active_key, parser_data.daystart_elapsed_days))
         LOG(ERROR) << "Failed to set the value of ping metadata '"
                    << last_active_key << "'.";

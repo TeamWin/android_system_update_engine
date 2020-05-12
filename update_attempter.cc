@@ -663,7 +663,7 @@ bool UpdateAttempter::ResetDlcPrefs(const string& dlc_id) {
   PrefsInterface* prefs = system_state_->prefs();
   for (auto& sub_key :
        {kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall}) {
-    auto key = prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, sub_key);
+    auto key = prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
     if (!prefs->Delete(key))
       failures.emplace_back(sub_key);
   }
@@ -684,7 +684,7 @@ bool UpdateAttempter::SetDlcActiveValue(bool is_active, const string& dlc_id) {
   PrefsInterface* prefs = system_state_->prefs();
   if (is_active) {
     auto ping_active_key =
-        prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
     if (!prefs->SetInt64(ping_active_key, kPingActiveValue)) {
       LOG(ERROR) << "Failed to set the value of ping metadata '"
                  << kPrefsPingActive << "'.";
@@ -740,17 +740,17 @@ void UpdateAttempter::CalculateDlcParams() {
       // install or might not really be active yet.
       dlc_params.ping_active = kPingActiveValue;
       auto ping_active_key =
-          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
       if (!prefs->GetInt64(ping_active_key, &dlc_params.ping_active) ||
           dlc_params.ping_active != kPingActiveValue) {
         dlc_params.ping_active = kPingInactiveValue;
       }
       auto ping_last_active_key =
-          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
       dlc_params.ping_date_last_active = GetPingMetadata(ping_last_active_key);
 
-      auto ping_last_rollcall_key =
-          prefs->CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+      auto ping_last_rollcall_key = prefs->CreateSubKey(
+          {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
       dlc_params.ping_date_last_rollcall =
           GetPingMetadata(ping_last_rollcall_key);
 

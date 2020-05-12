@@ -2390,10 +2390,10 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
   // When the DLC gets installed, a ping is not sent, therefore we don't store
   // the values sent by Omaha.
   auto last_active_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
   EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_active_key));
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
   EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_rollcall_key));
 }
 
@@ -2430,11 +2430,11 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
 
   // Write non numeric values in the metadata files.
   auto active_key =
-      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+      PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
   auto last_active_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
   fake_system_state_.prefs()->SetString(active_key, "z2yz");
   fake_system_state_.prefs()->SetString(last_active_key, "z2yz");
   fake_system_state_.prefs()->SetString(last_rollcall_key, "z2yz");
@@ -2463,11 +2463,11 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
 
   // Write numeric values in the metadata files.
   auto active_key =
-      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+      PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
   auto last_active_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
 
   fake_system_state_.prefs()->SetInt64(active_key, 1);
   fake_system_state_.prefs()->SetInt64(last_active_key, 78);
@@ -2492,11 +2492,11 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata) {
   FakePrefs fake_prefs;
   fake_system_state_.set_prefs(&fake_prefs);
   auto active_key =
-      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+      PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
   auto last_active_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
-      kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall);
+      {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
   fake_system_state_.prefs()->SetInt64(active_key, kPingInactiveValue);
   fake_system_state_.prefs()->SetInt64(last_active_key, 0);
   fake_system_state_.prefs()->SetInt64(last_rollcall_key, 0);
@@ -2524,7 +2524,7 @@ TEST_F(UpdateAttempterTest, SetDlcActiveValue) {
   attempter_.SetDlcActiveValue(true, dlc_id);
   int64_t temp_int;
   auto active_key =
-      PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, kPrefsPingActive);
+      PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
   EXPECT_TRUE(fake_system_state_.prefs()->Exists(active_key));
   EXPECT_TRUE(fake_system_state_.prefs()->GetInt64(active_key, &temp_int));
   EXPECT_EQ(temp_int, kPingActiveValue);
@@ -2537,13 +2537,13 @@ TEST_F(UpdateAttempterTest, SetDlcInactive) {
   auto sub_keys = {
       kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall};
   for (auto& sub_key : sub_keys) {
-    auto key = PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, sub_key);
+    auto key = PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
     fake_system_state_.prefs()->SetInt64(key, 1);
     EXPECT_TRUE(fake_system_state_.prefs()->Exists(key));
   }
   attempter_.SetDlcActiveValue(false, dlc_id);
   for (auto& sub_key : sub_keys) {
-    auto key = PrefsInterface::CreateSubKey(kDlcPrefsSubDir, dlc_id, sub_key);
+    auto key = PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
     EXPECT_FALSE(fake_system_state_.prefs()->Exists(key));
   }
 }

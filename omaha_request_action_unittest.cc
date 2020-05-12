@@ -453,11 +453,11 @@ class OmahaRequestActionDlcPingTest : public OmahaRequestActionTest {
     OmahaRequestActionTest::SetUp();
     dlc_id_ = "dlc0";
     active_key_ = PrefsInterface::CreateSubKey(
-        kDlcPrefsSubDir, dlc_id_, kPrefsPingActive);
+        {kDlcPrefsSubDir, dlc_id_, kPrefsPingActive});
     last_active_key_ = PrefsInterface::CreateSubKey(
-        kDlcPrefsSubDir, dlc_id_, kPrefsPingLastActive);
+        {kDlcPrefsSubDir, dlc_id_, kPrefsPingLastActive});
     last_rollcall_key_ = PrefsInterface::CreateSubKey(
-        kDlcPrefsSubDir, dlc_id_, kPrefsPingLastRollcall);
+        {kDlcPrefsSubDir, dlc_id_, kPrefsPingLastRollcall});
 
     tuc_params_.http_response =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
