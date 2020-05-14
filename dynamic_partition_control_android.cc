@@ -656,6 +656,13 @@ bool DynamicPartitionControlAndroid::GetSystemOtherPath(
     return true;
   }
 
+  if (p->size() < AVB_FOOTER_SIZE) {
+    LOG(INFO) << partition_name_suffix << " has length " << p->size()
+              << "( < AVB_FOOTER_SIZE " << AVB_FOOTER_SIZE
+              << "), skip erasing.";
+    return true;
+  }
+
   // Delete any pre-existing device with name |partition_name_suffix| and
   // also remove it from |mapped_devices_|.
   // In recovery, metadata might not be mounted, and
