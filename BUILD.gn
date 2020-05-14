@@ -170,6 +170,10 @@ static_library("libpayload_consumer") {
     "rt",
   ]
 
+  # TODO(crbug.com/1082873): Remove after fixing usage of deprecated
+  # declarations.
+  cflags_cc = [ "-Wno-error=deprecated-declarations" ]
+
   # TODO(deymo): Remove unused dependencies once we stop including files
   # from the root directory.
   all_dependent_pkg_deps = [
@@ -358,6 +362,10 @@ static_library("libpayload_generator") {
     ":libpayload_consumer",
     ":update_metadata-protos",
   ]
+
+  # TODO(crbug.com/1082873): Remove after fixing usage of deprecated
+  # declarations.
+  cflags_cc = [ "-Wno-error=deprecated-declarations" ]
 }
 
 # server-side delta generator.
