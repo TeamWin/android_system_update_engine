@@ -32,7 +32,7 @@
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
 #include "update_engine/common/constants.h"
-#include "update_engine/common/dlcservice.h"
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/metrics_reporter_omaha.h"

@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_COMMON_DLCSERVICE_INTERFACE_H_
 #define UPDATE_ENGINE_COMMON_DLCSERVICE_INTERFACE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -48,6 +49,10 @@ class DlcServiceInterface {
  private:
   DISALLOW_COPY_AND_ASSIGN(DlcServiceInterface);
 };
+
+// This factory function creates a new DlcServiceInterface instance for the
+// current platform.
+std::unique_ptr<DlcServiceInterface> CreateDlcService();
 
 }  // namespace chromeos_update_engine
 
