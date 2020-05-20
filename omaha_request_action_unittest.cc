@@ -156,7 +156,7 @@ struct FakeUpdateResponse {
            version +
            "\">"
            "<packages><package hash=\"not-used\" name=\"" +
-           filename + "\" size=\"" + base::Int64ToString(size) +
+           filename + "\" size=\"" + base::NumberToString(size) +
            "\" hash_sha256=\"" + hash + "\"/>" +
            (multi_package ? "<package name=\"package2\" size=\"222\" "
                             "hash_sha256=\"hash2\"/>"
