@@ -200,7 +200,8 @@ bool SquashfsFilesystem::Init(const string& map,
   // If there is any overlap between two consecutive extents, remove them. Here
   // we are assuming all files have exactly one extent. If this assumption
   // changes then this implementation needs to change too.
-  for (auto first = files_.begin(), second = first + 1;
+  for (auto first = files_.begin(),
+            second = first + (first == files_.end() ? 0 : 1);
        first != files_.end() && second != files_.end();
        second = first + 1) {
     auto first_begin = first->extents[0].start_block();
