@@ -32,7 +32,7 @@
 #include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <brillo/process.h>
+#include <brillo/process/process.h>
 #include <brillo/secure_blob.h>
 
 #include "update_engine/common/utils.h"

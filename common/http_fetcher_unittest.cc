@@ -37,7 +37,7 @@
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
-#include <brillo/process.h>
+#include <brillo/process/process.h>
 #include <brillo/streams/file_stream.h>
 #include <brillo/streams/stream.h>
 #include <gtest/gtest.h>
