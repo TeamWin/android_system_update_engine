@@ -182,7 +182,7 @@ static_library("libpayload_consumer") {
     "libpuffpatch",
     "xz-embedded",
   ]
-  deps = [ ":update_metadata-protos" ]
+  public_deps = [ ":update_metadata-protos" ]
 }
 
 # The main daemon static_library with all the code used to check for updates
