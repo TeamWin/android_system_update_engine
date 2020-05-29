@@ -119,6 +119,22 @@ TEST_F(UmRealSystemProviderTest,
       std::string(kRequiredPlatformVersion),
       provider_->var_kiosk_required_platform_version());
 }
+
+TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionRepeatedFailure) {
+  // Simulate unreadable platform version. The variable should return a
+  // null pointer |kRetryPollVariableMaxRetry| times and then return an empty
+  // string to indicate that it gave up.
+  constexpr int kNumMethodCalls = 5;
+  EXPECT_CALL(*kiosk_app_proxy_mock_, GetRequiredPlatformVersion)
+      .Times(kNumMethodCalls + 1)
+      .WillRepeatedly(Return(false));
+  for (int i = 0; i < kNumMethodCalls; ++i) {
+    UmTestUtils::ExpectVariableNotSet(
+        provider_->var_kiosk_required_platform_version());
+  }
+  UmTestUtils::ExpectVariableHasValue(
+      std::string(""), provider_->var_kiosk_required_platform_version());
+}
 #else
 TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
   UmTestUtils::ExpectVariableHasValue(

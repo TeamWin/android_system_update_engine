@@ -64,9 +64,10 @@ class RetryPollVariable : public Variable<T> {
     std::unique_ptr<T> result(new T());
     if (!func_.Run(result.get())) {
       if (failed_attempts_ >= kRetryPollVariableMaxRetry) {
-        // Give up on the retries, set back the desired polling interval and
-        // return the default.
+        // Give up on the retries and set back the desired polling interval.
         this->SetPollInterval(base_interval_);
+        // Release the result instead of returning a |nullptr| to indicate that
+        // the result could not be fetched.
         return result.release();
       }
       this->SetPollInterval(
