@@ -343,7 +343,9 @@ void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
     return;
   }
 
-  if (snapshot_->InitiateMerge()) {
+  uint64_t cow_file_size;
+  if (snapshot_->InitiateMerge(&cow_file_size)) {
+    merge_stats_->set_cow_file_size(cow_file_size);
     WaitForMergeOrSchedule();
     return;
   }
@@ -399,14 +401,22 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
 
   auto passed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
       result->merge_time());
+
+  bool vab_retrofit = boot_control_->GetDynamicPartitionControl()
+                          ->GetVirtualAbFeatureFlag()
+                          .IsRetrofit();
+
   LOG(INFO) << "Reporting merge stats: "
             << android::snapshot::UpdateState_Name(report.state()) << " in "
             << passed_ms.count() << "ms (resumed " << report.resume_count()
-            << " times)";
+            << " times), using " << report.cow_file_size()
+            << " bytes of COW image.";
   android::util::stats_write(android::util::SNAPSHOT_MERGE_REPORTED,
                              static_cast<int32_t>(report.state()),
                              static_cast<int64_t>(passed_ms.count()),
-                             static_cast<int32_t>(report.resume_count()));
+                             static_cast<int32_t>(report.resume_count()),
+                             vab_retrofit,
+                             static_cast<int64_t>(report.cow_file_size()));
 #endif
 }
 
