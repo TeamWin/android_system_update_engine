@@ -312,6 +312,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kUnsupportedMinorPayloadVersion:
     case ErrorCode::kPayloadTimestampError:
     case ErrorCode::kVerityCalculationError:
+      ExcludeCurrentPayload();
       IncrementUrlIndex();
       break;
 
@@ -502,8 +503,27 @@ void PayloadState::IncrementFailureCount() {
   } else {
     LOG(INFO) << "Reached max number of failures for Url" << GetUrlIndex()
               << ". Trying next available URL";
+    ExcludeCurrentPayload();
     IncrementUrlIndex();
   }
+}
+
+void PayloadState::ExcludeCurrentPayload() {
+  const auto& package = response_.packages[payload_index_];
+  if (!package.can_exclude) {
+    LOG(INFO) << "Not excluding as marked non-excludable for package hash="
+              << package.hash;
+    return;
+  }
+  auto exclusion_name = utils::GetExclusionName(GetCurrentUrl());
+  if (!excluder_->Exclude(exclusion_name))
+    LOG(WARNING) << "Failed to exclude "
+                 << " Package Hash=" << package.hash
+                 << " CurrentUrl=" << GetCurrentUrl();
+  else
+    LOG(INFO) << "Excluded "
+              << " Package Hash=" << package.hash
+              << " CurrentUrl=" << GetCurrentUrl();
 }
 
 void PayloadState::UpdateBackoffExpiryTime() {

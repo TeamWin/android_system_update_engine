@@ -959,6 +959,10 @@ void ParseRollbackKeyVersion(const string& raw_version,
   }
 }
 
+string GetExclusionName(const string& str_to_convert) {
+  return base::NumberToString(base::StringPieceHash()(str_to_convert));
+}
+
 }  // namespace utils
 
 }  // namespace chromeos_update_engine

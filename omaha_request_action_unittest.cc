@@ -44,6 +44,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/mock_excluder.h"
 #include "update_engine/common/mock_http_fetcher.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs.h"
@@ -75,6 +76,7 @@ using testing::ReturnPointee;
 using testing::ReturnRef;
 using testing::SaveArg;
 using testing::SetArgPointee;
+using testing::StrictMock;
 
 namespace {
 
@@ -204,7 +206,8 @@ struct FakeUpdateResponse {
                 ? "<app appid=\"" + request_params.GetDlcAppId(kDlcId1) +
                       "\" status=\"ok\">"
                       "<updatecheck status=\"ok\"><urls><url codebase=\"" +
-                      codebase + "\"/></urls><manifest version=\"" + version +
+                      codebase + "\"/><url codebase=\"" + codebase2 +
+                      "\"/></urls><manifest version=\"" + version +
                       "\"><packages><package name=\"package3\" size=\"333\" "
                       "hash_sha256=\"hash3\"/></packages><actions>"
                       "<action event=\"install\" run=\".signed\"/>"
@@ -389,6 +392,9 @@ class OmahaRequestActionTest : public ::testing::Test {
         .expected_check_reaction = metrics::CheckReaction::kUpdating,
         .expected_download_error_code = metrics::DownloadErrorCode::kUnset,
     };
+
+    ON_CALL(*fake_system_state_.mock_update_attempter(), GetExcluder())
+        .WillByDefault(Return(&mock_excluder_));
   }
 
   // This function uses the parameters in |tuc_params_| to do an update check.
@@ -429,6 +435,7 @@ class OmahaRequestActionTest : public ::testing::Test {
                bool expected_allow_p2p_for_sharing,
                const string& expected_p2p_url);
 
+  StrictMock<MockExcluder> mock_excluder_;
   FakeSystemState fake_system_state_;
   FakeUpdateResponse fake_update_response_;
   // Used by all tests.
@@ -2759,8 +2766,44 @@ TEST_F(OmahaRequestActionTest, UpdateWithDlcTest) {
       {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
   fake_update_response_.dlc_app_update = true;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
+  EXPECT_EQ(response.packages.size(), 2u);
+  // Two candidate URLs.
+  EXPECT_EQ(response.packages[1].payload_urls.size(), 2u);
+  EXPECT_TRUE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, UpdateWithPartiallyExcludedDlcTest) {
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  fake_update_response_.dlc_app_update = true;
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  // The first DLC candidate URL is excluded.
+  EXPECT_CALL(mock_excluder_, IsExcluded(_))
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_EQ(response.packages.size(), 2u);
+  // One candidate URL.
+  EXPECT_EQ(response.packages[1].payload_urls.size(), 1u);
+  EXPECT_TRUE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, UpdateWithExcludedDlcTest) {
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  fake_update_response_.dlc_app_update = true;
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  // Both DLC candidate URLs are excluded.
+  EXPECT_CALL(mock_excluder_, IsExcluded(_))
+      .WillOnce(Return(true))
+      .WillOnce(Return(true));
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_EQ(response.packages.size(), 1u);
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -2769,6 +2812,7 @@ TEST_F(OmahaRequestActionTest, UpdateWithDeprecatedDlcTest) {
       {{request_params_.GetDlcAppId(kDlcId2), {.name = kDlcId2}}});
   fake_update_response_.dlc_app_no_update = true;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
   EXPECT_TRUE(response.update_exists);
@@ -2781,6 +2825,7 @@ TEST_F(OmahaRequestActionTest, UpdateWithDlcAndDeprecatedDlcTest) {
   fake_update_response_.dlc_app_update = true;
   fake_update_response_.dlc_app_no_update = true;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
   EXPECT_TRUE(response.update_exists);
@@ -2989,6 +3034,39 @@ TEST_F(OmahaRequestActionDlcPingTest, StorePingReplyInactiveTest) {
   EXPECT_EQ(temp_str, "555");
   EXPECT_TRUE(fake_prefs_.GetString(last_rollcall_key_, &temp_str));
   EXPECT_EQ(temp_str, "4763");
+}
+
+TEST_F(OmahaRequestActionTest, OmahaResponseUpdateCanExcludeCheck) {
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  fake_update_response_.dlc_app_update = true;
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
+  ASSERT_TRUE(TestUpdateCheck());
+  ASSERT_TRUE(delegate_.omaha_response_);
+  const auto& packages = delegate_.omaha_response_->packages;
+  ASSERT_EQ(packages.size(), 2);
+
+  EXPECT_FALSE(packages[0].can_exclude);
+  EXPECT_TRUE(packages[1].can_exclude);
+}
+
+TEST_F(OmahaRequestActionTest, OmahaResponseInstallCannotExcludeCheck) {
+  request_params_.set_is_install(true);
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  fake_update_response_.dlc_app_update = true;
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
+  ASSERT_TRUE(TestUpdateCheck());
+  ASSERT_TRUE(delegate_.omaha_response_);
+  const auto& packages = delegate_.omaha_response_->packages;
+  ASSERT_EQ(packages.size(), 2);
+
+  EXPECT_FALSE(packages[0].can_exclude);
+  EXPECT_FALSE(packages[1].can_exclude);
 }
 
 }  // namespace chromeos_update_engine

@@ -70,6 +70,9 @@ void OmahaResponseHandlerAction::PerformAction() {
   }
 
   // This is the url to the first package, not all packages.
+  // (For updates): All |Action|s prior to this must pass in non-excluded URLs
+  // within the |OmahaResponse|, reference exlusion logic in
+  // |OmahaRequestAction| and keep the enforcement of exclusions for updates.
   install_plan_.download_url = current_url;
   install_plan_.version = response.version;
   install_plan_.system_version = response.system_version;

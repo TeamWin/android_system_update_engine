@@ -55,6 +55,7 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/update_attempter.h"
 
 using base::Optional;
 using base::Time;
@@ -534,6 +535,7 @@ bool UpdateLastPingDays(OmahaParserData* parser_data, PrefsInterface* prefs) {
 // False otherwise, in which case it sets any error code using |completer|.
 bool ParsePackage(OmahaParserData::App* app,
                   OmahaResponse* output_object,
+                  bool can_exclude,
                   ScopedActionCompleter* completer) {
   if (app->updatecheck_status.empty() ||
       app->updatecheck_status == kValNoUpdate) {
@@ -580,6 +582,7 @@ bool ParsePackage(OmahaParserData::App* app,
     LOG(INFO) << "Found package " << package.name;
 
     OmahaResponse::Package out_package;
+    out_package.can_exclude = can_exclude;
     for (const string& codebase : app->url_codebase) {
       if (codebase.empty()) {
         LOG(ERROR) << "Omaha Response URL has empty codebase";
@@ -623,6 +626,42 @@ bool ParsePackage(OmahaParserData::App* app,
   }
 
   return true;
+}
+
+// Removes the candidate URLs which are excluded within packages, if all the
+// candidate URLs are excluded within a package, the package will be excluded.
+void ProcessExclusions(OmahaResponse* output_object,
+                       ExcluderInterface* excluder) {
+  for (auto package_it = output_object->packages.begin();
+       package_it != output_object->packages.end();
+       /* Increment logic in loop */) {
+    // If package cannot be excluded, quickly continue.
+    if (!package_it->can_exclude) {
+      ++package_it;
+      continue;
+    }
+    // Remove the excluded payload URLs.
+    for (auto payload_url_it = package_it->payload_urls.begin();
+         payload_url_it != package_it->payload_urls.end();
+         /* Increment logic in loop */) {
+      auto exclusion_name = utils::GetExclusionName(*payload_url_it);
+      // If payload URL is not excluded, quickly continue.
+      if (!excluder->IsExcluded(exclusion_name)) {
+        ++payload_url_it;
+        continue;
+      }
+      LOG(INFO) << "Excluding payload URL=" << *payload_url_it
+                << " for payload hash=" << package_it->hash;
+      payload_url_it = package_it->payload_urls.erase(payload_url_it);
+    }
+    // If there are no candidate payload URLs, remove the package.
+    if (package_it->payload_urls.empty()) {
+      LOG(INFO) << "Excluding payload hash=" << package_it->hash;
+      package_it = output_object->packages.erase(package_it);
+      continue;
+    }
+    ++package_it;
+  }
 }
 
 // Parses the 2 key version strings kernel_version and firmware_version. If the
@@ -751,9 +790,15 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   // Package has to be parsed after Params now because ParseParams need to make
   // sure that postinstall action exists.
-  for (auto& app : parser_data->apps)
-    if (!ParsePackage(&app, output_object, completer))
+  for (auto& app : parser_data->apps) {
+    // Only allow exclusions for a non-critical package during an update. For
+    // non-critical package installations, let the errors propagate instead
+    // of being handled inside update_engine as installations are a dlcservice
+    // specific feature.
+    bool can_exclude = !params_->is_install() && params_->IsDlcAppId(app.id);
+    if (!ParsePackage(&app, output_object, can_exclude, completer))
       return false;
+  }
 
   return true;
 }
@@ -977,6 +1022,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   OmahaResponse output_object;
   if (!ParseResponse(&parser_data, &output_object, &completer))
     return;
+  ProcessExclusions(&output_object,
+                    system_state_->update_attempter()->GetExcluder());
   output_object.update_exists = true;
   SetOutputObject(output_object);
 
@@ -1467,6 +1514,14 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
   if (!IsUpdateAllowedOverCurrentConnection(error, response)) {
     LOG(INFO) << "Update is not allowed over current connection.";
     return true;
+  }
+
+  // Currently non-critical updates always update alongside the platform update
+  // (a critical update) so this case should never actually be hit if the
+  // request to Omaha for updates are correct. In other words, stop the update
+  // from happening as there are no packages in the response to process.
+  if (response.packages.empty()) {
+    LOG(ERROR) << "All packages were excluded.";
   }
 
   // Note: We could technically delete the UpdateFirstSeenAt state when we

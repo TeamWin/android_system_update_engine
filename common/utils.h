@@ -313,6 +313,10 @@ void ParseRollbackKeyVersion(const std::string& raw_version,
                              uint16_t* high_version,
                              uint16_t* low_version);
 
+// Returns the string format of the hashed |str_to_convert| that can be used
+// with |Excluder| as the exclusion name.
+std::string GetExclusionName(const std::string& str_to_convert);
+
 }  // namespace utils
 
 // Utility class to close a file descriptor

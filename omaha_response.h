@@ -51,6 +51,9 @@ struct OmahaResponse {
     // True if the payload described in this response is a delta payload.
     // False if it's a full payload.
     bool is_delta = false;
+    // True if the payload can be excluded from updating if consistently faulty.
+    // False if the payload is critical to update.
+    bool can_exclude = false;
   };
   std::vector<Package> packages;
 
