@@ -1505,7 +1505,9 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   out_status->is_install = is_install_;
 
   string str_eol_date;
-  system_state_->prefs()->GetString(kPrefsOmahaEolDate, &str_eol_date);
+  if (system_state_->prefs()->Exists(kPrefsOmahaEolDate) &&
+      !system_state_->prefs()->GetString(kPrefsOmahaEolDate, &str_eol_date))
+    LOG(ERROR) << "Failed to retrieve kPrefsOmahaEolDate pref.";
   out_status->eol_date = StringToEolDate(str_eol_date);
 
   // A powerwash will take place either if the install plan says it is required

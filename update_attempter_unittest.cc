@@ -2343,6 +2343,7 @@ TEST_F(UpdateAttempterTest, PowerwashInGetStatusTrueBecauseRollback) {
 
 TEST_F(UpdateAttempterTest, FutureEolTest) {
   EolDate eol_date = std::numeric_limits<int64_t>::max();
+  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(true));
   EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
       .WillOnce(
           DoAll(SetArgPointee<1>(EolDateToString(eol_date)), Return(true)));
@@ -2354,6 +2355,7 @@ TEST_F(UpdateAttempterTest, FutureEolTest) {
 
 TEST_F(UpdateAttempterTest, PastEolTest) {
   EolDate eol_date = 1;
+  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(true));
   EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
       .WillOnce(
           DoAll(SetArgPointee<1>(EolDateToString(eol_date)), Return(true)));
@@ -2364,13 +2366,21 @@ TEST_F(UpdateAttempterTest, PastEolTest) {
 }
 
 TEST_F(UpdateAttempterTest, FailedEolTest) {
-  EolDate eol_date = kEolDateInvalid;
+  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(true));
   EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
       .WillOnce(Return(false));
 
   UpdateEngineStatus status;
   attempter_.GetStatus(&status);
-  EXPECT_EQ(eol_date, status.eol_date);
+  EXPECT_EQ(kEolDateInvalid, status.eol_date);
+}
+
+TEST_F(UpdateAttempterTest, MissingEolTest) {
+  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(false));
+
+  UpdateEngineStatus status;
+  attempter_.GetStatus(&status);
+  EXPECT_EQ(kEolDateInvalid, status.eol_date);
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {

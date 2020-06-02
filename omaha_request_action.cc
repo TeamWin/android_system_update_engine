@@ -1366,11 +1366,13 @@ bool OmahaRequestAction::PersistEolInfo(const map<string, string>& attrs) {
   // If EOL date attribute is not sent, don't delete the old persisted EOL
   // date information.
   auto eol_date_attr = attrs.find(kAttrEolDate);
-  if (eol_date_attr != attrs.end() &&
-      !system_state_->prefs()->SetString(kPrefsOmahaEolDate,
-                                         eol_date_attr->second)) {
-    LOG(ERROR) << "Setting EOL date failed.";
-    return false;
+  if (eol_date_attr != attrs.end()) {
+    const auto& eol_date = eol_date_attr->second;
+    if (!system_state_->prefs()->SetString(kPrefsOmahaEolDate, eol_date)) {
+      LOG(ERROR) << "Setting EOL date failed.";
+      return false;
+    }
+    LOG(INFO) << "Set EOL date to " << eol_date;
   }
   return true;
 }
