@@ -241,8 +241,8 @@ bool RedirectToLiblog(int severity,
   ignore_result(android::base::ConsumeSuffix(&sv, "\n"));
   std::string str(sv.data(), sv.size());
   // This will eventually be redirected to CombinedLogger.
-  // |tag| is ignored by CombinedLogger, so just leave it empty.
-  __android_log_write(priority, "" /* tag */, str.c_str());
+  // Use nullptr as tag so that liblog infers log tag from getprogname().
+  __android_log_write(priority, nullptr /* tag */, str.c_str());
   return true;
 }
 
