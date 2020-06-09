@@ -48,7 +48,9 @@ class FakeBootControl : public BootControlInterface {
 
   bool GetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,
-                          std::string* device) const override {
+                          bool not_in_payload,
+                          std::string* device,
+                          bool* is_dynamic) const override {
     if (slot >= num_slots_)
       return false;
     auto part_it = devices_[slot].find(partition_name);
@@ -56,6 +58,12 @@ class FakeBootControl : public BootControlInterface {
       return false;
     *device = part_it->second;
     return true;
+  }
+
+  bool GetPartitionDevice(const std::string& partition_name,
+                          BootControlInterface::Slot slot,
+                          std::string* device) const override {
+    return GetPartitionDevice(partition_name, slot, false, device, nullptr);
   }
 
   bool IsSlotBootable(BootControlInterface::Slot slot) const override {
