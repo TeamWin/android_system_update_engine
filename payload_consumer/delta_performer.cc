@@ -23,6 +23,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -50,6 +51,7 @@
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
+#include "update_engine/payload_consumer/partition_update_generator_interface.h"
 #if USE_FEC
 #include "update_engine/payload_consumer/fec_file_descriptor.h"
 #endif  // USE_FEC
@@ -357,12 +359,15 @@ bool DeltaPerformer::OpenCurrentPartition() {
       install_plan_->partitions.size() - partitions_.size();
   const InstallPlan::Partition& install_part =
       install_plan_->partitions[num_previous_partitions + current_partition_];
-  // Open source fds if we have a delta payload with minor version >= 2.
-  if (payload_->type == InstallPayloadType::kDelta &&
-      GetMinorVersion() != kInPlaceMinorPayloadVersion &&
-      // With dynamic partitions we could create a new partition in a
-      // delta payload, and we shouldn't open source partition in that case.
-      install_part.source_size > 0) {
+  // Open source fds if we have a delta payload with minor version >= 2, or for
+  // partitions in the partial update.
+  bool source_may_exist = manifest_.partial_update() ||
+                          (payload_->type == InstallPayloadType::kDelta &&
+                           GetMinorVersion() != kInPlaceMinorPayloadVersion);
+  // We shouldn't open the source partition in certain cases, e.g. some dynamic
+  // partitions in delta payload, partitions included in the full payload for
+  // partial updates. Use the source size as the indicator.
+  if (source_may_exist && install_part.source_size > 0) {
     source_path_ = install_part.source_path;
     int err;
     source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
@@ -851,6 +856,41 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     partitions_.push_back(std::move(kern_part));
   }
 
+  // For VAB and partial updates, the partition preparation will copy the
+  // dynamic partitions metadata to the target metadata slot, and rename the
+  // slot suffix of the partitions in the metadata.
+  if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
+    uint64_t required_size = 0;
+    if (!PreparePartitionsForUpdate(&required_size)) {
+      if (required_size > 0) {
+        *error = ErrorCode::kNotEnoughSpace;
+      } else {
+        *error = ErrorCode::kInstallDeviceOpenError;
+      }
+      return false;
+    }
+  }
+
+  // TODO(xunchang) TBD: allow partial update only on devices with dynamic
+  // partition.
+  if (manifest_.partial_update()) {
+    std::set<std::string> touched_partitions;
+    for (const auto& partition_update : partitions_) {
+      touched_partitions.insert(partition_update.partition_name());
+    }
+
+    auto generator = partition_update_generator::Create(boot_control_);
+    std::vector<PartitionUpdate> other_partitions;
+    TEST_AND_RETURN_FALSE(
+        generator->GenerateOperationsForPartitionsNotInPayload(
+            install_plan_->source_slot,
+            install_plan_->target_slot,
+            touched_partitions,
+            &other_partitions));
+    partitions_.insert(
+        partitions_.end(), other_partitions.begin(), other_partitions.end());
+  }
+
   // Fill in the InstallPlan::partitions based on the partitions from the
   // payload.
   for (const auto& partition : partitions_) {
@@ -924,22 +964,13 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     install_plan_->partitions.push_back(install_part);
   }
 
-  if (install_plan_->target_slot != BootControlInterface::kInvalidSlot) {
-    uint64_t required_size = 0;
-    if (!PreparePartitionsForUpdate(&required_size)) {
-      if (required_size > 0) {
-        *error = ErrorCode::kNotEnoughSpace;
-      } else {
-        *error = ErrorCode::kInstallDeviceOpenError;
-      }
-      return false;
-    }
-  }
-
   if (major_payload_version_ == kBrilloMajorPayloadVersion) {
     manifest_.clear_partitions();
   }
 
+  // TODO(xunchang) only need to load the partitions for those in payload.
+  // Because we have already loaded the other once when generating SOURCE_COPY
+  // operations.
   if (!install_plan_->LoadPartitionsFromSlots(boot_control_)) {
     LOG(ERROR) << "Unable to determine all the partition devices.";
     *error = ErrorCode::kInstallDeviceOpenError;
@@ -1712,7 +1743,6 @@ DeltaPerformer::CreatePayloadVerifier() {
 ErrorCode DeltaPerformer::ValidateManifest() {
   // Perform assorted checks to sanity check the manifest, make sure it
   // matches data from other sources, and that it is a supported version.
-
   bool has_old_fields =
       (manifest_.has_old_kernel_info() || manifest_.has_old_rootfs_info());
   for (const PartitionUpdate& partition : manifest_.partitions()) {
@@ -1737,8 +1767,8 @@ ErrorCode DeltaPerformer::ValidateManifest() {
                << "' payload.";
     return ErrorCode::kPayloadMismatchedType;
   }
-
   // Check that the minor version is compatible.
+  // TODO(xunchang) increment minor version & add check for partial update
   if (actual_payload_type == InstallPayloadType::kFull) {
     if (manifest_.minor_version() != kFullPayloadMinorVersion) {
       LOG(ERROR) << "Manifest contains minor version "

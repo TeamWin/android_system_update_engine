@@ -367,4 +367,7 @@ message DeltaArchiveManifest {
 
   // Metadata related to all dynamic partitions.
   optional DynamicPartitionMetadata dynamic_partition_metadata = 15;
+
+  // If the payload only updates a subset of partitions on the device.
+  optional bool partial_update = 16;
 }
