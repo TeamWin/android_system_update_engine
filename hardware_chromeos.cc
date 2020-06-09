@@ -81,7 +81,9 @@ const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
 
 const char* kActivePingKey = "first_active_omaha_ping_sent";
 
+#if USE_CFM
 const char* kOemRequisitionKey = "oem_device_requisition";
+#endif
 
 // Gets a string value from the vpd for a given key using the `vpd_get_value`
 // shell command. Returns true on success.
@@ -216,7 +218,10 @@ string HardwareChromeOS::GetECVersion() const {
 
 string HardwareChromeOS::GetDeviceRequisition() const {
   string requisition;
-  return GetVpdValue(kOemRequisitionKey, &requisition) ? requisition : "";
+#if USE_CFM
+  GetVpdValue(kOemRequisitionKey, &requisition);
+#endif
+  return requisition;
 }
 
 int HardwareChromeOS::GetMinKernelKeyVersion() const {
