@@ -82,12 +82,24 @@ BootControlInterface::Slot BootControlAndroid::GetCurrentSlot() const {
   return module_->getCurrentSlot();
 }
 
+bool BootControlAndroid::GetPartitionDevice(const std::string& partition_name,
+                                            BootControlInterface::Slot slot,
+                                            bool not_in_payload,
+                                            std::string* device,
+                                            bool* is_dynamic) const {
+  return dynamic_control_->GetPartitionDevice(partition_name,
+                                              slot,
+                                              GetCurrentSlot(),
+                                              not_in_payload,
+                                              device,
+                                              is_dynamic);
+}
 
 bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
-                                            Slot slot,
+                                            BootControlInterface::Slot slot,
                                             string* device) const {
-  return dynamic_control_->GetPartitionDevice(
-      partition_name, slot, GetCurrentSlot(), device);
+  return GetPartitionDevice(
+      partition_name, slot, false /* not_in_payload */, device, nullptr);
 }
 
 bool BootControlAndroid::IsSlotBootable(Slot slot) const {
