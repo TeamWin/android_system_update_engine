@@ -59,8 +59,18 @@ class BootControlInterface {
   // every slot. In order to access the dynamic partitions in the target slot,
   // GetDynamicPartitionControl()->PreparePartitionsForUpdate() must be called
   // (with |update| == true for the first time for a payload, and |false| for
-  // for the rest of the times) prior to calling this function. On success,
-  // returns true and stores the block device in |device|.
+  // for the rest of the times) prior to calling this function.
+  // The handling may be different based on whether the partition is included
+  // in the update payload. On success, returns true; and stores the block
+  // device in |device|, if the partition is dynamic in |is_dynamic|.
+  virtual bool GetPartitionDevice(const std::string& partition_name,
+                                  Slot slot,
+                                  bool not_in_payload,
+                                  std::string* device,
+                                  bool* is_dynamic) const = 0;
+
+  // Overload of the above function. We assume the partition is always included
+  // in the payload.
   virtual bool GetPartitionDevice(const std::string& partition_name,
                                   Slot slot,
                                   std::string* device) const = 0;

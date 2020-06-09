@@ -886,12 +886,18 @@ bool DynamicPartitionControlAndroid::GetPartitionDevice(
     const std::string& partition_name,
     uint32_t slot,
     uint32_t current_slot,
-    std::string* device) {
+    bool not_in_payload,
+    std::string* device,
+    bool* is_dynamic) {
   const auto& partition_name_suffix =
       partition_name + SlotSuffixForSlotNumber(slot);
   std::string device_dir_str;
   TEST_AND_RETURN_FALSE(GetDeviceDir(&device_dir_str));
   base::FilePath device_dir(device_dir_str);
+
+  if (is_dynamic) {
+    *is_dynamic = false;
+  }
 
   // When looking up target partition devices, treat them as static if the
   // current payload doesn't encode them as dynamic partitions. This may happen
@@ -899,9 +905,16 @@ bool DynamicPartitionControlAndroid::GetPartitionDevice(
   // build.
   if (GetDynamicPartitionsFeatureFlag().IsEnabled() &&
       (slot == current_slot || is_target_dynamic_)) {
-    switch (GetDynamicPartitionDevice(
-        device_dir, partition_name_suffix, slot, current_slot, device)) {
+    switch (GetDynamicPartitionDevice(device_dir,
+                                      partition_name_suffix,
+                                      slot,
+                                      current_slot,
+                                      not_in_payload,
+                                      device)) {
       case DynamicPartitionDeviceStatus::SUCCESS:
+        if (is_dynamic) {
+          *is_dynamic = true;
+        }
         return true;
       case DynamicPartitionDeviceStatus::TRY_STATIC:
         break;
@@ -920,6 +933,15 @@ bool DynamicPartitionControlAndroid::GetPartitionDevice(
   return true;
 }
 
+bool DynamicPartitionControlAndroid::GetPartitionDevice(
+    const std::string& partition_name,
+    uint32_t slot,
+    uint32_t current_slot,
+    std::string* device) {
+  return GetPartitionDevice(
+      partition_name, slot, current_slot, false, device, nullptr);
+}
+
 bool DynamicPartitionControlAndroid::IsSuperBlockDevice(
     const base::FilePath& device_dir,
     uint32_t current_slot,
@@ -936,6 +958,7 @@ DynamicPartitionControlAndroid::GetDynamicPartitionDevice(
     const std::string& partition_name_suffix,
     uint32_t slot,
     uint32_t current_slot,
+    bool not_in_payload,
     std::string* device) {
   std::string super_device =
       device_dir.Append(GetSuperPartitionName(slot)).value();
@@ -975,7 +998,7 @@ DynamicPartitionControlAndroid::GetDynamicPartitionDevice(
     }
   }
 
-  bool force_writable = slot != current_slot;
+  bool force_writable = (slot != current_slot) && !not_in_payload;
   if (MapPartitionOnDeviceMapper(
           super_device, partition_name_suffix, slot, force_writable, device)) {
     return DynamicPartitionDeviceStatus::SUCCESS;
