@@ -148,9 +148,11 @@ BootControlInterface::Slot BootControlChromeOS::GetCurrentSlot() const {
   return current_slot_;
 }
 
-bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
-                                             unsigned int slot,
-                                             string* device) const {
+bool BootControlChromeOS::GetPartitionDevice(const std::string& partition_name,
+                                             BootControlInterface::Slot slot,
+                                             bool not_in_payload,
+                                             std::string* device,
+                                             bool* is_dynamic) const {
   // Partition name prefixed with |kPartitionNamePrefixDlc| is a DLC module.
   if (base::StartsWith(partition_name,
                        kPartitionNamePrefixDlc,
@@ -180,7 +182,16 @@ bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
     return false;
 
   *device = part_device;
+  if (is_dynamic) {
+    *is_dynamic = false;
+  }
   return true;
+}
+
+bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
+                                             BootControlInterface::Slot slot,
+                                             string* device) const {
+  return GetPartitionDevice(partition_name, slot, false, device, nullptr);
 }
 
 bool BootControlChromeOS::IsSlotBootable(Slot slot) const {
