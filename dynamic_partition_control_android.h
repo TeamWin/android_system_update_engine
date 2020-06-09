@@ -61,6 +61,13 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   bool GetPartitionDevice(const std::string& partition_name,
                           uint32_t slot,
                           uint32_t current_slot,
+                          bool not_in_payload,
+                          std::string* device,
+                          bool* is_dynamic);
+
+  bool GetPartitionDevice(const std::string& partition_name,
+                          uint32_t slot,
+                          uint32_t current_slot,
                           std::string* device);
 
  protected:
@@ -222,6 +229,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
       const std::string& partition_name_suffix,
       uint32_t slot,
       uint32_t current_slot,
+      bool not_in_payload,
       std::string* device);
 
   // Return true if |partition_name_suffix| is a block device of
