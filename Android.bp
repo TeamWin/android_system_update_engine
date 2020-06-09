@@ -184,6 +184,7 @@ cc_library_static {
         "payload_consumer/verity_writer_android.cc",
         "payload_consumer/xz_extent_writer.cc",
         "payload_consumer/fec_file_descriptor.cc",
+        "payload_consumer/partition_update_generator_android.cc",
     ],
 }
 
