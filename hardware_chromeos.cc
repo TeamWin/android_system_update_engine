@@ -38,6 +38,9 @@ extern "C" {
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/dbus_connection.h"
+#if USE_CFM
+#include "update_engine/requisition_util.h"
+#endif
 
 using std::string;
 using std::vector;
@@ -80,31 +83,6 @@ const char* kConfigFilePath = "/etc/update_manager.conf";
 const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
 
 const char* kActivePingKey = "first_active_omaha_ping_sent";
-
-#if USE_CFM
-const char* kOemRequisitionKey = "oem_device_requisition";
-#endif
-
-// Gets a string value from the vpd for a given key using the `vpd_get_value`
-// shell command. Returns true on success.
-int GetVpdValue(string key, string* result) {
-  int exit_code = 0;
-  string value, error;
-  vector<string> cmd = {"vpd_get_value", key};
-  if (!chromeos_update_engine::Subprocess::SynchronousExec(
-          cmd, &exit_code, &value, &error) ||
-      exit_code) {
-    LOG(ERROR) << "Failed to get vpd key for " << value
-               << " with exit code: " << exit_code << " and error: " << error;
-    return false;
-  } else if (!error.empty()) {
-    LOG(INFO) << "vpd_get_value succeeded but with following errors: " << error;
-  }
-
-  base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
-  *result = value;
-  return true;
-}
 
 }  // namespace
 
@@ -217,11 +195,12 @@ string HardwareChromeOS::GetECVersion() const {
 }
 
 string HardwareChromeOS::GetDeviceRequisition() const {
-  string requisition;
 #if USE_CFM
-  GetVpdValue(kOemRequisitionKey, &requisition);
+  const char* kLocalStatePath = "/home/chronos/Local State";
+  return ReadDeviceRequisition(base::FilePath(kLocalStatePath));
+#else
+  return "";
 #endif
-  return requisition;
 }
 
 int HardwareChromeOS::GetMinKernelKeyVersion() const {
@@ -346,7 +325,7 @@ void HardwareChromeOS::LoadConfig(const string& root_prefix, bool normal_mode) {
 
 bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
   string active_ping_str;
-  if (!GetVpdValue(kActivePingKey, &active_ping_str)) {
+  if (!utils::GetVpdValue(kActivePingKey, &active_ping_str)) {
     return false;
   }
 

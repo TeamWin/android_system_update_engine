@@ -910,6 +910,25 @@ bool ReadExtents(const string& path,
   return true;
 }
 
+bool GetVpdValue(string key, string* result) {
+  int exit_code = 0;
+  string value, error;
+  vector<string> cmd = {"vpd_get_value", key};
+  if (!chromeos_update_engine::Subprocess::SynchronousExec(
+          cmd, &exit_code, &value, &error) ||
+      exit_code) {
+    LOG(ERROR) << "Failed to get vpd key for " << value
+               << " with exit code: " << exit_code << " and error: " << error;
+    return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "vpd_get_value succeeded but with following errors: " << error;
+  }
+
+  base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
+  *result = value;
+  return true;
+}
+
 bool GetBootId(string* boot_id) {
   TEST_AND_RETURN_FALSE(
       base::ReadFileToString(base::FilePath(kBootIdPath), boot_id));

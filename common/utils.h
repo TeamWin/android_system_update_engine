@@ -291,6 +291,10 @@ bool ReadExtents(const std::string& path,
 // reboot. Returns whether it succeeded getting the boot_id.
 bool GetBootId(std::string* boot_id);
 
+// Gets a string value from the vpd for a given key using the `vpd_get_value`
+// shell command. Returns true on success.
+bool GetVpdValue(std::string key, std::string* result);
+
 // Divide |x| by |y| and round up to the nearest integer.
 constexpr uint64_t DivRoundUp(uint64_t x, uint64_t y) {
   return (x + y - 1) / y;
