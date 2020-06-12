@@ -37,6 +37,7 @@
 #include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/service_delegate_android_interface.h"
 #include "update_engine/service_observer_interface.h"
@@ -47,6 +48,7 @@ class UpdateAttempterAndroid
     : public ServiceDelegateAndroidInterface,
       public ActionProcessorDelegate,
       public DownloadActionDelegate,
+      public FilesystemVerifyDelegate,
       public PostinstallRunnerAction::DelegateInterface,
       public CleanupPreviousUpdateActionDelegateInterface {
  public:
@@ -100,6 +102,9 @@ class UpdateAttempterAndroid
                      uint64_t total) override;
   bool ShouldCancel(ErrorCode* cancel_reason) override;
   void DownloadComplete() override;
+
+  // FilesystemVerifyDelegate overrides
+  void OnVerifyProgressUpdate(double progress) override;
 
   // PostinstallRunnerAction::DelegateInterface
   void ProgressUpdate(double progress) override;

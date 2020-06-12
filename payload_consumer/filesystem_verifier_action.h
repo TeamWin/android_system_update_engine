@@ -49,6 +49,12 @@ enum class VerifierStep {
   kVerifySourceHash,
 };
 
+class FilesystemVerifyDelegate {
+ public:
+  virtual ~FilesystemVerifyDelegate() = default;
+  virtual void OnVerifyProgressUpdate(double progress) = 0;
+};
+
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
   FilesystemVerifierAction()
@@ -57,6 +63,14 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   void PerformAction() override;
   void TerminateProcessing() override;
+
+  // Used for listening to progress updates
+  void set_delegate(FilesystemVerifyDelegate* delegate) {
+    this->delegate_ = delegate;
+  }
+  [[nodiscard]] FilesystemVerifyDelegate* get_delegate() const {
+    return this->delegate_;
+  }
 
   // Debugging/logging
   static std::string StaticType() { return "FilesystemVerifierAction"; }
@@ -84,6 +98,9 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // ActionProcessor we're done w/ |code| as passed in. |cancelled_| should be
   // true if TerminateProcessing() was called.
   void Cleanup(ErrorCode code);
+
+  // Invoke delegate callback to report progress, if delegate is not null
+  void UpdateProgress(double progress);
 
   // The type of the partition that we are verifying.
   VerifierStep verifier_step_ = VerifierStep::kVerifyTargetHash;
@@ -118,6 +135,9 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // The byte offset that we are reading in the current partition.
   uint64_t offset_{0};
+
+  // An observer that observes progress updates of this action.
+  FilesystemVerifyDelegate* delegate_{};
 
   DISALLOW_COPY_AND_ASSIGN(FilesystemVerifierAction);
 };
