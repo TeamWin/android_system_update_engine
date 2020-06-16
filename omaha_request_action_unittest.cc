@@ -2776,8 +2776,8 @@ TEST_F(OmahaRequestActionTest, UpdateWithDlcTest) {
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithPartiallyExcludedDlcTest) {
-  request_params_.set_dlc_apps_params(
-      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  const string kDlcAppId = request_params_.GetDlcAppId(kDlcId1);
+  request_params_.set_dlc_apps_params({{kDlcAppId, {.name = kDlcId1}}});
   fake_update_response_.dlc_app_update = true;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   // The first DLC candidate URL is excluded.
@@ -2790,11 +2790,12 @@ TEST_F(OmahaRequestActionTest, UpdateWithPartiallyExcludedDlcTest) {
   // One candidate URL.
   EXPECT_EQ(response.packages[1].payload_urls.size(), 1u);
   EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(request_params_.dlc_apps_params().at(kDlcAppId).updated);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithExcludedDlcTest) {
-  request_params_.set_dlc_apps_params(
-      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  const string kDlcAppId = request_params_.GetDlcAppId(kDlcId1);
+  request_params_.set_dlc_apps_params({{kDlcAppId, {.name = kDlcId1}}});
   fake_update_response_.dlc_app_update = true;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   // Both DLC candidate URLs are excluded.
@@ -2805,6 +2806,7 @@ TEST_F(OmahaRequestActionTest, UpdateWithExcludedDlcTest) {
 
   EXPECT_EQ(response.packages.size(), 1u);
   EXPECT_TRUE(response.update_exists);
+  EXPECT_FALSE(request_params_.dlc_apps_params().at(kDlcAppId).updated);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithDeprecatedDlcTest) {

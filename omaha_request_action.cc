@@ -582,6 +582,7 @@ bool ParsePackage(OmahaParserData::App* app,
     LOG(INFO) << "Found package " << package.name;
 
     OmahaResponse::Package out_package;
+    out_package.app_id = app->id;
     out_package.can_exclude = can_exclude;
     for (const string& codebase : app->url_codebase) {
       if (codebase.empty()) {
@@ -631,6 +632,7 @@ bool ParsePackage(OmahaParserData::App* app,
 // Removes the candidate URLs which are excluded within packages, if all the
 // candidate URLs are excluded within a package, the package will be excluded.
 void ProcessExclusions(OmahaResponse* output_object,
+                       OmahaRequestParams* params,
                        ExcluderInterface* excluder) {
   for (auto package_it = output_object->packages.begin();
        package_it != output_object->packages.end();
@@ -657,6 +659,9 @@ void ProcessExclusions(OmahaResponse* output_object,
     // If there are no candidate payload URLs, remove the package.
     if (package_it->payload_urls.empty()) {
       LOG(INFO) << "Excluding payload hash=" << package_it->hash;
+      // Need to set DLC as not updated so correct metrics can be sent when an
+      // update is completed.
+      params->SetDlcNoUpdate(package_it->app_id);
       package_it = output_object->packages.erase(package_it);
       continue;
     }
@@ -1023,6 +1028,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   if (!ParseResponse(&parser_data, &output_object, &completer))
     return;
   ProcessExclusions(&output_object,
+                    system_state_->request_params(),
                     system_state_->update_attempter()->GetExcluder());
   output_object.update_exists = true;
   SetOutputObject(output_object);

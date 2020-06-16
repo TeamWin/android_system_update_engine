@@ -122,6 +122,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     case ErrorCode::kNoUpdate:
     case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
+    case ErrorCode::kPackageExcludedFromUpdate:
       return metrics::AttemptResult::kInternalError;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -236,6 +237,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kRollbackNotPossible:
     case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
     case ErrorCode::kVerityCalculationError:
+    case ErrorCode::kPackageExcludedFromUpdate:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
