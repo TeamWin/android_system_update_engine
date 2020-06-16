@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/cleanup_previous_update_action_delegate.h"
@@ -118,6 +119,17 @@ class DynamicPartitionControlInterface {
   // progress, while ResetUpdate() forcefully free previously
   // allocated space for snapshot updates.
   virtual bool ResetUpdate(PrefsInterface* prefs) = 0;
+
+  // Reads the dynamic partitions metadata from the current slot, and puts the
+  // name of the dynamic partitions with the current suffix to |partitions|.
+  // Returns true on success.
+  virtual bool ListDynamicPartitionsForSlot(
+      uint32_t current_slot, std::vector<std::string>* partitions) = 0;
+
+  // Finds a possible location that list all block devices by name; and puts
+  // the result in |path|. Returns true on success.
+  // Sample result: /dev/block/by-name/
+  virtual bool GetDeviceDir(std::string* path) = 0;
 };
 
 }  // namespace chromeos_update_engine
