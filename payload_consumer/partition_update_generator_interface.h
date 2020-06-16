@@ -47,7 +47,7 @@ class PartitionUpdateGeneratorInterface {
 
 namespace partition_update_generator {
 std::unique_ptr<PartitionUpdateGeneratorInterface> Create(
-    BootControlInterface* boot_control);
+    BootControlInterface* boot_control, size_t block_size);
 }
 
 }  // namespace chromeos_update_engine

@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "update_engine/common/dynamic_partition_control_interface.h"
 
@@ -46,6 +47,10 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
       PrefsInterface* prefs,
       CleanupPreviousUpdateActionDelegateInterface* delegate) override;
   bool ResetUpdate(PrefsInterface* prefs) override;
+
+  bool ListDynamicPartitionsForSlot(
+      uint32_t current_slot, std::vector<std::string>* partitions) override;
+  bool GetDeviceDir(std::string* path) override;
 };
 
 }  // namespace chromeos_update_engine

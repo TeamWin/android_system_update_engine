@@ -123,15 +123,16 @@ cc_defaults {
         "libbz",
         "libbspatch",
         "libbrotli",
+        "libc++fs",
         "libfec_rs",
         "libpuffpatch",
         "libverity_tree",
     ],
     shared_libs: [
-        "libziparchive",
         "libbase",
         "libcrypto",
         "libfec",
+        "libziparchive",
     ],
 }
 
@@ -731,6 +732,7 @@ cc_test {
         "payload_consumer/file_descriptor_utils_unittest.cc",
         "payload_consumer/file_writer_unittest.cc",
         "payload_consumer/filesystem_verifier_action_unittest.cc",
+        "payload_consumer/partition_update_generator_android_unittest.cc",
         "payload_consumer/postinstall_runner_action_unittest.cc",
         "payload_consumer/verity_writer_android_unittest.cc",
         "payload_consumer/xz_extent_writer_unittest.cc",
