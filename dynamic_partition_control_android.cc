@@ -21,6 +21,8 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include <android-base/properties.h>
@@ -1078,6 +1080,36 @@ bool DynamicPartitionControlAndroid::ResetUpdate(PrefsInterface* prefs) {
               << "not mounted";
   }
 
+  return true;
+}
+
+bool DynamicPartitionControlAndroid::ListDynamicPartitionsForSlot(
+    uint32_t current_slot, std::vector<std::string>* partitions) {
+  if (!GetDynamicPartitionsFeatureFlag().IsEnabled()) {
+    LOG(ERROR) << "Dynamic partition is not enabled";
+    return false;
+  }
+
+  std::string device_dir_str;
+  TEST_AND_RETURN_FALSE(GetDeviceDir(&device_dir_str));
+  base::FilePath device_dir(device_dir_str);
+  auto super_device =
+      device_dir.Append(GetSuperPartitionName(current_slot)).value();
+  auto builder = LoadMetadataBuilder(super_device, current_slot);
+  TEST_AND_RETURN_FALSE(builder != nullptr);
+
+  std::vector<std::string> result;
+  auto suffix = SlotSuffixForSlotNumber(current_slot);
+  for (const auto& group : builder->ListGroups()) {
+    for (const auto& partition : builder->ListPartitionsInGroup(group)) {
+      std::string_view partition_name = partition->name();
+      if (!android::base::ConsumeSuffix(&partition_name, suffix)) {
+        continue;
+      }
+      result.emplace_back(partition_name);
+    }
+  }
+  *partitions = std::move(result);
   return true;
 }
 

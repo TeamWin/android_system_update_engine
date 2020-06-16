@@ -67,4 +67,13 @@ bool DynamicPartitionControlStub::ResetUpdate(PrefsInterface* prefs) {
   return false;
 }
 
+bool DynamicPartitionControlStub::ListDynamicPartitionsForSlot(
+    uint32_t current_slot, std::vector<std::string>* partitions) {
+  return true;
+}
+
+bool DynamicPartitionControlStub::GetDeviceDir(std::string* path) {
+  return true;
+}
+
 }  // namespace chromeos_update_engine
