@@ -879,7 +879,8 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
       touched_partitions.insert(partition_update.partition_name());
     }
 
-    auto generator = partition_update_generator::Create(boot_control_);
+    auto generator = partition_update_generator::Create(boot_control_,
+                                                        manifest_.block_size());
     std::vector<PartitionUpdate> other_partitions;
     TEST_AND_RETURN_FALSE(
         generator->GenerateOperationsForPartitionsNotInPayload(
