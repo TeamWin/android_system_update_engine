@@ -29,6 +29,7 @@
 
 #include "update_engine/common/http_common.h"
 #include "update_engine/common/proxy_resolver.h"
+#include "update_engine/metrics_constants.h"
 
 // This class is a simple wrapper around an HTTP library (libcurl). We can
 // easily mock out this interface for testing.
@@ -57,6 +58,12 @@ class HttpFetcher {
   void set_delegate(HttpFetcherDelegate* delegate) { delegate_ = delegate; }
   HttpFetcherDelegate* delegate() const { return delegate_; }
   int http_response_code() const { return http_response_code_; }
+
+  // Returns additional error code that can't be expressed in terms of an HTTP
+  // response code. For example, if there was a specific internal error code in
+  // the objects used in the implementation of this class (like libcurl) that we
+  // are interested about, we can communicate it through this value.
+  ErrorCode GetAuxiliaryErrorCode() const { return auxiliary_error_code_; }
 
   // Optional: Post data to the server. The HttpFetcher should make a copy
   // of this data and upload it via HTTP POST during the transfer. The type of
@@ -98,6 +105,14 @@ class HttpFetcher {
   // previous value.
   virtual void SetHeader(const std::string& header_name,
                          const std::string& header_value) = 0;
+
+  // Only used for testing.
+  // If |header_name| is set, the value will be set into |header_value|.
+  // On success the boolean true will be returned, hoewever on failture to find
+  // the |header_name| in the header the return value will be false. The state
+  // in which |header_value| is left in for failures is an empty string.
+  virtual bool GetHeader(const std::string& header_name,
+                         std::string* header_value) const = 0;
 
   // If data is coming in too quickly, you can call Pause() to pause the
   // transfer. The delegate will not have ReceivedBytes() called while
@@ -149,6 +164,10 @@ class HttpFetcher {
   // field should be set to 0 when a new transfer is initiated, and
   // set to the response code when the transfer is complete.
   int http_response_code_;
+
+  // Set when there is an error that can't be expressed in the form of
+  // |http_response_code_|.
+  ErrorCode auxiliary_error_code_{ErrorCode::kSuccess};
 
   // The delegate; may be null.
   HttpFetcherDelegate* delegate_;

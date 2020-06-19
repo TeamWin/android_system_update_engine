@@ -29,6 +29,7 @@
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/message_loop/message_loop.h>
+#include <base/stl_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -1049,7 +1050,7 @@ TYPED_TEST(HttpFetcherTest, SimpleRedirectTest) {
   unique_ptr<HttpServer> server(this->test_.CreateServer());
   ASSERT_TRUE(server->started_);
 
-  for (size_t c = 0; c < arraysize(kRedirectCodes); ++c) {
+  for (size_t c = 0; c < base::size(kRedirectCodes); ++c) {
     const string url = base::StringPrintf(
         "/redirect/%d/download/%d", kRedirectCodes[c], kMediumLength);
     RedirectTest(server.get(), true, url, this->test_.NewLargeFetcher());
@@ -1066,7 +1067,7 @@ TYPED_TEST(HttpFetcherTest, MaxRedirectTest) {
   string url;
   for (int r = 0; r < kDownloadMaxRedirects; r++) {
     url += base::StringPrintf("/redirect/%d",
-                              kRedirectCodes[r % arraysize(kRedirectCodes)]);
+                              kRedirectCodes[r % base::size(kRedirectCodes)]);
   }
   url += base::StringPrintf("/download/%d", kMediumLength);
   RedirectTest(server.get(), true, url, this->test_.NewLargeFetcher());
@@ -1082,7 +1083,7 @@ TYPED_TEST(HttpFetcherTest, BeyondMaxRedirectTest) {
   string url;
   for (int r = 0; r < kDownloadMaxRedirects + 1; r++) {
     url += base::StringPrintf("/redirect/%d",
-                              kRedirectCodes[r % arraysize(kRedirectCodes)]);
+                              kRedirectCodes[r % base::size(kRedirectCodes)]);
   }
   url += base::StringPrintf("/download/%d", kMediumLength);
   RedirectTest(server.get(), false, url, this->test_.NewLargeFetcher());

@@ -31,8 +31,6 @@ class MetricsReporterStub : public MetricsReporterInterface {
 
   ~MetricsReporterStub() override = default;
 
-  void Initialize() override {}
-
   void ReportRollbackMetrics(metrics::RollbackResult result) override {}
 
   void ReportEnterpriseRollbackMetrics(

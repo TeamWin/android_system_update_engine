@@ -17,9 +17,11 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_CONSUMER_POSTINSTALL_RUNNER_ACTION_H_
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_POSTINSTALL_RUNNER_ACTION_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include <base/files/file_descriptor_watcher_posix.h>
 #include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>
 
@@ -139,7 +141,12 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // The parent progress file descriptor used to watch for progress reports from
   // the postinstall program and the task watching for them.
   int progress_fd_{-1};
+
+#ifdef __ANDROID__
   brillo::MessageLoop::TaskId progress_task_{brillo::MessageLoop::kTaskIdNull};
+#else
+  std::unique_ptr<base::FileDescriptorWatcher::Controller> progress_controller_;
+#endif  // __ANDROID__
 
   // A buffer of a partial read line from the progress file descriptor.
   std::string progress_buffer_;

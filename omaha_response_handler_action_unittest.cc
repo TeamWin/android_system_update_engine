@@ -38,6 +38,7 @@ using chromeos_update_engine::test_utils::System;
 using chromeos_update_engine::test_utils::WriteFileString;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::FakeUpdateManager;
+using chromeos_update_manager::kRollforwardInfinity;
 using chromeos_update_manager::MockPolicy;
 using std::string;
 using testing::_;
@@ -429,10 +430,11 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   EXPECT_EQ(in.version, install_plan.version);
 }
 
-TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableVersionAndChannelTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.version = "a.b.c.d";
+  in.version = "1.0.0.0";
   in.packages.push_back({.payload_urls = {"https://MoreStableChannelTest"},
                          .size = 1,
                          .hash = kPayloadHashHex});
@@ -453,7 +455,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
 #endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_TRUE(params.ShouldPowerwash());
+  params.set_app_version("2.0.0.0");
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
@@ -461,10 +463,79 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   EXPECT_TRUE(install_plan.powerwash_required);
 }
 
-TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableVersionAndChannelPowerwashNotAllowedTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.version = "a.b.c.d";
+  in.version = "1.0.0.0";
+  in.packages.push_back({.payload_urls = {"https://MoreStableChannelTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("canary-channel");
+  // The |ImageProperties| in Android uses prefs to store
+  // |MutableImageProperties|.
+#ifdef __ANDROID__
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
+      .WillOnce(Return(true));
+#endif  // __ANDROID__
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("2.0.0.0");
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.powerwash_required);
+}
+
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableChannelButNewerVersionTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "12345.96.0.0";
+  in.packages.push_back({.payload_urls = {"https://ChannelDownVersionUp"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("beta-channel");
+  // The |ImageProperties| in Android uses prefs to store
+  // |MutableImageProperties|.
+#ifdef __ANDROID__
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
+      .WillOnce(Return(true));
+#endif  // __ANDROID__
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("12345.48.0.0");
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.powerwash_required);
+}
+
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToLessStableVersionAndChannelTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "2.0.0.0";
   in.packages.push_back({.payload_urls = {"https://LessStableChannelTest"},
                          .size = 15,
                          .hash = kPayloadHashHex});
@@ -485,7 +556,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
 #endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_FALSE(params.ShouldPowerwash());
+  params.set_app_version("1.0.0.0");
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
@@ -534,21 +605,44 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackTest) {
                          .size = 1,
                          .hash = kPayloadHashHex});
   in.is_rollback = true;
-  in.rollback_key_version.kernel = 1;
-  in.rollback_key_version.kernel = 2;
-  in.rollback_key_version.firmware_key = 3;
-  in.rollback_key_version.firmware = 4;
+
+  // The rollback payload is 2 versions behind stable.
+  in.rollback_key_version.kernel = 24;
+  in.rollback_key_version.kernel = 23;
+  in.rollback_key_version.firmware_key = 22;
+  in.rollback_key_version.firmware = 21;
+
+  OmahaResponse::RollbackKeyVersion m4;
+  m4.firmware_key = 16;
+  m4.firmware = 15;
+  m4.kernel_key = 14;
+  m4.kernel = 13;
+
+  in.past_rollback_key_version = m4;
 
   fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
   fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
 
+  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(0xaaaaaaaa);
+  // TODO(crbug/783998): Add support for firmware when implemented.
+
   OmahaRequestParams params(&fake_system_state_);
   params.set_rollback_allowed(true);
+  params.set_rollback_allowed_milestones(4);
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_TRUE(install_plan.is_rollback);
+
+  // The max rollforward should be set the values of the image
+  // rollback_allowed_milestones (4 for this test) in the past.
+  const uint32_t expected_max_kernel_rollforward =
+      static_cast<uint32_t>(m4.kernel_key) << 16 |
+      static_cast<uint32_t>(m4.kernel);
+  EXPECT_EQ(expected_max_kernel_rollforward,
+            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
 TEST_F(OmahaResponseHandlerActionTest, RollbackKernelVersionErrorTest) {
@@ -563,18 +657,36 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackKernelVersionErrorTest) {
   in.rollback_key_version.firmware_key = 3;
   in.rollback_key_version.firmware = 4;
 
+  OmahaResponse::RollbackKeyVersion m4;
+  m4.firmware_key = 16;
+  m4.firmware = 15;
+  m4.kernel_key = 14;
+  m4.kernel = 13;
+  in.past_rollback_key_version = m4;
+
   fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
   fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
+  const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
+  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+      current_kernel_max_rollforward);
 
   OmahaRequestParams params(&fake_system_state_);
   params.set_rollback_allowed(true);
+  params.set_rollback_allowed_milestones(4);
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_FALSE(DoTest(in, "", &install_plan));
+
+  // Max rollforward is not changed in error cases.
+  EXPECT_EQ(current_kernel_max_rollforward,
+            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
 TEST_F(OmahaResponseHandlerActionTest, RollbackFirmwareVersionErrorTest) {
+  // TODO(crbug/783998): Add handling for max_firmware_rollforward when
+  // implemented.
   OmahaResponse in;
   in.update_exists = true;
   in.packages.push_back({.payload_urls = {"https://RollbackTest"},
@@ -591,6 +703,7 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackFirmwareVersionErrorTest) {
 
   OmahaRequestParams params(&fake_system_state_);
   params.set_rollback_allowed(true);
+  params.set_rollback_allowed_milestones(4);
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
@@ -605,13 +718,23 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackNotRollbackTest) {
                          .hash = kPayloadHashHex});
   in.is_rollback = false;
 
+  const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
+  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+      current_kernel_max_rollforward);
+
   OmahaRequestParams params(&fake_system_state_);
   params.set_rollback_allowed(true);
+  params.set_rollback_allowed_milestones(4);
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.is_rollback);
+
+  // Max rollforward is not changed for non-rollback cases.
+  EXPECT_EQ(current_kernel_max_rollforward,
+            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
 TEST_F(OmahaResponseHandlerActionTest, RollbackNotAllowedTest) {
@@ -624,10 +747,46 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackNotAllowedTest) {
 
   OmahaRequestParams params(&fake_system_state_);
   params.set_rollback_allowed(false);
+  params.set_rollback_allowed_milestones(4);
+
+  const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
+  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+      current_kernel_max_rollforward);
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_FALSE(DoTest(in, "", &install_plan));
+
+  // This case generates an error so, do not update max rollforward.
+  EXPECT_EQ(current_kernel_max_rollforward,
+            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  // TODO(crbug/783998): Add support for firmware when implemented.
+}
+
+TEST_F(OmahaResponseHandlerActionTest, NormalUpdateWithZeroMilestonesAllowed) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.packages.push_back({.payload_urls = {"https://RollbackTest"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.is_rollback = false;
+
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_rollback_allowed(true);
+  params.set_rollback_allowed_milestones(0);
+
+  const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
+  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+      current_kernel_max_rollforward);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+
+  // When allowed_milestones is 0, this is set to infinity.
+  EXPECT_EQ(kRollforwardInfinity,
+            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {

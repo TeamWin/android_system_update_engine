@@ -127,14 +127,6 @@ bool IsAReplaceOperation(InstallOperation::Type op_type);
 // Returns true if an operation with type |op_type| has no |src_extents|.
 bool IsNoSourceOperation(InstallOperation::Type op_type);
 
-// Returns true if |op| is a no-op operation that doesn't do any useful work
-// (e.g., a move operation that copies blocks onto themselves).
-bool IsNoopOperation(const InstallOperation& op);
-
-// Filters all the operations that are no-op, maintaining the relative order
-// of the rest of the operations.
-void FilterNoopOperations(std::vector<AnnotatedOperation>* ops);
-
 bool InitializePartitionInfo(const PartitionConfig& partition,
                              PartitionInfo* info);
 

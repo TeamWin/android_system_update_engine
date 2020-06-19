@@ -168,11 +168,6 @@ TEST(UmBoxedValueTest, ConnectionTypeToString) {
       BoxedValue(new ConnectionType(ConnectionType::kEthernet)).ToString());
   EXPECT_EQ("wifi",
             BoxedValue(new ConnectionType(ConnectionType::kWifi)).ToString());
-  EXPECT_EQ("wimax",
-            BoxedValue(new ConnectionType(ConnectionType::kWimax)).ToString());
-  EXPECT_EQ(
-      "bluetooth",
-      BoxedValue(new ConnectionType(ConnectionType::kBluetooth)).ToString());
   EXPECT_EQ(
       "cellular",
       BoxedValue(new ConnectionType(ConnectionType::kCellular)).ToString());
@@ -215,18 +210,13 @@ TEST(UmBoxedValueTest, RollbackToTargetVersionToString) {
       BoxedValue(new RollbackToTargetVersion(
                      RollbackToTargetVersion::kRollbackAndRestoreIfPossible))
           .ToString());
-  EXPECT_EQ(
-      "Rollback only if restore is possible",
-      BoxedValue(new RollbackToTargetVersion(
-                     RollbackToTargetVersion::kRollbackOnlyIfRestorePossible))
-          .ToString());
 }
 
 TEST(UmBoxedValueTest, SetConnectionTypeToString) {
   set<ConnectionType>* set1 = new set<ConnectionType>;
-  set1->insert(ConnectionType::kWimax);
+  set1->insert(ConnectionType::kCellular);
   set1->insert(ConnectionType::kEthernet);
-  EXPECT_EQ("ethernet,wimax", BoxedValue(set1).ToString());
+  EXPECT_EQ("ethernet,cellular", BoxedValue(set1).ToString());
 
   set<ConnectionType>* set2 = new set<ConnectionType>;
   set2->insert(ConnectionType::kWifi);

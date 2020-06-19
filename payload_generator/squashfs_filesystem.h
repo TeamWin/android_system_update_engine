@@ -59,7 +59,7 @@ class SquashfsFilesystem : public FilesystemInterface {
   // |extract_deflates| is true, it will process files to find location of all
   // deflate streams.
   static std::unique_ptr<SquashfsFilesystem> CreateFromFile(
-      const std::string& sqfs_path, bool extract_deflates);
+      const std::string& sqfs_path, bool extract_deflates, bool load_settings);
 
   // Creates the file system from a file map |filemap| which is a multi-line
   // string with each line with the following format:
@@ -112,6 +112,9 @@ class SquashfsFilesystem : public FilesystemInterface {
 
   // All the files in the filesystem.
   std::vector<File> files_;
+
+  // The content of /etc/update_engine.conf.
+  std::string update_engine_config_;
 
   DISALLOW_COPY_AND_ASSIGN(SquashfsFilesystem);
 };

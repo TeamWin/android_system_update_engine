@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/client_library/include/update_engine/client.h"
 #include "update_engine/dbus-proxies.h"
@@ -42,13 +43,11 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
                      bool at_user_request) override;
 
   bool AttemptInstall(const std::string& omaha_url,
-                      const std::vector<std::string>& dlc_module_ids) override;
+                      const std::vector<std::string>& dlc_ids) override;
 
-  bool GetStatus(int64_t* out_last_checked_time,
-                 double* out_progress,
-                 UpdateStatus* out_update_status,
-                 std::string* out_new_version,
-                 int64_t* out_new_size) const override;
+  bool SetDlcActiveValue(bool is_active, const std::string& dlc_id) override;
+
+  bool GetStatus(UpdateEngineStatus* out_status) const override;
 
   bool SetCohortHint(const std::string& cohort_hint) override;
   bool GetCohortHint(std::string* cohort_hint) const override;
@@ -81,8 +80,6 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
 
   bool GetLastAttemptError(int32_t* last_attempt_error) const override;
 
-  bool GetEolStatus(int32_t* eol_status) const override;
-
  private:
   void DBusStatusHandlersRegistered(const std::string& interface,
                                     const std::string& signal_name,
@@ -93,11 +90,7 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
   // registered handlers receive the event.
   void StatusUpdateHandlersRegistered(StatusUpdateHandler* handler) const;
 
-  void RunStatusUpdateHandlers(int64_t last_checked_time,
-                               double progress,
-                               const std::string& current_operation,
-                               const std::string& new_version,
-                               int64_t new_size);
+  void RunStatusUpdateHandlers(const StatusResult& status);
 
   std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
   std::vector<update_engine::StatusUpdateHandler*> handlers_;

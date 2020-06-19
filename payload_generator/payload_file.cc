@@ -74,11 +74,9 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
   manifest_.set_block_size(config.block_size);
   manifest_.set_max_timestamp(config.max_timestamp);
 
-  if (major_version_ == kBrilloMajorPayloadVersion) {
-    if (config.target.dynamic_partition_metadata != nullptr)
-      *(manifest_.mutable_dynamic_partition_metadata()) =
-          *(config.target.dynamic_partition_metadata);
-  }
+  if (config.target.dynamic_partition_metadata != nullptr)
+    *(manifest_.mutable_dynamic_partition_metadata()) =
+        *(config.target.dynamic_partition_metadata);
 
   return true;
 }
@@ -86,13 +84,6 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
 bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
                                const PartitionConfig& new_conf,
                                const vector<AnnotatedOperation>& aops) {
-  // Check partitions order for Chrome OS
-  if (major_version_ == kChromeOSMajorPayloadVersion) {
-    const vector<const char*> part_order = {kPartitionNameRoot,
-                                            kPartitionNameKernel};
-    TEST_AND_RETURN_FALSE(part_vec_.size() < part_order.size());
-    TEST_AND_RETURN_FALSE(new_conf.name == part_order[part_vec_.size()]);
-  }
   Partition part;
   part.name = new_conf.name;
   part.aops = aops;
@@ -134,66 +125,45 @@ bool PayloadFile::WritePayload(const string& payload_file,
   }
 
   // Copy the operations and partition info from the part_vec_ to the manifest.
-  manifest_.clear_install_operations();
-  manifest_.clear_kernel_install_operations();
   manifest_.clear_partitions();
   for (const auto& part : part_vec_) {
-    if (major_version_ == kBrilloMajorPayloadVersion) {
-      PartitionUpdate* partition = manifest_.add_partitions();
-      partition->set_partition_name(part.name);
-      if (part.postinstall.run) {
-        partition->set_run_postinstall(true);
-        if (!part.postinstall.path.empty())
-          partition->set_postinstall_path(part.postinstall.path);
-        if (!part.postinstall.filesystem_type.empty())
-          partition->set_filesystem_type(part.postinstall.filesystem_type);
-        partition->set_postinstall_optional(part.postinstall.optional);
+    PartitionUpdate* partition = manifest_.add_partitions();
+    partition->set_partition_name(part.name);
+    if (part.postinstall.run) {
+      partition->set_run_postinstall(true);
+      if (!part.postinstall.path.empty())
+        partition->set_postinstall_path(part.postinstall.path);
+      if (!part.postinstall.filesystem_type.empty())
+        partition->set_filesystem_type(part.postinstall.filesystem_type);
+      partition->set_postinstall_optional(part.postinstall.optional);
+    }
+    if (!part.verity.IsEmpty()) {
+      if (part.verity.hash_tree_extent.num_blocks() != 0) {
+        *partition->mutable_hash_tree_data_extent() =
+            part.verity.hash_tree_data_extent;
+        *partition->mutable_hash_tree_extent() = part.verity.hash_tree_extent;
+        partition->set_hash_tree_algorithm(part.verity.hash_tree_algorithm);
+        if (!part.verity.hash_tree_salt.empty())
+          partition->set_hash_tree_salt(part.verity.hash_tree_salt.data(),
+                                        part.verity.hash_tree_salt.size());
       }
-      if (!part.verity.IsEmpty()) {
-        if (part.verity.hash_tree_extent.num_blocks() != 0) {
-          *partition->mutable_hash_tree_data_extent() =
-              part.verity.hash_tree_data_extent;
-          *partition->mutable_hash_tree_extent() = part.verity.hash_tree_extent;
-          partition->set_hash_tree_algorithm(part.verity.hash_tree_algorithm);
-          if (!part.verity.hash_tree_salt.empty())
-            partition->set_hash_tree_salt(part.verity.hash_tree_salt.data(),
-                                          part.verity.hash_tree_salt.size());
-        }
-        if (part.verity.fec_extent.num_blocks() != 0) {
-          *partition->mutable_fec_data_extent() = part.verity.fec_data_extent;
-          *partition->mutable_fec_extent() = part.verity.fec_extent;
-          partition->set_fec_roots(part.verity.fec_roots);
-        }
-      }
-      for (const AnnotatedOperation& aop : part.aops) {
-        *partition->add_operations() = aop.op;
-      }
-      if (part.old_info.has_size() || part.old_info.has_hash())
-        *(partition->mutable_old_partition_info()) = part.old_info;
-      if (part.new_info.has_size() || part.new_info.has_hash())
-        *(partition->mutable_new_partition_info()) = part.new_info;
-    } else {
-      // major_version_ == kChromeOSMajorPayloadVersion
-      if (part.name == kPartitionNameKernel) {
-        for (const AnnotatedOperation& aop : part.aops)
-          *manifest_.add_kernel_install_operations() = aop.op;
-        if (part.old_info.has_size() || part.old_info.has_hash())
-          *manifest_.mutable_old_kernel_info() = part.old_info;
-        if (part.new_info.has_size() || part.new_info.has_hash())
-          *manifest_.mutable_new_kernel_info() = part.new_info;
-      } else {
-        for (const AnnotatedOperation& aop : part.aops)
-          *manifest_.add_install_operations() = aop.op;
-        if (part.old_info.has_size() || part.old_info.has_hash())
-          *manifest_.mutable_old_rootfs_info() = part.old_info;
-        if (part.new_info.has_size() || part.new_info.has_hash())
-          *manifest_.mutable_new_rootfs_info() = part.new_info;
+      if (part.verity.fec_extent.num_blocks() != 0) {
+        *partition->mutable_fec_data_extent() = part.verity.fec_data_extent;
+        *partition->mutable_fec_extent() = part.verity.fec_extent;
+        partition->set_fec_roots(part.verity.fec_roots);
       }
     }
+    for (const AnnotatedOperation& aop : part.aops) {
+      *partition->add_operations() = aop.op;
+    }
+    if (part.old_info.has_size() || part.old_info.has_hash())
+      *(partition->mutable_old_partition_info()) = part.old_info;
+    if (part.new_info.has_size() || part.new_info.has_hash())
+      *(partition->mutable_new_partition_info()) = part.new_info;
   }
 
   // Signatures appear at the end of the blobs. Note the offset in the
-  // manifest_.
+  // |manifest_|.
   uint64_t signature_blob_length = 0;
   if (!private_key_path.empty()) {
     TEST_AND_RETURN_FALSE(PayloadSigner::SignatureBlobLength(
@@ -201,7 +171,6 @@ bool PayloadFile::WritePayload(const string& payload_file,
     PayloadSigner::AddSignatureToManifest(
         next_blob_offset,
         signature_blob_length,
-        major_version_ == kChromeOSMajorPayloadVersion,
         &manifest_);
   }
 
@@ -229,18 +198,14 @@ bool PayloadFile::WritePayload(const string& payload_file,
   TEST_AND_RETURN_FALSE(
       WriteUint64AsBigEndian(&writer, serialized_manifest.size()));
 
-  // Write metadata signature size.
-  uint32_t metadata_signature_size = 0;
-  if (major_version_ == kBrilloMajorPayloadVersion) {
-    // Metadata signature has the same size as payload signature, because they
-    // are both the same kind of signature for the same kind of hash.
-    uint32_t metadata_signature_size = htobe32(signature_blob_length);
-    TEST_AND_RETURN_FALSE_ERRNO(writer.Write(&metadata_signature_size,
-                                             sizeof(metadata_signature_size)));
-    metadata_size += sizeof(metadata_signature_size);
-    // Set correct size instead of big endian size.
-    metadata_signature_size = signature_blob_length;
-  }
+  // Metadata signature has the same size as payload signature, because they
+  // are both the same kind of signature for the same kind of hash.
+  uint32_t metadata_signature_size = htobe32(signature_blob_length);
+  TEST_AND_RETURN_FALSE_ERRNO(
+      writer.Write(&metadata_signature_size, sizeof(metadata_signature_size)));
+  metadata_size += sizeof(metadata_signature_size);
+  // Set correct size instead of big endian size.
+  metadata_signature_size = signature_blob_length;
 
   // Write protobuf
   LOG(INFO) << "Writing final delta file protobuf... "
@@ -249,8 +214,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
       writer.Write(serialized_manifest.data(), serialized_manifest.size()));
 
   // Write metadata signature blob.
-  if (major_version_ == kBrilloMajorPayloadVersion &&
-      !private_key_path.empty()) {
+  if (!private_key_path.empty()) {
     brillo::Blob metadata_hash;
     TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(
         payload_file, metadata_size, &metadata_hash));
@@ -261,7 +225,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
         writer.Write(metadata_signature.data(), metadata_signature.size()));
   }
 
-  // Append the data blobs
+  // Append the data blobs.
   LOG(INFO) << "Writing final delta file data blobs...";
   int blobs_fd = open(ordered_blobs_path.c_str(), O_RDONLY, 0);
   ScopedFdCloser blobs_fd_closer(&blobs_fd);

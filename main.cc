@@ -23,9 +23,10 @@
 #include <base/logging.h>
 #include <brillo/flag_helper.h>
 
+#include "update_engine/common/subprocess.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/daemon.h"
+#include "update_engine/daemon_base.h"
 #include "update_engine/logging.h"
 
 using std::string;
@@ -63,8 +64,8 @@ int main(int argc, char** argv) {
   // Done _after_ log file creation.
   umask(S_IRWXG | S_IRWXO);
 
-  chromeos_update_engine::UpdateEngineDaemon update_engine_daemon;
-  int exit_code = update_engine_daemon.Run();
+  auto daemon = chromeos_update_engine::DaemonBase::CreateInstance();
+  int exit_code = daemon->Run();
 
   chromeos_update_engine::Subprocess::Get().FlushBufferedLogsAtExit();
 

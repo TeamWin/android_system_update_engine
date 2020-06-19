@@ -19,6 +19,12 @@
 
 namespace chromeos_update_engine {
 
+// The root path of all exclusion prefs.
+extern const char kExclusionPrefsSubDir[];
+
+// The root path of all DLC metadata.
+extern const char kDlcPrefsSubDir[];
+
 // Directory for AU prefs that are preserved across powerwash.
 extern const char kPowerwashSafePrefsSubDirectory[];
 
@@ -56,11 +62,14 @@ extern const char kPrefsNumResponsesSeen[];
 extern const char kPrefsOmahaCohort[];
 extern const char kPrefsOmahaCohortHint[];
 extern const char kPrefsOmahaCohortName[];
-extern const char kPrefsOmahaEolStatus[];
+extern const char kPrefsOmahaEolDate[];
 extern const char kPrefsP2PEnabled[];
 extern const char kPrefsP2PFirstAttemptTimestamp[];
 extern const char kPrefsP2PNumAttempts[];
 extern const char kPrefsPayloadAttemptNumber[];
+extern const char kPrefsPingActive[];
+extern const char kPrefsPingLastActive[];
+extern const char kPrefsPingLastRollcall[];
 extern const char kPrefsPostInstallSucceeded[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];
@@ -107,6 +116,14 @@ extern const char kPayloadPropertyPowerwash[];
 extern const char kPayloadPropertyNetworkId[];
 extern const char kPayloadPropertySwitchSlotOnReboot[];
 extern const char kPayloadPropertyRunPostInstall[];
+
+extern const char kOmahaUpdaterVersion[];
+
+// X-Goog-Update headers.
+extern const char kXGoogleUpdateInteractivity[];
+extern const char kXGoogleUpdateAppId[];
+extern const char kXGoogleUpdateUpdater[];
+extern const char kXGoogleUpdateSessionId[];
 
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download

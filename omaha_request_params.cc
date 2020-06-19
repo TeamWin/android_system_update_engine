@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <base/files/file_util.h>
+#include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/key_value_store.h>
@@ -39,9 +40,7 @@
 
 #define CALL_MEMBER_FN(object, member) ((object).*(member))
 
-using std::map;
 using std::string;
-using std::vector;
 
 namespace chromeos_update_engine {
 
@@ -95,6 +94,7 @@ bool OmahaRequestParams::Init(const string& in_app_version,
     fw_version_ = system_state_->hardware()->GetFirmwareVersion();
     ec_version_ = system_state_->hardware()->GetECVersion();
   }
+  device_requisition_ = system_state_->hardware()->GetDeviceRequisition();
 
   if (image_props_.current_channel == mutable_image_props_.target_channel) {
     // deltas are only okay if the /.nodelta file does not exist.  if we don't
@@ -123,7 +123,7 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   // Set the interactive flag accordingly.
   interactive_ = in_interactive;
 
-  dlc_module_ids_.clear();
+  dlc_apps_params_.clear();
   // Set false so it will do update by default.
   is_install_ = false;
   return true;
@@ -217,7 +217,7 @@ void OmahaRequestParams::set_root(const string& root) {
 }
 
 int OmahaRequestParams::GetChannelIndex(const string& channel) const {
-  for (size_t t = 0; t < arraysize(kChannelsByStability); ++t)
+  for (size_t t = 0; t < base::size(kChannelsByStability); ++t)
     if (channel == kChannelsByStability[t])
       return t;
 
@@ -245,6 +245,23 @@ bool OmahaRequestParams::ShouldPowerwash() const {
 string OmahaRequestParams::GetAppId() const {
   return download_channel_ == "canary-channel" ? image_props_.canary_product_id
                                                : image_props_.product_id;
+}
+
+string OmahaRequestParams::GetDlcAppId(const std::string& dlc_id) const {
+  // Create APP ID according to |dlc_id| (sticking the current AppID to the
+  // DLC module ID with an underscode).
+  return GetAppId() + "_" + dlc_id;
+}
+
+bool OmahaRequestParams::IsDlcAppId(const std::string& app_id) const {
+  return dlc_apps_params().find(app_id) != dlc_apps_params().end();
+}
+
+void OmahaRequestParams::SetDlcNoUpdate(const string& app_id) {
+  auto itr = dlc_apps_params_.find(app_id);
+  if (itr == dlc_apps_params_.end())
+    return;
+  itr->second.updated = false;
 }
 
 }  // namespace chromeos_update_engine
