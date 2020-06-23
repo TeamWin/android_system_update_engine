@@ -462,6 +462,7 @@ void PayloadState::IncrementPayloadAttemptNumber() {
 }
 
 void PayloadState::IncrementFullPayloadAttemptNumber() {
+  DCHECK(payload_index_ < response_.packages.size());
   // Update the payload attempt number for full payloads and the backoff time.
   if (response_.packages[payload_index_].is_delta) {
     LOG(INFO) << "Not incrementing payload attempt number for delta payloads";
@@ -474,6 +475,7 @@ void PayloadState::IncrementFullPayloadAttemptNumber() {
 }
 
 void PayloadState::IncrementUrlIndex() {
+  DCHECK(payload_index_ < candidate_urls_.size());
   size_t next_url_index = url_index_ + 1;
   size_t max_url_size = candidate_urls_[payload_index_].size();
   if (next_url_index < max_url_size) {
@@ -510,6 +512,10 @@ void PayloadState::IncrementFailureCount() {
 }
 
 void PayloadState::ExcludeCurrentPayload() {
+  if (payload_index_ >= response_.packages.size()) {
+    LOG(INFO) << "Skipping exclusion of the current payload.";
+    return;
+  }
   const auto& package = response_.packages[payload_index_];
   if (!package.can_exclude) {
     LOG(INFO) << "Not excluding as marked non-excludable for package hash="
@@ -923,10 +929,12 @@ void PayloadState::SetPayloadIndex(size_t payload_index) {
 }
 
 bool PayloadState::NextPayload() {
-  if (payload_index_ + 1 >= candidate_urls_.size())
+  if (payload_index_ >= candidate_urls_.size())
+    return false;
+  SetPayloadIndex(payload_index_ + 1);
+  if (payload_index_ >= candidate_urls_.size())
     return false;
   SetUrlIndex(0);
-  SetPayloadIndex(payload_index_ + 1);
   return true;
 }
 

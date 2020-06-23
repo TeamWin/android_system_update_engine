@@ -161,6 +161,8 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, ExcludeNoopForNonExcludables);
   FRIEND_TEST(PayloadStateTest, ExcludeOnlyCanExcludables);
   FRIEND_TEST(PayloadStateTest, IncrementFailureExclusionTest);
+  FRIEND_TEST(PayloadStateTest, HaltExclusionPostPayloadExhaustion);
+  FRIEND_TEST(PayloadStateTest, NonInfinitePayloadIndexIncrement);
 
   // Helper called when an attempt has begun, is called by
   // UpdateResumed(), UpdateRestarted() and Rollback().

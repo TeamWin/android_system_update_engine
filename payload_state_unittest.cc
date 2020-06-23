@@ -1778,4 +1778,49 @@ TEST(PayloadStateTest, IncrementFailureExclusionTest) {
   payload_state.IncrementFailureCount();
 }
 
+TEST(PayloadStateTest, HaltExclusionPostPayloadExhaustion) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  StrictMock<MockExcluder> mock_excluder;
+  EXPECT_CALL(*fake_system_state.mock_update_attempter(), GetExcluder())
+      .WillOnce(Return(&mock_excluder));
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  OmahaResponse response;
+  // Non-critical package.
+  response.packages.push_back(
+      {.payload_urls = {"http://test1a", "http://test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash",
+       .can_exclude = true});
+  payload_state.SetResponse(response);
+
+  // Exclusion should be called when excluded.
+  EXPECT_CALL(mock_excluder, Exclude(utils::GetExclusionName("http://test1a")))
+      .WillOnce(Return(true));
+  payload_state.ExcludeCurrentPayload();
+
+  // No more paylods to go through.
+  EXPECT_FALSE(payload_state.NextPayload());
+
+  // Exclusion should not be called as all |Payload|s are exhausted.
+  payload_state.ExcludeCurrentPayload();
+}
+
+TEST(PayloadStateTest, NonInfinitePayloadIndexIncrement) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  payload_state.SetResponse({});
+
+  EXPECT_FALSE(payload_state.NextPayload());
+  int payload_index = payload_state.payload_index_;
+
+  EXPECT_FALSE(payload_state.NextPayload());
+  EXPECT_EQ(payload_index, payload_state.payload_index_);
+}
+
 }  // namespace chromeos_update_engine
