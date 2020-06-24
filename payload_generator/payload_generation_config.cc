@@ -256,10 +256,6 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
 
     case InstallOperation::PUFFDIFF:
       return minor >= kPuffdiffMinorPayloadVersion;
-
-    case InstallOperation::MOVE:
-    case InstallOperation::BSDIFF:
-      NOTREACHED();
   }
   return false;
 }
