@@ -450,7 +450,11 @@ int Main(int argc, char** argv) {
   Terminator::Init();
 
   logging::LoggingSettings log_settings;
+#if BASE_VER < 780000
   log_settings.log_file = "delta_generator.log";
+#else
+  log_settings.log_file_path = "delta_generator.log";
+#endif
   log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
   log_settings.lock_log = logging::LOCK_LOG_FILE;
   log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
