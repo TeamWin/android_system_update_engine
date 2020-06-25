@@ -328,7 +328,7 @@ class OmahaRequestParams {
   bool ToMoreStableChannel() const;
 
   // Returns True if we should store the fw/ec versions based on our hwid_.
-  // Compares hwid to a set of safelisted prefixes.
+  // Compares hwid to a set of prefixes in the allowlist.
   bool CollectECFWVersions() const;
 
   // Gets the machine type (e.g. "i686").
