@@ -1016,7 +1016,7 @@ TEST(PayloadStateTest, RollbackVersion) {
   NiceMock<MockPrefs>* mock_powerwash_safe_prefs =
       fake_system_state.mock_powerwash_safe_prefs();
 
-  // Mock out the os version and make sure it's blacklisted correctly.
+  // Mock out the os version and make sure it's excluded correctly.
   string rollback_version = "2345.0.0";
   OmahaRequestParams params(&fake_system_state);
   params.Init(rollback_version, "", false);
