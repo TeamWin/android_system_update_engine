@@ -220,20 +220,10 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
     PLOG(ERROR) << "Unable to set non-blocking I/O mode on fd " << progress_fd_;
   }
 
-#ifdef __ANDROID__
-  progress_task_ = MessageLoop::current()->WatchFileDescriptor(
-      FROM_HERE,
-      progress_fd_,
-      MessageLoop::WatchMode::kWatchRead,
-      true,
-      base::Bind(&PostinstallRunnerAction::OnProgressFdReady,
-                 base::Unretained(this)));
-#else
   progress_controller_ = base::FileDescriptorWatcher::WatchReadable(
       progress_fd_,
       base::BindRepeating(&PostinstallRunnerAction::OnProgressFdReady,
                           base::Unretained(this)));
-#endif  // __ANDROID__
 
 }
 
@@ -259,12 +249,7 @@ void PostinstallRunnerAction::OnProgressFdReady() {
     if (!ok || eof) {
       // There was either an error or an EOF condition, so we are done watching
       // the file descriptor.
-#ifdef __ANDROID__
-      MessageLoop::current()->CancelTask(progress_task_);
-      progress_task_ = MessageLoop::kTaskIdNull;
-#else
       progress_controller_.reset();
-#endif  // __ANDROID__
       return;
     }
   } while (bytes_read);
@@ -308,14 +293,7 @@ void PostinstallRunnerAction::Cleanup() {
   fs_mount_dir_.clear();
 
   progress_fd_ = -1;
-#ifdef __ANDROID__
-  if (progress_task_ != MessageLoop::kTaskIdNull) {
-    MessageLoop::current()->CancelTask(progress_task_);
-    progress_task_ = MessageLoop::kTaskIdNull;
-  }
-#else
   progress_controller_.reset();
-#endif  // __ANDROID__
 
   progress_buffer_.clear();
 }

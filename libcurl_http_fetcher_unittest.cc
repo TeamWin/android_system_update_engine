@@ -94,37 +94,24 @@ TEST_F(LibcurlHttpFetcherTest, InvalidURLTest) {
             no_network_max_retries);
 }
 
-#ifdef __ANDROID__
-TEST_F(LibcurlHttpFetcherTest, CouldntResolveHostTest) {
-  int no_network_max_retries = 1;
-  libcurl_fetcher_.set_no_network_max_retries(no_network_max_retries);
-
-  // This test actually sends request to internet but according to
-  // https://tools.ietf.org/html/rfc2606#section-2, .invalid domain names are
-  // reserved and sure to be invalid. Ideally we should mock libcurl or
-  // reorganize LibcurlHttpFetcher so the part that sends request can be mocked
-  // easily.
-  // TODO(xiaochu) Refactor LibcurlHttpFetcher (and its relates) so it's
-  // easier to mock the part that depends on internet connectivity.
-  libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
-  while (loop_.PendingTasks()) {
-    loop_.RunOnce(true);
-  }
-
-  // If libcurl fails to resolve the name, we call res_init() to reload
-  // resolv.conf and retry exactly once more. See crbug.com/982813 for details.
-  EXPECT_EQ(libcurl_fetcher_.get_no_network_max_retries(),
-            no_network_max_retries + 1);
-}
-#else
 TEST_F(LibcurlHttpFetcherTest, CouldNotResolveHostTest) {
   int no_network_max_retries = 1;
   libcurl_fetcher_.set_no_network_max_retries(no_network_max_retries);
 
   libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
 
+#ifdef __ANDROID__
+  // It's slower on Android that libcurl handle may not finish within 1 cycle.
+  // Will need to wait for more cycles until it finishes. Original test didn't
+  // correctly handle when we need to re-watch libcurl fds.
+  while (loop_.PendingTasks() &&
+         libcurl_fetcher_.GetAuxiliaryErrorCode() == ErrorCode::kSuccess) {
+    loop_.RunOnce(true);
+  }
+#else
   // The first time it can't resolve.
   loop_.RunOnce(true);
+#endif
   EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
             ErrorCode::kUnresolvedHostError);
 
@@ -154,8 +141,18 @@ TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
   // easier to mock the part that depends on internet connectivity.
   libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
 
+#ifdef __ANDROID__
+  // It's slower on Android that libcurl handle may not finish within 1 cycle.
+  // Will need to wait for more cycles until it finishes. Original test didn't
+  // correctly handle when we need to re-watch libcurl fds.
+  while (loop_.PendingTasks() &&
+         libcurl_fetcher_.GetAuxiliaryErrorCode() == ErrorCode::kSuccess) {
+    loop_.RunOnce(true);
+  }
+#else
   // The first time it can't resolve.
   loop_.RunOnce(true);
+#endif
   EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
             ErrorCode::kUnresolvedHostError);
 
@@ -168,9 +165,19 @@ TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
           [this]() { libcurl_fetcher_.http_response_code_ = 0; }));
   libcurl_fetcher_.transfer_size_ = 10;
 
+#ifdef __ANDROID__
+  // It's slower on Android that libcurl handle may not finish within 1 cycle.
+  // Will need to wait for more cycles until it finishes. Original test didn't
+  // correctly handle when we need to re-watch libcurl fds.
+  while (loop_.PendingTasks() && libcurl_fetcher_.GetAuxiliaryErrorCode() ==
+                                     ErrorCode::kUnresolvedHostError) {
+    loop_.RunOnce(true);
+  }
+#else
   // This time the host is resolved. But after that again we can't resolve
   // anymore (See above).
   loop_.RunOnce(true);
+#endif
   EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
             ErrorCode::kUnresolvedHostRecovered);
 
@@ -186,7 +193,6 @@ TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
   EXPECT_EQ(libcurl_fetcher_.get_no_network_max_retries(),
             no_network_max_retries + 1);
 }
-#endif  // __ANDROID__
 
 TEST_F(LibcurlHttpFetcherTest, HttpFetcherStateMachineRetryFailedTest) {
   state_machine_.UpdateState(true);
