@@ -305,6 +305,7 @@ bool UpdatePartitionMetadata(DynamicPartitionControlInterface* dynamic_control,
     return false;
   }
 
+#ifndef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
   std::vector<string> groups = builder->ListGroups();
   for (const auto& group_name : groups) {
     if (base::EndsWith(
@@ -313,6 +314,7 @@ bool UpdatePartitionMetadata(DynamicPartitionControlInterface* dynamic_control,
       builder->RemoveGroupAndPartitions(group_name);
     }
   }
+#endif
 
   uint64_t total_size = 0;
   for (const auto& group : partition_metadata.groups) {
@@ -333,6 +335,7 @@ bool UpdatePartitionMetadata(DynamicPartitionControlInterface* dynamic_control,
     return false;
   }
 
+#ifndef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
   for (const auto& group : partition_metadata.groups) {
     auto group_name_suffix = group.name + target_suffix;
     if (!builder->AddGroup(group_name_suffix, group.size)) {
@@ -361,6 +364,25 @@ bool UpdatePartitionMetadata(DynamicPartitionControlInterface* dynamic_control,
                 << group_name_suffix << " with size " << partition.size;
     }
   }
+#else
+  for (const auto& group : partition_metadata.groups) {
+    for (const auto& partition : group.partitions) {
+      auto partition_name_suffix = partition.name + target_suffix;
+      Partition* p = builder->FindPartition(partition_name_suffix);
+      if (!p) {
+        LOG(ERROR) << "Cannot find partition " << partition_name_suffix;
+        return false;
+      }
+      if (!builder->ResizePartition(p, partition.size)) {
+        LOG(ERROR) << "Cannot resize partition " << partition_name_suffix
+                   << " to size " << partition.size << ". Not enough space?";
+        return false;
+      }
+      LOG(INFO) << "Updated partition " << partition_name_suffix
+                << " with size " << partition.size;
+    }
+  }
+#endif
 
   auto target_device =
       device_dir.Append(fs_mgr_get_super_partition_name(target_slot)).value();
