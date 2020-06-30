@@ -45,17 +45,17 @@ bool DaemonStateAndroid::Initialize() {
 
   // Initialize prefs.
   base::FilePath non_volatile_path;
-  // TODO(deymo): Fall back to in-memory prefs if there's no physical directory
-  // available.
   if (!hardware_->GetNonVolatileDirectory(&non_volatile_path)) {
-    LOG(ERROR) << "Failed to get a non-volatile directory.";
-    return false;
-  }
-  Prefs* prefs = new Prefs();
-  prefs_.reset(prefs);
-  if (!prefs->Init(non_volatile_path.Append(kPrefsSubDirectory))) {
-    LOG(ERROR) << "Failed to initialize preferences.";
-    return false;
+    prefs_.reset(new MemoryPrefs());
+    LOG(WARNING)
+        << "Could not get a non-volatile directory, fall back to memory prefs";
+  } else {
+    Prefs* prefs = new Prefs();
+    prefs_.reset(prefs);
+    if (!prefs->Init(non_volatile_path.Append(kPrefsSubDirectory))) {
+      LOG(ERROR) << "Failed to initialize preferences.";
+      return false;
+    }
   }
 
   // The CertificateChecker singleton is used by the update attempter.
