@@ -252,8 +252,8 @@ bool ApplyPayload(const string& payload_file,
                                        nullptr,
                                        new FileFetcher(),
                                        true /* interactive */);
-  auto filesystem_verifier_action =
-      std::make_unique<FilesystemVerifierAction>();
+  auto filesystem_verifier_action = std::make_unique<FilesystemVerifierAction>(
+      fake_boot_control.GetDynamicPartitionControl());
 
   BondActions(install_plan_action.get(), download_action.get());
   BondActions(download_action.get(), filesystem_verifier_action.get());
