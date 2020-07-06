@@ -21,9 +21,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <base/memory/ref_counted.h>
 #include <brillo/errors/error.h>
+#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/common_service.h"
 #include "update_engine/service_observer_interface.h"
@@ -50,7 +52,8 @@ class DBusUpdateEngineService
                               int32_t in_flags_as_int) override;
 
   bool AttemptInstall(brillo::ErrorPtr* error,
-                      const std::string& dlc_request) override;
+                      const std::string& in_omaha_url,
+                      const std::vector<std::string>& dlc_ids) override;
 
   bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash) override;
 
@@ -62,15 +65,17 @@ class DBusUpdateEngineService
   // update. This is used for development only.
   bool ResetStatus(brillo::ErrorPtr* error) override;
 
-  // Returns the current status of the Update Engine. If an update is in
-  // progress, the number of operations, size to download and overall progress
-  // is reported.
-  bool GetStatus(brillo::ErrorPtr* error,
-                 int64_t* out_last_checked_time,
-                 double* out_progress,
-                 std::string* out_current_operation,
-                 std::string* out_new_version,
-                 int64_t* out_new_size) override;
+  // Sets the DLC as active or inactive. When set to active, the ping metadata
+  // for the DLC is updated accordingly. When set to inactive, the metadata
+  // for the DLC is deleted.
+  bool SetDlcActiveValue(brillo::ErrorPtr* error,
+                         bool is_active,
+                         const std::string& dlc_id) override;
+
+  // Similar to Above, but returns a protobuffer instead. In the future it will
+  // have more features and is easily extendable.
+  bool GetStatusAdvanced(brillo::ErrorPtr* error,
+                         update_engine::StatusResult* out_status) override;
 
   // Reboots the device if an update is applied and a reboot is required.
   bool RebootIfNeeded(brillo::ErrorPtr* error) override;
@@ -149,9 +154,6 @@ class DBusUpdateEngineService
   // ErrorCode will be returned.
   bool GetLastAttemptError(brillo::ErrorPtr* error,
                            int32_t* out_last_attempt_error) override;
-
-  // Returns the current end-of-life status of the device in |out_eol_status|.
-  bool GetEolStatus(brillo::ErrorPtr* error, int32_t* out_eol_status) override;
 
  private:
   std::unique_ptr<UpdateEngineService> common_;

@@ -23,7 +23,6 @@
 
 #include <base/bind.h>
 #include <base/callback.h>
-#include <base/memory/ref_counted.h>
 #include <base/memory/weak_ptr.h>
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
@@ -46,7 +45,7 @@ namespace chromeos_update_manager {
 //
 // Example:
 //
-//   scoped_refptr<EvaluationContext> ec = new EvaluationContext(...);
+//   auto ec = std::make_shared<EvaluationContext>(...);
 //
 //   ...
 //   // The following call to ResetEvaluation() is optional. Use it to reset the
@@ -62,8 +61,7 @@ namespace chromeos_update_manager {
 //   // If the provided |closure| wants to re-evaluate the policy, it should
 //   // call ec->ResetEvaluation() to start a new evaluation.
 //
-class EvaluationContext : public base::RefCounted<EvaluationContext>,
-                          private BaseVariable::ObserverInterface {
+class EvaluationContext : private BaseVariable::ObserverInterface {
  public:
   EvaluationContext(
       chromeos_update_engine::ClockInterface* clock,

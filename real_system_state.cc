@@ -32,7 +32,7 @@
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
 #include "update_engine/common/constants.h"
-#include "update_engine/common/dlcservice.h"
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/metrics_reporter_omaha.h"
@@ -54,8 +54,6 @@ RealSystemState::~RealSystemState() {
 }
 
 bool RealSystemState::Initialize() {
-  metrics_reporter_.Initialize();
-
   boot_control_ = boot_control::CreateBootControl();
   if (!boot_control_) {
     LOG(WARNING) << "Unable to create BootControl instance, using stub "
@@ -189,14 +187,13 @@ bool RealSystemState::Initialize() {
     return false;
   }
 
-  // For devices that are not rollback enabled (ie. consumer devices),
-  // initialize max kernel key version to 0xfffffffe, which is logically
-  // infinity.
-  if (policy_provider_.IsConsumerDevice()) {
+  // For images that are build for debugging purposes like test images
+  // initialize max kernel key version to 0xfffffffe, which is logical infinity.
+  if (!hardware_->IsOfficialBuild()) {
     if (!hardware()->SetMaxKernelKeyRollforward(
             chromeos_update_manager::kRollforwardInfinity)) {
       LOG(ERROR) << "Failed to set kernel_max_rollforward to infinity for"
-                 << " consumer devices";
+                 << " device with test/dev image.";
     }
   }
 

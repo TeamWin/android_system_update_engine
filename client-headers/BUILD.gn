@@ -1,0 +1,31 @@
+#
+# Copyright (C) 2019 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import("//common-mk/generate-dbus-proxies.gni")
+
+group("all") {
+  deps = [ ":libupdate_engine-client-headers" ]
+}
+
+# update_engine client library generated headers. Used by other daemons and
+# by the update_engine_client console program to interact with update_engine.
+generate_dbus_proxies("libupdate_engine-client-headers") {
+  sources = [ "../dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml" ]
+  dbus_service_config = "../dbus_bindings/dbus-service-config.json"
+  mock_output_file = "include/update_engine/dbus-proxy-mocks.h"
+  proxy_output_file = "include/update_engine/dbus-proxies.h"
+  proxy_path_in_mocks = "update_engine/dbus-proxies.h"
+}

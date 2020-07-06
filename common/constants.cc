@@ -18,6 +18,10 @@
 
 namespace chromeos_update_engine {
 
+const char kExclusionPrefsSubDir[] = "exclusion";
+
+const char kDlcPrefsSubDir[] = "dlc";
+
 const char kPowerwashSafePrefsSubDirectory[] = "update_engine/prefs";
 
 const char kPrefsSubDirectory[] = "prefs";
@@ -55,11 +59,16 @@ const char kPrefsNumResponsesSeen[] = "num-responses-seen";
 const char kPrefsOmahaCohort[] = "omaha-cohort";
 const char kPrefsOmahaCohortHint[] = "omaha-cohort-hint";
 const char kPrefsOmahaCohortName[] = "omaha-cohort-name";
-const char kPrefsOmahaEolStatus[] = "omaha-eol-status";
+const char kPrefsOmahaEolDate[] = "omaha-eol-date";
 const char kPrefsP2PEnabled[] = "p2p-enabled";
 const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
 const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
+// Keep |kPrefsPingActive| in sync with |kDlcMetadataFilePingActive| in
+// dlcservice.
+const char kPrefsPingActive[] = "active";
+const char kPrefsPingLastActive[] = "date_last_active";
+const char kPrefsPingLastRollcall[] = "date_last_rollcall";
 const char kPrefsPostInstallSucceeded[] = "post-install-succeeded";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
@@ -122,5 +131,13 @@ const char kPayloadPropertySwitchSlotOnReboot[] = "SWITCH_SLOT_ON_REBOOT";
 // Set "RUN_POST_INSTALL=0" to skip running optional post install.
 // The default is 1 (always run post install).
 const char kPayloadPropertyRunPostInstall[] = "RUN_POST_INSTALL";
+
+const char kOmahaUpdaterVersion[] = "0.1.0.0";
+
+// X-Goog-Update headers.
+const char kXGoogleUpdateInteractivity[] = "X-Goog-Update-Interactivity";
+const char kXGoogleUpdateAppId[] = "X-Goog-Update-AppId";
+const char kXGoogleUpdateUpdater[] = "X-Goog-Update-Updater";
+const char kXGoogleUpdateSessionId[] = "X-Goog-SessionId";
 
 }  // namespace chromeos_update_engine

@@ -46,7 +46,7 @@ const uint64_t kMinimumSquashfsImageSize = 1 * 1024 * 1024;  // bytes
 // TODO(*): Optimize this so we don't have to read all extents into memory in
 // case it is large.
 bool CopyExtentsToFile(const string& in_path,
-                       const vector<Extent> extents,
+                       const vector<Extent>& extents,
                        const string& out_path,
                        size_t block_size) {
   brillo::Blob data(utils::BlocksInExtents(extents) * block_size);
@@ -284,8 +284,9 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
       TEST_AND_RETURN_FALSE(
           CopyExtentsToFile(part.path, file.extents, path.value(), kBlockSize));
       // Test if it is actually a Squashfs file.
-      auto sqfs =
-          SquashfsFilesystem::CreateFromFile(path.value(), extract_deflates);
+      auto sqfs = SquashfsFilesystem::CreateFromFile(path.value(),
+                                                     extract_deflates,
+                                                     /*load_settings=*/false);
       if (sqfs) {
         // It is an squashfs file. Get its files to replace with itself.
         vector<FilesystemInterface::File> files;
@@ -306,7 +307,7 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
       }
     }
 
-    if (is_regular_file && extract_deflates) {
+    if (is_regular_file && extract_deflates && !file.is_compressed) {
       // Search for deflates if the file is in zip or gzip format.
       // .zvoice files may eventually move out of rootfs. If that happens,
       // remove ".zvoice" (crbug.com/782918).

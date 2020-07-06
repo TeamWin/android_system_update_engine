@@ -54,66 +54,58 @@ ConnectionManager::ConnectionManager(ShillProxyInterface* shill_proxy,
 
 bool ConnectionManager::IsUpdateAllowedOver(
     ConnectionType type, ConnectionTethering tethering) const {
-  switch (type) {
-    case ConnectionType::kBluetooth:
-      return false;
-
-    case ConnectionType::kCellular: {
-      set<string> allowed_types;
-
-      const policy::DevicePolicy* device_policy =
-          system_state_->device_policy();
-
-      // The device_policy is loaded in a lazy way before an update check. Load
-      // it now from the libbrillo cache if it wasn't already loaded.
-      if (!device_policy) {
-        UpdateAttempter* update_attempter = system_state_->update_attempter();
-        if (update_attempter) {
-          update_attempter->RefreshDevicePolicy();
-          device_policy = system_state_->device_policy();
-        }
-      }
-
-      if (!device_policy) {
-        // Device policy fails to be loaded (possibly due to guest account). We
-        // do not check the local user setting here, which should be checked by
-        // |OmahaRequestAction| during checking for update.
-        LOG(INFO) << "Allowing updates over cellular as device policy "
-                     "fails to be loaded.";
-        return true;
-      }
-
-      if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
-        // The update setting is enforced by the device policy.
-
-        if (!base::ContainsKey(allowed_types, shill::kTypeCellular)) {
-          LOG(INFO) << "Disabling updates over cellular connection as it's not "
-                       "allowed in the device policy.";
-          return false;
-        }
-
-        LOG(INFO) << "Allowing updates over cellular per device policy.";
-        return true;
-      }
-
-      // If there's no update setting in the device policy, we do not check
-      // the local user setting here, which should be checked by
-      // |OmahaRequestAction| during checking for update.
-      LOG(INFO) << "Allowing updates over cellular as device policy does "
-                   "not include update setting.";
+  if (type != ConnectionType::kCellular) {
+    if (tethering != ConnectionTethering::kConfirmed) {
       return true;
     }
 
-    default:
-      if (tethering == ConnectionTethering::kConfirmed) {
-        // Treat this connection as if it is a cellular connection.
-        LOG(INFO) << "Current connection is confirmed tethered, using Cellular "
-                     "setting.";
-        return IsUpdateAllowedOver(ConnectionType::kCellular,
-                                   ConnectionTethering::kUnknown);
-      }
-      return true;
+    // Treat this connection as if it is a cellular connection.
+    LOG(INFO)
+        << "Current connection is confirmed tethered, using Cellular setting.";
   }
+
+  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+
+  // The device_policy is loaded in a lazy way before an update check. Load
+  // it now from the libbrillo cache if it wasn't already loaded.
+  if (!device_policy) {
+    UpdateAttempter* update_attempter = system_state_->update_attempter();
+    if (update_attempter) {
+      update_attempter->RefreshDevicePolicy();
+      device_policy = system_state_->device_policy();
+    }
+  }
+
+  if (!device_policy) {
+    // Device policy fails to be loaded (possibly due to guest account). We
+    // do not check the local user setting here, which should be checked by
+    // |OmahaRequestAction| during checking for update.
+    LOG(INFO) << "Allowing updates over cellular as device policy fails to be "
+                 "loaded.";
+    return true;
+  }
+
+  set<string> allowed_types;
+  if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
+    // The update setting is enforced by the device policy.
+
+    // TODO(crbug.com/1054279): Use base::Contains after uprev to r680000.
+    if (allowed_types.find(shill::kTypeCellular) == allowed_types.end()) {
+      LOG(INFO) << "Disabling updates over cellular connection as it's not "
+                   "allowed in the device policy.";
+      return false;
+    }
+
+    LOG(INFO) << "Allowing updates over cellular per device policy.";
+    return true;
+  }
+
+  // If there's no update setting in the device policy, we do not check
+  // the local user setting here, which should be checked by
+  // |OmahaRequestAction| during checking for update.
+  LOG(INFO) << "Allowing updates over cellular as device policy does "
+               "not include update setting.";
+  return true;
 }
 
 bool ConnectionManager::IsAllowedConnectionTypesForUpdateSet() const {

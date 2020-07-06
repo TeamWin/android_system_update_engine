@@ -284,12 +284,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackAndRestoreIfPossible) {
       true, RollbackToTargetVersion::kRollbackAndRestoreIfPossible));
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackOnlyIfRestorePossible) {
-  // We're not allowed to do rollback until we support data save and restore.
-  EXPECT_FALSE(TestRollbackAllowed(
-      true, RollbackToTargetVersion::kRollbackOnlyIfRestorePossible));
-}
-
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedRollbackDisabled) {
   EXPECT_FALSE(TestRollbackAllowed(true, RollbackToTargetVersion::kDisabled));
 }
@@ -1371,7 +1365,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   // Override specific device policy attributes.
   fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(nullptr);
-  fake_state_.device_policy_provider()->var_owner()->reset(nullptr);
+  fake_state_.device_policy_provider()->var_has_owner()->reset(new bool(false));
   fake_state_.device_policy_provider()->var_http_downloads_enabled()->reset(
       new bool(false));
 
@@ -1444,47 +1438,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateDownloadAllowedWifiTetheredPolicyOverride) {
   ExpectPolicyStatus(
       EvalStatus::kSucceeded, &Policy::UpdateDownloadAllowed, &result);
   EXPECT_TRUE(result);
-}
-
-TEST_F(UmChromeOSPolicyTest, UpdateDownloadAllowedWimaxDefault) {
-  // Wimax is always allowed.
-
-  fake_state_.shill_provider()->var_conn_type()->reset(
-      new ConnectionType(ConnectionType::kWifi));
-
-  bool result;
-  ExpectPolicyStatus(
-      EvalStatus::kSucceeded, &Policy::UpdateDownloadAllowed, &result);
-  EXPECT_TRUE(result);
-}
-
-TEST_F(UmChromeOSPolicyTest,
-       UpdateCurrentConnectionNotAllowedBluetoothDefault) {
-  // Bluetooth is never allowed.
-
-  fake_state_.shill_provider()->var_conn_type()->reset(
-      new ConnectionType(ConnectionType::kBluetooth));
-
-  bool result;
-  ExpectPolicyStatus(
-      EvalStatus::kAskMeAgainLater, &Policy::UpdateDownloadAllowed, &result);
-}
-
-TEST_F(UmChromeOSPolicyTest,
-       UpdateCurrentConnectionNotAllowedBluetoothPolicyCannotOverride) {
-  // Bluetooth cannot be allowed even by policy.
-
-  fake_state_.shill_provider()->var_conn_type()->reset(
-      new ConnectionType(ConnectionType::kBluetooth));
-  set<ConnectionType> allowed_connections;
-  allowed_connections.insert(ConnectionType::kBluetooth);
-  fake_state_.device_policy_provider()
-      ->var_allowed_connection_types_for_update()
-      ->reset(new set<ConnectionType>(allowed_connections));
-
-  bool result;
-  ExpectPolicyStatus(
-      EvalStatus::kAskMeAgainLater, &Policy::UpdateDownloadAllowed, &result);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionNotAllowedCellularDefault) {
@@ -1616,7 +1569,7 @@ TEST_F(UmChromeOSPolicyTest, P2PEnabledAllowedByUpdater) {
 
 TEST_F(UmChromeOSPolicyTest, P2PEnabledAllowedDeviceEnterpriseEnrolled) {
   fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(nullptr);
-  fake_state_.device_policy_provider()->var_owner()->reset(nullptr);
+  fake_state_.device_policy_provider()->var_has_owner()->reset(new bool(false));
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::P2PEnabled, &result);

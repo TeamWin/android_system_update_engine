@@ -78,7 +78,7 @@
 //   new partition.
 // - ZERO: Write zeros to the destination dst_extents.
 // - DISCARD: Discard the destination dst_extents blocks on the physical medium.
-//   the data read from those block is undefined.
+//   the data read from those blocks is undefined.
 // - REPLACE_XZ: Replace the dst_extents with the contents of the attached
 //   xz file after decompression. The xz file should only use crc32 or no crc at
 //   all to be compatible with xz-embedded.
@@ -167,10 +167,10 @@ message ImageInfo {
 
 message InstallOperation {
   enum Type {
-    REPLACE = 0;  // Replace destination extents w/ attached data
-    REPLACE_BZ = 1;  // Replace destination extents w/ attached bzipped data
-    MOVE = 2 [deprecated = true];  // Move source extents to destination extents
-    BSDIFF = 3 [deprecated = true];  // The data is a bsdiff binary diff
+    REPLACE = 0;     // Replace destination extents w/ attached data.
+    REPLACE_BZ = 1;  // Replace destination extents w/ attached bzipped data.
+    MOVE = 2 [deprecated = true];    // Move source extents to target extents.
+    BSDIFF = 3 [deprecated = true];  // The data is a bsdiff binary diff.
 
     // On minor version 2 or newer, these operations are supported:
     SOURCE_COPY = 4; // Copy from source to target partition
@@ -323,8 +323,8 @@ message DeltaArchiveManifest {
   // Only present in major version = 1. List of install operations for the
   // kernel and rootfs partitions. For major version = 2 see the |partitions|
   // field.
-  repeated InstallOperation install_operations = 1;
-  repeated InstallOperation kernel_install_operations = 2;
+  repeated InstallOperation install_operations = 1 [deprecated = true];
+  repeated InstallOperation kernel_install_operations = 2 [deprecated = true];
 
   // (At time of writing) usually 4096
   optional uint32 block_size = 3 [default = 4096];
@@ -339,10 +339,10 @@ message DeltaArchiveManifest {
 
   // Only present in major version = 1. Partition metadata used to validate the
   // update. For major version = 2 see the |partitions| field.
-  optional PartitionInfo old_kernel_info = 6;
-  optional PartitionInfo new_kernel_info = 7;
-  optional PartitionInfo old_rootfs_info = 8;
-  optional PartitionInfo new_rootfs_info = 9;
+  optional PartitionInfo old_kernel_info = 6 [deprecated = true];
+  optional PartitionInfo new_kernel_info = 7 [deprecated = true];
+  optional PartitionInfo old_rootfs_info = 8 [deprecated = true];
+  optional PartitionInfo new_rootfs_info = 9 [deprecated = true];
 
   // old_image_info will only be present for delta images.
   optional ImageInfo old_image_info = 10;

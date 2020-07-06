@@ -50,11 +50,7 @@ namespace chromeos_update_engine {
 namespace {
 // Log and set the error on the passed ErrorPtr.
 void LogAndSetError(ErrorPtr* error,
-#if BASE_VER < 576279
-                    const tracked_objects::Location& location,
-#else
                     const base::Location& location,
-#endif
                     const string& reason) {
   brillo::Error::AddTo(error,
                        location,
@@ -109,9 +105,8 @@ bool UpdateEngineService::AttemptUpdate(ErrorPtr* /* error */,
 
 bool UpdateEngineService::AttemptInstall(brillo::ErrorPtr* error,
                                          const string& omaha_url,
-                                         const vector<string>& dlc_module_ids) {
-  if (!system_state_->update_attempter()->CheckForInstall(dlc_module_ids,
-                                                          omaha_url)) {
+                                         const vector<string>& dlc_ids) {
+  if (!system_state_->update_attempter()->CheckForInstall(dlc_ids, omaha_url)) {
     // TODO(xiaochu): support more detailed error messages.
     LogAndSetError(error, FROM_HERE, "Could not schedule install operation.");
     return false;
@@ -142,6 +137,17 @@ bool UpdateEngineService::ResetStatus(ErrorPtr* error) {
   if (!system_state_->update_attempter()->ResetStatus()) {
     // TODO(dgarrett): Give a more specific error code/reason.
     LogAndSetError(error, FROM_HERE, "ResetStatus failed.");
+    return false;
+  }
+  return true;
+}
+
+bool UpdateEngineService::SetDlcActiveValue(brillo::ErrorPtr* error,
+                                            bool is_active,
+                                            const string& dlc_id) {
+  if (!system_state_->update_attempter()->SetDlcActiveValue(is_active,
+                                                            dlc_id)) {
+    LogAndSetError(error, FROM_HERE, "SetDlcActiveValue failed.");
     return false;
   }
   return true;
@@ -210,7 +216,7 @@ bool UpdateEngineService::GetChannel(ErrorPtr* /* error */,
 }
 
 bool UpdateEngineService::SetCohortHint(ErrorPtr* error,
-                                        string in_cohort_hint) {
+                                        const string& in_cohort_hint) {
   PrefsInterface* prefs = system_state_->prefs();
 
   // It is ok to override the cohort hint with an invalid value since it is
@@ -409,22 +415,6 @@ bool UpdateEngineService::GetLastAttemptError(ErrorPtr* /* error */,
   ErrorCode error_code =
       system_state_->update_attempter()->GetAttemptErrorCode();
   *out_last_attempt_error = static_cast<int>(error_code);
-  return true;
-}
-
-bool UpdateEngineService::GetEolStatus(ErrorPtr* error,
-                                       int32_t* out_eol_status) {
-  PrefsInterface* prefs = system_state_->prefs();
-
-  string str_eol_status;
-  if (prefs->Exists(kPrefsOmahaEolStatus) &&
-      !prefs->GetString(kPrefsOmahaEolStatus, &str_eol_status)) {
-    LogAndSetError(error, FROM_HERE, "Error getting the end-of-life status.");
-    return false;
-  }
-
-  // StringToEolStatus will return kSupported for invalid values.
-  *out_eol_status = static_cast<int32_t>(StringToEolStatus(str_eol_status));
   return true;
 }
 

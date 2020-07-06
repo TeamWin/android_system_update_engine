@@ -16,11 +16,31 @@
 #include "update_engine/update_status_utils.h"
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
+#include <brillo/key_value_store.h>
 #include <update_engine/dbus-constants.h>
 
+using brillo::KeyValueStore;
+using std::string;
+using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
+
+namespace {
+
+// Note: Do not change these, autotest depends on these string variables being
+// exactly these matches.
+const char kCurrentOp[] = "CURRENT_OP";
+const char kIsInstall[] = "IS_INSTALL";
+const char kIsEnterpriseRollback[] = "IS_ENTERPRISE_ROLLBACK";
+const char kLastCheckedTime[] = "LAST_CHECKED_TIME";
+const char kNewSize[] = "NEW_SIZE";
+const char kNewVersion[] = "NEW_VERSION";
+const char kProgress[] = "PROGRESS";
+const char kWillPowerwashAfterReboot[] = "WILL_POWERWASH_AFTER_REBOOT";
+
+}  // namespace
 
 const char* UpdateStatusToString(const UpdateStatus& status) {
   switch (status) {
@@ -54,45 +74,23 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
   return nullptr;
 }
 
-bool StringToUpdateStatus(const std::string& s, UpdateStatus* status) {
-  if (s == update_engine::kUpdateStatusIdle) {
-    *status = UpdateStatus::IDLE;
-    return true;
-  } else if (s == update_engine::kUpdateStatusCheckingForUpdate) {
-    *status = UpdateStatus::CHECKING_FOR_UPDATE;
-    return true;
-  } else if (s == update_engine::kUpdateStatusUpdateAvailable) {
-    *status = UpdateStatus::UPDATE_AVAILABLE;
-    return true;
-  } else if (s == update_engine::kUpdateStatusNeedPermissionToUpdate) {
-    *status = UpdateStatus::NEED_PERMISSION_TO_UPDATE;
-    return true;
-  } else if (s == update_engine::kUpdateStatusDownloading) {
-    *status = UpdateStatus::DOWNLOADING;
-    return true;
-  } else if (s == update_engine::kUpdateStatusVerifying) {
-    *status = UpdateStatus::VERIFYING;
-    return true;
-  } else if (s == update_engine::kUpdateStatusFinalizing) {
-    *status = UpdateStatus::FINALIZING;
-    return true;
-  } else if (s == update_engine::kUpdateStatusUpdatedNeedReboot) {
-    *status = UpdateStatus::UPDATED_NEED_REBOOT;
-    return true;
-  } else if (s == update_engine::kUpdateStatusReportingErrorEvent) {
-    *status = UpdateStatus::REPORTING_ERROR_EVENT;
-    return true;
-  } else if (s == update_engine::kUpdateStatusAttemptingRollback) {
-    *status = UpdateStatus::ATTEMPTING_ROLLBACK;
-    return true;
-  } else if (s == update_engine::kUpdateStatusDisabled) {
-    *status = UpdateStatus::DISABLED;
-    return true;
-  } else if (s == update_engine::kUpdateStatusCleanupPreviousUpdate) {
-    *status = UpdateStatus::CLEANUP_PREVIOUS_UPDATE;
-    return true;
-  }
-  return false;
+string UpdateEngineStatusToString(const UpdateEngineStatus& status) {
+  KeyValueStore key_value_store;
+
+  key_value_store.SetString(kLastCheckedTime,
+                            base::NumberToString(status.last_checked_time));
+  key_value_store.SetString(kProgress, base::NumberToString(status.progress));
+  key_value_store.SetString(kNewSize,
+                            base::NumberToString(status.new_size_bytes));
+  key_value_store.SetString(kCurrentOp, UpdateStatusToString(status.status));
+  key_value_store.SetString(kNewVersion, status.new_version);
+  key_value_store.SetBoolean(kIsEnterpriseRollback,
+                             status.is_enterprise_rollback);
+  key_value_store.SetBoolean(kIsInstall, status.is_install);
+  key_value_store.SetBoolean(kWillPowerwashAfterReboot,
+                             status.will_powerwash_after_reboot);
+
+  return key_value_store.SaveToString();
 }
 
 }  // namespace chromeos_update_engine
