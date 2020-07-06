@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 #
 # Copyright (C) 2017 The Android Open Source Project
 #
@@ -17,8 +17,9 @@
 
 """Send an A/B update to an Android device over adb."""
 
+from __future__ import absolute_import
+
 import argparse
-import BaseHTTPServer
 import hashlib
 import logging
 import os
@@ -28,6 +29,8 @@ import sys
 import threading
 import xml.etree.ElementTree
 import zipfile
+
+from six.moves import BaseHTTPServer
 
 import update_payload.payload
 
@@ -40,6 +43,7 @@ PAYLOAD_KEY_PATH = '/etc/update_engine/update-payload-key.pub.pem'
 
 # The port on the device that update_engine should connect to.
 DEVICE_PORT = 1234
+
 
 def CopyFileObjLength(fsrc, fdst, buffer_size=128 * 1024, copy_length=None):
   """Copy from a file object to another.
@@ -137,7 +141,6 @@ class UpdateHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           start_range = file_size - int(e)
     return start_range, end_range
 
-
   def do_GET(self):  # pylint: disable=invalid-name
     """Reply with the requested payload file."""
     if self.path != '/payload':
@@ -179,7 +182,6 @@ class UpdateHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     f.seek(serving_start + start_range)
     CopyFileObjLength(f, self.wfile, copy_length=end_range - start_range)
-
 
   def do_POST(self):  # pylint: disable=invalid-name
     """Reply with the omaha response xml."""
@@ -450,6 +452,7 @@ def main():
       dut.adb(cmd)
 
   return 0
+
 
 if __name__ == '__main__':
   sys.exit(main())

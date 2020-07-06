@@ -33,6 +33,7 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
+#include "update_engine/omaha_request_builder_xml.h"
 #include "update_engine/omaha_response.h"
 #include "update_engine/system_state.h"
 
@@ -44,56 +45,6 @@ class PolicyProvider;
 }
 
 namespace chromeos_update_engine {
-
-// Encodes XML entities in a given string. Input must be ASCII-7 valid. If
-// the input is invalid, the default value is used instead.
-std::string XmlEncodeWithDefault(const std::string& input,
-                                 const std::string& default_value);
-
-// Escapes text so it can be included as character data and attribute
-// values. The |input| string must be valid ASCII-7, no UTF-8 supported.
-// Returns whether the |input| was valid and escaped properly in |output|.
-bool XmlEncode(const std::string& input, std::string* output);
-
-// This struct encapsulates the Omaha event information. For a
-// complete list of defined event types and results, see
-// http://code.google.com/p/omaha/wiki/ServerProtocol#event
-struct OmahaEvent {
-  // The Type values correspond to EVENT_TYPE values of Omaha.
-  enum Type {
-    kTypeUnknown = 0,
-    kTypeDownloadComplete = 1,
-    kTypeInstallComplete = 2,
-    kTypeUpdateComplete = 3,
-    kTypeUpdateDownloadStarted = 13,
-    kTypeUpdateDownloadFinished = 14,
-    // Chromium OS reserved type sent after the first reboot following an update
-    // completed.
-    kTypeRebootedAfterUpdate = 54,
-  };
-
-  // The Result values correspond to EVENT_RESULT values of Omaha.
-  enum Result {
-    kResultError = 0,
-    kResultSuccess = 1,
-    kResultUpdateDeferred = 9,  // When we ignore/defer updates due to policy.
-  };
-
-  OmahaEvent()
-      : type(kTypeUnknown),
-        result(kResultError),
-        error_code(ErrorCode::kError) {}
-  explicit OmahaEvent(Type in_type)
-      : type(in_type),
-        result(kResultSuccess),
-        error_code(ErrorCode::kSuccess) {}
-  OmahaEvent(Type in_type, Result in_result, ErrorCode in_error_code)
-      : type(in_type), result(in_result), error_code(in_error_code) {}
-
-  Type type;
-  Result result;
-  ErrorCode error_code;
-};
 
 class NoneType;
 class OmahaRequestAction;
@@ -116,14 +67,13 @@ class ActionTraits<OmahaRequestAction> {
 class OmahaRequestAction : public Action<OmahaRequestAction>,
                            public HttpFetcherDelegate {
  public:
-  static const int kNeverPinged = -1;
   static const int kPingTimeJump = -2;
-  // We choose this value of 10 as a heuristic for a work day in trying
+  // We choose this value of 3 as a heuristic for a work day in trying
   // each URL, assuming we check roughly every 45 mins. This is a good time to
-  // wait - neither too long nor too little - so we don't give up the preferred
-  // URLs that appear earlier in list too quickly before moving on to the
-  // fallback ones.
-  static const int kDefaultMaxFailureCountPerUrl = 10;
+  // wait so we don't give up the preferred URLs, but allow using the URL that
+  // appears earlier in list for every payload before resorting to the fallback
+  // URLs in the candiate URL list.
+  static const int kDefaultMaxFailureCountPerUrl = 3;
 
   // If staging is enabled, set the maximum wait time to 28 days, since that is
   // the predetermined wait time for staging.
@@ -154,7 +104,8 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   OmahaRequestAction(SystemState* system_state,
                      OmahaEvent* event,
                      std::unique_ptr<HttpFetcher> http_fetcher,
-                     bool ping_only);
+                     bool ping_only,
+                     const std::string& session_id);
   ~OmahaRequestAction() override;
   typedef ActionTraits<OmahaRequestAction>::InputObjectType InputObjectType;
   typedef ActionTraits<OmahaRequestAction>::OutputObjectType OutputObjectType;
@@ -188,6 +139,9 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
               GetInstallDateWhenOOBECompletedWithValidDate);
   FRIEND_TEST(OmahaRequestActionTest,
               GetInstallDateWhenOOBECompletedDateChanges);
+  friend class UpdateAttempterTest;
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestEnforceEmptyStrPingOmaha);
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestConsistencyInUpdateFlow);
 
   // Enumeration used in PersistInstallDate().
   enum InstallDateProvisioningSource {
@@ -229,9 +183,9 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool PersistCohortData(const std::string& prefs_key,
                          const std::string& new_value);
 
-  // Parse and persist the end-of-life status flag sent back in the updatecheck
-  // tag attributes. The flag will be validated and stored in the Prefs.
-  bool PersistEolStatus(const std::map<std::string, std::string>& attrs);
+  // Parses and persists the end-of-life date flag sent back in the updatecheck
+  // tag attributes. The flags will be validated and stored in the Prefs.
+  bool PersistEolInfo(const std::map<std::string, std::string>& attrs);
 
   // If this is an update check request, initializes
   // |ping_active_days_| and |ping_roll_call_days_| to values that may
@@ -245,6 +199,10 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // Returns whether we have "active_days" or "roll_call_days" ping values to
   // send to Omaha and thus we should include them in the response.
   bool ShouldPing() const;
+
+  // Process Omaha's response to a ping request and store the results in the DLC
+  // metadata directory.
+  void StorePingReply(const OmahaParserData& parser_data) const;
 
   // Returns true if the download of a new update should be deferred.
   // False if the update can be downloaded.
@@ -351,6 +309,8 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // are sent to Omaha.
   int ping_active_days_;
   int ping_roll_call_days_;
+
+  std::string session_id_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestAction);
 };

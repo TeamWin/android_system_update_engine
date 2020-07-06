@@ -91,22 +91,18 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
         case RollbackToTargetVersion::kDisabled:
           LOG(INFO) << "Policy disables rollbacks.";
           result->rollback_allowed = false;
+          result->rollback_data_save_requested = false;
           break;
         case RollbackToTargetVersion::kRollbackAndPowerwash:
           LOG(INFO) << "Policy allows rollbacks with powerwash.";
           result->rollback_allowed = true;
+          result->rollback_data_save_requested = false;
           break;
         case RollbackToTargetVersion::kRollbackAndRestoreIfPossible:
           LOG(INFO)
               << "Policy allows rollbacks, also tries to restore if possible.";
-          // We don't support restore yet, but policy still allows rollback.
           result->rollback_allowed = true;
-          break;
-        case RollbackToTargetVersion::kRollbackOnlyIfRestorePossible:
-          LOG(INFO) << "Policy only allows rollbacks if restore is possible.";
-          // We don't support restore yet, policy doesn't allow rollback in this
-          // case.
-          result->rollback_allowed = false;
+          result->rollback_data_save_requested = true;
           break;
         case RollbackToTargetVersion::kMaxValue:
           NOTREACHED();

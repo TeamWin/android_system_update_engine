@@ -258,4 +258,8 @@ TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
   EXPECT_TRUE(params_.CollectECFWVersions());
 }
 
+TEST_F(OmahaRequestParamsTest, RequisitionIsSetTest) {
+  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_EQ("fake_requisition", params_.device_requisition());
+}
 }  // namespace chromeos_update_engine

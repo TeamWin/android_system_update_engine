@@ -18,6 +18,8 @@
 
 #include <gtest/gtest.h>
 
+using std::string;
+
 namespace chromeos_update_engine {
 
 class BootControlChromeOSTest : public ::testing::Test {
@@ -65,6 +67,24 @@ TEST_F(BootControlChromeOSTest, GetPartitionNumberTest) {
   // Non A/B partitions are ignored.
   EXPECT_EQ(-1, bootctl_.GetPartitionNumber("OEM", 0));
   EXPECT_EQ(-1, bootctl_.GetPartitionNumber("A little panda", 0));
+}
+
+TEST_F(BootControlChromeOSTest, ParseDlcPartitionNameTest) {
+  string id, package;
+
+  EXPECT_TRUE(bootctl_.ParseDlcPartitionName("dlc/id/package", &id, &package));
+  EXPECT_EQ(id, "id");
+  EXPECT_EQ(package, "package");
+
+  EXPECT_FALSE(
+      bootctl_.ParseDlcPartitionName("dlc-foo/id/package", &id, &package));
+  EXPECT_FALSE(
+      bootctl_.ParseDlcPartitionName("dlc-foo/id/package/", &id, &package));
+  EXPECT_FALSE(bootctl_.ParseDlcPartitionName("dlc/id", &id, &package));
+  EXPECT_FALSE(bootctl_.ParseDlcPartitionName("dlc/id/", &id, &package));
+  EXPECT_FALSE(bootctl_.ParseDlcPartitionName("dlc//package", &id, &package));
+  EXPECT_FALSE(bootctl_.ParseDlcPartitionName("dlc", &id, &package));
+  EXPECT_FALSE(bootctl_.ParseDlcPartitionName("foo", &id, &package));
 }
 
 }  // namespace chromeos_update_engine

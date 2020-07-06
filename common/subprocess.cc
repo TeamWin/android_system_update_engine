@@ -29,6 +29,7 @@
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
+#include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/process.h>
@@ -95,6 +96,7 @@ bool LaunchProcess(const vector<string>& cmd,
   proc->RedirectUsingPipe(STDOUT_FILENO, false);
   proc->SetPreExecCallback(base::Bind(&SetupChild, env, flags));
 
+  LOG(INFO) << "Running \"" << base::JoinString(cmd, " ") << "\"";
   return proc->Start();
 }
 
@@ -122,13 +124,17 @@ void Subprocess::OnStdoutReady(SubprocessRecord* record) {
     bytes_read = 0;
     bool eof;
     bool ok = utils::ReadAll(
-        record->stdout_fd, buf, arraysize(buf), &bytes_read, &eof);
+        record->stdout_fd, buf, base::size(buf), &bytes_read, &eof);
     record->stdout.append(buf, bytes_read);
     if (!ok || eof) {
       // There was either an error or an EOF condition, so we are done watching
       // the file descriptor.
+#ifdef __ANDROID__
       MessageLoop::current()->CancelTask(record->stdout_task_id);
       record->stdout_task_id = MessageLoop::kTaskIdNull;
+#else
+      record->stdout_controller.reset();
+#endif  // __ANDROID__
       return;
     }
   } while (bytes_read);
@@ -143,8 +149,12 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
   // Make sure we read any remaining process output and then close the pipe.
   OnStdoutReady(record);
 
+#ifdef __ANDROID__
   MessageLoop::current()->CancelTask(record->stdout_task_id);
   record->stdout_task_id = MessageLoop::kTaskIdNull;
+#else
+  record->stdout_controller.reset();
+#endif  // __ANDROID__
 
   // Don't print any log if the subprocess exited with exit code 0.
   if (info.si_code != CLD_EXITED) {
@@ -199,12 +209,18 @@ pid_t Subprocess::ExecFlags(const vector<string>& cmd,
                << record->stdout_fd << ".";
   }
 
+#ifdef __ANDROID__
   record->stdout_task_id = MessageLoop::current()->WatchFileDescriptor(
       FROM_HERE,
       record->stdout_fd,
       MessageLoop::WatchMode::kWatchRead,
       true,
       base::Bind(&Subprocess::OnStdoutReady, record.get()));
+#else
+  record->stdout_controller = base::FileDescriptorWatcher::WatchReadable(
+      record->stdout_fd,
+      base::BindRepeating(&Subprocess::OnStdoutReady, record.get()));
+#endif  // __ANDROID__
 
   subprocess_records_[pid] = std::move(record);
   return pid;
@@ -234,22 +250,20 @@ int Subprocess::GetPipeFd(pid_t pid, int fd) const {
 
 bool Subprocess::SynchronousExec(const vector<string>& cmd,
                                  int* return_code,
-                                 string* stdout) {
-  // The default for SynchronousExec is to use kSearchPath since the code relies
-  // on that.
-  return SynchronousExecFlags(
-      cmd, kRedirectStderrToStdout | kSearchPath, return_code, stdout);
+                                 string* stdout,
+                                 string* stderr) {
+  // The default for |SynchronousExec| is to use |kSearchPath| since the code
+  // relies on that.
+  return SynchronousExecFlags(cmd, kSearchPath, return_code, stdout, stderr);
 }
 
 bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
                                       uint32_t flags,
                                       int* return_code,
-                                      string* stdout) {
+                                      string* stdout,
+                                      string* stderr) {
   brillo::ProcessImpl proc;
-  // It doesn't make sense to redirect some pipes in the synchronous case
-  // because we won't be reading on our end, so we don't expose the output_pipes
-  // in this case.
-  if (!LaunchProcess(cmd, flags, {}, &proc)) {
+  if (!LaunchProcess(cmd, flags, {STDERR_FILENO}, &proc)) {
     LOG(ERROR) << "Failed to launch subprocess";
     return false;
   }
@@ -257,21 +271,39 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
   if (stdout) {
     stdout->clear();
   }
+  if (stderr) {
+    stderr->clear();
+  }
 
-  int fd = proc.GetPipe(STDOUT_FILENO);
+  // Read from both stdout and stderr individually.
+  int stdout_fd = proc.GetPipe(STDOUT_FILENO);
+  int stderr_fd = proc.GetPipe(STDERR_FILENO);
   vector<char> buffer(32 * 1024);
-  while (true) {
-    int rc = HANDLE_EINTR(read(fd, buffer.data(), buffer.size()));
-    if (rc < 0) {
-      PLOG(ERROR) << "Reading from child's output";
-      break;
-    } else if (rc == 0) {
-      break;
-    } else {
-      if (stdout)
+  bool stdout_closed = false, stderr_closed = false;
+  while (!stdout_closed || !stderr_closed) {
+    if (!stdout_closed) {
+      int rc = HANDLE_EINTR(read(stdout_fd, buffer.data(), buffer.size()));
+      if (rc <= 0) {
+        stdout_closed = true;
+        if (rc < 0)
+          PLOG(ERROR) << "Reading from child's stdout";
+      } else if (stdout != nullptr) {
         stdout->append(buffer.data(), rc);
+      }
+    }
+
+    if (!stderr_closed) {
+      int rc = HANDLE_EINTR(read(stderr_fd, buffer.data(), buffer.size()));
+      if (rc <= 0) {
+        stderr_closed = true;
+        if (rc < 0)
+          PLOG(ERROR) << "Reading from child's stderr";
+      } else if (stderr != nullptr) {
+        stderr->append(buffer.data(), rc);
+      }
     }
   }
+
   // At this point, the subprocess already closed the output, so we only need to
   // wait for it to finish.
   int proc_return_code = proc.Wait();

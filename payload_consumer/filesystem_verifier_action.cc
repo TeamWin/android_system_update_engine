@@ -57,6 +57,7 @@ void FilesystemVerifierAction::PerformAction() {
     abort_action_completer.set_code(ErrorCode::kSuccess);
     return;
   }
+  install_plan_.Dump();
 
   StartPartitionHashing();
   abort_action_completer.set_should_complete(false);

@@ -144,7 +144,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   // Interface for dlcservice.
   std::unique_ptr<DlcServiceInterface> dlcservice_;
 
-  // Interface for the clock.
+  // Interface for the bootloader control.
   std::unique_ptr<BootControlInterface> boot_control_;
 
   // Interface for the clock.

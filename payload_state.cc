@@ -37,6 +37,7 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_attempter.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -60,6 +61,8 @@ static const uint64_t kUptimeResolution = 1;
 
 PayloadState::PayloadState()
     : prefs_(nullptr),
+      powerwash_safe_prefs_(nullptr),
+      excluder_(nullptr),
       using_p2p_for_downloading_(false),
       p2p_num_attempts_(0),
       payload_attempt_number_(0),
@@ -79,6 +82,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
   system_state_ = system_state;
   prefs_ = system_state_->prefs();
   powerwash_safe_prefs_ = system_state_->powerwash_safe_prefs();
+  excluder_ = system_state_->update_attempter()->GetExcluder();
   LoadResponseSignature();
   LoadPayloadAttemptNumber();
   LoadFullPayloadAttemptNumber();
@@ -308,6 +312,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kUnsupportedMinorPayloadVersion:
     case ErrorCode::kPayloadTimestampError:
     case ErrorCode::kVerityCalculationError:
+      ExcludeCurrentPayload();
       IncrementUrlIndex();
       break;
 
@@ -471,9 +476,7 @@ void PayloadState::IncrementFullPayloadAttemptNumber() {
 
 void PayloadState::IncrementUrlIndex() {
   size_t next_url_index = url_index_ + 1;
-  size_t max_url_size = 0;
-  for (const auto& urls : candidate_urls_)
-    max_url_size = std::max(max_url_size, urls.size());
+  size_t max_url_size = candidate_urls_[payload_index_].size();
   if (next_url_index < max_url_size) {
     LOG(INFO) << "Incrementing the URL index for next attempt";
     SetUrlIndex(next_url_index);
@@ -502,8 +505,27 @@ void PayloadState::IncrementFailureCount() {
   } else {
     LOG(INFO) << "Reached max number of failures for Url" << GetUrlIndex()
               << ". Trying next available URL";
+    ExcludeCurrentPayload();
     IncrementUrlIndex();
   }
+}
+
+void PayloadState::ExcludeCurrentPayload() {
+  const auto& package = response_.packages[payload_index_];
+  if (!package.can_exclude) {
+    LOG(INFO) << "Not excluding as marked non-excludable for package hash="
+              << package.hash;
+    return;
+  }
+  auto exclusion_name = utils::GetExclusionName(GetCurrentUrl());
+  if (!excluder_->Exclude(exclusion_name))
+    LOG(WARNING) << "Failed to exclude "
+                 << " Package Hash=" << package.hash
+                 << " CurrentUrl=" << GetCurrentUrl();
+  else
+    LOG(INFO) << "Excluded "
+              << " Package Hash=" << package.hash
+              << " CurrentUrl=" << GetCurrentUrl();
 }
 
 void PayloadState::UpdateBackoffExpiryTime() {
@@ -904,6 +926,7 @@ void PayloadState::SetPayloadIndex(size_t payload_index) {
 bool PayloadState::NextPayload() {
   if (payload_index_ + 1 >= candidate_urls_.size())
     return false;
+  SetUrlIndex(0);
   SetPayloadIndex(payload_index_ + 1);
   return true;
 }

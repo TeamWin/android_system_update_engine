@@ -16,14 +16,12 @@
 
 #include "update_engine/common/hwid_override.h"
 
-#include <map>
 #include <string>
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <brillo/key_value_store.h>
 
-using std::map;
 using std::string;
 
 namespace chromeos_update_engine {

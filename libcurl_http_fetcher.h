@@ -24,6 +24,7 @@
 
 #include <curl/curl.h>
 
+#include <base/files/file_descriptor_watcher_posix.h>
 #include <base/logging.h>
 #include <base/macros.h>
 #include <brillo/message_loops/message_loop.h>
@@ -36,6 +37,48 @@
 // http work.
 
 namespace chromeos_update_engine {
+
+// |UnresolvedHostStateMachine| is a representation of internal state machine of
+// |LibcurlHttpFetcher|.
+class UnresolvedHostStateMachine {
+ public:
+  UnresolvedHostStateMachine() = default;
+  enum class State {
+    kInit = 0,
+    kRetry = 1,
+    kRetriedSuccess = 2,
+    kNotRetry = 3,
+  };
+
+  State GetState() { return state_; }
+
+  // Updates the following internal state machine:
+  //
+  // |kInit|
+  //   |
+  //   |
+  //   \/
+  // (Try, host Unresolved)
+  //   |
+  //   |
+  //   \/
+  // |kRetry| --> (Retry, host resolved)
+  //   |                                  |
+  //   |                                  |
+  //   \/                                 \/
+  // (Retry, host Unresolved)    |kRetriedSuccess|
+  //   |
+  //   |
+  //   \/
+  // |kNotRetry|
+  //
+  void UpdateState(bool failed_to_resolve_host);
+
+ private:
+  State state_ = {State::kInit};
+
+  DISALLOW_COPY_AND_ASSIGN(UnresolvedHostStateMachine);
+};
 
 class LibcurlHttpFetcher : public HttpFetcher {
  public:
@@ -61,6 +104,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   void SetHeader(const std::string& header_name,
                  const std::string& header_value) override;
 
+  bool GetHeader(const std::string& header_name,
+                 std::string* header_value) const override;
+
   // Suspend the transfer by calling curl_easy_pause(CURLPAUSE_ALL).
   void Pause() override;
 
@@ -85,6 +131,8 @@ class LibcurlHttpFetcher : public HttpFetcher {
     no_network_max_retries_ = retries;
   }
 
+  int get_no_network_max_retries() { return no_network_max_retries_; }
+
   void set_server_to_check(ServerToCheck server_to_check) {
     server_to_check_ = server_to_check;
   }
@@ -106,7 +154,13 @@ class LibcurlHttpFetcher : public HttpFetcher {
     max_retry_count_ = max_retry_count;
   }
 
+  void set_is_update_check(bool is_update_check) {
+    is_update_check_ = is_update_check;
+  }
+
  private:
+  FRIEND_TEST(LibcurlHttpFetcherTest, HostResolvedTest);
+
   // libcurl's CURLOPT_CLOSESOCKETFUNCTION callback function. Called when
   // closing a socket created with the CURLOPT_OPENSOCKETFUNCTION callback.
   static int LibcurlCloseSocketCallback(void* clientp, curl_socket_t item);
@@ -116,7 +170,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
   void ProxiesResolved();
 
   // Asks libcurl for the http response code and stores it in the object.
-  void GetHttpResponseCode();
+  virtual void GetHttpResponseCode();
+
+  // Returns the last |CURLcode|.
+  CURLcode GetCurlCode();
 
   // Checks whether stored HTTP response is within the success range.
   inline bool IsHttpResponseSuccess() {
@@ -161,7 +218,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
   }
 
   // Cleans up the following if they are non-null:
-  // curl(m) handles, fd_task_maps_, timeout_id_.
+  // curl(m) handles, fd_controller_maps_(fd_task_maps_), timeout_id_.
   void CleanUp();
 
   // Force terminate the transfer. This will invoke the delegate's (if any)
@@ -198,7 +255,12 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // the message loop. libcurl may open/close descriptors and switch their
   // directions so maintain two separate lists so that watch conditions can be
   // set appropriately.
+#ifdef __ANDROID__
   std::map<int, brillo::MessageLoop::TaskId> fd_task_maps_[2];
+#else
+  std::map<int, std::unique_ptr<base::FileDescriptorWatcher::Controller>>
+      fd_controller_maps_[2];
+#endif  // __ANDROID__
 
   // The TaskId of the timer we're waiting on. kTaskIdNull if we are not waiting
   // on it.
@@ -264,6 +326,12 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // certificate check needs to be performed, this should be set to
   // ServerToCheck::kNone.
   ServerToCheck server_to_check_{ServerToCheck::kNone};
+
+  // True if this object is for update check.
+  bool is_update_check_{false};
+
+  // Internal state machine.
+  UnresolvedHostStateMachine unresolved_host_state_machine_;
 
   int low_speed_limit_bps_{kDownloadLowSpeedLimitBps};
   int low_speed_time_seconds_{kDownloadLowSpeedTimeSeconds};

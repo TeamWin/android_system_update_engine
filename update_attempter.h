@@ -26,6 +26,7 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/guid.h>
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
@@ -36,7 +37,9 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/cpu_limiter.h"
+#include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/proxy_resolver.h"
+#include "update_engine/omaha_request_builder_xml.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/payload_consumer/download_action.h"
@@ -84,6 +87,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
                       const std::string& target_channel,
                       const std::string& target_version_prefix,
                       bool rollback_allowed,
+                      bool rollback_data_save_requested,
+                      int rollback_allowed_milestones,
                       bool obey_proxies,
                       bool interactive);
 
@@ -137,7 +142,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                               UpdateAttemptFlags flags);
 
   // This is the version of CheckForUpdate called by AttemptInstall API.
-  virtual bool CheckForInstall(const std::vector<std::string>& dlc_module_ids,
+  virtual bool CheckForInstall(const std::vector<std::string>& dlc_ids,
                                const std::string& omaha_url);
 
   // This is the internal entry point for going through a rollback. This will
@@ -158,6 +163,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // UPDATED_NEED_REBOOT. Returns true on success, false otherwise.
   bool RebootIfNeeded();
 
+  // Sets the DLC as active or inactive. See common_service.h
+  virtual bool SetDlcActiveValue(bool is_active, const std::string& dlc_id);
+
   // DownloadActionDelegate methods:
   void BytesReceived(uint64_t bytes_progressed,
                      uint64_t bytes_received,
@@ -176,6 +184,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Called at update_engine startup to do various house-keeping.
   void UpdateEngineStarted();
+
+  // Returns the |Excluder| that is currently held onto.
+  virtual ExcluderInterface* GetExcluder() const { return excluder_.get(); }
 
   // Reloads the device policy from libbrillo. Note: This method doesn't
   // cause a real-time policy fetch from the policy server. It just reloads the
@@ -245,15 +256,28 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedOmahaRequestTest);
   FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
   FRIEND_TEST(UpdateAttempterTest, BroadcastCompleteDownloadTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsInstallTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsValidValuesTest);
+  FRIEND_TEST(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata);
   FRIEND_TEST(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest);
+  FRIEND_TEST(UpdateAttempterTest, CheckForInstallNotIdleFails);
   FRIEND_TEST(UpdateAttempterTest, CheckForUpdateAUDlcTest);
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventTest);
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
   FRIEND_TEST(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest);
   FRIEND_TEST(UpdateAttempterTest, DownloadProgressAccumulationTest);
   FRIEND_TEST(UpdateAttempterTest, InstallSetsStatusIdle);
+  FRIEND_TEST(UpdateAttempterTest, IsEnterpriseRollbackInGetStatusTrue);
+  FRIEND_TEST(UpdateAttempterTest, IsEnterpriseRollbackInGetStatusFalse);
+  FRIEND_TEST(UpdateAttempterTest,
+              PowerwashInGetStatusTrueBecausePowerwashRequired);
+  FRIEND_TEST(UpdateAttempterTest, PowerwashInGetStatusTrueBecauseRollback);
   FRIEND_TEST(UpdateAttempterTest, MarkDeltaUpdateFailureTest);
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
+  FRIEND_TEST(UpdateAttempterTest, ProcessingDoneInstallError);
+  FRIEND_TEST(UpdateAttempterTest, ProcessingDoneUpdateError);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, RollbackNotAllowed);
   FRIEND_TEST(UpdateAttempterTest, RollbackAfterInstall);
@@ -265,6 +289,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackSuccess);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestEnforceEmptyStrPingOmaha);
+  FRIEND_TEST(UpdateAttempterTest, SessionIdTestOnOmahaRequestActions);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
@@ -272,10 +298,16 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
+  FRIEND_TEST(UpdateAttempterTest, GetSuccessfulDlcIds);
 
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
   uint32_t GetErrorCodeFlags();
+
+  // ActionProcessorDelegate methods |ProcessingDone()| internal helpers.
+  void ProcessingDoneInternal(const ActionProcessor* processor, ErrorCode code);
+  void ProcessingDoneUpdate(const ActionProcessor* processor, ErrorCode code);
+  void ProcessingDoneInstall(const ActionProcessor* processor, ErrorCode code);
 
   // CertificateChecker::Observer method.
   // Report metrics about the certificate being checked.
@@ -339,6 +371,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
                              const std::string& target_channel,
                              const std::string& target_version_prefix,
                              bool rollback_allowed,
+                             bool rollback_data_save_requested,
+                             int rollback_allowed_milestones,
                              bool obey_proxies,
                              bool interactive);
 
@@ -398,8 +432,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // policy is available again.
   void UpdateRollbackHappened();
 
-  // Returns whether an update is currently running or scheduled.
-  bool IsUpdateRunningOrScheduled();
+  // Returns if an update is: running, applied and needs reboot, or scheduled.
+  bool IsBusyOrUpdateScheduled();
 
   void CalculateStagingParams(bool interactive);
 
@@ -407,6 +441,27 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // to the time when the update was finally downloaded and applied. This metric
   // will only be reported for enterprise enrolled devices.
   void ReportTimeToUpdateAppliedMetric();
+
+  // Resets interactivity and forced update flags.
+  void ResetInteractivityFlags();
+
+  // Resets all the DLC prefs.
+  bool ResetDlcPrefs(const std::string& dlc_id);
+
+  // Get the integer values from the DLC metadata for |kPrefsPingLastActive|
+  // or |kPrefsPingLastRollcall|.
+  // The value is equal to -2 when the value cannot be read or is not numeric.
+  // The value is equal to -1 the first time it is being sent, which is
+  // when the metadata file doesn't exist.
+  int64_t GetPingMetadata(const std::string& metadata_key) const;
+
+  // Calculates the update parameters for DLCs. Sets the |dlc_ids_|
+  // parameter on the |omaha_request_params_| object.
+  void CalculateDlcParams();
+
+  // Returns the list of DLC IDs that were installed/updated, excluding the ones
+  // which had "noupdate" in the Omaha response.
+  std::vector<std::string> GetSuccessfulDlcIds();
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
@@ -460,7 +515,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int64_t last_checked_time_ = 0;
   std::string prev_version_;
   std::string new_version_ = "0.0.0.0";
-  std::string new_system_version_;
   uint64_t new_payload_size_ = 0;
   // Flags influencing all periodic update checks
   UpdateAttemptFlags update_attempt_flags_ = UpdateAttemptFlags::kNone;
@@ -509,7 +563,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   std::string forced_omaha_url_;
 
   // A list of DLC module IDs.
-  std::vector<std::string> dlc_module_ids_;
+  std::vector<std::string> dlc_ids_;
   // Whether the operation is install (write to the current slot not the
   // inactive slot).
   bool is_install_;
@@ -517,6 +571,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // If this is not TimeDelta(), then that means staging is turned on.
   base::TimeDelta staging_wait_time_;
   chromeos_update_manager::StagingSchedule staging_schedule_;
+
+  // This is the session ID used to track update flow to Omaha.
+  std::string session_id_;
+
+  // Interface for excluder.
+  std::unique_ptr<ExcluderInterface> excluder_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

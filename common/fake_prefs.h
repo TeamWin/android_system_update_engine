@@ -49,6 +49,9 @@ class FakePrefs : public PrefsInterface {
   bool Exists(const std::string& key) const override;
   bool Delete(const std::string& key) override;
 
+  bool GetSubKeys(const std::string& ns,
+                  std::vector<std::string>* keys) const override;
+
   void AddObserver(const std::string& key,
                    ObserverInterface* observer) override;
   void RemoveObserver(const std::string& key,

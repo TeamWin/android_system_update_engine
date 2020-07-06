@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_COMMON_MOCK_PREFS_H_
 
 #include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
@@ -40,6 +41,9 @@ class MockPrefs : public PrefsInterface {
 
   MOCK_CONST_METHOD1(Exists, bool(const std::string& key));
   MOCK_METHOD1(Delete, bool(const std::string& key));
+
+  MOCK_CONST_METHOD2(GetSubKeys,
+                     bool(const std::string&, std::vector<std::string>*));
 
   MOCK_METHOD2(AddObserver, void(const std::string& key, ObserverInterface*));
   MOCK_METHOD2(RemoveObserver,
