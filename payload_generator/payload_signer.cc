@@ -104,22 +104,20 @@ bool AddSignatureBlobToPayload(const string& payload_path,
   uint64_t metadata_size = payload_metadata.GetMetadataSize();
   uint32_t metadata_signature_size =
       payload_metadata.GetMetadataSignatureSize();
-  if (payload_metadata.GetMajorVersion() == kBrilloMajorPayloadVersion) {
-    // Write metadata signature size in header.
-    uint32_t metadata_signature_size_be = htobe32(metadata_signature.size());
-    memcpy(payload.data() + manifest_offset,
-           &metadata_signature_size_be,
-           sizeof(metadata_signature_size_be));
-    manifest_offset += sizeof(metadata_signature_size_be);
-    // Replace metadata signature.
-    payload.erase(payload.begin() + metadata_size,
-                  payload.begin() + metadata_size + metadata_signature_size);
-    payload.insert(payload.begin() + metadata_size,
-                   metadata_signature.begin(),
-                   metadata_signature.end());
-    metadata_signature_size = metadata_signature.size();
-    LOG(INFO) << "Metadata signature size: " << metadata_signature_size;
-  }
+  // Write metadata signature size in header.
+  uint32_t metadata_signature_size_be = htobe32(metadata_signature.size());
+  memcpy(payload.data() + manifest_offset,
+         &metadata_signature_size_be,
+         sizeof(metadata_signature_size_be));
+  manifest_offset += sizeof(metadata_signature_size_be);
+  // Replace metadata signature.
+  payload.erase(payload.begin() + metadata_size,
+                payload.begin() + metadata_size + metadata_signature_size);
+  payload.insert(payload.begin() + metadata_size,
+                 metadata_signature.begin(),
+                 metadata_signature.end());
+  metadata_signature_size = metadata_signature.size();
+  LOG(INFO) << "Metadata signature size: " << metadata_signature_size;
 
   DeltaArchiveManifest manifest;
   TEST_AND_RETURN_FALSE(payload_metadata.GetManifest(payload, &manifest));
@@ -143,7 +141,6 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     PayloadSigner::AddSignatureToManifest(
         payload.size() - metadata_size - metadata_signature_size,
         payload_signature.size(),
-        payload_metadata.GetMajorVersion() == kChromeOSMajorPayloadVersion,
         &manifest);
 
     // Updates the payload to include the new manifest.
@@ -241,25 +238,12 @@ bool PayloadSigner::GetMaximumSignatureSize(const string& private_key_path,
 
 void PayloadSigner::AddSignatureToManifest(uint64_t signature_blob_offset,
                                            uint64_t signature_blob_length,
-                                           bool add_dummy_op,
                                            DeltaArchiveManifest* manifest) {
   LOG(INFO) << "Making room for signature in file";
   manifest->set_signatures_offset(signature_blob_offset);
   LOG(INFO) << "set? " << manifest->has_signatures_offset();
   manifest->set_signatures_offset(signature_blob_offset);
   manifest->set_signatures_size(signature_blob_length);
-  // Add a dummy op at the end to appease older clients
-  if (add_dummy_op) {
-    InstallOperation* dummy_op = manifest->add_kernel_install_operations();
-    dummy_op->set_type(InstallOperation::REPLACE);
-    dummy_op->set_data_offset(signature_blob_offset);
-    dummy_op->set_data_length(signature_blob_length);
-    Extent* dummy_extent = dummy_op->add_dst_extents();
-    // Tell the dummy op to write this data to a big sparse hole
-    dummy_extent->set_start_block(kSparseHole);
-    dummy_extent->set_num_blocks(
-        utils::DivRoundUp(signature_blob_length, kBlockSize));
-  }
 }
 
 bool PayloadSigner::VerifySignedPayload(const string& payload_path,
@@ -509,37 +493,6 @@ bool PayloadSigner::GetMetadataSignature(const void* const metadata,
   TEST_AND_RETURN_FALSE(SignHash(metadata_hash, private_key_path, &signature));
 
   *out_signature = brillo::data_encoding::Base64Encode(signature);
-  return true;
-}
-
-bool PayloadSigner::ExtractPayloadProperties(
-    const string& payload_path, brillo::KeyValueStore* properties) {
-  brillo::Blob payload;
-  TEST_AND_RETURN_FALSE(
-      utils::ReadFileChunk(payload_path, 0, kMaxPayloadHeaderSize, &payload));
-
-  PayloadMetadata payload_metadata;
-  TEST_AND_RETURN_FALSE(payload_metadata.ParsePayloadHeader(payload));
-  uint64_t metadata_size = payload_metadata.GetMetadataSize();
-
-  uint64_t file_size = utils::FileSize(payload_path);
-  properties->SetString(kPayloadPropertyFileSize, std::to_string(file_size));
-  properties->SetString(kPayloadPropertyMetadataSize,
-                        std::to_string(metadata_size));
-
-  brillo::Blob file_hash, metadata_hash;
-  TEST_AND_RETURN_FALSE(
-      HashCalculator::RawHashOfFile(payload_path, file_size, &file_hash) ==
-      static_cast<off_t>(file_size));
-
-  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(
-                            payload_path, metadata_size, &metadata_hash) ==
-                        static_cast<off_t>(metadata_size));
-
-  properties->SetString(kPayloadPropertyFileHash,
-                        brillo::data_encoding::Base64Encode(file_hash));
-  properties->SetString(kPayloadPropertyMetadataHash,
-                        brillo::data_encoding::Base64Encode(metadata_hash));
   return true;
 }
 

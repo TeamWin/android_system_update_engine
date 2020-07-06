@@ -21,19 +21,18 @@
 
 namespace chromeos_update_engine {
 
-// The end-of-life status of the device.
-enum class EolStatus {
-  kSupported = 0,
-  kSecurityOnly,
-  kEol,
-};
+using EolDate = int64_t;
 
-// Returns the string representation of the |eol_status|.
-const char* EolStatusToString(EolStatus eol_status);
+// |EolDate| indicating an invalid end-of-life date.
+extern const EolDate kEolDateInvalid;
 
-// Converts the end-of-life status string to an EolStatus numeric value. In case
-// of an invalid string, the default "supported" value will be used instead.
-EolStatus StringToEolStatus(const std::string& eol_status);
+// Returns the string representation of the |eol_date|.
+std::string EolDateToString(EolDate eol_date);
+
+// Converts the end-of-life date string to an EolDate numeric value. In case
+// of an invalid string, the default |kEolDateInvalid| value will be used
+// instead.
+EolDate StringToEolDate(const std::string& eol_date);
 
 }  // namespace chromeos_update_engine
 

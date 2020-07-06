@@ -93,7 +93,7 @@ class UmPolicyTestBase : public ::testing::Test {
   brillo::FakeMessageLoop loop_{nullptr};
   chromeos_update_engine::FakeClock fake_clock_;
   FakeState fake_state_;
-  scoped_refptr<EvaluationContext> eval_ctx_;
+  std::shared_ptr<EvaluationContext> eval_ctx_;
   std::unique_ptr<Policy> policy_;
 };
 

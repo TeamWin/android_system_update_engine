@@ -16,6 +16,8 @@
 
 #include "update_engine/libcurl_http_fetcher.h"
 
+#include <netinet/in.h>
+#include <resolv.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -26,6 +28,7 @@
 #include <base/format_macros.h>
 #include <base/location.h>
 #include <base/logging.h>
+#include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
@@ -75,8 +78,10 @@ int LibcurlHttpFetcher::LibcurlCloseSocketCallback(void* clientp,
 #ifdef __ANDROID__
   qtaguid_untagSocket(item);
 #endif  // __ANDROID__
+
   LibcurlHttpFetcher* fetcher = static_cast<LibcurlHttpFetcher*>(clientp);
   // Stop watching the socket before closing it.
+#ifdef __ANDROID__
   for (size_t t = 0; t < arraysize(fetcher->fd_task_maps_); ++t) {
     const auto fd_task_pair = fetcher->fd_task_maps_[t].find(item);
     if (fd_task_pair != fetcher->fd_task_maps_[t].end()) {
@@ -88,6 +93,11 @@ int LibcurlHttpFetcher::LibcurlCloseSocketCallback(void* clientp,
       fetcher->fd_task_maps_[t].erase(item);
     }
   }
+#else
+  for (size_t t = 0; t < base::size(fetcher->fd_controller_maps_); ++t) {
+    fetcher->fd_controller_maps_[t].erase(item);
+  }
+#endif  // __ANDROID__
 
   // Documentation for this callback says to return 0 on success or 1 on error.
   if (!IGNORE_EINTR(close(item)))
@@ -269,11 +279,11 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
     } else if (base::StartsWith(
                    url_, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForHttps();
-#if !USE_OMAHA
+#ifdef __ANDROID__
     } else if (base::StartsWith(
                    url_, "file://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForFile();
-#endif
+#endif  // __ANDROID__
     } else {
       LOG(ERROR) << "Received invalid URI: " << url_;
       // Lock down to no protocol supported for the transfer.
@@ -305,6 +315,7 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
   LOG(INFO) << "Setting up curl options for HTTPS";
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYPEER, 1), CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYHOST, 2), CURLE_OK);
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CAINFO, nullptr), CURLE_OK);
   CHECK_EQ(curl_easy_setopt(
                curl_handle_, CURLOPT_CAPATH, constants::kCACertificatesPath),
            CURLE_OK);
@@ -391,6 +402,37 @@ void LibcurlHttpFetcher::SetHeader(const string& header_name,
   extra_headers_[base::ToLowerASCII(header_name)] = header_line;
 }
 
+// Inputs: header_name, header_value
+// Example:
+//   extra_headers_ = { {"foo":"foo: 123"}, {"bar":"bar:"} }
+//   string tmp = "gibberish";
+//   Case 1:
+//     GetHeader("foo", &tmp) -> tmp = "123", return true.
+//   Case 2:
+//     GetHeader("bar", &tmp) -> tmp = "", return true.
+//   Case 3:
+//     GetHeader("moo", &tmp) -> tmp = "", return false.
+bool LibcurlHttpFetcher::GetHeader(const string& header_name,
+                                   string* header_value) const {
+  // Initially clear |header_value| to handle both success and failures without
+  // leaving |header_value| in a unclear state.
+  header_value->clear();
+  auto header_key = base::ToLowerASCII(header_name);
+  auto header_line_itr = extra_headers_.find(header_key);
+  // If the |header_name| was never set, indicate so by returning false.
+  if (header_line_itr == extra_headers_.end())
+    return false;
+  // From |SetHeader()| the check for |header_name| to not include ":" is
+  // verified, so finding the first index of ":" is a safe operation.
+  auto header_line = header_line_itr->second;
+  *header_value = header_line.substr(header_line.find(':') + 1);
+  // The following is neccessary to remove the leading ' ' before the header
+  // value that was place only if |header_value| passed to |SetHeader()| was
+  // a non-empty string.
+  header_value->erase(0, 1);
+  return true;
+}
+
 void LibcurlHttpFetcher::CurlPerformOnce() {
   CHECK(transfer_in_progress_);
   int running_handles = 0;
@@ -404,6 +446,18 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       ForceTransferTermination();
       return;
     }
+  }
+
+  // When retcode is not |CURLM_OK| at this point, libcurl has an internal error
+  // that it is less likely to recover from (libcurl bug, out-of-memory, etc.).
+  // In case of an update check, we send UMA metrics and log the error.
+  if (is_update_check_ &&
+      (retcode == CURLM_OUT_OF_MEMORY || retcode == CURLM_INTERNAL_ERROR)) {
+    auxiliary_error_code_ = ErrorCode::kInternalLibCurlError;
+    LOG(ERROR) << "curl_multi_perform is in an unrecoverable error condition: "
+               << retcode;
+  } else if (retcode != CURLM_OK) {
+    LOG(ERROR) << "curl_multi_perform returns error: " << retcode;
   }
 
   // If the transfer completes while paused, we should ignore the failure once
@@ -428,12 +482,34 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
   if (http_response_code_) {
     LOG(INFO) << "HTTP response code: " << http_response_code_;
     no_network_retry_count_ = 0;
+    unresolved_host_state_machine_.UpdateState(false);
   } else {
     LOG(ERROR) << "Unable to get http response code.";
+    CURLcode curl_code = GetCurlCode();
+    LOG(ERROR) << "Return code for the transfer: " << curl_code;
+    if (curl_code == CURLE_COULDNT_RESOLVE_HOST) {
+      LOG(ERROR) << "libcurl can not resolve host.";
+      unresolved_host_state_machine_.UpdateState(true);
+      auxiliary_error_code_ = ErrorCode::kUnresolvedHostError;
+    }
   }
 
   // we're done!
   CleanUp();
+
+  if (unresolved_host_state_machine_.GetState() ==
+      UnresolvedHostStateMachine::State::kRetry) {
+    // Based on
+    // https://curl.haxx.se/docs/todo.html#updated_DNS_server_while_running,
+    // update_engine process should call res_init() and unconditionally retry.
+    res_init();
+    no_network_max_retries_++;
+    LOG(INFO) << "Will retry after reloading resolv.conf because last attempt "
+                 "failed to resolve host.";
+  } else if (unresolved_host_state_machine_.GetState() ==
+             UnresolvedHostStateMachine::State::kRetriedSuccess) {
+    auxiliary_error_code_ = ErrorCode::kUnresolvedHostRecovered;
+  }
 
   // TODO(petkov): This temporary code tries to deal with the case where the
   // update engine performs an update check while the network is not ready
@@ -615,6 +691,7 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
 
   // We should iterate through all file descriptors up to libcurl's fd_max or
   // the highest one we're tracking, whichever is larger.
+#ifdef __ANDROID__
   for (size_t t = 0; t < arraysize(fd_task_maps_); ++t) {
     if (!fd_task_maps_[t].empty())
       fd_max = max(fd_max, fd_task_maps_[t].rbegin()->first);
@@ -670,6 +747,63 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
       }
     }
   }
+#else
+  for (size_t t = 0; t < base::size(fd_controller_maps_); ++t) {
+    if (!fd_controller_maps_[t].empty())
+      fd_max = max(fd_max, fd_controller_maps_[t].rbegin()->first);
+  }
+
+  // For each fd, if we're not tracking it, track it. If we are tracking it, but
+  // libcurl doesn't care about it anymore, stop tracking it. After this loop,
+  // there should be exactly as many tasks scheduled in
+  // fd_controller_maps_[0|1] as there are read/write fds that we're tracking.
+  for (int fd = 0; fd <= fd_max; ++fd) {
+    // Note that fd_exc is unused in the current version of libcurl so is_exc
+    // should always be false.
+    bool is_exc = FD_ISSET(fd, &fd_exc) != 0;
+    bool must_track[2] = {
+        is_exc || (FD_ISSET(fd, &fd_read) != 0),  // track 0 -- read
+        is_exc || (FD_ISSET(fd, &fd_write) != 0)  // track 1 -- write
+    };
+
+    for (size_t t = 0; t < base::size(fd_controller_maps_); ++t) {
+      bool tracked =
+          fd_controller_maps_[t].find(fd) != fd_controller_maps_[t].end();
+
+      if (!must_track[t]) {
+        // If we have an outstanding io_channel, remove it.
+        fd_controller_maps_[t].erase(fd);
+        continue;
+      }
+
+      // If we are already tracking this fd, continue -- nothing to do.
+      if (tracked)
+        continue;
+
+      // Track a new fd.
+      switch (t) {
+        case 0:  // Read
+          fd_controller_maps_[t][fd] =
+              base::FileDescriptorWatcher::WatchReadable(
+                  fd,
+                  base::BindRepeating(&LibcurlHttpFetcher::CurlPerformOnce,
+                                      base::Unretained(this)));
+          break;
+        case 1:  // Write
+          fd_controller_maps_[t][fd] =
+              base::FileDescriptorWatcher::WatchWritable(
+                  fd,
+                  base::BindRepeating(&LibcurlHttpFetcher::CurlPerformOnce,
+                                      base::Unretained(this)));
+      }
+      static int io_counter = 0;
+      io_counter++;
+      if (io_counter % 50 == 0) {
+        LOG(INFO) << "io_counter = " << io_counter;
+      }
+    }
+  }
+#endif  // __ANDROID__
 
   // Set up a timeout callback for libcurl.
   if (timeout_id_ == MessageLoop::kTaskIdNull) {
@@ -714,6 +848,7 @@ void LibcurlHttpFetcher::CleanUp() {
   MessageLoop::current()->CancelTask(timeout_id_);
   timeout_id_ = MessageLoop::kTaskIdNull;
 
+#ifdef __ANDROID__
   for (size_t t = 0; t < arraysize(fd_task_maps_); ++t) {
     for (const auto& fd_taks_pair : fd_task_maps_[t]) {
       if (!MessageLoop::current()->CancelTask(fd_taks_pair.second)) {
@@ -724,6 +859,11 @@ void LibcurlHttpFetcher::CleanUp() {
     }
     fd_task_maps_[t].clear();
   }
+#else
+  for (size_t t = 0; t < base::size(fd_controller_maps_); ++t) {
+    fd_controller_maps_[t].clear();
+  }
+#endif  // __ANDROID__
 
   if (curl_http_headers_) {
     curl_slist_free_all(curl_http_headers_);
@@ -755,6 +895,66 @@ void LibcurlHttpFetcher::GetHttpResponseCode() {
                                CURLINFO_RESPONSE_CODE,
                                &http_response_code) == CURLE_OK) {
     http_response_code_ = static_cast<int>(http_response_code);
+  } else {
+    LOG(ERROR) << "Unable to get http response code from curl_easy_getinfo";
+  }
+}
+
+CURLcode LibcurlHttpFetcher::GetCurlCode() {
+  CURLcode curl_code = CURLE_OK;
+  while (true) {
+    // Repeated calls to |curl_multi_info_read| will return a new struct each
+    // time, until a NULL is returned as a signal that there is no more to get
+    // at this point.
+    int msgs_in_queue;
+    CURLMsg* curl_msg =
+        curl_multi_info_read(curl_multi_handle_, &msgs_in_queue);
+    if (curl_msg == nullptr)
+      break;
+    // When |curl_msg| is |CURLMSG_DONE|, a transfer of an easy handle is done,
+    // and then data contains the return code for this transfer.
+    if (curl_msg->msg == CURLMSG_DONE) {
+      // Make sure |curl_multi_handle_| has one and only one easy handle
+      // |curl_handle_|.
+      CHECK_EQ(curl_handle_, curl_msg->easy_handle);
+      // Transfer return code reference:
+      // https://curl.haxx.se/libcurl/c/libcurl-errors.html
+      curl_code = curl_msg->data.result;
+    }
+  }
+
+  // Gets connection error if exists.
+  long connect_error = 0;  // NOLINT(runtime/int) - curl needs long.
+  CURLcode res =
+      curl_easy_getinfo(curl_handle_, CURLINFO_OS_ERRNO, &connect_error);
+  if (res == CURLE_OK && connect_error) {
+    LOG(ERROR) << "Connect error code from the OS: " << connect_error;
+  }
+
+  return curl_code;
+}
+
+void UnresolvedHostStateMachine::UpdateState(bool failed_to_resolve_host) {
+  switch (state_) {
+    case State::kInit:
+      if (failed_to_resolve_host) {
+        state_ = State::kRetry;
+      }
+      break;
+    case State::kRetry:
+      if (failed_to_resolve_host) {
+        state_ = State::kNotRetry;
+      } else {
+        state_ = State::kRetriedSuccess;
+      }
+      break;
+    case State::kNotRetry:
+      break;
+    case State::kRetriedSuccess:
+      break;
+    default:
+      NOTREACHED();
+      break;
   }
 }
 

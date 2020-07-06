@@ -77,6 +77,10 @@ class FakeHardware : public HardwareInterface {
 
   std::string GetECVersion() const override { return ec_version_; }
 
+  std::string GetDeviceRequisition() const override {
+    return device_requisition_;
+  }
+
   int GetMinKernelKeyVersion() const override {
     return min_kernel_key_version_;
   }
@@ -104,15 +108,15 @@ class FakeHardware : public HardwareInterface {
 
   int GetPowerwashCount() const override { return powerwash_count_; }
 
-  bool SchedulePowerwash(bool is_rollback) override {
+  bool SchedulePowerwash(bool save_rollback_data) override {
     powerwash_scheduled_ = true;
-    is_rollback_powerwash_ = is_rollback;
+    save_rollback_data_ = save_rollback_data;
     return true;
   }
 
   bool CancelPowerwash() override {
     powerwash_scheduled_ = false;
-    is_rollback_powerwash_ = false;
+    save_rollback_data_ = false;
     return true;
   }
 
@@ -175,6 +179,10 @@ class FakeHardware : public HardwareInterface {
 
   void SetECVersion(const std::string& ec_version) { ec_version_ = ec_version; }
 
+  void SetDeviceRequisition(const std::string& requisition) {
+    device_requisition_ = requisition;
+  }
+
   void SetMinKernelKeyVersion(int min_kernel_key_version) {
     min_kernel_key_version_ = min_kernel_key_version;
   }
@@ -197,7 +205,7 @@ class FakeHardware : public HardwareInterface {
   int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
 
   bool GetIsRollbackPowerwashScheduled() const {
-    return powerwash_scheduled_ && is_rollback_powerwash_;
+    return powerwash_scheduled_ && save_rollback_data_;
   }
 
  private:
@@ -211,13 +219,14 @@ class FakeHardware : public HardwareInterface {
   std::string hardware_class_{"Fake HWID BLAH-1234"};
   std::string firmware_version_{"Fake Firmware v1.0.1"};
   std::string ec_version_{"Fake EC v1.0a"};
+  std::string device_requisition_{"fake_requisition"};
   int min_kernel_key_version_{kMinKernelKeyVersion};
   int min_firmware_key_version_{kMinFirmwareKeyVersion};
   int kernel_max_rollforward_{kKernelMaxRollforward};
   int firmware_max_rollforward_{kFirmwareMaxRollforward};
   int powerwash_count_{kPowerwashCountNotSet};
   bool powerwash_scheduled_{false};
-  bool is_rollback_powerwash_{false};
+  bool save_rollback_data_{false};
   int64_t build_timestamp_{0};
   bool first_active_omaha_ping_sent_{false};
   bool warm_reset_{false};

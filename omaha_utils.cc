@@ -17,41 +17,21 @@
 #include "update_engine/omaha_utils.h"
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 
 namespace chromeos_update_engine {
 
-namespace {
+const EolDate kEolDateInvalid = -9999;
 
-// The possible string values for the end-of-life status.
-const char kEolStatusSupported[] = "supported";
-const char kEolStatusSecurityOnly[] = "security-only";
-const char kEolStatusEol[] = "eol";
-
-}  // namespace
-
-const char* EolStatusToString(EolStatus eol_status) {
-  switch (eol_status) {
-    case EolStatus::kSupported:
-      return kEolStatusSupported;
-    case EolStatus::kSecurityOnly:
-      return kEolStatusSecurityOnly;
-    case EolStatus::kEol:
-      return kEolStatusEol;
-  }
-  // Only reached if an invalid number is casted to |EolStatus|.
-  LOG(WARNING) << "Invalid EolStatus value: " << static_cast<int>(eol_status);
-  return kEolStatusSupported;
+std::string EolDateToString(EolDate eol_date) {
+  return base::NumberToString(eol_date);
 }
 
-EolStatus StringToEolStatus(const std::string& eol_status) {
-  if (eol_status == kEolStatusSupported || eol_status.empty())
-    return EolStatus::kSupported;
-  if (eol_status == kEolStatusSecurityOnly)
-    return EolStatus::kSecurityOnly;
-  if (eol_status == kEolStatusEol)
-    return EolStatus::kEol;
-  LOG(WARNING) << "Invalid end-of-life attribute: " << eol_status;
-  return EolStatus::kSupported;
+EolDate StringToEolDate(const std::string& eol_date) {
+  EolDate date = kEolDateInvalid;
+  if (!base::StringToInt64(eol_date, &date))
+    return kEolDateInvalid;
+  return date;
 }
 
 }  // namespace chromeos_update_engine

@@ -270,6 +270,7 @@ main() {
   # Add squashfs sample images.
   generate_image disk_sqfs_empty sqfs empty $((1024 * 4096)) 4096
   generate_image disk_sqfs_default sqfs default $((1024 * 4096)) 4096
+  generate_image disk_sqfs_unittest sqfs unittest $((1024 * 4096)) 4096
 
   # Generate the tarball and delete temporary images.
   echo "Packing tar file sample_images.tar.bz2"

@@ -30,12 +30,14 @@ class MockUpdateAttempter : public UpdateAttempter {
  public:
   using UpdateAttempter::UpdateAttempter;
 
-  MOCK_METHOD7(Update,
+  MOCK_METHOD9(Update,
                void(const std::string& app_version,
                     const std::string& omaha_url,
                     const std::string& target_channel,
                     const std::string& target_version_prefix,
                     bool rollback_allowed,
+                    bool rollback_data_save_requested,
+                    int rollback_allowed_milestones,
                     bool obey_proxies,
                     bool interactive));
 
@@ -53,8 +55,12 @@ class MockUpdateAttempter : public UpdateAttempter {
                     UpdateAttemptFlags flags));
 
   MOCK_METHOD2(CheckForInstall,
-               bool(const std::vector<std::string>& dlc_module_ids,
+               bool(const std::vector<std::string>& dlc_ids,
                     const std::string& omaha_url));
+
+  MOCK_METHOD2(SetDlcActiveValue, bool(bool, const std::string&));
+
+  MOCK_CONST_METHOD0(GetExcluder, ExcluderInterface*(void));
 
   MOCK_METHOD0(RefreshDevicePolicy, void(void));
 
