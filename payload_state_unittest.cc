@@ -23,9 +23,11 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
+#include "update_engine/common/mock_excluder.h"
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/test_utils.h"
@@ -44,6 +46,7 @@ using testing::Mock;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgPointee;
+using testing::StrictMock;
 
 namespace chromeos_update_engine {
 
@@ -1012,16 +1015,17 @@ TEST(PayloadStateTest, RollbackVersion) {
 
   NiceMock<MockPrefs>* mock_powerwash_safe_prefs =
       fake_system_state.mock_powerwash_safe_prefs();
-  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
-
-  // Verify pre-conditions are good.
-  EXPECT_TRUE(payload_state.GetRollbackVersion().empty());
 
   // Mock out the os version and make sure it's blacklisted correctly.
   string rollback_version = "2345.0.0";
   OmahaRequestParams params(&fake_system_state);
   params.Init(rollback_version, "", false);
   fake_system_state.set_request_params(&params);
+
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  // Verify pre-conditions are good.
+  EXPECT_TRUE(payload_state.GetRollbackVersion().empty());
 
   EXPECT_CALL(*mock_powerwash_safe_prefs,
               SetString(kPrefsRollbackVersion, rollback_version));
@@ -1353,14 +1357,14 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsForcedFull) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
 
-  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
-  SetupPayloadStateWith2Urls(
-      "Hash6437", true, false, &payload_state, &response);
-
   // Mock the request to a request where the delta was disabled.
   OmahaRequestParams params(&fake_system_state);
   params.set_delta_okay(false);
   fake_system_state.set_request_params(&params);
+
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+  SetupPayloadStateWith2Urls(
+      "Hash6437", true, false, &payload_state, &response);
 
   // Simulate a successful download and update.
   payload_state.DownloadComplete();
@@ -1653,6 +1657,125 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   Time null_time = Time();
   EXPECT_EQ(0, payload_state.GetP2PNumAttempts());
   EXPECT_EQ(null_time, payload_state.GetP2PFirstAttemptTimestamp());
+}
+
+TEST(PayloadStateTest, NextPayloadResetsUrlIndex) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  StrictMock<MockExcluder> mock_excluder;
+  EXPECT_CALL(*fake_system_state.mock_update_attempter(), GetExcluder())
+      .WillOnce(Return(&mock_excluder));
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  OmahaResponse response;
+  response.packages.push_back(
+      {.payload_urls = {"http://test1a", "http://test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash"});
+  response.packages.push_back({.payload_urls = {"http://test1b"},
+                               .size = 123456789,
+                               .metadata_size = 58123,
+                               .metadata_signature = "msign",
+                               .hash = "hash"});
+  payload_state.SetResponse(response);
+
+  EXPECT_EQ(payload_state.GetCurrentUrl(), "http://test1a");
+  payload_state.IncrementUrlIndex();
+  EXPECT_EQ(payload_state.GetCurrentUrl(), "http://test2a");
+
+  EXPECT_TRUE(payload_state.NextPayload());
+  EXPECT_EQ(payload_state.GetCurrentUrl(), "http://test1b");
+}
+
+TEST(PayloadStateTest, ExcludeNoopForNonExcludables) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  StrictMock<MockExcluder> mock_excluder;
+  EXPECT_CALL(*fake_system_state.mock_update_attempter(), GetExcluder())
+      .WillOnce(Return(&mock_excluder));
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  OmahaResponse response;
+  response.packages.push_back(
+      {.payload_urls = {"http://test1a", "http://test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash",
+       .can_exclude = false});
+  payload_state.SetResponse(response);
+
+  EXPECT_CALL(mock_excluder, Exclude(_)).Times(0);
+  payload_state.ExcludeCurrentPayload();
+}
+
+TEST(PayloadStateTest, ExcludeOnlyCanExcludables) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  StrictMock<MockExcluder> mock_excluder;
+  EXPECT_CALL(*fake_system_state.mock_update_attempter(), GetExcluder())
+      .WillOnce(Return(&mock_excluder));
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  OmahaResponse response;
+  response.packages.push_back(
+      {.payload_urls = {"http://test1a", "http://test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash",
+       .can_exclude = true});
+  payload_state.SetResponse(response);
+
+  EXPECT_CALL(mock_excluder, Exclude(utils::GetExclusionName("http://test1a")))
+      .WillOnce(Return(true));
+  payload_state.ExcludeCurrentPayload();
+}
+
+TEST(PayloadStateTest, IncrementFailureExclusionTest) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  StrictMock<MockExcluder> mock_excluder;
+  EXPECT_CALL(*fake_system_state.mock_update_attempter(), GetExcluder())
+      .WillOnce(Return(&mock_excluder));
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  OmahaResponse response;
+  // Critical package.
+  response.packages.push_back(
+      {.payload_urls = {"http://crit-test1a", "http://crit-test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash",
+       .can_exclude = false});
+  // Non-critical package.
+  response.packages.push_back(
+      {.payload_urls = {"http://test1a", "http://test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash",
+       .can_exclude = true});
+  response.max_failure_count_per_url = 2;
+  payload_state.SetResponse(response);
+
+  // Critical package won't be excluded.
+  // Increment twice as failure count allowed per URL is set to 2.
+  payload_state.IncrementFailureCount();
+  payload_state.IncrementFailureCount();
+
+  EXPECT_TRUE(payload_state.NextPayload());
+
+  // First increment failure should not exclude.
+  payload_state.IncrementFailureCount();
+
+  // Second increment failure should exclude.
+  EXPECT_CALL(mock_excluder, Exclude(utils::GetExclusionName("http://test1a")))
+      .WillOnce(Return(true));
+  payload_state.IncrementFailureCount();
 }
 
 }  // namespace chromeos_update_engine

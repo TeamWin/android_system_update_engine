@@ -38,6 +38,7 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
+#include "update_engine/payload_generator/payload_properties.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_generator/xz.h"
 #include "update_engine/update_metadata.pb.h"
@@ -52,6 +53,9 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
+
+constexpr char kPayloadPropertiesFormatKeyValue[] = "key-value";
+constexpr char kPayloadPropertiesFormatJson[] = "json";
 
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<size_t>* signature_sizes) {
@@ -267,14 +271,24 @@ bool ApplyPayload(const string& payload_file,
   return true;
 }
 
-int ExtractProperties(const string& payload_path, const string& props_file) {
-  brillo::KeyValueStore properties;
-  TEST_AND_RETURN_FALSE(
-      PayloadSigner::ExtractPayloadProperties(payload_path, &properties));
-  if (props_file == "-") {
-    printf("%s", properties.SaveToString().c_str());
+bool ExtractProperties(const string& payload_path,
+                       const string& props_file,
+                       const string& props_format) {
+  string properties;
+  PayloadProperties payload_props(payload_path);
+  if (props_format == kPayloadPropertiesFormatKeyValue) {
+    TEST_AND_RETURN_FALSE(payload_props.GetPropertiesAsKeyValue(&properties));
+  } else if (props_format == kPayloadPropertiesFormatJson) {
+    TEST_AND_RETURN_FALSE(payload_props.GetPropertiesAsJson(&properties));
   } else {
-    properties.Save(base::FilePath(props_file));
+    LOG(FATAL) << "Invalid option " << props_format
+               << " for --properties_format flag.";
+  }
+  if (props_file == "-") {
+    printf("%s", properties.c_str());
+  } else {
+    utils::WriteFile(
+        props_file.c_str(), properties.c_str(), properties.length());
     LOG(INFO) << "Generated properties file at " << props_file;
   }
   return true;
@@ -361,7 +375,11 @@ int Main(int argc, char** argv) {
   DEFINE_string(properties_file,
                 "",
                 "If passed, dumps the payload properties of the payload passed "
-                "in --in_file and exits.");
+                "in --in_file and exits. Look at --properties_format.");
+  DEFINE_string(properties_format,
+                kPayloadPropertiesFormatKeyValue,
+                "Defines the format of the --properties_file. The acceptable "
+                "values are: key-value (default) and json");
   DEFINE_int64(max_timestamp,
                0,
                "The maximum timestamp of the OS allowed to apply this "
@@ -500,7 +518,10 @@ int Main(int argc, char** argv) {
     return VerifySignedPayload(FLAGS_in_file, FLAGS_public_key);
   }
   if (!FLAGS_properties_file.empty()) {
-    return ExtractProperties(FLAGS_in_file, FLAGS_properties_file) ? 0 : 1;
+    return ExtractProperties(
+               FLAGS_in_file, FLAGS_properties_file, FLAGS_properties_format)
+               ? 0
+               : 1;
   }
 
   // A payload generation was requested. Convert the flags to a
@@ -521,16 +542,10 @@ int Main(int argc, char** argv) {
   partition_names = base::SplitString(
       FLAGS_partition_names, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   CHECK(!partition_names.empty());
-  if (FLAGS_major_version == kChromeOSMajorPayloadVersion ||
-      FLAGS_new_partitions.empty()) {
-    LOG_IF(FATAL, partition_names.size() != 2)
-        << "To support more than 2 partitions, please use the "
-        << "--new_partitions flag and major version 2.";
-    LOG_IF(FATAL,
-           partition_names[0] != kPartitionNameRoot ||
-               partition_names[1] != kPartitionNameKernel)
-        << "To support non-default partition name, please use the "
-        << "--new_partitions flag and major version 2.";
+  if (FLAGS_major_version < kMinSupportedMajorPayloadVersion ||
+      FLAGS_major_version > kMaxSupportedMajorPayloadVersion) {
+    LOG(FATAL) << "Unsupported major version " << FLAGS_major_version;
+    return 1;
   }
 
   if (!FLAGS_new_partitions.empty()) {
@@ -591,8 +606,6 @@ int Main(int argc, char** argv) {
   }
 
   if (!FLAGS_new_postinstall_config_file.empty()) {
-    LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
-        << "Postinstall config is only allowed in major version 2 or newer.";
     brillo::KeyValueStore store;
     CHECK(store.Load(base::FilePath(FLAGS_new_postinstall_config_file)));
     CHECK(payload_config.target.LoadPostInstallConfig(store));
@@ -610,9 +623,6 @@ int Main(int argc, char** argv) {
   CHECK(payload_config.target.LoadImageSize());
 
   if (!FLAGS_dynamic_partition_info_file.empty()) {
-    LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
-        << "Dynamic partition info is only allowed in major version 2 or "
-           "newer.";
     brillo::KeyValueStore store;
     CHECK(store.Load(base::FilePath(FLAGS_dynamic_partition_info_file)));
     CHECK(payload_config.target.LoadDynamicPartitionMetadata(store));
@@ -656,23 +666,38 @@ int Main(int argc, char** argv) {
     // Autodetect minor_version by looking at the update_engine.conf in the old
     // image.
     if (payload_config.is_delta) {
-      payload_config.version.minor = kInPlaceMinorPayloadVersion;
       brillo::KeyValueStore store;
       uint32_t minor_version;
+      bool minor_version_found = false;
       for (const PartitionConfig& part : payload_config.source.partitions) {
         if (part.fs_interface && part.fs_interface->LoadSettings(&store) &&
             utils::GetMinorVersion(store, &minor_version)) {
           payload_config.version.minor = minor_version;
+          minor_version_found = true;
+          LOG(INFO) << "Auto-detected minor_version="
+                    << payload_config.version.minor;
           break;
         }
       }
+      if (!minor_version_found) {
+        LOG(FATAL) << "Failed to detect the minor version.";
+        return 1;
+      }
     } else {
       payload_config.version.minor = kFullPayloadMinorVersion;
+      LOG(INFO) << "Using non-delta minor_version="
+                << payload_config.version.minor;
     }
-    LOG(INFO) << "Auto-detected minor_version=" << payload_config.version.minor;
   } else {
     payload_config.version.minor = FLAGS_minor_version;
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
+  }
+
+  if (payload_config.version.minor != kFullPayloadMinorVersion &&
+      (payload_config.version.minor < kMinSupportedMinorPayloadVersion ||
+       payload_config.version.minor > kMaxSupportedMinorPayloadVersion)) {
+    LOG(FATAL) << "Unsupported minor version " << payload_config.version.minor;
+    return 1;
   }
 
   payload_config.max_timestamp = FLAGS_max_timestamp;

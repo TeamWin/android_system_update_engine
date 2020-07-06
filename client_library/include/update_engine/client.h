@@ -54,31 +54,18 @@ class UpdateEngineClient {
   //     empty indicates update_engine should use its default value. Note that
   //     update_engine will ignore this parameter in production mode to avoid
   //     pulling untrusted updates.
-  // |dlc_module_ids|
+  // |dlc_ids|
   //     A list of DLC module IDs.
-  virtual bool AttemptInstall(
-      const std::string& omaha_url,
-      const std::vector<std::string>& dlc_module_ids) = 0;
+  virtual bool AttemptInstall(const std::string& omaha_url,
+                              const std::vector<std::string>& dlc_ids) = 0;
 
-  // Returns the current status of the Update Engine.
-  //
-  // |out_last_checked_time|
-  //     the last time the update engine checked for an update in seconds since
-  //     the epoc.
-  // |out_progress|
-  //     when downloading an update, this is calculated as
-  //     (number of bytes received) / (total bytes).
-  // |out_update_status|
-  //     See update_status.h.
-  // |out_new_version|
-  //     string version of the new system image.
-  // |out_new_size|
-  //     number of bytes in the new system image.
-  virtual bool GetStatus(int64_t* out_last_checked_time,
-                         double* out_progress,
-                         UpdateStatus* out_update_status,
-                         std::string* out_new_version,
-                         int64_t* out_new_size) const = 0;
+  // Same as above but return the entire struct instead.
+  virtual bool GetStatus(UpdateEngineStatus* out_status) const = 0;
+
+  // Sets the DLC as active or inactive. When set to active, the ping metadata
+  // for the DLC is updated accordingly. When set to inactive, the metadata
+  // for the DLC is deleted.
+  virtual bool SetDlcActiveValue(bool is_active, const std::string& dlc_id) = 0;
 
   // Getter and setter for the cohort hint.
   virtual bool SetCohortHint(const std::string& cohort_hint) = 0;
@@ -131,9 +118,6 @@ class UpdateEngineClient {
 
   // Get the last UpdateAttempt error code.
   virtual bool GetLastAttemptError(int32_t* last_attempt_error) const = 0;
-
-  // Get the current end-of-life status code. See EolStatus enum for details.
-  virtual bool GetEolStatus(int32_t* eol_status) const = 0;
 
  protected:
   // Use CreateInstance().

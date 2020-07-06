@@ -280,12 +280,6 @@ metrics::ConnectionType GetConnectionType(ConnectionType type,
       else
         return metrics::ConnectionType::kWifi;
 
-    case ConnectionType::kWimax:
-      return metrics::ConnectionType::kWimax;
-
-    case ConnectionType::kBluetooth:
-      return metrics::ConnectionType::kBluetooth;
-
     case ConnectionType::kCellular:
       return metrics::ConnectionType::kCellular;
   }

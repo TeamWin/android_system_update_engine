@@ -16,6 +16,7 @@
 
 #include "update_engine/update_manager/android_things_policy.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,9 +31,14 @@
 using base::Time;
 using chromeos_update_engine::ErrorCode;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_manager {
+
+unique_ptr<Policy> GetSystemPolicy() {
+  return std::make_unique<AndroidThingsPolicy>();
+}
 
 const NextUpdateCheckPolicyConstants
     AndroidThingsPolicy::kNextUpdateCheckPolicyConstants = {
@@ -54,6 +60,7 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
   result->target_channel.clear();
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
+  result->rollback_data_save_requested = false;
   result->rollback_allowed_milestones = -1;
   result->interactive = false;
 

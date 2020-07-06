@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_POLICY_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_POLICY_H_
 
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -50,6 +51,8 @@ struct UpdateCheckParams {
   std::string target_version_prefix;
   // Specifies whether rollback images are allowed by device policy.
   bool rollback_allowed;
+  // Specifies if rollbacks should attempt to preserve some system state.
+  bool rollback_data_save_requested;
   // Specifies the number of Chrome milestones rollback should be allowed,
   // starting from the stable version at any time. Value is -1 if unspecified
   // (e.g. no device policy is available yet), in this case no version
@@ -307,6 +310,11 @@ class Policy {
  private:
   DISALLOW_COPY_AND_ASSIGN(Policy);
 };
+
+// Get system dependent (Chrome OS vs. Android) policy
+// implementation. Implementations can be found in chromeos_policy.cc and
+// android_things_policy.cc.
+std::unique_ptr<Policy> GetSystemPolicy();
 
 }  // namespace chromeos_update_manager
 

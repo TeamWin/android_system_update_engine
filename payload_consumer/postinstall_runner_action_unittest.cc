@@ -100,7 +100,8 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   void RunPostinstallAction(const string& device_path,
                             const string& postinstall_program,
                             bool powerwash_required,
-                            bool is_rollback);
+                            bool is_rollback,
+                            bool save_rollback_data);
 
   void RunPostinstallActionWithInstallPlan(const InstallPlan& install_plan);
 
@@ -143,7 +144,14 @@ class PostinstallRunnerActionTest : public ::testing::Test {
           base::TimeDelta::FromMilliseconds(10));
     } else {
       CHECK(processor_);
-      processor_->StopProcessing();
+      // Must |PostDelayedTask()| here to be safe that |FileDescriptorWatcher|
+      // doesn't leak memory, do not directly call |StopProcessing()|.
+      loop_.PostDelayedTask(
+          FROM_HERE,
+          base::Bind(
+              [](ActionProcessor* processor) { processor->StopProcessing(); },
+              base::Unretained(processor_)),
+          base::TimeDelta::FromMilliseconds(100));
     }
   }
 
@@ -172,7 +180,8 @@ void PostinstallRunnerActionTest::RunPostinstallAction(
     const string& device_path,
     const string& postinstall_program,
     bool powerwash_required,
-    bool is_rollback) {
+    bool is_rollback,
+    bool save_rollback_data) {
   InstallPlan::Partition part;
   part.name = "part";
   part.target_path = device_path;
@@ -183,6 +192,7 @@ void PostinstallRunnerActionTest::RunPostinstallAction(
   install_plan.download_url = "http://127.0.0.1:8080/update";
   install_plan.powerwash_required = powerwash_required;
   install_plan.is_rollback = is_rollback;
+  install_plan.rollback_data_save_requested = save_rollback_data;
   RunPostinstallActionWithInstallPlan(install_plan);
 }
 
@@ -256,7 +266,8 @@ TEST_F(PostinstallRunnerActionTest, ProcessProgressLineTest) {
 TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
 
-  RunPostinstallAction(loop.dev(), kPostinstallDefaultScript, false, false);
+  RunPostinstallAction(
+      loop.dev(), kPostinstallDefaultScript, false, false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
   EXPECT_TRUE(processor_delegate_.processing_done_called_);
 
@@ -267,7 +278,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootRunSymlinkFileTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
-  RunPostinstallAction(loop.dev(), "bin/postinst_link", false, false);
+  RunPostinstallAction(loop.dev(), "bin/postinst_link", false, false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 
@@ -277,6 +288,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
   RunPostinstallAction(loop.dev(),
                        "bin/postinst_example",
                        /*powerwash_required=*/true,
+                       false,
                        false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 
@@ -285,14 +297,31 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
   EXPECT_FALSE(fake_hardware_.GetIsRollbackPowerwashScheduled());
 }
 
-TEST_F(PostinstallRunnerActionTest, RunAsRootRollbackTest) {
+TEST_F(PostinstallRunnerActionTest, RunAsRootRollbackTestNoDataSave) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
 
   // Run a simple postinstall program, rollback happened.
   RunPostinstallAction(loop.dev(),
                        "bin/postinst_example",
                        false,
-                       /*is_rollback=*/true);
+                       /*is_rollback=*/true,
+                       /*save_rollback_data=*/false);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
+
+  // Check that powerwash was scheduled and that it's NOT a rollback powerwash.
+  EXPECT_TRUE(fake_hardware_.IsPowerwashScheduled());
+  EXPECT_FALSE(fake_hardware_.GetIsRollbackPowerwashScheduled());
+}
+
+TEST_F(PostinstallRunnerActionTest, RunAsRootRollbackTestWithDataSave) {
+  ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
+
+  // Run a simple postinstall program, rollback happened.
+  RunPostinstallAction(loop.dev(),
+                       "bin/postinst_example",
+                       false,
+                       /*is_rollback=*/true,
+                       /*save_rollback_data=*/true);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 
   // Check that powerwash was scheduled and that it's a rollback powerwash.
@@ -303,7 +332,8 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootRollbackTest) {
 // Runs postinstall from a partition file that doesn't mount, so it should
 // fail.
 TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
-  RunPostinstallAction("/dev/null", kPostinstallDefaultScript, false, false);
+  RunPostinstallAction(
+      "/dev/null", kPostinstallDefaultScript, false, false, false);
   EXPECT_EQ(ErrorCode::kPostinstallRunnerError, processor_delegate_.code_);
 
   // In case of failure, Postinstall should not signal a powerwash even if it
@@ -337,7 +367,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSkipOptionalPostinstallTest) {
 // fail.
 TEST_F(PostinstallRunnerActionTest, RunAsRootErrScriptTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
-  RunPostinstallAction(loop.dev(), "bin/postinst_fail1", false, false);
+  RunPostinstallAction(loop.dev(), "bin/postinst_fail1", false, false, false);
   EXPECT_EQ(ErrorCode::kPostinstallRunnerError, processor_delegate_.code_);
 }
 
@@ -345,7 +375,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootErrScriptTest) {
 // UMA with a different error code. Test those cases are properly detected.
 TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareBErrScriptTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
-  RunPostinstallAction(loop.dev(), "bin/postinst_fail3", false, false);
+  RunPostinstallAction(loop.dev(), "bin/postinst_fail3", false, false, false);
   EXPECT_EQ(ErrorCode::kPostinstallBootedFromFirmwareB,
             processor_delegate_.code_);
 }
@@ -353,7 +383,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareBErrScriptTest) {
 // Check that you can't specify an absolute path.
 TEST_F(PostinstallRunnerActionTest, RunAsRootAbsolutePathNotAllowedTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
-  RunPostinstallAction(loop.dev(), "/etc/../bin/sh", false, false);
+  RunPostinstallAction(loop.dev(), "/etc/../bin/sh", false, false, false);
   EXPECT_EQ(ErrorCode::kPostinstallRunnerError, processor_delegate_.code_);
 }
 
@@ -362,7 +392,8 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootAbsolutePathNotAllowedTest) {
 // SElinux labels are only set on Android.
 TEST_F(PostinstallRunnerActionTest, RunAsRootCheckFileContextsTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
-  RunPostinstallAction(loop.dev(), "bin/self_check_context", false, false);
+  RunPostinstallAction(
+      loop.dev(), "bin/self_check_context", false, false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 #endif  // __ANDROID__
@@ -375,7 +406,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSuspendResumeActionTest) {
   loop_.PostTask(FROM_HERE,
                  base::Bind(&PostinstallRunnerActionTest::SuspendRunningAction,
                             base::Unretained(this)));
-  RunPostinstallAction(loop.dev(), "bin/postinst_suspend", false, false);
+  RunPostinstallAction(loop.dev(), "bin/postinst_suspend", false, false, false);
   // postinst_suspend returns 0 only if it was suspended at some point.
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
   EXPECT_TRUE(processor_delegate_.processing_done_called_);
@@ -387,7 +418,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootCancelPostinstallActionTest) {
 
   // Wait for the action to start and then cancel it.
   CancelWhenStarted();
-  RunPostinstallAction(loop.dev(), "bin/postinst_suspend", false, false);
+  RunPostinstallAction(loop.dev(), "bin/postinst_suspend", false, false, false);
   // When canceling the action, the action never finished and therefore we had
   // a ProcessingStopped call instead.
   EXPECT_FALSE(processor_delegate_.code_set_);
@@ -410,7 +441,8 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootProgressUpdatesTest) {
 
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   setup_action_delegate_ = &mock_delegate_;
-  RunPostinstallAction(loop.dev(), "bin/postinst_progress", false, false);
+  RunPostinstallAction(
+      loop.dev(), "bin/postinst_progress", false, false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 

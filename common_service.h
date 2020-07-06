@@ -55,10 +55,10 @@ class UpdateEngineService {
 
   // Attempts a DLC module install operation.
   // |omaha_url|: the URL to query for update.
-  // |dlc_module_ids|: a list of DLC module IDs.
+  // |dlc_ids|: a list of DLC module IDs.
   bool AttemptInstall(brillo::ErrorPtr* error,
                       const std::string& omaha_url,
-                      const std::vector<std::string>& dlc_module_ids);
+                      const std::vector<std::string>& dlc_ids);
 
   bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash);
 
@@ -69,6 +69,13 @@ class UpdateEngineService {
   // Resets the status of the update_engine to idle, ignoring any applied
   // update. This is used for development only.
   bool ResetStatus(brillo::ErrorPtr* error);
+
+  // Sets the DLC as active or inactive. When set to active, the ping metadata
+  // for the DLC is updated accordingly. When set to inactive, the metadata
+  // for the DLC is deleted.
+  bool SetDlcActiveValue(brillo::ErrorPtr* error,
+                         bool is_active,
+                         const std::string& dlc_id);
 
   // Returns the current status of the Update Engine. If an update is in
   // progress, the number of operations, size to download and overall progress
@@ -102,7 +109,8 @@ class UpdateEngineService {
   // Sets the current "cohort hint" value to |in_cohort_hint|. The cohort hint
   // is sent back to Omaha on every request and can be used as a hint of what
   // cohort should we be put on.
-  bool SetCohortHint(brillo::ErrorPtr* error, std::string in_cohort_hint);
+  bool SetCohortHint(brillo::ErrorPtr* error,
+                     const std::string& in_cohort_hint);
 
   // Return the current cohort hint. This value can be set with SetCohortHint()
   // and can also be updated from Omaha on every update check request.
@@ -152,10 +160,6 @@ class UpdateEngineService {
   // Returns the last UpdateAttempt error.
   bool GetLastAttemptError(brillo::ErrorPtr* error,
                            int32_t* out_last_attempt_error);
-
-  // Returns the current end-of-life status of the device. This value is updated
-  // on every update check and persisted on disk across reboots.
-  bool GetEolStatus(brillo::ErrorPtr* error, int32_t* out_eol_status);
 
  private:
   SystemState* system_state_;

@@ -21,12 +21,19 @@
 
 #include <brillo/enum_flags.h>
 
+// NOTE: Keep this file in sync with
+// platform2/system_api/dbus/update_engine/update_engine.proto especially:
+// - |UpdateStatus| <-> |Operation|
+// - |UpdateEngineStatus| <-> |StatusResult|
+
 namespace update_engine {
 
-// ATTENTION: When adding a new enum value here, always append at the end and
-// make sure to make proper adjustments in UpdateAttempter:ActionCompleted(). If
-// any enum memeber is deprecated, the assigned value of other members should
-// not change. See b/62842358.
+// ATTENTION:
+// When adding a new enum value:
+// - always append at the end with proper adjustments in |ActionCompleted()|.
+// - always update |kNonIdleUpdateStatues| in update_attempter_unittest.cc.
+// When deprecating an old enum value:
+// - other enum values should not change their old values. See b/62842358.
 enum class UpdateStatus {
   IDLE = 0,
   CHECKING_FOR_UPDATE = 1,
@@ -42,6 +49,13 @@ enum class UpdateStatus {
   // allow updates, e.g. over cellular network.
   NEED_PERMISSION_TO_UPDATE = 10,
   CLEANUP_PREVIOUS_UPDATE = 11,
+
+  // This value is exclusively used in Chrome. DO NOT define nor use it.
+  // TODO(crbug.com/977320): Remove this value from chrome by refactoring the
+  // Chrome code and evantually from here. This is not really an operation or
+  // state that the update_engine stays on. This is the result of an internal
+  // failure and should be reflected differently.
+  // ERROR = -1,
 };
 
 // Enum of bit-wise flags for controlling how updates are attempted.
@@ -58,23 +72,27 @@ enum UpdateAttemptFlags : int32_t {
 DECLARE_FLAGS_ENUM(UpdateAttemptFlags);
 
 struct UpdateEngineStatus {
-  // When the update_engine last checked for updates (time_t: seconds from unix
-  // epoch)
+  // Update engine last checked update (time_t: seconds from unix epoch).
   int64_t last_checked_time;
-  // the current status/operation of the update_engine
+  // Current status/operation of the update_engine.
   UpdateStatus status;
-  // the current product version (oem bundle id)
+  // Current product version (oem bundle id).
   std::string current_version;
-  // the current system version
-  std::string current_system_version;
-  // The current progress (0.0f-1.0f).
+  // Current progress (0.0f-1.0f).
   double progress;
-  // the size of the update (bytes)
+  // Size of the update in bytes.
   uint64_t new_size_bytes;
-  // the new product version
+  // New product version.
   std::string new_version;
-  // the new system version, if there is one (empty, otherwise)
-  std::string new_system_version;
+  // Wether the update is an enterprise rollback. The value is valid only if the
+  // current operation is passed CHECKING_FOR_UPDATE.
+  bool is_enterprise_rollback;
+  // Indication of install for DLC(s).
+  bool is_install;
+  // The end-of-life date of the device in the number of days since Unix Epoch.
+  int64_t eol_date;
+  // The system will powerwash once the update is applied.
+  bool will_powerwash_after_reboot;
 };
 
 }  // namespace update_engine

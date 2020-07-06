@@ -27,9 +27,16 @@ std::unique_ptr<DlcServiceInterface> CreateDlcService() {
   return std::make_unique<DlcServiceStub>();
 }
 
-bool DlcServiceStub::GetInstalled(std::vector<std::string>* dlc_module_ids) {
-  if (dlc_module_ids)
-    dlc_module_ids->clear();
+bool DlcServiceStub::GetDlcsToUpdate(vector<string>* dlc_ids) {
+  if (dlc_ids)
+    dlc_ids->clear();
+  return true;
+}
+
+bool DlcServiceStub::InstallCompleted(const vector<string>& dlc_ids) {
+  return true;
+}
+bool DlcServiceStub::UpdateCompleted(const vector<string>& dlc_ids) {
   return true;
 }
 

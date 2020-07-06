@@ -23,6 +23,7 @@
 #include <utility>
 
 #include <base/files/file_util.h>
+#include <base/files/scoped_temp_dir.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
@@ -36,6 +37,8 @@
 #include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/update_metadata.pb.h"
 
+using base::FilePath;
+using base::ScopedTempDir;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -48,6 +51,8 @@ namespace {
 constexpr size_t kSquashfsSuperBlockSize = 96;
 constexpr uint64_t kSquashfsCompressedBit = 1 << 24;
 constexpr uint32_t kSquashfsZlibCompression = 1;
+
+constexpr char kUpdateEngineConf[] = "etc/update_engine.conf";
 
 bool ReadSquashfsHeader(const brillo::Blob blob,
                         SquashfsFilesystem::SquashfsHeader* header) {
@@ -76,15 +81,56 @@ bool GetFileMapContent(const string& sqfs_path, string* map) {
   // Run unsquashfs to get the system file map.
   // unsquashfs -m <map-file> <squashfs-file>
   vector<string> cmd = {"unsquashfs", "-m", map_file, sqfs_path};
-  string stdout;
+  string stdout, stderr;
   int exit_code;
-  if (!Subprocess::SynchronousExec(cmd, &exit_code, &stdout) ||
+  if (!Subprocess::SynchronousExec(cmd, &exit_code, &stdout, &stderr) ||
       exit_code != 0) {
-    LOG(ERROR) << "Failed to run unsquashfs -m. The stdout content was: "
-               << stdout;
+    LOG(ERROR) << "Failed to run `unsquashfs -m` with stdout content: "
+               << stdout << " and stderr content: " << stderr;
     return false;
   }
   TEST_AND_RETURN_FALSE(utils::ReadFile(map_file, map));
+  return true;
+}
+
+bool GetUpdateEngineConfig(const std::string& sqfs_path, string* config) {
+  ScopedTempDir unsquash_dir;
+  if (!unsquash_dir.CreateUniqueTempDir()) {
+    PLOG(ERROR) << "Failed to create a temporary directory.";
+    return false;
+  }
+
+  // Run unsquashfs to extract update_engine.conf
+  // -f: To force overriding if the target directory exists.
+  // -d: The directory to unsquash the files.
+  vector<string> cmd = {"unsquashfs",
+                        "-f",
+                        "-d",
+                        unsquash_dir.GetPath().value(),
+                        sqfs_path,
+                        kUpdateEngineConf};
+  string stdout, stderr;
+  int exit_code;
+  if (!Subprocess::SynchronousExec(cmd, &exit_code, &stdout, &stderr) ||
+      exit_code != 0) {
+    PLOG(ERROR) << "Failed to unsquashfs etc/update_engine.conf with stdout: "
+                << stdout << " and stderr: " << stderr;
+    return false;
+  }
+
+  auto config_path = unsquash_dir.GetPath().Append(kUpdateEngineConf);
+  string config_content;
+  if (!utils::ReadFile(config_path.value(), &config_content)) {
+    PLOG(ERROR) << "Failed to read " << config_path.value();
+    return false;
+  }
+
+  if (config_content.empty()) {
+    LOG(ERROR) << "update_engine config file was empty!!";
+    return false;
+  }
+
+  *config = std::move(config_content);
   return true;
 }
 
@@ -120,6 +166,7 @@ bool SquashfsFilesystem::Init(const string& map,
     uint64_t start;
     TEST_AND_RETURN_FALSE(base::StringToUint64(splits[1], &start));
     uint64_t cur_offset = start;
+    bool is_compressed = false;
     for (size_t i = 2; i < splits.size(); ++i) {
       uint64_t blk_size;
       TEST_AND_RETURN_FALSE(base::StringToUint64(splits[i], &blk_size));
@@ -127,10 +174,11 @@ bool SquashfsFilesystem::Init(const string& map,
       auto new_blk_size = blk_size & ~kSquashfsCompressedBit;
       TEST_AND_RETURN_FALSE(new_blk_size <= header.block_size);
       if (new_blk_size > 0 && !(blk_size & kSquashfsCompressedBit)) {
-        // Compressed block
+        // It is a compressed block.
         if (is_zlib && extract_deflates) {
           zlib_blks.emplace_back(cur_offset, new_blk_size);
         }
+        is_compressed = true;
       }
       cur_offset += new_blk_size;
     }
@@ -140,6 +188,7 @@ bool SquashfsFilesystem::Init(const string& map,
       File file;
       file.name = splits[0].as_string();
       file.extents = {ExtentForBytes(kBlockSize, start, cur_offset - start)};
+      file.is_compressed = is_compressed;
       files_.emplace_back(file);
     }
   }
@@ -151,7 +200,8 @@ bool SquashfsFilesystem::Init(const string& map,
   // If there is any overlap between two consecutive extents, remove them. Here
   // we are assuming all files have exactly one extent. If this assumption
   // changes then this implementation needs to change too.
-  for (auto first = files_.begin(), second = first + 1;
+  for (auto first = files_.begin(),
+            second = first + (first == files_.end() ? 0 : 1);
        first != files_.end() && second != files_.end();
        second = first + 1) {
     auto first_begin = first->extents[0].start_block();
@@ -217,6 +267,14 @@ bool SquashfsFilesystem::Init(const string& map,
                 return a.offset < b.offset;
               });
 
+    // Sometimes a squashfs can have a two files that are hard linked. In this
+    // case both files will have the same starting offset in the image and hence
+    // the same zlib blocks. So we need to remove these duplicates to eliminate
+    // further potential probems. As a matter of fact the next statement will
+    // fail if there are duplicates (there will be overlap between two blocks).
+    auto last = std::unique(zlib_blks.begin(), zlib_blks.end());
+    zlib_blks.erase(last, zlib_blks.end());
+
     // Sanity check. Make sure zlib blocks are not overlapping.
     auto result = std::adjacent_find(
         zlib_blks.begin(),
@@ -239,12 +297,12 @@ bool SquashfsFilesystem::Init(const string& map,
 }
 
 unique_ptr<SquashfsFilesystem> SquashfsFilesystem::CreateFromFile(
-    const string& sqfs_path, bool extract_deflates) {
+    const string& sqfs_path, bool extract_deflates, bool load_settings) {
   if (sqfs_path.empty())
     return nullptr;
 
   brillo::StreamPtr sqfs_file =
-      brillo::FileStream::Open(base::FilePath(sqfs_path),
+      brillo::FileStream::Open(FilePath(sqfs_path),
                                brillo::Stream::AccessMode::READ,
                                brillo::FileStream::Disposition::OPEN_EXISTING,
                                nullptr);
@@ -276,6 +334,12 @@ unique_ptr<SquashfsFilesystem> SquashfsFilesystem::CreateFromFile(
           filemap, sqfs_path, sqfs_file->GetSize(), header, extract_deflates)) {
     LOG(ERROR) << "Failed to initialized the Squashfs file system";
     return nullptr;
+  }
+
+  if (load_settings) {
+    if (!GetUpdateEngineConfig(sqfs_path, &sqfs->update_engine_config_)) {
+      return nullptr;
+    }
   }
 
   return sqfs;
@@ -311,9 +375,12 @@ bool SquashfsFilesystem::GetFiles(vector<File>* files) const {
 }
 
 bool SquashfsFilesystem::LoadSettings(brillo::KeyValueStore* store) const {
-  // Settings not supported in squashfs.
-  LOG(ERROR) << "squashfs doesn't support LoadSettings().";
-  return false;
+  if (!store->LoadFromString(update_engine_config_)) {
+    LOG(ERROR) << "Failed to load the settings with config: "
+               << update_engine_config_;
+    return false;
+  }
+  return true;
 }
 
 bool SquashfsFilesystem::IsSquashfsImage(const brillo::Blob& blob) {
