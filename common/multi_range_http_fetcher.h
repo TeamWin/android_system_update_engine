@@ -83,6 +83,11 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
     base_fetcher_->SetHeader(header_name, header_value);
   }
 
+  bool GetHeader(const std::string& header_name,
+                 std::string* header_value) const override {
+    return base_fetcher_->GetHeader(header_name, header_value);
+  }
+
   void Pause() override { base_fetcher_->Pause(); }
 
   void Unpause() override { base_fetcher_->Unpause(); }

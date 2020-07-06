@@ -100,6 +100,20 @@ TEST_F(UpdateEngineServiceTest, AttemptInstallReturnsFalse) {
   EXPECT_FALSE(common_service_.AttemptInstall(&error_, "", {}));
 }
 
+TEST_F(UpdateEngineServiceTest, SetDlcActiveValue) {
+  EXPECT_CALL(*mock_update_attempter_, SetDlcActiveValue(_, _))
+      .WillOnce(Return(true));
+
+  EXPECT_TRUE(common_service_.SetDlcActiveValue(&error_, true, "dlc0"));
+}
+
+TEST_F(UpdateEngineServiceTest, SetDlcActiveValueReturnsFalse) {
+  EXPECT_CALL(*mock_update_attempter_, SetDlcActiveValue(_, _))
+      .WillOnce(Return(false));
+
+  EXPECT_FALSE(common_service_.SetDlcActiveValue(&error_, true, "dlc0"));
+}
+
 // SetChannel is allowed when there's no device policy (the device is not
 // enterprise enrolled).
 TEST_F(UpdateEngineServiceTest, SetChannelWithNoPolicy) {
@@ -167,21 +181,6 @@ TEST_F(UpdateEngineServiceTest, ResetStatusFails) {
   ASSERT_NE(nullptr, error_);
   EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
                                UpdateEngineService::kErrorFailed));
-}
-
-TEST_F(UpdateEngineServiceTest, GetEolStatusTest) {
-  FakePrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
-  // The default value should be "supported".
-  int32_t eol_status = static_cast<int32_t>(EolStatus::kEol);
-  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
-  EXPECT_EQ(nullptr, error_);
-  EXPECT_EQ(EolStatus::kSupported, static_cast<EolStatus>(eol_status));
-
-  fake_prefs.SetString(kPrefsOmahaEolStatus, "security-only");
-  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
-  EXPECT_EQ(nullptr, error_);
-  EXPECT_EQ(EolStatus::kSecurityOnly, static_cast<EolStatus>(eol_status));
 }
 
 }  // namespace chromeos_update_engine

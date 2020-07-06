@@ -27,6 +27,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
+#include <base/stl_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -43,6 +44,7 @@
 #include "update_engine/payload_consumer/fake_file_descriptor.h"
 #include "update_engine/payload_consumer/mock_download_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/payload_file.h"
@@ -286,6 +288,7 @@ class DeltaPerformerTest : public ::testing::Test {
     test_utils::ScopedTempFile new_part("Partition-XXXXXX");
     EXPECT_TRUE(test_utils::WriteFileVector(new_part.path(), target_data));
 
+    payload_.size = payload_data.size();
     // We installed the operations only in the rootfs partition, but the
     // delta performer needs to access all the partitions.
     fake_boot_control_.SetPartitionDevice(
@@ -318,14 +321,17 @@ class DeltaPerformerTest : public ::testing::Test {
 
     // Set a valid magic string and version number 1.
     EXPECT_TRUE(performer_.Write("CrAU", 4));
-    uint64_t version = htobe64(kChromeOSMajorPayloadVersion);
+    uint64_t version = htobe64(kBrilloMajorPayloadVersion);
     EXPECT_TRUE(performer_.Write(&version, 8));
 
     payload_.metadata_size = expected_metadata_size;
+    payload_.size = actual_metadata_size + 1;
     ErrorCode error_code;
-    // When filling in size in manifest, exclude the size of the 20-byte header.
-    uint64_t size_in_manifest = htobe64(actual_metadata_size - 20);
-    bool result = performer_.Write(&size_in_manifest, 8, &error_code);
+    // When filling in size in manifest, exclude the size of the 24-byte header.
+    uint64_t size_in_manifest = htobe64(actual_metadata_size - 24);
+    performer_.Write(&size_in_manifest, 8, &error_code);
+    auto signature_size = htobe64(10);
+    bool result = performer_.Write(&signature_size, 4, &error_code);
     if (expected_metadata_size == actual_metadata_size ||
         !hash_checks_mandatory) {
       EXPECT_TRUE(result);
@@ -337,7 +343,7 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_LT(performer_.Close(), 0);
   }
 
-  // Generates a valid delta file but tests the delta performer by suppling
+  // Generates a valid delta file but tests the delta performer by supplying
   // different metadata signatures as per metadata_signature_test flag and
   // sees if the result of the parsing are as per hash_checks_mandatory flag.
   void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
@@ -347,9 +353,10 @@ class DeltaPerformerTest : public ::testing::Test {
     brillo::Blob payload = GeneratePayload(brillo::Blob(),
                                            vector<AnnotatedOperation>(),
                                            sign_payload,
-                                           kChromeOSMajorPayloadVersion,
+                                           kBrilloMajorPayloadVersion,
                                            kFullPayloadMinorVersion);
 
+    payload_.size = payload.size();
     LOG(INFO) << "Payload size: " << payload.size();
 
     install_plan_.hash_checks_mandatory = hash_checks_mandatory;
@@ -361,6 +368,9 @@ class DeltaPerformerTest : public ::testing::Test {
     switch (metadata_signature_test) {
       case kEmptyMetadataSignature:
         payload_.metadata_signature.clear();
+        // We need to set the signature size in a signed payload to zero.
+        std::fill(
+            std::next(payload.begin(), 20), std::next(payload.begin(), 24), 0);
         expected_result = MetadataParseResult::kError;
         expected_error = ErrorCode::kDownloadMetadataSignatureMissingError;
         break;
@@ -455,7 +465,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   brillo::Blob payload_data = GeneratePayload(expected_data,
                                               aops,
                                               false,
-                                              kChromeOSMajorPayloadVersion,
+                                              kBrilloMajorPayloadVersion,
                                               kFullPayloadMinorVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
@@ -477,7 +487,7 @@ TEST_F(DeltaPerformerTest, ShouldCancelTest) {
   brillo::Blob payload_data = GeneratePayload(expected_data,
                                               aops,
                                               false,
-                                              kChromeOSMajorPayloadVersion,
+                                              kBrilloMajorPayloadVersion,
                                               kFullPayloadMinorVersion);
 
   testing::Mock::VerifyAndClearExpectations(&mock_delegate_);
@@ -739,12 +749,12 @@ TEST_F(DeltaPerformerTest, ChooseSourceFDTest) {
 
 TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
   uint64_t test[] = {1, 1, 4, 2, 0, 1};
-  static_assert(arraysize(test) % 2 == 0, "Array size uneven");
+  static_assert(base::size(test) % 2 == 0, "Array size uneven");
   const uint64_t block_size = 4096;
   const uint64_t file_length = 4 * block_size - 13;
 
   google::protobuf::RepeatedPtrField<Extent> extents;
-  for (size_t i = 0; i < arraysize(test); i += 2) {
+  for (size_t i = 0; i < base::size(test); i += 2) {
     *(extents.Add()) = ExtentForRange(test[i], test[i + 1]);
   }
 
@@ -758,27 +768,32 @@ TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
 TEST_F(DeltaPerformerTest, ValidateManifestFullGoodTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
-  manifest.mutable_new_kernel_info();
-  manifest.mutable_new_rootfs_info();
+  for (const auto& part_name : {"kernel", "rootfs"}) {
+    auto part = manifest.add_partitions();
+    part->set_partition_name(part_name);
+    part->mutable_new_partition_info();
+  }
   manifest.set_minor_version(kFullPayloadMinorVersion);
 
   RunManifestValidation(manifest,
-                        kChromeOSMajorPayloadVersion,
+                        kBrilloMajorPayloadVersion,
                         InstallPayloadType::kFull,
                         ErrorCode::kSuccess);
 }
 
-TEST_F(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
+TEST_F(DeltaPerformerTest, ValidateManifestDeltaMaxGoodTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
-  manifest.mutable_old_kernel_info();
-  manifest.mutable_old_rootfs_info();
-  manifest.mutable_new_kernel_info();
-  manifest.mutable_new_rootfs_info();
+  for (const auto& part_name : {"kernel", "rootfs"}) {
+    auto part = manifest.add_partitions();
+    part->set_partition_name(part_name);
+    part->mutable_old_partition_info();
+    part->mutable_new_partition_info();
+  }
   manifest.set_minor_version(kMaxSupportedMinorPayloadVersion);
 
   RunManifestValidation(manifest,
-                        kChromeOSMajorPayloadVersion,
+                        kBrilloMajorPayloadVersion,
                         InstallPayloadType::kDelta,
                         ErrorCode::kSuccess);
 }
@@ -786,14 +801,16 @@ TEST_F(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
 TEST_F(DeltaPerformerTest, ValidateManifestDeltaMinGoodTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
-  manifest.mutable_old_kernel_info();
-  manifest.mutable_old_rootfs_info();
-  manifest.mutable_new_kernel_info();
-  manifest.mutable_new_rootfs_info();
+  for (const auto& part_name : {"kernel", "rootfs"}) {
+    auto part = manifest.add_partitions();
+    part->set_partition_name(part_name);
+    part->mutable_old_partition_info();
+    part->mutable_new_partition_info();
+  }
   manifest.set_minor_version(kMinSupportedMinorPayloadVersion);
 
   RunManifestValidation(manifest,
-                        kChromeOSMajorPayloadVersion,
+                        kBrilloMajorPayloadVersion,
                         InstallPayloadType::kDelta,
                         ErrorCode::kSuccess);
 }
@@ -811,9 +828,11 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullUnsetMinorVersion) {
 TEST_F(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
-  // Add an empty old_rootfs_info() to trick the DeltaPerformer into think that
-  // this is a delta payload manifest with a missing minor version.
-  manifest.mutable_old_rootfs_info();
+  // Add an empty rootfs partition info to trick the DeltaPerformer into think
+  // that this is a delta payload manifest with a missing minor version.
+  auto rootfs = manifest.add_partitions();
+  rootfs->set_partition_name("rootfs");
+  rootfs->mutable_old_partition_info();
 
   RunManifestValidation(manifest,
                         kMaxSupportedMajorPayloadVersion,
@@ -824,27 +843,15 @@ TEST_F(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
 TEST_F(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
-  manifest.mutable_old_kernel_info();
-  manifest.mutable_new_kernel_info();
-  manifest.mutable_new_rootfs_info();
-  manifest.set_minor_version(kMaxSupportedMinorPayloadVersion);
-
+  for (const auto& part_name : {"kernel", "rootfs"}) {
+    auto part = manifest.add_partitions();
+    part->set_partition_name(part_name);
+    part->mutable_old_partition_info();
+    part->mutable_new_partition_info();
+  }
+  manifest.mutable_partitions(0)->clear_old_partition_info();
   RunManifestValidation(manifest,
-                        kChromeOSMajorPayloadVersion,
-                        InstallPayloadType::kFull,
-                        ErrorCode::kPayloadMismatchedType);
-}
-
-TEST_F(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
-  // The Manifest we are validating.
-  DeltaArchiveManifest manifest;
-  manifest.mutable_old_rootfs_info();
-  manifest.mutable_new_kernel_info();
-  manifest.mutable_new_rootfs_info();
-  manifest.set_minor_version(kMaxSupportedMinorPayloadVersion);
-
-  RunManifestValidation(manifest,
-                        kChromeOSMajorPayloadVersion,
+                        kBrilloMajorPayloadVersion,
                         InstallPayloadType::kFull,
                         ErrorCode::kPayloadMismatchedType);
 }
@@ -869,8 +876,8 @@ TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
 
   // Generate a bad version number.
   manifest.set_minor_version(kMaxSupportedMinorPayloadVersion + 10000);
-  // Mark the manifest as a delta payload by setting old_rootfs_info.
-  manifest.mutable_old_rootfs_info();
+  // Mark the manifest as a delta payload by setting |old_partition_info|.
+  manifest.add_partitions()->mutable_old_partition_info();
 
   RunManifestValidation(manifest,
                         kMaxSupportedMajorPayloadVersion,
@@ -897,15 +904,27 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
 
   uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
-  EXPECT_TRUE(performer_.Write(&major_version, 8));
+  EXPECT_TRUE(
+      performer_.Write(&major_version, PayloadMetadata::kDeltaVersionSize));
 
   uint64_t manifest_size = rand_r(&seed) % 256;
-  uint64_t manifest_size_be = htobe64(manifest_size);
-  EXPECT_TRUE(performer_.Write(&manifest_size_be, 8));
-
   uint32_t metadata_signature_size = rand_r(&seed) % 256;
+
+  // The payload size has to be bigger than the |metadata_size| and
+  // |metadata_signature_size|
+  payload_.size = PayloadMetadata::kDeltaManifestSizeOffset +
+                  PayloadMetadata::kDeltaManifestSizeSize +
+                  PayloadMetadata::kDeltaMetadataSignatureSizeSize +
+                  manifest_size + metadata_signature_size + 1;
+
+  uint64_t manifest_size_be = htobe64(manifest_size);
+  EXPECT_TRUE(performer_.Write(&manifest_size_be,
+                               PayloadMetadata::kDeltaManifestSizeSize));
+
   uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
-  EXPECT_TRUE(performer_.Write(&metadata_signature_size_be, 4));
+  EXPECT_TRUE(
+      performer_.Write(&metadata_signature_size_be,
+                       PayloadMetadata::kDeltaMetadataSignatureSizeSize));
 
   EXPECT_LT(performer_.Close(), 0);
 
@@ -915,10 +934,74 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   EXPECT_EQ(metadata_signature_size, performer_.metadata_signature_size_);
 }
 
+TEST_F(DeltaPerformerTest, BrilloMetadataSizeNOKTest) {
+  unsigned int seed = time(nullptr);
+  EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
+
+  uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
+  EXPECT_TRUE(
+      performer_.Write(&major_version, PayloadMetadata::kDeltaVersionSize));
+
+  uint64_t manifest_size = UINT64_MAX - 600;  // Subtract to avoid wrap around.
+  uint64_t manifest_offset = PayloadMetadata::kDeltaManifestSizeOffset +
+                             PayloadMetadata::kDeltaManifestSizeSize +
+                             PayloadMetadata::kDeltaMetadataSignatureSizeSize;
+  payload_.metadata_size = manifest_offset + manifest_size;
+  uint32_t metadata_signature_size = rand_r(&seed) % 256;
+
+  // The payload size is greater than the payload header but smaller than
+  // |metadata_signature_size| + |metadata_size|
+  payload_.size = manifest_offset + metadata_signature_size + 1;
+
+  uint64_t manifest_size_be = htobe64(manifest_size);
+  EXPECT_TRUE(performer_.Write(&manifest_size_be,
+                               PayloadMetadata::kDeltaManifestSizeSize));
+  uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
+
+  ErrorCode error;
+  EXPECT_FALSE(
+      performer_.Write(&metadata_signature_size_be,
+                       PayloadMetadata::kDeltaMetadataSignatureSizeSize + 1,
+                       &error));
+
+  EXPECT_EQ(ErrorCode::kDownloadInvalidMetadataSize, error);
+}
+
+TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeNOKTest) {
+  unsigned int seed = time(nullptr);
+  EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
+
+  uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
+  EXPECT_TRUE(
+      performer_.Write(&major_version, PayloadMetadata::kDeltaVersionSize));
+
+  uint64_t manifest_size = rand_r(&seed) % 256;
+  // Subtract from UINT32_MAX to avoid wrap around.
+  uint32_t metadata_signature_size = UINT32_MAX - 600;
+
+  // The payload size is greater than |manifest_size| but smaller than
+  // |metadata_signature_size|
+  payload_.size = manifest_size + 1;
+
+  uint64_t manifest_size_be = htobe64(manifest_size);
+  EXPECT_TRUE(performer_.Write(&manifest_size_be,
+                               PayloadMetadata::kDeltaManifestSizeSize));
+
+  uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
+  ErrorCode error;
+  EXPECT_FALSE(
+      performer_.Write(&metadata_signature_size_be,
+                       PayloadMetadata::kDeltaMetadataSignatureSizeSize + 1,
+                       &error));
+
+  EXPECT_EQ(ErrorCode::kDownloadInvalidMetadataSize, error);
+}
+
 TEST_F(DeltaPerformerTest, BrilloParsePayloadMetadataTest) {
   brillo::Blob payload_data = GeneratePayload(
       {}, {}, true, kBrilloMajorPayloadVersion, kSourceMinorPayloadVersion);
   install_plan_.hash_checks_mandatory = true;
+  payload_.size = payload_data.size();
   ErrorCode error;
   EXPECT_EQ(MetadataParseResult::kSuccess,
             performer_.ParsePayloadMetadata(payload_data, &error));

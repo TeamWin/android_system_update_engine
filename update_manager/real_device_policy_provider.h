@@ -34,7 +34,7 @@
 
 namespace chromeos_update_manager {
 
-// DevicePolicyProvider concrete implementation.
+// |DevicePolicyProvider| concrete implementation.
 class RealDevicePolicyProvider : public DevicePolicyProvider {
  public:
 #if USE_DBUS
@@ -89,7 +89,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_allowed_connection_types_for_update_;
   }
 
-  Variable<std::string>* var_owner() override { return &var_owner_; }
+  Variable<bool>* var_has_owner() override { return &var_has_owner_; }
 
   Variable<bool>* var_http_downloads_enabled() override {
     return &var_http_downloads_enabled_;
@@ -113,12 +113,13 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   FRIEND_TEST(UmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, ValuesUpdated);
+  FRIEND_TEST(UmRealDevicePolicyProviderTest, HasOwnerConverted);
 
-  // A static handler for the PropertyChangedCompleted signal from the session
+  // A static handler for the |PropertyChangedCompleted| signal from the session
   // manager used as a callback.
   void OnPropertyChangedCompletedSignal(const std::string& success);
 
-  // Called when the signal in UpdateEngineLibcrosProxyResolvedInterface is
+  // Called when the signal in |UpdateEngineLibcrosProxyResolvedInterface| is
   // connected.
   void OnSignalConnected(const std::string& interface_name,
                          const std::string& signal_name,
@@ -134,35 +135,40 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   // passed, which is a DevicePolicy getter method.
   template <typename T>
   void UpdateVariable(AsyncCopyVariable<T>* var,
-                      bool (policy::DevicePolicy::*getter_method)(T*) const);
+                      bool (policy::DevicePolicy::*getter)(T*) const);
 
   // Updates the async variable |var| based on the result value of the getter
   // method passed, which is a wrapper getter on this class.
   template <typename T>
   void UpdateVariable(AsyncCopyVariable<T>* var,
-                      bool (RealDevicePolicyProvider::*getter_method)(T*)
-                          const);
+                      bool (RealDevicePolicyProvider::*getter)(T*) const);
 
-  // Wrapper for DevicePolicy::GetRollbackToTargetVersion() that converts the
-  // result to RollbackToTargetVersion.
+  // Wrapper for |DevicePolicy::GetRollbackToTargetVersion()| that converts the
+  // result to |RollbackToTargetVersion|.
   bool ConvertRollbackToTargetVersion(
       RollbackToTargetVersion* rollback_to_target_version) const;
 
-  // Wrapper for DevicePolicy::GetScatterFactorInSeconds() that converts the
-  // result to a base::TimeDelta. It returns the same value as
-  // GetScatterFactorInSeconds().
+  // Wrapper for |DevicePolicy::GetScatterFactorInSeconds()| that converts the
+  // result to a |base::TimeDelta|. It returns the same value as
+  // |GetScatterFactorInSeconds()|.
   bool ConvertScatterFactor(base::TimeDelta* scatter_factor) const;
 
-  // Wrapper for DevicePolicy::GetAllowedConnectionTypesForUpdate() that
-  // converts the result to a set of ConnectionType elements instead of strings.
+  // Wrapper for |DevicePolicy::GetAllowedConnectionTypesForUpdate()| that
+  // converts the result to a set of |ConnectionType| elements instead of
+  // strings.
   bool ConvertAllowedConnectionTypesForUpdate(
       std::set<chromeos_update_engine::ConnectionType>* allowed_types) const;
 
-  // Wrapper for DevicePolicy::GetUpdateTimeRestrictions() that converts
-  // the DevicePolicy::WeeklyTimeInterval structs to WeeklyTimeInterval objects,
-  // which offer more functionality.
+  // Wrapper for |DevicePolicy::GetUpdateTimeRestrictions()| that converts
+  // the |DevicePolicy::WeeklyTimeInterval| structs to |WeeklyTimeInterval|
+  // objects, which offer more functionality.
   bool ConvertDisallowedTimeIntervals(
       WeeklyTimeIntervalVector* disallowed_intervals_out) const;
+
+  // Wrapper for |DevicePolicy::GetOwner()| that converts the result to a
+  // boolean of whether the device has an owner. (Enterprise enrolled
+  // devices do not have an owner).
+  bool ConvertHasOwner(bool* has_owner) const;
 
   // Used for fetching information about the device policy.
   policy::PolicyProvider* policy_provider_;
@@ -181,7 +187,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",
                                                        false};
 
-  // Variables mapping the exposed methods from the policy::DevicePolicy.
+  // Variables mapping the exposed methods from the |policy::DevicePolicy|.
   AsyncCopyVariable<std::string> var_release_channel_{"release_channel"};
   AsyncCopyVariable<bool> var_release_channel_delegated_{
       "release_channel_delegated"};
@@ -196,7 +202,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::set<chromeos_update_engine::ConnectionType>>
       var_allowed_connection_types_for_update_{
           "allowed_connection_types_for_update"};
-  AsyncCopyVariable<std::string> var_owner_{"owner"};
+  AsyncCopyVariable<bool> var_has_owner_{"owner"};
   AsyncCopyVariable<bool> var_http_downloads_enabled_{"http_downloads_enabled"};
   AsyncCopyVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled"};
   AsyncCopyVariable<bool> var_allow_kiosk_app_control_chrome_version_{

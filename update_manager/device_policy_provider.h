@@ -66,9 +66,9 @@ class DevicePolicyProvider : public Provider {
   virtual Variable<std::set<chromeos_update_engine::ConnectionType>>*
   var_allowed_connection_types_for_update() = 0;
 
-  // Variable stating the name of the device owner. For enterprise enrolled
-  // devices, this will be an empty string.
-  virtual Variable<std::string>* var_owner() = 0;
+  // Variable stating whether the device has an owner. For enterprise enrolled
+  // devices, this will be false as the device owner has an empty string.
+  virtual Variable<bool>* var_has_owner() = 0;
 
   virtual Variable<bool>* var_http_downloads_enabled() = 0;
 

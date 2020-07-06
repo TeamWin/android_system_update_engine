@@ -20,9 +20,9 @@
 #include <vector>
 
 #include <update_engine/dbus-constants.h>
-#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/dbus_connection.h"
+#include "update_engine/proto_bindings/update_engine.pb.h"
 #include "update_engine/update_status_utils.h"
 
 namespace chromeos_update_engine {
@@ -31,7 +31,26 @@ using brillo::ErrorPtr;
 using chromeos_update_engine::UpdateEngineService;
 using std::string;
 using std::vector;
+using update_engine::Operation;
+using update_engine::StatusResult;
 using update_engine::UpdateEngineStatus;
+
+namespace {
+// Converts the internal |UpdateEngineStatus| to the protobuf |StatusResult|.
+void ConvertToStatusResult(const UpdateEngineStatus& ue_status,
+                           StatusResult* out_status) {
+  out_status->set_last_checked_time(ue_status.last_checked_time);
+  out_status->set_progress(ue_status.progress);
+  out_status->set_current_operation(static_cast<Operation>(ue_status.status));
+  out_status->set_new_version(ue_status.new_version);
+  out_status->set_new_size(ue_status.new_size_bytes);
+  out_status->set_is_enterprise_rollback(ue_status.is_enterprise_rollback);
+  out_status->set_is_install(ue_status.is_install);
+  out_status->set_eol_date(ue_status.eol_date);
+  out_status->set_will_powerwash_after_reboot(
+      ue_status.will_powerwash_after_reboot);
+}
+}  // namespace
 
 DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
     : common_(new UpdateEngineService{system_state}) {}
@@ -63,26 +82,9 @@ bool DBusUpdateEngineService::AttemptUpdateWithFlags(
 }
 
 bool DBusUpdateEngineService::AttemptInstall(ErrorPtr* error,
-                                             const string& dlc_request) {
-  // Parse the raw parameters into protobuf.
-  DlcParameters dlc_parameters;
-  if (!dlc_parameters.ParseFromString(dlc_request)) {
-    *error = brillo::Error::Create(
-        FROM_HERE, "update_engine", "INTERNAL", "parameters are invalid.");
-    return false;
-  }
-  // Extract fields from the protobuf.
-  vector<string> dlc_module_ids;
-  for (const auto& dlc_info : dlc_parameters.dlc_infos()) {
-    if (dlc_info.dlc_id().empty()) {
-      *error = brillo::Error::Create(
-          FROM_HERE, "update_engine", "INTERNAL", "parameters are invalid.");
-      return false;
-    }
-    dlc_module_ids.push_back(dlc_info.dlc_id());
-  }
-  return common_->AttemptInstall(
-      error, dlc_parameters.omaha_url(), dlc_module_ids);
+                                             const string& in_omaha_url,
+                                             const vector<string>& dlc_ids) {
+  return common_->AttemptInstall(error, in_omaha_url, dlc_ids);
 }
 
 bool DBusUpdateEngineService::AttemptRollback(ErrorPtr* error,
@@ -99,21 +101,20 @@ bool DBusUpdateEngineService::ResetStatus(ErrorPtr* error) {
   return common_->ResetStatus(error);
 }
 
-bool DBusUpdateEngineService::GetStatus(ErrorPtr* error,
-                                        int64_t* out_last_checked_time,
-                                        double* out_progress,
-                                        string* out_current_operation,
-                                        string* out_new_version,
-                                        int64_t* out_new_size) {
+bool DBusUpdateEngineService::SetDlcActiveValue(brillo::ErrorPtr* error,
+                                                bool is_active,
+                                                const string& dlc_id) {
+  return common_->SetDlcActiveValue(error, is_active, dlc_id);
+}
+
+bool DBusUpdateEngineService::GetStatusAdvanced(ErrorPtr* error,
+                                                StatusResult* out_status) {
   UpdateEngineStatus status;
   if (!common_->GetStatus(error, &status)) {
     return false;
   }
-  *out_last_checked_time = status.last_checked_time;
-  *out_progress = status.progress;
-  *out_current_operation = UpdateStatusToString(status.status);
-  *out_new_version = status.new_version;
-  *out_new_size = status.new_size_bytes;
+
+  ConvertToStatusResult(status, out_status);
   return true;
 }
 
@@ -191,11 +192,6 @@ bool DBusUpdateEngineService::GetLastAttemptError(
   return common_->GetLastAttemptError(error, out_last_attempt_error);
 }
 
-bool DBusUpdateEngineService::GetEolStatus(ErrorPtr* error,
-                                           int32_t* out_eol_status) {
-  return common_->GetEolStatus(error, out_eol_status);
-}
-
 UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state)
     : org::chromium::UpdateEngineInterfaceAdaptor(&dbus_service_),
       bus_(DBusConnection::Get()->GetDBus()),
@@ -217,11 +213,11 @@ bool UpdateEngineAdaptor::RequestOwnership() {
 
 void UpdateEngineAdaptor::SendStatusUpdate(
     const UpdateEngineStatus& update_engine_status) {
-  SendStatusUpdateSignal(update_engine_status.last_checked_time,
-                         update_engine_status.progress,
-                         UpdateStatusToString(update_engine_status.status),
-                         update_engine_status.new_version,
-                         update_engine_status.new_size_bytes);
+  StatusResult status;
+  ConvertToStatusResult(update_engine_status, &status);
+
+  // Send |StatusUpdateAdvanced| signal.
+  SendStatusUpdateAdvancedSignal(status);
 }
 
 }  // namespace chromeos_update_engine

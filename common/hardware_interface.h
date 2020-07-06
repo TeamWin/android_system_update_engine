@@ -70,6 +70,10 @@ class HardwareInterface {
   // running a custom chrome os ec.
   virtual std::string GetECVersion() const = 0;
 
+  // Returns the OEM device requisition or an empty string if the system does
+  // not have a requisition, or if not running Chrome OS.
+  virtual std::string GetDeviceRequisition() const = 0;
+
   // Returns the minimum kernel key version that verified boot on Chrome OS
   // will allow to boot. This is the value of crossystem tpm_kernver. Returns
   // -1 on error, or if not running on Chrome OS.
@@ -102,9 +106,9 @@ class HardwareInterface {
   virtual int GetPowerwashCount() const = 0;
 
   // Signals that a powerwash (stateful partition wipe) should be performed
-  // after reboot. If |is_rollback| is true additional state is preserved
-  // during shutdown that can be restored after the powerwash.
-  virtual bool SchedulePowerwash(bool is_rollback) = 0;
+  // after reboot. If |save_rollback_data| is true additional state is
+  // preserved during shutdown that can be restored after the powerwash.
+  virtual bool SchedulePowerwash(bool save_rollback_data) = 0;
 
   // Cancel the powerwash operation scheduled to be performed on next boot.
   virtual bool CancelPowerwash() = 0;

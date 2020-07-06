@@ -32,6 +32,7 @@
 #include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/mapfile_filesystem.h"
 #include "update_engine/payload_generator/raw_filesystem.h"
+#include "update_engine/payload_generator/squashfs_filesystem.h"
 
 using std::string;
 
@@ -81,6 +82,14 @@ bool PartitionConfig::OpenFilesystem() {
   }
 
   fs_interface = BootImgFilesystem::CreateFromFile(path);
+  if (fs_interface) {
+    TEST_AND_RETURN_FALSE(fs_interface->GetBlockSize() == kBlockSize);
+    return true;
+  }
+
+  fs_interface = SquashfsFilesystem::CreateFromFile(path,
+                                                    /*extract_deflates=*/true,
+                                                    /*load_settings=*/true);
   if (fs_interface) {
     TEST_AND_RETURN_FALSE(fs_interface->GetBlockSize() == kBlockSize);
     return true;
@@ -219,10 +228,8 @@ PayloadVersion::PayloadVersion(uint64_t major_version, uint32_t minor_version) {
 }
 
 bool PayloadVersion::Validate() const {
-  TEST_AND_RETURN_FALSE(major == kChromeOSMajorPayloadVersion ||
-                        major == kBrilloMajorPayloadVersion);
+  TEST_AND_RETURN_FALSE(major == kBrilloMajorPayloadVersion);
   TEST_AND_RETURN_FALSE(minor == kFullPayloadMinorVersion ||
-                        minor == kInPlaceMinorPayloadVersion ||
                         minor == kSourceMinorPayloadVersion ||
                         minor == kOpSrcHashMinorPayloadVersion ||
                         minor == kBrotliBsdiffMinorPayloadVersion ||
@@ -237,13 +244,10 @@ bool PayloadVersion::OperationAllowed(InstallOperation::Type operation) const {
     case InstallOperation::REPLACE:
     case InstallOperation::REPLACE_BZ:
       // These operations were included in the original payload format.
-      return true;
-
     case InstallOperation::REPLACE_XZ:
-      // These operations are included in the major version used in Brillo, but
-      // can also be used with minor version 3 or newer.
-      return major == kBrilloMajorPayloadVersion ||
-             minor >= kOpSrcHashMinorPayloadVersion;
+      // These operations are included minor version 3 or newer and full
+      // payloads.
+      return true;
 
     case InstallOperation::ZERO:
     case InstallOperation::DISCARD:
@@ -251,14 +255,6 @@ bool PayloadVersion::OperationAllowed(InstallOperation::Type operation) const {
       // that prevents them from being used in any payload. We will enable
       // them for delta payloads for now.
       return minor >= kBrotliBsdiffMinorPayloadVersion;
-
-    // Delta operations:
-    case InstallOperation::MOVE:
-    case InstallOperation::BSDIFF:
-      // MOVE and BSDIFF were replaced by SOURCE_COPY and SOURCE_BSDIFF and
-      // should not be used in newer delta versions, since the idempotent checks
-      // were removed.
-      return minor == kInPlaceMinorPayloadVersion;
 
     case InstallOperation::SOURCE_COPY:
     case InstallOperation::SOURCE_BSDIFF:
@@ -269,16 +265,16 @@ bool PayloadVersion::OperationAllowed(InstallOperation::Type operation) const {
 
     case InstallOperation::PUFFDIFF:
       return minor >= kPuffdiffMinorPayloadVersion;
+
+    case InstallOperation::MOVE:
+    case InstallOperation::BSDIFF:
+      NOTREACHED();
   }
   return false;
 }
 
 bool PayloadVersion::IsDelta() const {
   return minor != kFullPayloadMinorVersion;
-}
-
-bool PayloadVersion::InplaceUpdate() const {
-  return minor == kInPlaceMinorPayloadVersion;
 }
 
 bool PayloadGenerationConfig::Validate() const {
@@ -307,11 +303,6 @@ bool PayloadGenerationConfig::Validate() const {
   for (const PartitionConfig& part : target.partitions) {
     TEST_AND_RETURN_FALSE(part.ValidateExists());
     TEST_AND_RETURN_FALSE(part.size % block_size == 0);
-    if (version.minor == kInPlaceMinorPayloadVersion &&
-        part.name == kPartitionNameRoot)
-      TEST_AND_RETURN_FALSE(rootfs_partition_size >= part.size);
-    if (version.major == kChromeOSMajorPayloadVersion)
-      TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
     if (version.minor < kVerityMinorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.verity.IsEmpty());
   }

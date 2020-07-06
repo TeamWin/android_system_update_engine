@@ -42,13 +42,14 @@ class HardwareAndroid final : public HardwareInterface {
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
+  std::string GetDeviceRequisition() const override;
   int GetMinKernelKeyVersion() const override;
   int GetMinFirmwareKeyVersion() const override;
   int GetMaxFirmwareKeyRollforward() const override;
   bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) override;
   bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override;
   int GetPowerwashCount() const override;
-  bool SchedulePowerwash(bool is_rollback) override;
+  bool SchedulePowerwash(bool save_rollback_data) override;
   bool CancelPowerwash() override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;

@@ -25,6 +25,7 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>
@@ -78,6 +79,7 @@ struct DeltaState {
 
   string delta_path;
   uint64_t metadata_size;
+  uint32_t metadata_signature_size;
 
   string old_kernel;
   brillo::Blob old_kernel_data;
@@ -186,16 +188,19 @@ static void SignGeneratedPayload(const string& payload_path,
   string private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyPath);
   size_t signature_size;
   ASSERT_TRUE(PayloadSigner::GetMaximumSignatureSize(private_key_path,
-                                                     &signature_size));
-  brillo::Blob hash;
+                                                   &signature_size));
+  brillo::Blob metadata_hash, payload_hash;
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
-      payload_path, {signature_size}, &hash, nullptr));
-  brillo::Blob signature;
-  ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
+      payload_path, {signature_size}, &payload_hash, &metadata_hash));
+  brillo::Blob metadata_signature, payload_signature;
+  ASSERT_TRUE(PayloadSigner::SignHash(
+      payload_hash, private_key_path, &payload_signature));
+  ASSERT_TRUE(PayloadSigner::SignHash(
+      metadata_hash, private_key_path, &metadata_signature));
   ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(payload_path,
                                                    {signature_size},
-                                                   {signature},
-                                                   {},
+                                                   {payload_signature},
+                                                   {metadata_signature},
                                                    payload_path,
                                                    out_metadata_size));
   EXPECT_TRUE(PayloadSigner::VerifySignedPayload(
@@ -216,19 +221,21 @@ static void SignGeneratedShellPayloadWithKeys(
   }
   string signature_size_string = base::JoinString(signature_size_strings, ":");
 
-  test_utils::ScopedTempFile hash_file("hash.XXXXXX");
+  test_utils::ScopedTempFile hash_file("hash.XXXXXX"),
+      metadata_hash_file("hash.XXXXXX");
   string delta_generator_path = GetBuildArtifactsPath("delta_generator");
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                "%s -in_file=%s -signature_size=%s -out_hash_file=%s",
+                 "%s -in_file=%s -signature_size=%s -out_hash_file=%s "
+                 "-out_metadata_hash_file=%s",
                 delta_generator_path.c_str(),
                 payload_path.c_str(),
                 signature_size_string.c_str(),
-                hash_file.path().c_str())));
+                hash_file.path().c_str(), metadata_hash_file.path().c_str())));
 
   // Sign the hash with all private keys.
-  vector<test_utils::ScopedTempFile> sig_files;
-  vector<string> sig_file_paths;
+  vector<test_utils::ScopedTempFile> sig_files, metadata_sig_files;
+  vector<string> sig_file_paths, metadata_sig_file_paths;
   for (const auto& key_path : private_key_paths) {
     brillo::Blob hash, signature;
     ASSERT_TRUE(utils::ReadFile(hash_file.path(), &hash));
@@ -238,17 +245,31 @@ static void SignGeneratedShellPayloadWithKeys(
     ASSERT_TRUE(test_utils::WriteFileVector(sig_file.path(), signature));
     sig_file_paths.push_back(sig_file.path());
     sig_files.push_back(std::move(sig_file));
+
+    brillo::Blob metadata_hash, metadata_signature;
+    ASSERT_TRUE(utils::ReadFile(metadata_hash_file.path(), &metadata_hash));
+    ASSERT_TRUE(PayloadSigner::SignHash(metadata_hash, key_path, &metadata_signature));
+
+    test_utils::ScopedTempFile metadata_sig_file("signature.XXXXXX");
+    ASSERT_TRUE(test_utils::WriteFileVector(metadata_sig_file.path(), metadata_signature));
+
+    metadata_sig_file_paths.push_back(metadata_sig_file.path());
+    metadata_sig_files.push_back(std::move(metadata_sig_file));
   }
   string sig_files_string = base::JoinString(sig_file_paths, ":");
+  string metadata_sig_files_string = base::JoinString(metadata_sig_file_paths, ":");
 
   // Add the signature to the payload.
   ASSERT_EQ(0,
             System(base::StringPrintf("%s --signature_size=%s -in_file=%s "
-                                      "-payload_signature_file=%s -out_file=%s",
+                                      "-payload_signature_file=%s "
+                                      "-metadata_signature_file=%s "
+                                      "-out_file=%s",
                                       delta_generator_path.c_str(),
                                       signature_size_string.c_str(),
                                       payload_path.c_str(),
                                       sig_files_string.c_str(),
+                                      metadata_sig_files_string.c_str(),
                                       payload_path.c_str())));
 
   int verify_result = System(base::StringPrintf("%s -in_file=%s -public_key=%s",
@@ -330,7 +351,6 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
 
 static void GenerateDeltaFile(bool full_kernel,
                               bool full_rootfs,
-                              bool noop,
                               ssize_t chunk_size,
                               SignatureTest signature_test,
                               DeltaState* state,
@@ -407,24 +427,16 @@ static void GenerateDeltaFile(bool full_kernel,
                          ones.size()));
   }
 
-  if (noop) {
-    EXPECT_TRUE(base::CopyFile(base::FilePath(state->a_img),
-                               base::FilePath(state->b_img)));
-    old_image_info = new_image_info;
-  } else {
-    if (minor_version == kSourceMinorPayloadVersion) {
-      // Create a result image with image_size bytes of garbage.
-      brillo::Blob ones(state->image_size, 0xff);
-      EXPECT_TRUE(utils::WriteFile(
-          state->result_img.c_str(), ones.data(), ones.size()));
-      EXPECT_EQ(utils::FileSize(state->a_img),
-                utils::FileSize(state->result_img));
-    }
+  // Create a result image with image_size bytes of garbage.
+  brillo::Blob ones(state->image_size, 0xff);
+  EXPECT_TRUE(
+      utils::WriteFile(state->result_img.c_str(), ones.data(), ones.size()));
+  EXPECT_EQ(utils::FileSize(state->a_img), utils::FileSize(state->result_img));
 
-    EXPECT_TRUE(
-        base::CopyFile(GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
-                       base::FilePath(state->b_img)));
-
+  EXPECT_TRUE(
+      base::CopyFile(GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
+                     base::FilePath(state->b_img)));
+  {
     // Make some changes to the B image.
     string b_mnt;
     ScopedLoopMounter b_mounter(state->b_img, &b_mnt, 0);
@@ -499,10 +511,6 @@ static void GenerateDeltaFile(bool full_kernel,
   std::copy(
       std::begin(kNewData), std::end(kNewData), state->new_kernel_data.begin());
 
-  if (noop) {
-    state->old_kernel_data = state->new_kernel_data;
-  }
-
   // Write kernels to disk
   EXPECT_TRUE(utils::WriteFile(state->old_kernel.c_str(),
                                state->old_kernel_data.data(),
@@ -526,7 +534,7 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.is_delta = !full_rootfs;
     payload_config.hard_chunk_size = chunk_size;
     payload_config.rootfs_partition_size = kRootFSPartitionSize;
-    payload_config.version.major = kChromeOSMajorPayloadVersion;
+    payload_config.version.major = kBrilloMajorPayloadVersion;
     payload_config.version.minor = minor_version;
     if (!full_rootfs) {
       payload_config.source.partitions.emplace_back(kPartitionNameRoot);
@@ -605,7 +613,6 @@ static void GenerateDeltaFile(bool full_kernel,
 
 static void ApplyDeltaFile(bool full_kernel,
                            bool full_rootfs,
-                           bool noop,
                            SignatureTest signature_test,
                            DeltaState* state,
                            bool hash_checks_mandatory,
@@ -619,6 +626,9 @@ static void ApplyDeltaFile(bool full_kernel,
     EXPECT_TRUE(payload_metadata.ParsePayloadHeader(state->delta));
     state->metadata_size = payload_metadata.GetMetadataSize();
     LOG(INFO) << "Metadata size: " << state->metadata_size;
+    state->metadata_signature_size =
+        payload_metadata.GetMetadataSignatureSize();
+    LOG(INFO) << "Metadata signature size: " << state->metadata_signature_size;
 
     DeltaArchiveManifest manifest;
     EXPECT_TRUE(payload_metadata.GetManifest(state->delta, &manifest));
@@ -630,7 +640,8 @@ static void ApplyDeltaFile(bool full_kernel,
       EXPECT_TRUE(manifest.has_signatures_size());
       Signatures sigs_message;
       EXPECT_TRUE(sigs_message.ParseFromArray(
-          &state->delta[state->metadata_size + manifest.signatures_offset()],
+          &state->delta[state->metadata_size + state->metadata_signature_size +
+                        manifest.signatures_offset()],
           manifest.signatures_size()));
       if (signature_test == kSignatureGeneratedShellRotateCl1 ||
           signature_test == kSignatureGeneratedShellRotateCl2)
@@ -653,18 +664,38 @@ static void ApplyDeltaFile(bool full_kernel,
       EXPECT_FALSE(signature.data().empty());
     }
 
-    if (noop) {
-      EXPECT_EQ(0, manifest.install_operations_size());
-      EXPECT_EQ(1, manifest.kernel_install_operations_size());
-    }
-
+    // TODO(ahassani): Make |DeltaState| into a partition list kind of struct
+    // instead of hardcoded kernel/rootfs so its cleaner and we can make the
+    // following code into a helper function instead.
+    const auto& kernel_part = *std::find_if(
+        manifest.partitions().begin(),
+        manifest.partitions().end(),
+        [](const PartitionUpdate& partition) {
+          return partition.partition_name() == kPartitionNameKernel;
+        });
     if (full_kernel) {
-      EXPECT_FALSE(manifest.has_old_kernel_info());
+      EXPECT_FALSE(kernel_part.has_old_partition_info());
     } else {
       EXPECT_EQ(state->old_kernel_data.size(),
-                manifest.old_kernel_info().size());
-      EXPECT_FALSE(manifest.old_kernel_info().hash().empty());
+                kernel_part.old_partition_info().size());
+      EXPECT_FALSE(kernel_part.old_partition_info().hash().empty());
     }
+    EXPECT_EQ(state->new_kernel_data.size(),
+              kernel_part.new_partition_info().size());
+    EXPECT_FALSE(kernel_part.new_partition_info().hash().empty());
+
+    const auto& rootfs_part =
+        *std::find_if(manifest.partitions().begin(),
+                      manifest.partitions().end(),
+                      [](const PartitionUpdate& partition) {
+                        return partition.partition_name() == kPartitionNameRoot;
+                      });
+    if (full_rootfs) {
+      EXPECT_FALSE(rootfs_part.has_old_partition_info());
+    } else {
+      EXPECT_FALSE(rootfs_part.old_partition_info().hash().empty());
+    }
+    EXPECT_FALSE(rootfs_part.new_partition_info().hash().empty());
 
     EXPECT_EQ(manifest.new_image_info().channel(), "test-channel");
     EXPECT_EQ(manifest.new_image_info().board(), "test-board");
@@ -674,47 +705,21 @@ static void ApplyDeltaFile(bool full_kernel,
     EXPECT_EQ(manifest.new_image_info().build_version(), "test-build-version");
 
     if (!full_rootfs) {
-      if (noop) {
-        EXPECT_EQ(manifest.old_image_info().channel(), "test-channel");
-        EXPECT_EQ(manifest.old_image_info().board(), "test-board");
-        EXPECT_EQ(manifest.old_image_info().version(), "test-version");
-        EXPECT_EQ(manifest.old_image_info().key(), "test-key");
-        EXPECT_EQ(manifest.old_image_info().build_channel(),
-                  "test-build-channel");
-        EXPECT_EQ(manifest.old_image_info().build_version(),
-                  "test-build-version");
-      } else {
-        EXPECT_EQ(manifest.old_image_info().channel(), "src-channel");
-        EXPECT_EQ(manifest.old_image_info().board(), "src-board");
-        EXPECT_EQ(manifest.old_image_info().version(), "src-version");
-        EXPECT_EQ(manifest.old_image_info().key(), "src-key");
-        EXPECT_EQ(manifest.old_image_info().build_channel(),
-                  "src-build-channel");
-        EXPECT_EQ(manifest.old_image_info().build_version(),
-                  "src-build-version");
-      }
+      EXPECT_EQ(manifest.old_image_info().channel(), "src-channel");
+      EXPECT_EQ(manifest.old_image_info().board(), "src-board");
+      EXPECT_EQ(manifest.old_image_info().version(), "src-version");
+      EXPECT_EQ(manifest.old_image_info().key(), "src-key");
+      EXPECT_EQ(manifest.old_image_info().build_channel(), "src-build-channel");
+      EXPECT_EQ(manifest.old_image_info().build_version(), "src-build-version");
     }
-
-    if (full_rootfs) {
-      EXPECT_FALSE(manifest.has_old_rootfs_info());
-      EXPECT_FALSE(manifest.has_old_image_info());
-      EXPECT_TRUE(manifest.has_new_image_info());
-    } else {
-      EXPECT_EQ(state->image_size, manifest.old_rootfs_info().size());
-      EXPECT_FALSE(manifest.old_rootfs_info().hash().empty());
-    }
-
-    EXPECT_EQ(state->new_kernel_data.size(), manifest.new_kernel_info().size());
-    EXPECT_EQ(state->image_size, manifest.new_rootfs_info().size());
-
-    EXPECT_FALSE(manifest.new_kernel_info().hash().empty());
-    EXPECT_FALSE(manifest.new_rootfs_info().hash().empty());
   }
 
   MockPrefs prefs;
   EXPECT_CALL(prefs, SetInt64(kPrefsManifestMetadataSize, state->metadata_size))
       .WillOnce(Return(true));
-  EXPECT_CALL(prefs, SetInt64(kPrefsManifestSignatureSize, 0))
+  EXPECT_CALL(
+      prefs,
+      SetInt64(kPrefsManifestSignatureSize, state->metadata_signature_size))
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsUpdateStateNextOperation, _))
       .WillRepeatedly(Return(true));
@@ -741,7 +746,8 @@ static void ApplyDeltaFile(bool full_kernel,
   // Update the A image in place.
   InstallPlan* install_plan = &state->install_plan;
   install_plan->hash_checks_mandatory = hash_checks_mandatory;
-  install_plan->payloads = {{.metadata_size = state->metadata_size,
+  install_plan->payloads = {{.size = state->delta.size(),
+                             .metadata_size = state->metadata_size,
                              .type = (full_kernel && full_rootfs)
                                          ? InstallPayloadType::kFull
                                          : InstallPayloadType::kDelta}};
@@ -788,25 +794,14 @@ static void ApplyDeltaFile(bool full_kernel,
   // The partitions should be empty before DeltaPerformer.
   install_plan->partitions.clear();
 
-  // With minor version 2, we want the target to be the new image, result_img,
-  // but with version 1, we want to update A in place.
-  string target_root, target_kernel;
-  if (minor_version == kSourceMinorPayloadVersion) {
-    target_root = state->result_img;
-    target_kernel = state->result_kernel;
-  } else {
-    target_root = state->a_img;
-    target_kernel = state->old_kernel;
-  }
-
   state->fake_boot_control_.SetPartitionDevice(
       kPartitionNameRoot, install_plan->source_slot, state->a_img);
   state->fake_boot_control_.SetPartitionDevice(
       kPartitionNameKernel, install_plan->source_slot, state->old_kernel);
   state->fake_boot_control_.SetPartitionDevice(
-      kPartitionNameRoot, install_plan->target_slot, target_root);
+      kPartitionNameRoot, install_plan->target_slot, state->result_img);
   state->fake_boot_control_.SetPartitionDevice(
-      kPartitionNameKernel, install_plan->target_slot, target_kernel);
+      kPartitionNameKernel, install_plan->target_slot, state->result_kernel);
 
   ErrorCode expected_error, actual_error;
   bool continue_writing;
@@ -885,21 +880,13 @@ void VerifyPayloadResult(DeltaPerformer* performer,
     return;
   }
 
-  brillo::Blob updated_kernel_partition;
-  if (minor_version == kSourceMinorPayloadVersion) {
-    CompareFilesByBlock(
-        state->result_kernel, state->new_kernel, state->kernel_size);
-    CompareFilesByBlock(state->result_img, state->b_img, state->image_size);
-    EXPECT_TRUE(
-        utils::ReadFile(state->result_kernel, &updated_kernel_partition));
-  } else {
-    CompareFilesByBlock(
-        state->old_kernel, state->new_kernel, state->kernel_size);
-    CompareFilesByBlock(state->a_img, state->b_img, state->image_size);
-    EXPECT_TRUE(utils::ReadFile(state->old_kernel, &updated_kernel_partition));
-  }
+  CompareFilesByBlock(
+      state->result_kernel, state->new_kernel, state->kernel_size);
+  CompareFilesByBlock(state->result_img, state->b_img, state->image_size);
 
-  ASSERT_GE(updated_kernel_partition.size(), arraysize(kNewData));
+  brillo::Blob updated_kernel_partition;
+  EXPECT_TRUE(utils::ReadFile(state->result_kernel, &updated_kernel_partition));
+  ASSERT_GE(updated_kernel_partition.size(), base::size(kNewData));
   EXPECT_TRUE(std::equal(std::begin(kNewData),
                          std::end(kNewData),
                          updated_kernel_partition.begin()));
@@ -944,7 +931,6 @@ void VerifyPayload(DeltaPerformer* performer,
 
 void DoSmallImageTest(bool full_kernel,
                       bool full_rootfs,
-                      bool noop,
                       ssize_t chunk_size,
                       SignatureTest signature_test,
                       bool hash_checks_mandatory,
@@ -953,7 +939,6 @@ void DoSmallImageTest(bool full_kernel,
   DeltaPerformer* performer = nullptr;
   GenerateDeltaFile(full_kernel,
                     full_rootfs,
-                    noop,
                     chunk_size,
                     signature_test,
                     &state,
@@ -968,7 +953,6 @@ void DoSmallImageTest(bool full_kernel,
   ScopedPathUnlinker result_kernel_unlinker(state.result_kernel);
   ApplyDeltaFile(full_kernel,
                  full_rootfs,
-                 noop,
                  signature_test,
                  &state,
                  hash_checks_mandatory,
@@ -983,8 +967,7 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
                                  bool hash_checks_mandatory) {
   DeltaState state;
   uint64_t minor_version = kFullPayloadMinorVersion;
-  GenerateDeltaFile(
-      true, true, false, -1, kSignatureGenerated, &state, minor_version);
+  GenerateDeltaFile(true, true, -1, kSignatureGenerated, &state, minor_version);
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
   ScopedPathUnlinker delta_unlinker(state.delta_path);
@@ -993,7 +976,6 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
   DeltaPerformer* performer = nullptr;
   ApplyDeltaFile(true,
                  true,
-                 false,
                  kSignatureGenerated,
                  &state,
                  hash_checks_mandatory,
@@ -1004,24 +986,18 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageTest) {
-  DoSmallImageTest(false,
-                   false,
-                   false,
-                   -1,
-                   kSignatureGenerator,
-                   false,
-                   kInPlaceMinorPayloadVersion);
+  DoSmallImageTest(
+      false, false, -1, kSignatureGenerator, false, kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest,
      RunAsRootSmallImageSignaturePlaceholderTest) {
   DoSmallImageTest(false,
                    false,
-                   false,
                    -1,
                    kSignatureGeneratedPlaceholder,
                    false,
-                   kInPlaceMinorPayloadVersion);
+                   kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest,
@@ -1029,130 +1005,96 @@ TEST(DeltaPerformerIntegrationTest,
   DeltaState state;
   GenerateDeltaFile(false,
                     false,
-                    false,
                     -1,
                     kSignatureGeneratedPlaceholderMismatch,
                     &state,
-                    kInPlaceMinorPayloadVersion);
+                    kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageChunksTest) {
   DoSmallImageTest(false,
                    false,
-                   false,
                    kBlockSize,
                    kSignatureGenerator,
                    false,
-                   kInPlaceMinorPayloadVersion);
+                   kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootFullKernelSmallImageTest) {
-  DoSmallImageTest(true,
-                   false,
-                   false,
-                   -1,
-                   kSignatureGenerator,
-                   false,
-                   kInPlaceMinorPayloadVersion);
+  DoSmallImageTest(
+      true, false, -1, kSignatureGenerator, false, kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootFullSmallImageTest) {
   DoSmallImageTest(true,
                    true,
-                   false,
                    -1,
                    kSignatureGenerator,
                    true,
                    kFullPayloadMinorVersion);
 }
 
-TEST(DeltaPerformerIntegrationTest, RunAsRootNoopSmallImageTest) {
-  DoSmallImageTest(false,
-                   false,
-                   true,
-                   -1,
-                   kSignatureGenerator,
-                   false,
-                   kInPlaceMinorPayloadVersion);
-}
-
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignNoneTest) {
-  DoSmallImageTest(false,
-                   false,
-                   false,
-                   -1,
-                   kSignatureNone,
-                   false,
-                   kInPlaceMinorPayloadVersion);
+  DoSmallImageTest(
+      false, false, -1, kSignatureNone, false, kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignGeneratedTest) {
-  DoSmallImageTest(false,
-                   false,
-                   false,
-                   -1,
-                   kSignatureGenerated,
-                   true,
-                   kInPlaceMinorPayloadVersion);
+  DoSmallImageTest(
+      false, false, -1, kSignatureGenerated, true, kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignGeneratedShellTest) {
   DoSmallImageTest(false,
                    false,
-                   false,
                    -1,
                    kSignatureGeneratedShell,
                    false,
-                   kInPlaceMinorPayloadVersion);
+                   kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest,
      RunAsRootSmallImageSignGeneratedShellECKeyTest) {
   DoSmallImageTest(false,
                    false,
-                   false,
                    -1,
                    kSignatureGeneratedShellECKey,
                    false,
-                   kInPlaceMinorPayloadVersion);
+                   kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest,
      RunAsRootSmallImageSignGeneratedShellBadKeyTest) {
   DoSmallImageTest(false,
                    false,
-                   false,
                    -1,
                    kSignatureGeneratedShellBadKey,
                    false,
-                   kInPlaceMinorPayloadVersion);
+                   kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest,
      RunAsRootSmallImageSignGeneratedShellRotateCl1Test) {
   DoSmallImageTest(false,
                    false,
-                   false,
                    -1,
                    kSignatureGeneratedShellRotateCl1,
                    false,
-                   kInPlaceMinorPayloadVersion);
+                   kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest,
      RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
   DoSmallImageTest(false,
                    false,
-                   false,
                    -1,
                    kSignatureGeneratedShellRotateCl2,
                    false,
-                   kInPlaceMinorPayloadVersion);
+                   kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSourceOpsTest) {
   DoSmallImageTest(false,
-                   false,
                    false,
                    -1,
                    kSignatureGenerator,

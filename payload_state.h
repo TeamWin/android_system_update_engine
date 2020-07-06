@@ -24,6 +24,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/metrics_constants.h"
 #include "update_engine/payload_state_interface.h"
@@ -156,6 +157,10 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, RollbackHappened);
   FRIEND_TEST(PayloadStateTest, RollbackVersion);
   FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
+  FRIEND_TEST(PayloadStateTest, NextPayloadResetsUrlIndex);
+  FRIEND_TEST(PayloadStateTest, ExcludeNoopForNonExcludables);
+  FRIEND_TEST(PayloadStateTest, ExcludeOnlyCanExcludables);
+  FRIEND_TEST(PayloadStateTest, IncrementFailureExclusionTest);
 
   // Helper called when an attempt has begun, is called by
   // UpdateResumed(), UpdateRestarted() and Rollback().
@@ -179,6 +184,12 @@ class PayloadState : public PayloadStateInterface {
   // failure count is reached for this URL, it advances the current URL index
   // to the next URL and resets the failure count for that URL.
   void IncrementFailureCount();
+
+  // Excludes the current payload + current candidate URL from being part of
+  // future updates/retries. Whenever |SetResponse()| or |NextPayload()| decide
+  // on the initial current URL index and the next payload respectively, it will
+  // advanced based on exclusions.
+  void ExcludeCurrentPayload();
 
   // Updates the backoff expiry time exponentially based on the current
   // payload attempt number.
@@ -427,6 +438,11 @@ class PayloadState : public PayloadStateInterface {
   // be set by calling the Initialize method before calling any other method.
   // This object persists across powerwashes.
   PrefsInterface* powerwash_safe_prefs_;
+
+  // Interface object with which we determine exclusion decisions for
+  // payloads/partitions during the update. This must be set by calling the
+  // Initialize method before calling any other method.
+  ExcluderInterface* excluder_;
 
   // This is the current response object from Omaha.
   OmahaResponse response_;

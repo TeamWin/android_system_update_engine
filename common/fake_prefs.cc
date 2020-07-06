@@ -21,6 +21,7 @@
 #include <gtest/gtest.h>
 
 using std::string;
+using std::vector;
 
 using chromeos_update_engine::FakePrefs;
 
@@ -102,6 +103,13 @@ bool FakePrefs::Delete(const string& key) {
     for (ObserverInterface* observer : copy_observers)
       observer->OnPrefDeleted(key);
   }
+  return true;
+}
+
+bool FakePrefs::GetSubKeys(const string& ns, vector<string>* keys) const {
+  for (const auto& pr : values_)
+    if (pr.first.compare(0, ns.length(), ns) == 0)
+      keys->push_back(pr.first);
   return true;
 }
 

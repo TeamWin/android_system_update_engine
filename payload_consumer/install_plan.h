@@ -58,6 +58,7 @@ struct InstallPlan {
   std::string system_version;
 
   struct Payload {
+    std::vector<std::string> payload_urls;  // URLs to download the payload
     uint64_t size = 0;               // size of the payload
     uint64_t metadata_size = 0;      // size of the metadata
     std::string metadata_signature;  // signature of the metadata in base64
@@ -69,7 +70,8 @@ struct InstallPlan {
     bool already_applied = false;
 
     bool operator==(const Payload& that) const {
-      return size == that.size && metadata_size == that.metadata_size &&
+      return payload_urls == that.payload_urls && size == that.size &&
+             metadata_size == that.metadata_size &&
              metadata_signature == that.metadata_signature &&
              hash == that.hash && type == that.type &&
              already_applied == that.already_applied;
@@ -145,6 +147,9 @@ struct InstallPlan {
 
   // True if this update is a rollback.
   bool is_rollback{false};
+
+  // True if this rollback should preserve some system data.
+  bool rollback_data_save_requested{false};
 
   // True if the update should write verity.
   // False otherwise.

@@ -175,7 +175,7 @@ string ErrorCodeToString(ErrorCode code) {
       // error codes which should be added here.
   }
 
-  return "Unknown error: " + base::UintToString(static_cast<unsigned>(code));
+  return "Unknown error: " + base::NumberToString(static_cast<unsigned>(code));
 }
 
 }  // namespace utils

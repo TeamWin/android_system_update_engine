@@ -28,6 +28,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/stl_util.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 
@@ -57,9 +58,14 @@ void PostinstallRunnerAction::PerformAction() {
   CHECK(HasInputObject());
   install_plan_ = GetInputObject();
 
-  // Currently we're always powerwashing when rolling back.
+  // We always powerwash when rolling back, however policy can determine
+  // if this is a full/normal powerwash, or a special rollback powerwash
+  // that retains a small amount of system state such as enrollment and
+  // network configuration. In both cases all user accounts are deleted.
   if (install_plan_.powerwash_required || install_plan_.is_rollback) {
-    if (hardware_->SchedulePowerwash(install_plan_.is_rollback)) {
+    bool save_rollback_data =
+        install_plan_.is_rollback && install_plan_.rollback_data_save_requested;
+    if (hardware_->SchedulePowerwash(save_rollback_data)) {
       powerwash_scheduled_ = true;
     } else {
       return CompletePostinstall(ErrorCode::kPostinstallPowerwashError);
@@ -108,8 +114,7 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   const InstallPlan::Partition& partition =
       install_plan_.partitions[current_partition_];
 
-  const string mountable_device =
-      utils::MakePartitionNameForMount(partition.target_path);
+  const string mountable_device = partition.target_path;
   if (mountable_device.empty()) {
     LOG(ERROR) << "Cannot make mountable device from " << partition.target_path;
     return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
@@ -215,6 +220,7 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
     PLOG(ERROR) << "Unable to set non-blocking I/O mode on fd " << progress_fd_;
   }
 
+#ifdef __ANDROID__
   progress_task_ = MessageLoop::current()->WatchFileDescriptor(
       FROM_HERE,
       progress_fd_,
@@ -222,6 +228,13 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
       true,
       base::Bind(&PostinstallRunnerAction::OnProgressFdReady,
                  base::Unretained(this)));
+#else
+  progress_controller_ = base::FileDescriptorWatcher::WatchReadable(
+      progress_fd_,
+      base::BindRepeating(&PostinstallRunnerAction::OnProgressFdReady,
+                          base::Unretained(this)));
+#endif  // __ANDROID__
+
 }
 
 void PostinstallRunnerAction::OnProgressFdReady() {
@@ -231,7 +244,7 @@ void PostinstallRunnerAction::OnProgressFdReady() {
     bytes_read = 0;
     bool eof;
     bool ok =
-        utils::ReadAll(progress_fd_, buf, arraysize(buf), &bytes_read, &eof);
+        utils::ReadAll(progress_fd_, buf, base::size(buf), &bytes_read, &eof);
     progress_buffer_.append(buf, bytes_read);
     // Process every line.
     vector<string> lines = base::SplitString(
@@ -246,8 +259,12 @@ void PostinstallRunnerAction::OnProgressFdReady() {
     if (!ok || eof) {
       // There was either an error or an EOF condition, so we are done watching
       // the file descriptor.
+#ifdef __ANDROID__
       MessageLoop::current()->CancelTask(progress_task_);
       progress_task_ = MessageLoop::kTaskIdNull;
+#else
+      progress_controller_.reset();
+#endif  // __ANDROID__
       return;
     }
   } while (bytes_read);
@@ -291,10 +308,15 @@ void PostinstallRunnerAction::Cleanup() {
   fs_mount_dir_.clear();
 
   progress_fd_ = -1;
+#ifdef __ANDROID__
   if (progress_task_ != MessageLoop::kTaskIdNull) {
     MessageLoop::current()->CancelTask(progress_task_);
     progress_task_ = MessageLoop::kTaskIdNull;
   }
+#else
+  progress_controller_.reset();
+#endif  // __ANDROID__
+
   progress_buffer_.clear();
 }
 

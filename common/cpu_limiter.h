@@ -30,10 +30,6 @@ enum class CpuShares : int {
   kLow = 2,
 };
 
-// Sets the current process shares to |shares|. Returns true on
-// success, false otherwise.
-bool SetCpuShares(CpuShares shares);
-
 class CPULimiter {
  public:
   CPULimiter() = default;

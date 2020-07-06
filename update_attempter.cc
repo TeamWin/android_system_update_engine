@@ -19,15 +19,19 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include <base/bind.h>
+#include <base/compiler_specific.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
@@ -43,8 +47,10 @@
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/dlcservice_interface.h"
+#include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/common/prefs.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
@@ -53,6 +59,7 @@
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
+#include "update_engine/omaha_utils.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
@@ -68,6 +75,7 @@
 
 using base::Bind;
 using base::Callback;
+using base::FilePath;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
@@ -77,6 +85,7 @@ using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::StagingCase;
 using chromeos_update_manager::UpdateCheckParams;
+using std::map;
 using std::string;
 using std::vector;
 using update_engine::UpdateAttemptFlags;
@@ -152,7 +161,7 @@ void UpdateAttempter::Init() {
 }
 
 bool UpdateAttempter::ScheduleUpdates() {
-  if (IsUpdateRunningOrScheduled())
+  if (IsBusyOrUpdateScheduled())
     return false;
 
   chromeos_update_manager::UpdateManager* const update_manager =
@@ -162,7 +171,8 @@ bool UpdateAttempter::ScheduleUpdates() {
       Bind(&UpdateAttempter::OnUpdateScheduled, base::Unretained(this));
   // We limit the async policy request to a reasonably short time, to avoid a
   // starvation due to a transient bug.
-  update_manager->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
+  update_manager->AsyncPolicyRequestUpdateCheckAllowed(
+      callback, &Policy::UpdateCheckAllowed);
   waiting_for_scheduled_check_ = true;
   return true;
 }
@@ -239,6 +249,8 @@ void UpdateAttempter::Update(const string& app_version,
                              const string& target_channel,
                              const string& target_version_prefix,
                              bool rollback_allowed,
+                             bool rollback_data_save_requested,
+                             int rollback_allowed_milestones,
                              bool obey_proxies,
                              bool interactive) {
   // This is normally called frequently enough so it's appropriate to use as a
@@ -274,6 +286,8 @@ void UpdateAttempter::Update(const string& app_version,
                              target_channel,
                              target_version_prefix,
                              rollback_allowed,
+                             rollback_data_save_requested,
+                             rollback_allowed_milestones,
                              obey_proxies,
                              interactive)) {
     return;
@@ -347,6 +361,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& target_channel,
                                             const string& target_version_prefix,
                                             bool rollback_allowed,
+                                            bool rollback_data_save_requested,
+                                            int rollback_allowed_milestones,
                                             bool obey_proxies,
                                             bool interactive) {
   http_response_code_ = 0;
@@ -365,11 +381,19 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   // Set whether rollback is allowed.
   omaha_request_params_->set_rollback_allowed(rollback_allowed);
 
+  // Set whether saving data over rollback is requested.
+  omaha_request_params_->set_rollback_data_save_requested(
+      rollback_data_save_requested);
+
   CalculateStagingParams(interactive);
   // If staging_wait_time_ wasn't set, staging is off, use scattering instead.
   if (staging_wait_time_.InSeconds() == 0) {
     CalculateScatteringParams(interactive);
   }
+
+  // Set how many milestones of rollback are allowed.
+  omaha_request_params_->set_rollback_allowed_milestones(
+      rollback_allowed_milestones);
 
   CalculateP2PParams(interactive);
   if (payload_state->GetUsingP2PForDownloading() ||
@@ -409,9 +433,24 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     // target channel.
     omaha_request_params_->UpdateDownloadChannel();
   }
-  // Set the DLC module ID list.
-  omaha_request_params_->set_dlc_module_ids(dlc_module_ids_);
+
+  // The function |CalculateDlcParams| makes use of the function |GetAppId| from
+  // |OmahaRequestParams|, so to ensure that the return from |GetAppId|
+  // doesn't change, no changes to the values |download_channel_|,
+  // |image_props_.product_id| and |image_props_.canary_product_id| from
+  // |omaha_request_params_| shall be made below this line.
+  CalculateDlcParams();
+
   omaha_request_params_->set_is_install(is_install_);
+
+  // Set Quick Fix Build token if policy is set and the device is enterprise
+  // enrolled.
+  string token;
+  if (system_state_ && system_state_->device_policy()) {
+    if (!system_state_->device_policy()->GetDeviceQuickFixBuildToken(&token))
+      token.clear();
+  }
+  omaha_request_params_->set_autoupdate_token(token);
 
   LOG(INFO) << "target_version_prefix = "
             << omaha_request_params_->target_version_prefix()
@@ -602,8 +641,10 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
     case StagingCase::kNoSavedValue:
       prefs_->SetInt64(kPrefsWallClockStagingWaitPeriod,
                        staging_wait_time_.InDays());
+      FALLTHROUGH;
     case StagingCase::kSetStagingFromPref:
       omaha_request_params_->set_waiting_period(staging_wait_time_);
+      FALLTHROUGH;
     case StagingCase::kNoAction:
       // Staging is on, enable wallclock based wait so that its values get used.
       omaha_request_params_->set_wall_clock_based_wait_enabled(true);
@@ -618,9 +659,116 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
   }
 }
 
+bool UpdateAttempter::ResetDlcPrefs(const string& dlc_id) {
+  vector<string> failures;
+  PrefsInterface* prefs = system_state_->prefs();
+  for (auto& sub_key :
+       {kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall}) {
+    auto key = prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
+    if (!prefs->Delete(key))
+      failures.emplace_back(sub_key);
+  }
+  if (failures.size() != 0)
+    PLOG(ERROR) << "Failed to delete prefs (" << base::JoinString(failures, ",")
+                << " for DLC (" << dlc_id << ").";
+
+  return failures.size() == 0;
+}
+
+bool UpdateAttempter::SetDlcActiveValue(bool is_active, const string& dlc_id) {
+  if (dlc_id.empty()) {
+    LOG(ERROR) << "Empty DLC ID passed.";
+    return false;
+  }
+  LOG(INFO) << "Set DLC (" << dlc_id << ") to "
+            << (is_active ? "Active" : "Inactive");
+  PrefsInterface* prefs = system_state_->prefs();
+  if (is_active) {
+    auto ping_active_key =
+        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
+    if (!prefs->SetInt64(ping_active_key, kPingActiveValue)) {
+      LOG(ERROR) << "Failed to set the value of ping metadata '"
+                 << kPrefsPingActive << "'.";
+      return false;
+    }
+  } else {
+    return ResetDlcPrefs(dlc_id);
+  }
+  return true;
+}
+
+int64_t UpdateAttempter::GetPingMetadata(const string& metadata_key) const {
+  // The first time a ping is sent, the metadata files containing the values
+  // sent back by the server still don't exist. A value of -1 is used to
+  // indicate this.
+  if (!system_state_->prefs()->Exists(metadata_key))
+    return kPingNeverPinged;
+
+  int64_t value;
+  if (system_state_->prefs()->GetInt64(metadata_key, &value))
+    return value;
+
+  // Return -2 when the file exists and there is a problem reading from it, or
+  // the value cannot be converted to an integer.
+  return kPingUnknownValue;
+}
+
+void UpdateAttempter::CalculateDlcParams() {
+  // Set the |dlc_ids_| only for an update. This is required to get the
+  // currently installed DLC(s).
+  if (!is_install_ &&
+      !system_state_->dlcservice()->GetDlcsToUpdate(&dlc_ids_)) {
+    LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
+                 "state of dlcservice, will not update DLC modules.";
+  }
+  PrefsInterface* prefs = system_state_->prefs();
+  map<string, OmahaRequestParams::AppParams> dlc_apps_params;
+  for (const auto& dlc_id : dlc_ids_) {
+    OmahaRequestParams::AppParams dlc_params{
+        .active_counting_type = OmahaRequestParams::kDateBased,
+        .name = dlc_id,
+        .send_ping = false};
+    if (is_install_) {
+      // In some cases, |SetDlcActiveValue| might fail to reset the DLC prefs
+      // when a DLC is uninstalled. To avoid having stale values from that
+      // scenario, we reset the metadata values on a new install request.
+      // Ignore failure to delete stale prefs.
+      ResetDlcPrefs(dlc_id);
+      SetDlcActiveValue(true, dlc_id);
+    } else {
+      // Only send the ping when the request is to update DLCs. When installing
+      // DLCs, we don't want to send the ping yet, since the DLCs might fail to
+      // install or might not really be active yet.
+      dlc_params.ping_active = kPingActiveValue;
+      auto ping_active_key =
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
+      if (!prefs->GetInt64(ping_active_key, &dlc_params.ping_active) ||
+          dlc_params.ping_active != kPingActiveValue) {
+        dlc_params.ping_active = kPingInactiveValue;
+      }
+      auto ping_last_active_key =
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
+      dlc_params.ping_date_last_active = GetPingMetadata(ping_last_active_key);
+
+      auto ping_last_rollcall_key = prefs->CreateSubKey(
+          {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
+      dlc_params.ping_date_last_rollcall =
+          GetPingMetadata(ping_last_rollcall_key);
+
+      dlc_params.send_ping = true;
+    }
+    dlc_apps_params[omaha_request_params_->GetDlcAppId(dlc_id)] = dlc_params;
+  }
+  omaha_request_params_->set_dlc_apps_params(dlc_apps_params);
+}
+
 void UpdateAttempter::BuildUpdateActions(bool interactive) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
+
+  // The session ID needs to be kept throughout the update flow. The value
+  // of the session ID will reset/update only when it is a new update flow.
+  session_id_ = base::GenerateGUID();
 
   // Actions:
   auto update_check_fetcher = std::make_unique<LibcurlHttpFetcher>(
@@ -629,8 +777,13 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
-  auto update_check_action = std::make_unique<OmahaRequestAction>(
-      system_state_, nullptr, std::move(update_check_fetcher), false);
+  update_check_fetcher->set_is_update_check(true);
+  auto update_check_action =
+      std::make_unique<OmahaRequestAction>(system_state_,
+                                           nullptr,
+                                           std::move(update_check_fetcher),
+                                           false,
+                                           session_id_);
   auto response_handler_action =
       std::make_unique<OmahaResponseHandlerAction>(system_state_);
   auto update_boot_flags_action =
@@ -640,13 +793,15 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
 
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
   download_fetcher->set_server_to_check(ServerToCheck::kDownload);
   if (interactive)
     download_fetcher->set_max_retry_count(kDownloadMaxRetryCountInteractive);
+  download_fetcher->SetHeader(kXGoogleUpdateSessionId, session_id_);
   auto download_action =
       std::make_unique<DownloadAction>(prefs_,
                                        system_state_->boot_control(),
@@ -661,7 +816,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
   auto filesystem_verifier_action =
       std::make_unique<FilesystemVerifierAction>();
   auto update_complete_action = std::make_unique<OmahaRequestAction>(
@@ -669,7 +825,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
 
   auto postinstall_runner_action = std::make_unique<PostinstallRunnerAction>(
       system_state_->boot_control(), system_state_->hardware());
@@ -790,18 +947,15 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
 bool UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      UpdateAttemptFlags flags) {
-  dlc_module_ids_.clear();
-  is_install_ = false;
-  bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
-
-  if (interactive && status_ != UpdateStatus::IDLE) {
-    // An update check is either in-progress, or an update has completed and the
-    // system is in UPDATED_NEED_REBOOT.  Either way, don't do an interactive
-    // update at this time
-    LOG(INFO) << "Refusing to do an interactive update with an update already "
-                 "in progress";
+  if (status_ != UpdateStatus::IDLE) {
+    LOG(INFO) << "Refusing to do an update as there is an "
+              << (is_install_ ? "install" : "update")
+              << " already in progress.";
     return false;
   }
+
+  bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
+  is_install_ = false;
 
   LOG(INFO) << "Forced update check requested.";
   forced_app_version_.clear();
@@ -829,25 +983,33 @@ bool UpdateAttempter::CheckForUpdate(const string& app_version,
     // of the previously set ones.
     current_update_attempt_flags_ = flags;
     // Note: The caching for non-interactive update checks happens in
-    // OnUpdateScheduled().
+    // |OnUpdateScheduled()|.
   }
 
+  // |forced_update_pending_callback_| should always be set, but even in the
+  // case that it is not, we still return true indicating success because the
+  // scheduled periodic check will pick up these changes.
   if (forced_update_pending_callback_.get()) {
-    if (!system_state_->dlcservice()->GetInstalled(&dlc_module_ids_)) {
-      dlc_module_ids_.clear();
-    }
-    // Make sure that a scheduling request is made prior to calling the forced
-    // update pending callback.
+    // Always call |ScheduleUpdates()| before forcing an update. This is because
+    // we need an update to be scheduled for the
+    // |forced_update_pending_callback_| to have an effect. Here we don't need
+    // to care about the return value from |ScheduleUpdate()|.
     ScheduleUpdates();
     forced_update_pending_callback_->Run(true, interactive);
   }
-
   return true;
 }
 
-bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
+bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_ids,
                                       const string& omaha_url) {
-  dlc_module_ids_ = dlc_module_ids;
+  if (status_ != UpdateStatus::IDLE) {
+    LOG(INFO) << "Refusing to do an install as there is an "
+              << (is_install_ ? "install" : "update")
+              << " already in progress.";
+    return false;
+  }
+
+  dlc_ids_ = dlc_ids;
   is_install_ = true;
   forced_omaha_url_.clear();
 
@@ -857,21 +1019,22 @@ bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_module_ids,
   if (IsAnyUpdateSourceAllowed()) {
     forced_omaha_url_ = omaha_url;
   }
-  if (omaha_url == kScheduledAUTestURLRequest) {
-    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
-  } else if (omaha_url == kAUTestURLRequest) {
+
+  if (omaha_url == kScheduledAUTestURLRequest ||
+      omaha_url == kAUTestURLRequest) {
     forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
   }
 
-  if (!ScheduleUpdates()) {
-    if (forced_update_pending_callback_.get()) {
-      // Make sure that a scheduling request is made prior to calling the forced
-      // update pending callback.
-      ScheduleUpdates();
-      forced_update_pending_callback_->Run(true, true);
-      return true;
-    }
-    return false;
+  // |forced_update_pending_callback_| should always be set, but even in the
+  // case that it is not, we still return true indicating success because the
+  // scheduled periodic check will pick up these changes.
+  if (forced_update_pending_callback_.get()) {
+    // Always call |ScheduleUpdates()| before forcing an update. This is because
+    // we need an update to be scheduled for the
+    // |forced_update_pending_callback_| to have an effect. Here we don't need
+    // to care about the return value from |ScheduleUpdate()|.
+    ScheduleUpdates();
+    forced_update_pending_callback_->Run(true, true);
   }
   return true;
 }
@@ -902,13 +1065,9 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
 }
 
 bool UpdateAttempter::RebootDirectly() {
-  vector<string> command;
-  command.push_back("/sbin/shutdown");
-  command.push_back("-r");
-  command.push_back("now");
-  LOG(INFO) << "Running \"" << base::JoinString(command, " ") << "\"";
+  vector<string> command = {"/sbin/shutdown", "-r", "now"};
   int rc = 0;
-  Subprocess::SynchronousExec(command, &rc, nullptr);
+  Subprocess::SynchronousExec(command, &rc, nullptr, nullptr);
   return rc == 0;
 }
 
@@ -946,6 +1105,8 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
            params.target_channel,
            params.target_version_prefix,
            params.rollback_allowed,
+           params.rollback_data_save_requested,
+           params.rollback_allowed_milestones,
            /*obey_proxies=*/false,
            params.interactive);
     // Always clear the forced app_version and omaha_url after an update attempt
@@ -963,7 +1124,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
   // a bug that will most likely prevent further automatic update checks. It
   // seems better to crash in such cases and restart the update_engine daemon
   // into, hopefully, a known good state.
-  CHECK(IsUpdateRunningOrScheduled());
+  CHECK(IsBusyOrUpdateScheduled());
 }
 
 void UpdateAttempter::UpdateLastCheckedTime() {
@@ -983,25 +1144,17 @@ void UpdateAttempter::UpdateRollbackHappened() {
   }
 }
 
-// Delegate methods:
-void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
-                                     ErrorCode code) {
-  LOG(INFO) << "Processing Done.";
-
+void UpdateAttempter::ProcessingDoneInternal(const ActionProcessor* processor,
+                                             ErrorCode code) {
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
 
-  // reset the state that's only valid for a single update pass
-  current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
-
-  if (forced_update_pending_callback_.get())
-    // Clear prior interactive requests once the processor is done.
-    forced_update_pending_callback_->Run(false, false);
+  ResetInteractivityFlags();
 
   if (status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
 
-    // Inform scheduler of new status;
+    // Inform scheduler of new status.
     SetStatusAndNotify(UpdateStatus::IDLE);
     ScheduleUpdates();
 
@@ -1014,93 +1167,122 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
   attempt_error_code_ = utils::GetBaseErrorCode(code);
 
-  if (code == ErrorCode::kSuccess) {
-    // For install operation, we do not mark update complete since we do not
-    // need reboot.
-    if (!is_install_)
-      WriteUpdateCompletedMarker();
-    ReportTimeToUpdateAppliedMetric();
-
-    prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
-    prefs_->SetString(kPrefsPreviousVersion,
-                      omaha_request_params_->app_version());
-    DeltaPerformer::ResetUpdateProgress(prefs_, false);
-
-    system_state_->payload_state()->UpdateSucceeded();
-
-    // Since we're done with scattering fully at this point, this is the
-    // safest point delete the state files, as we're sure that the status is
-    // set to reboot (which means no more updates will be applied until reboot)
-    // This deletion is required for correctness as we want the next update
-    // check to re-create a new random number for the update check count.
-    // Similarly, we also delete the wall-clock-wait period that was persisted
-    // so that we start with a new random value for the next update check
-    // after reboot so that the same device is not favored or punished in any
-    // way.
-    prefs_->Delete(kPrefsUpdateCheckCount);
-    system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
-    system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
-    prefs_->Delete(kPrefsUpdateFirstSeenAt);
-
-    if (is_install_) {
-      LOG(INFO) << "DLC successfully installed, no reboot needed.";
-      SetStatusAndNotify(UpdateStatus::IDLE);
-      ScheduleUpdates();
+  if (code != ErrorCode::kSuccess) {
+    if (ScheduleErrorEventAction()) {
       return;
     }
-
-    SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
+    LOG(INFO) << "No update.";
+    SetStatusAndNotify(UpdateStatus::IDLE);
     ScheduleUpdates();
-    LOG(INFO) << "Update successfully applied, waiting to reboot.";
-
-    // |install_plan_| is null during rollback operations, and the stats don't
-    // make much sense then anyway.
-    if (install_plan_) {
-      // Generate an unique payload identifier.
-      string target_version_uid;
-      for (const auto& payload : install_plan_->payloads) {
-        target_version_uid +=
-            brillo::data_encoding::Base64Encode(payload.hash) + ":" +
-            payload.metadata_signature + ":";
-      }
-
-      // If we just downloaded a rollback image, we should preserve this fact
-      // over the following powerwash.
-      if (install_plan_->is_rollback) {
-        system_state_->payload_state()->SetRollbackHappened(true);
-        system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
-            /*success=*/true, install_plan_->version);
-      }
-
-      // Expect to reboot into the new version to send the proper metric during
-      // next boot.
-      system_state_->payload_state()->ExpectRebootInNewVersion(
-          target_version_uid);
-    } else {
-      // If we just finished a rollback, then we expect to have no Omaha
-      // response. Otherwise, it's an error.
-      if (system_state_->payload_state()->GetRollbackVersion().empty()) {
-        LOG(ERROR) << "Can't send metrics because there was no Omaha response";
-      }
-    }
     return;
   }
 
-  if (ScheduleErrorEventAction()) {
-    return;
+  ReportTimeToUpdateAppliedMetric();
+  prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
+  prefs_->SetString(kPrefsPreviousVersion,
+                    omaha_request_params_->app_version());
+  DeltaPerformer::ResetUpdateProgress(prefs_, false);
+
+  system_state_->payload_state()->UpdateSucceeded();
+
+  // Since we're done with scattering fully at this point, this is the
+  // safest point delete the state files, as we're sure that the status is
+  // set to reboot (which means no more updates will be applied until reboot)
+  // This deletion is required for correctness as we want the next update
+  // check to re-create a new random number for the update check count.
+  // Similarly, we also delete the wall-clock-wait period that was persisted
+  // so that we start with a new random value for the next update check
+  // after reboot so that the same device is not favored or punished in any
+  // way.
+  prefs_->Delete(kPrefsUpdateCheckCount);
+  system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
+  system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
+  prefs_->Delete(kPrefsUpdateFirstSeenAt);
+
+  // Note: below this comment should only be on |ErrorCode::kSuccess|.
+  if (is_install_) {
+    ProcessingDoneInstall(processor, code);
+  } else {
+    ProcessingDoneUpdate(processor, code);
   }
-  LOG(INFO) << "No update.";
+}
+
+vector<string> UpdateAttempter::GetSuccessfulDlcIds() {
+  vector<string> dlc_ids;
+  for (const auto& pr : omaha_request_params_->dlc_apps_params())
+    if (pr.second.updated)
+      dlc_ids.push_back(pr.second.name);
+  return dlc_ids;
+}
+
+void UpdateAttempter::ProcessingDoneInstall(const ActionProcessor* processor,
+                                            ErrorCode code) {
+  if (!system_state_->dlcservice()->InstallCompleted(GetSuccessfulDlcIds()))
+    LOG(WARNING) << "dlcservice didn't successfully handle install completion.";
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
+  LOG(INFO) << "DLC successfully installed, no reboot needed.";
+}
+
+void UpdateAttempter::ProcessingDoneUpdate(const ActionProcessor* processor,
+                                           ErrorCode code) {
+  WriteUpdateCompletedMarker();
+
+  if (!system_state_->dlcservice()->UpdateCompleted(GetSuccessfulDlcIds()))
+    LOG(WARNING) << "dlcservice didn't successfully handle update completion.";
+  SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
+  ScheduleUpdates();
+  LOG(INFO) << "Update successfully applied, waiting to reboot.";
+
+  // |install_plan_| is null during rollback operations, and the stats don't
+  // make much sense then anyway.
+  if (install_plan_) {
+    // Generate an unique payload identifier.
+    string target_version_uid;
+    for (const auto& payload : install_plan_->payloads) {
+      target_version_uid += brillo::data_encoding::Base64Encode(payload.hash) +
+                            ":" + payload.metadata_signature + ":";
+    }
+
+    // If we just downloaded a rollback image, we should preserve this fact
+    // over the following powerwash.
+    if (install_plan_->is_rollback) {
+      system_state_->payload_state()->SetRollbackHappened(true);
+      system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+          /*success=*/true, install_plan_->version);
+    }
+
+    // Expect to reboot into the new version to send the proper metric during
+    // next boot.
+    system_state_->payload_state()->ExpectRebootInNewVersion(
+        target_version_uid);
+  } else {
+    // If we just finished a rollback, then we expect to have no Omaha
+    // response. Otherwise, it's an error.
+    if (system_state_->payload_state()->GetRollbackVersion().empty()) {
+      LOG(ERROR) << "Can't send metrics because there was no Omaha response";
+    }
+  }
+}
+
+// Delegate methods:
+void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
+                                     ErrorCode code) {
+  LOG(INFO) << "Processing Done.";
+  ProcessingDoneInternal(processor, code);
+
+  // Note: do cleanups here for any variables that need to be reset after a
+  // failure, error, update, or install.
+  is_install_ = false;
 }
 
 void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
   download_progress_ = 0.0;
-  if (forced_update_pending_callback_.get())
-    // Clear prior interactive requests once the processor is done.
-    forced_update_pending_callback_->Run(false, false);
+
+  ResetInteractivityFlags();
+
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
   error_event_.reset(nullptr);
@@ -1168,7 +1350,6 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
           new InstallPlan(omaha_response_handler_action->install_plan()));
       UpdateLastCheckedTime();
       new_version_ = install_plan_->version;
-      new_system_version_ = install_plan_->system_version;
       new_payload_size_ = 0;
       for (const auto& payload : install_plan_->payloads)
         new_payload_size_ += payload.size;
@@ -1254,6 +1435,15 @@ void UpdateAttempter::ProgressUpdate(double progress) {
   }
 }
 
+void UpdateAttempter::ResetInteractivityFlags() {
+  // Reset the state that's only valid for a single update pass.
+  current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
+
+  if (forced_update_pending_callback_.get())
+    // Clear prior interactive requests once the processor is done.
+    forced_update_pending_callback_->Run(false, false);
+}
+
 bool UpdateAttempter::ResetStatus() {
   LOG(INFO) << "Attempting to reset state from "
             << UpdateStatusToString(status_) << " to UpdateStatus::IDLE";
@@ -1307,11 +1497,25 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   out_status->last_checked_time = last_checked_time_;
   out_status->status = status_;
   out_status->current_version = omaha_request_params_->app_version();
-  out_status->current_system_version = omaha_request_params_->system_version();
   out_status->progress = download_progress_;
   out_status->new_size_bytes = new_payload_size_;
   out_status->new_version = new_version_;
-  out_status->new_system_version = new_system_version_;
+  out_status->is_enterprise_rollback =
+      install_plan_ && install_plan_->is_rollback;
+  out_status->is_install = is_install_;
+
+  string str_eol_date;
+  if (system_state_->prefs()->Exists(kPrefsOmahaEolDate) &&
+      !system_state_->prefs()->GetString(kPrefsOmahaEolDate, &str_eol_date))
+    LOG(ERROR) << "Failed to retrieve kPrefsOmahaEolDate pref.";
+  out_status->eol_date = StringToEolDate(str_eol_date);
+
+  // A powerwash will take place either if the install plan says it is required
+  // or if an enterprise rollback is happening.
+  out_status->will_powerwash_after_reboot =
+      install_plan_ &&
+      (install_plan_->powerwash_required || install_plan_->is_rollback);
+
   return true;
 }
 
@@ -1421,7 +1625,8 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
       error_event_.release(),  // Pass ownership.
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                            system_state_->hardware()),
-      false);
+      false,
+      session_id_);
   processor_->EnqueueAction(std::move(error_event_action));
   SetStatusAndNotify(UpdateStatus::REPORTING_ERROR_EVENT);
   processor_->StartProcessing();
@@ -1459,12 +1664,15 @@ void UpdateAttempter::MarkDeltaUpdateFailure() {
 
 void UpdateAttempter::PingOmaha() {
   if (!processor_->IsRunning()) {
+    ResetInteractivityFlags();
+
     auto ping_action = std::make_unique<OmahaRequestAction>(
         system_state_,
         nullptr,
         std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                              system_state_->hardware()),
-        true);
+        true,
+        "" /* session_id */);
     processor_->set_delegate(nullptr);
     processor_->EnqueueAction(std::move(ping_action));
     // Call StartProcessing() synchronously here to avoid any race conditions
@@ -1557,6 +1765,8 @@ void UpdateAttempter::UpdateEngineStarted() {
 
   system_state_->payload_state()->UpdateEngineStarted();
   StartP2PAtStartup();
+
+  excluder_ = CreateExcluder(system_state_->prefs());
 }
 
 bool UpdateAttempter::StartP2PAtStartup() {
@@ -1626,7 +1836,7 @@ bool UpdateAttempter::GetBootTimeAtUpdate(Time* out_boot_time) {
   return true;
 }
 
-bool UpdateAttempter::IsUpdateRunningOrScheduled() {
+bool UpdateAttempter::IsBusyOrUpdateScheduled() {
   return ((status_ != UpdateStatus::IDLE &&
            status_ != UpdateStatus::UPDATED_NEED_REBOOT) ||
           waiting_for_scheduled_check_);

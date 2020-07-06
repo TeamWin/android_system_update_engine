@@ -119,12 +119,12 @@ enum class ConnectionType {
   kUnknown = 0,           // Unknown.
   kEthernet = 1,          // Ethernet.
   kWifi = 2,              // Wireless.
-  kWimax = 3,             // WiMax.
-  kBluetooth = 4,         // Bluetooth.
   kCellular = 5,          // Cellular.
   kTetheredEthernet = 6,  // Tethered (Ethernet).
   kTetheredWifi = 7,      // Tethered (Wifi).
   kDisconnected = 8,      // Disconnected.
+  // deprecated: kWimax = 3,
+  // deprecated: kBluetooth = 4,
 
   kNumConstants,
   kUnset = -1
