@@ -121,6 +121,11 @@ string HardwareAndroid::GetECVersion() const {
   return GetProperty(kPropBootBaseband, "");
 }
 
+string HardwareAndroid::GetDeviceRequisition() const {
+  LOG(WARNING) << "STUB: Getting requisition is not supported.";
+  return "";
+}
+
 int HardwareAndroid::GetMinKernelKeyVersion() const {
   LOG(WARNING) << "STUB: No Kernel key version is available.";
   return -1;
@@ -152,9 +157,10 @@ int HardwareAndroid::GetPowerwashCount() const {
   return 0;
 }
 
-bool HardwareAndroid::SchedulePowerwash(bool is_rollback) {
+bool HardwareAndroid::SchedulePowerwash(bool save_rollback_data) {
   LOG(INFO) << "Scheduling a powerwash to BCB.";
-  LOG_IF(WARNING, is_rollback) << "is_rollback was true but isn't supported.";
+  LOG_IF(WARNING, save_rollback_data) << "save_rollback_data was true but "
+                                      << "isn't supported.";
   string err;
   if (!update_bootloader_message({"--wipe_data", "--reason=wipe_data_from_ota"},
                                  &err)) {

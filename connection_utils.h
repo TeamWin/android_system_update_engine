@@ -25,8 +25,6 @@ enum class ConnectionType {
   kDisconnected,
   kEthernet,
   kWifi,
-  kWimax,
-  kBluetooth,
   kCellular,
   kUnknown
 };

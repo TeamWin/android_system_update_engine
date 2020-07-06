@@ -173,10 +173,6 @@ struct PayloadVersion {
   // Whether this payload version is a delta payload.
   bool IsDelta() const;
 
-  // Tells whether the update is done in-place, that is, whether the operations
-  // read and write from the same partition.
-  bool InplaceUpdate() const;
-
   // The major version of the payload.
   uint64_t major;
 

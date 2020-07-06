@@ -18,20 +18,48 @@
 
 #include <base/message_loop/message_loop.h>
 
+#include <memory>
+
 #include <dbus/bus.h>
 #include <update_engine/dbus-constants.h>
-#include <update_engine/proto_bindings/update_engine.pb.h>
 
 #include "update_engine/update_status_utils.h"
 
-using chromeos_update_engine::StringToUpdateStatus;
 using dbus::Bus;
 using org::chromium::UpdateEngineInterfaceProxy;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace update_engine {
+
+unique_ptr<UpdateEngineClient> UpdateEngineClient::CreateInstance() {
+  auto ret = std::make_unique<internal::DBusUpdateEngineClient>();
+  if (!ret->Init()) {
+    ret.reset();
+  }
+  return ret;
+}
+
 namespace internal {
+
+namespace {
+// This converts the status from Protobuf |StatusResult| to The internal
+// |UpdateEngineStatus| struct.
+void ConvertToUpdateEngineStatus(const StatusResult& status,
+                                 UpdateEngineStatus* out_status) {
+  out_status->last_checked_time = status.last_checked_time();
+  out_status->progress = status.progress();
+  out_status->new_version = status.new_version();
+  out_status->new_size_bytes = status.new_size();
+  out_status->status = static_cast<UpdateStatus>(status.current_operation());
+  out_status->is_enterprise_rollback = status.is_enterprise_rollback();
+  out_status->is_install = status.is_install();
+  out_status->eol_date = status.eol_date();
+  out_status->will_powerwash_after_reboot =
+      status.will_powerwash_after_reboot();
+}
+}  // namespace
 
 bool DBusUpdateEngineClient::Init() {
   Bus::Options options;
@@ -57,41 +85,24 @@ bool DBusUpdateEngineClient::AttemptUpdate(const string& in_app_version,
       nullptr);
 }
 
-bool DBusUpdateEngineClient::AttemptInstall(
-    const string& omaha_url, const vector<string>& dlc_module_ids) {
-  // Convert parameters into protobuf.
-  chromeos_update_engine::DlcParameters dlc_parameters;
-  dlc_parameters.set_omaha_url(omaha_url);
-  for (const auto& dlc_module_id : dlc_module_ids) {
-    chromeos_update_engine::DlcInfo* dlc_info = dlc_parameters.add_dlc_infos();
-    dlc_info->set_dlc_id(dlc_module_id);
-  }
-  string dlc_request;
-  if (dlc_parameters.SerializeToString(&dlc_request)) {
-    return proxy_->AttemptInstall(dlc_request, nullptr /* brillo::ErrorPtr* */);
-  } else {
-    LOG(ERROR) << "Fail to serialize a protobuf to a string.";
-    return false;
-  }
+bool DBusUpdateEngineClient::AttemptInstall(const string& omaha_url,
+                                            const vector<string>& dlc_ids) {
+  return proxy_->AttemptInstall(omaha_url, dlc_ids, nullptr);
 }
 
-bool DBusUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
-                                       double* out_progress,
-                                       UpdateStatus* out_update_status,
-                                       string* out_new_version,
-                                       int64_t* out_new_size) const {
-  string status_as_string;
-  const bool success = proxy_->GetStatus(out_last_checked_time,
-                                         out_progress,
-                                         &status_as_string,
-                                         out_new_version,
-                                         out_new_size,
-                                         nullptr);
-  if (!success) {
+bool DBusUpdateEngineClient::SetDlcActiveValue(bool is_active,
+                                               const std::string& dlc_id) {
+  return proxy_->SetDlcActiveValue(is_active, dlc_id, /*error=*/nullptr);
+}
+
+bool DBusUpdateEngineClient::GetStatus(UpdateEngineStatus* out_status) const {
+  StatusResult status;
+  if (!proxy_->GetStatusAdvanced(&status, nullptr)) {
     return false;
   }
 
-  return StringToUpdateStatus(status_as_string, out_update_status);
+  ConvertToUpdateEngineStatus(status, out_status);
+  return true;
 }
 
 bool DBusUpdateEngineClient::SetCohortHint(const string& cohort_hint) {
@@ -160,40 +171,25 @@ void DBusUpdateEngineClient::DBusStatusHandlersRegistered(
 
 void DBusUpdateEngineClient::StatusUpdateHandlersRegistered(
     StatusUpdateHandler* handler) const {
-  int64_t last_checked_time;
-  double progress;
-  UpdateStatus update_status;
-  string new_version;
-  int64_t new_size;
-
-  if (!GetStatus(&last_checked_time,
-                 &progress,
-                 &update_status,
-                 &new_version,
-                 &new_size)) {
+  UpdateEngineStatus status;
+  if (!GetStatus(&status)) {
     handler->IPCError("Could not query current status");
     return;
   }
 
   std::vector<update_engine::StatusUpdateHandler*> just_handler = {handler};
   for (auto h : handler ? just_handler : handlers_) {
-    h->HandleStatusUpdate(
-        last_checked_time, progress, update_status, new_version, new_size);
+    h->HandleStatusUpdate(status);
   }
 }
 
 void DBusUpdateEngineClient::RunStatusUpdateHandlers(
-    int64_t last_checked_time,
-    double progress,
-    const string& current_operation,
-    const string& new_version,
-    int64_t new_size) {
-  UpdateStatus status;
-  StringToUpdateStatus(current_operation, &status);
+    const StatusResult& status) {
+  UpdateEngineStatus ue_status;
+  ConvertToUpdateEngineStatus(status, &ue_status);
 
   for (auto handler : handlers_) {
-    handler->HandleStatusUpdate(
-        last_checked_time, progress, status, new_version, new_size);
+    handler->HandleStatusUpdate(ue_status);
   }
 }
 
@@ -210,7 +206,7 @@ bool DBusUpdateEngineClient::UnregisterStatusUpdateHandler(
 
 bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
-  if (!base::MessageLoopForIO::current()) {
+  if (!base::MessageLoopCurrent::IsSet()) {
     LOG(FATAL) << "Cannot get UpdateEngineClient outside of message loop.";
     return false;
   }
@@ -222,7 +218,7 @@ bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
     return true;
   }
 
-  proxy_->RegisterStatusUpdateSignalHandler(
+  proxy_->RegisterStatusUpdateAdvancedSignalHandler(
       base::Bind(&DBusUpdateEngineClient::RunStatusUpdateHandlers,
                  base::Unretained(this)),
       base::Bind(&DBusUpdateEngineClient::DBusStatusHandlersRegistered,
@@ -253,10 +249,6 @@ bool DBusUpdateEngineClient::GetChannel(string* out_channel) const {
 bool DBusUpdateEngineClient::GetLastAttemptError(
     int32_t* last_attempt_error) const {
   return proxy_->GetLastAttemptError(last_attempt_error, nullptr);
-}
-
-bool DBusUpdateEngineClient::GetEolStatus(int32_t* eol_status) const {
-  return proxy_->GetEolStatus(eol_status, nullptr);
 }
 
 }  // namespace internal

@@ -61,6 +61,11 @@ const char kPowerwashCountMarker[] = "powerwash_count";
 const char kPowerwashMarkerFile[] =
     "/mnt/stateful_partition/factory_install_reset";
 
+// The name of the marker file used to trigger a save of rollback data
+// during the next shutdown.
+const char kRollbackSaveMarkerFile[] =
+    "/mnt/stateful_partition/.save_rollback_data";
+
 // The contents of the powerwash marker file for the non-rollback case.
 const char kPowerwashCommand[] = "safe fast keepimg reason=update_engine\n";
 
@@ -75,6 +80,29 @@ const char* kConfigFilePath = "/etc/update_manager.conf";
 const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
 
 const char* kActivePingKey = "first_active_omaha_ping_sent";
+
+const char* kOemRequisitionKey = "oem_device_requisition";
+
+// Gets a string value from the vpd for a given key using the `vpd_get_value`
+// shell command. Returns true on success.
+int GetVpdValue(string key, string* result) {
+  int exit_code = 0;
+  string value, error;
+  vector<string> cmd = {"vpd_get_value", key};
+  if (!chromeos_update_engine::Subprocess::SynchronousExec(
+          cmd, &exit_code, &value, &error) ||
+      exit_code) {
+    LOG(ERROR) << "Failed to get vpd key for " << value
+               << " with exit code: " << exit_code << " and error: " << error;
+    return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "vpd_get_value succeeded but with following errors: " << error;
+  }
+
+  base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
+  *result = value;
+  return true;
+}
 
 }  // namespace
 
@@ -172,17 +200,23 @@ string HardwareChromeOS::GetFirmwareVersion() const {
 }
 
 string HardwareChromeOS::GetECVersion() const {
-  string input_line;
+  string input_line, error;
   int exit_code = 0;
   vector<string> cmd = {"/usr/sbin/mosys", "-k", "ec", "info"};
 
-  bool success = Subprocess::SynchronousExec(cmd, &exit_code, &input_line);
-  if (!success || exit_code) {
-    LOG(ERROR) << "Unable to read ec info from mosys (" << exit_code << ")";
+  if (!Subprocess::SynchronousExec(cmd, &exit_code, &input_line, &error) ||
+      exit_code != 0) {
+    LOG(ERROR) << "Unable to read EC info from mosys with exit code: "
+               << exit_code << " and error: " << error;
     return "";
   }
 
   return utils::ParseECVersion(input_line);
+}
+
+string HardwareChromeOS::GetDeviceRequisition() const {
+  string requisition;
+  return GetVpdValue(kOemRequisitionKey, &requisition) ? requisition : "";
 }
 
 int HardwareChromeOS::GetMinKernelKeyVersion() const {
@@ -226,15 +260,25 @@ int HardwareChromeOS::GetPowerwashCount() const {
   return powerwash_count;
 }
 
-bool HardwareChromeOS::SchedulePowerwash(bool is_rollback) {
+bool HardwareChromeOS::SchedulePowerwash(bool save_rollback_data) {
+  if (save_rollback_data) {
+    if (!utils::WriteFile(kRollbackSaveMarkerFile, nullptr, 0)) {
+      PLOG(ERROR) << "Error in creating rollback save marker file: "
+                  << kRollbackSaveMarkerFile << ". Rollback will not"
+                  << " preserve any data.";
+    } else {
+      LOG(INFO) << "Rollback data save has been scheduled on next shutdown.";
+    }
+  }
+
   const char* powerwash_command =
-      is_rollback ? kRollbackPowerwashCommand : kPowerwashCommand;
+      save_rollback_data ? kRollbackPowerwashCommand : kPowerwashCommand;
   bool result = utils::WriteFile(
       kPowerwashMarkerFile, powerwash_command, strlen(powerwash_command));
   if (result) {
     LOG(INFO) << "Created " << kPowerwashMarkerFile
-              << " to powerwash on next reboot (is_rollback=" << is_rollback
-              << ")";
+              << " to powerwash on next reboot ("
+              << "save_rollback_data=" << save_rollback_data << ")";
   } else {
     PLOG(ERROR) << "Error in creating powerwash marker file: "
                 << kPowerwashMarkerFile;
@@ -252,6 +296,11 @@ bool HardwareChromeOS::CancelPowerwash() {
   } else {
     PLOG(ERROR) << "Could not delete the powerwash marker file : "
                 << kPowerwashMarkerFile;
+  }
+
+  // Delete the rollback save marker file if it existed.
+  if (!base::DeleteFile(base::FilePath(kRollbackSaveMarkerFile), false)) {
+    PLOG(ERROR) << "Could not remove rollback save marker";
   }
 
   return result;
@@ -291,17 +340,11 @@ void HardwareChromeOS::LoadConfig(const string& root_prefix, bool normal_mode) {
 }
 
 bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
-  int exit_code = 0;
   string active_ping_str;
-  vector<string> cmd = {"vpd_get_value", kActivePingKey};
-  if (!Subprocess::SynchronousExec(cmd, &exit_code, &active_ping_str) ||
-      exit_code) {
-    LOG(ERROR) << "Failed to get vpd key for " << kActivePingKey
-               << " with exit code: " << exit_code;
+  if (!GetVpdValue(kActivePingKey, &active_ping_str)) {
     return false;
   }
 
-  base::TrimWhitespaceASCII(active_ping_str, base::TRIM_ALL, &active_ping_str);
   int active_ping;
   if (active_ping_str.empty() ||
       !base::StringToInt(active_ping_str, &active_ping)) {
@@ -313,22 +356,28 @@ bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
 
 bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
   int exit_code = 0;
-  string output;
+  string output, error;
   vector<string> vpd_set_cmd = {
       "vpd", "-i", "RW_VPD", "-s", string(kActivePingKey) + "=1"};
-  if (!Subprocess::SynchronousExec(vpd_set_cmd, &exit_code, &output) ||
+  if (!Subprocess::SynchronousExec(vpd_set_cmd, &exit_code, &output, &error) ||
       exit_code) {
     LOG(ERROR) << "Failed to set vpd key for " << kActivePingKey
-               << " with exit code: " << exit_code << " with error: " << output;
+               << " with exit code: " << exit_code << " with output: " << output
+               << " and error: " << error;
     return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "vpd succeeded but with error logs: " << error;
   }
 
   vector<string> vpd_dump_cmd = {"dump_vpd_log", "--force"};
-  if (!Subprocess::SynchronousExec(vpd_dump_cmd, &exit_code, &output) ||
+  if (!Subprocess::SynchronousExec(vpd_dump_cmd, &exit_code, &output, &error) ||
       exit_code) {
     LOG(ERROR) << "Failed to cache " << kActivePingKey << " using dump_vpd_log"
-               << " with exit code: " << exit_code << " with error: " << output;
+               << " with exit code: " << exit_code << " with output: " << output
+               << " and error: " << error;
     return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "dump_vpd_log succeeded but with error logs: " << error;
   }
   return true;
 }

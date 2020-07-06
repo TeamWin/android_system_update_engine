@@ -186,7 +186,7 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_scatter_factor());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allowed_connection_types_for_update());
-  UmTestUtils::ExpectVariableNotSet(provider_->var_owner());
+  UmTestUtils::ExpectVariableNotSet(provider_->var_has_owner());
   UmTestUtils::ExpectVariableNotSet(provider_->var_http_downloads_enabled());
   UmTestUtils::ExpectVariableNotSet(provider_->var_au_p2p_enabled());
   UmTestUtils::ExpectVariableNotSet(
@@ -228,6 +228,26 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
       true, provider_->var_allow_kiosk_app_control_chrome_version());
   UmTestUtils::ExpectVariableHasValue(
       string("myapp"), provider_->var_auto_launched_kiosk_app_id());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, HasOwnerConverted) {
+  SetUpExistentDevicePolicy();
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  Mock::VerifyAndClearExpectations(&mock_policy_provider_);
+
+  EXPECT_CALL(mock_device_policy_, GetOwner(_))
+      .Times(2)
+      .WillOnce(DoAll(SetArgPointee<0>(string("")), Return(true)))
+      .WillOnce(DoAll(SetArgPointee<0>(string("abc@test.org")), Return(true)));
+
+  // Enterprise enrolled device.
+  provider_->RefreshDevicePolicy();
+  UmTestUtils::ExpectVariableHasValue(false, provider_->var_has_owner());
+
+  // Has a device owner.
+  provider_->RefreshDevicePolicy();
+  UmTestUtils::ExpectVariableHasValue(true, provider_->var_has_owner());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {
@@ -324,14 +344,14 @@ TEST_F(UmRealDevicePolicyProviderTest, AllowedTypesConverted) {
 #else
       .Times(1)
 #endif  // USE_DBUS
-      .WillRepeatedly(DoAll(
-          SetArgPointee<0>(set<string>{"bluetooth", "wifi", "not-a-type"}),
-          Return(true)));
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(set<string>{"ethernet", "wifi", "not-a-type"}),
+                Return(true)));
   EXPECT_TRUE(provider_->Init());
   loop_.RunOnce(false);
 
   UmTestUtils::ExpectVariableHasValue(
-      set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kBluetooth},
+      set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kEthernet},
       provider_->var_allowed_connection_types_for_update());
 }
 

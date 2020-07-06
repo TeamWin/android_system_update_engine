@@ -26,10 +26,13 @@
 #include <base/command_line.h>
 #include <base/logging.h>
 #include <base/macros.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <base/threading/platform_thread.h>
+#include <base/threading/thread_task_runner_handle.h>
 #include <brillo/daemons/daemon.h>
 #include <brillo/flag_helper.h>
+#include <brillo/key_value_store.h>
 
 #include "update_engine/client.h"
 #include "update_engine/common/error_code.h"
@@ -39,13 +42,17 @@
 #include "update_engine/update_status.h"
 #include "update_engine/update_status_utils.h"
 
-using chromeos_update_engine::EolStatus;
+using brillo::KeyValueStore;
+using chromeos_update_engine::EolDate;
+using chromeos_update_engine::EolDateToString;
 using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::UpdateEngineStatusToString;
 using chromeos_update_engine::UpdateStatusToString;
 using chromeos_update_engine::utils::ErrorCodeToString;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 
 namespace {
@@ -80,7 +87,7 @@ class UpdateEngineClient : public brillo::Daemon {
 
     // We can't call QuitWithExitCode from OnInit(), so we delay the execution
     // of the ProcessFlags method after the Daemon initialization is done.
-    base::MessageLoop::current()->task_runner()->PostTask(
+    base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE,
         base::Bind(&UpdateEngineClient::ProcessFlagsAndExit,
                    base::Unretained(this)));
@@ -132,80 +139,47 @@ class WatchingStatusUpdateHandler : public ExitingStatusUpdateHandler {
  public:
   ~WatchingStatusUpdateHandler() override = default;
 
-  void HandleStatusUpdate(int64_t last_checked_time,
-                          double progress,
-                          UpdateStatus current_operation,
-                          const string& new_version,
-                          int64_t new_size) override;
+  void HandleStatusUpdate(const UpdateEngineStatus& status) override;
 };
 
 void WatchingStatusUpdateHandler::HandleStatusUpdate(
-    int64_t last_checked_time,
-    double progress,
-    UpdateStatus current_operation,
-    const string& new_version,
-    int64_t new_size) {
-  LOG(INFO) << "Got status update:";
-  LOG(INFO) << "  last_checked_time: " << last_checked_time;
-  LOG(INFO) << "  progress: " << progress;
-  LOG(INFO) << "  current_operation: "
-            << UpdateStatusToString(current_operation);
-  LOG(INFO) << "  new_version: " << new_version;
-  LOG(INFO) << "  new_size: " << new_size;
+    const UpdateEngineStatus& status) {
+  LOG(INFO) << "Got status update: " << UpdateEngineStatusToString(status);
 }
 
 bool UpdateEngineClient::ShowStatus() {
-  int64_t last_checked_time = 0;
-  double progress = 0.0;
-  UpdateStatus current_op;
-  string new_version;
-  int64_t new_size = 0;
-
+  UpdateEngineStatus status;
   int retry_count = kShowStatusRetryCount;
   while (retry_count > 0) {
-    if (client_->GetStatus(&last_checked_time,
-                           &progress,
-                           &current_op,
-                           &new_version,
-                           &new_size)) {
+    if (client_->GetStatus(&status)) {
       break;
     }
     if (--retry_count == 0) {
       return false;
     }
-    LOG(WARNING) << "Will try " << retry_count << " more times!";
+    LOG(WARNING)
+        << "Failed to get the update_engine status. This can happen when the"
+           " update_engine is busy doing a heavy operation or if the"
+           " update-engine service is down. If it doesn't resolve, a restart of"
+           " the update-engine service is needed."
+           " Will try "
+        << retry_count << " more times!";
     base::PlatformThread::Sleep(
         base::TimeDelta::FromSeconds(kShowStatusRetryIntervalInSeconds));
   }
 
-  printf("LAST_CHECKED_TIME=%" PRIi64
-         "\nPROGRESS=%f\nCURRENT_OP=%s\n"
-         "NEW_VERSION=%s\nNEW_SIZE=%" PRIi64 "\n",
-         last_checked_time,
-         progress,
-         UpdateStatusToString(current_op),
-         new_version.c_str(),
-         new_size);
+  printf("%s", UpdateEngineStatusToString(status).c_str());
 
   return true;
 }
 
 int UpdateEngineClient::GetNeedReboot() {
-  int64_t last_checked_time = 0;
-  double progress = 0.0;
-  UpdateStatus current_op;
-  string new_version;
-  int64_t new_size = 0;
-
-  if (!client_->GetStatus(&last_checked_time,
-                          &progress,
-                          &current_op,
-                          &new_version,
-                          &new_size)) {
+  UpdateEngineStatus status;
+  if (!client_->GetStatus(&status)) {
     return 1;
   }
 
-  if (current_op == UpdateStatus::UPDATED_NEED_REBOOT) {
+  if (status.status == UpdateStatus::UPDATED_NEED_REBOOT) {
     return 0;
   }
 
@@ -220,35 +194,26 @@ class UpdateWaitHandler : public ExitingStatusUpdateHandler {
 
   ~UpdateWaitHandler() override = default;
 
-  void HandleStatusUpdate(int64_t last_checked_time,
-                          double progress,
-                          UpdateStatus current_operation,
-                          const string& new_version,
-                          int64_t new_size) override;
+  void HandleStatusUpdate(const UpdateEngineStatus& status) override;
 
  private:
   bool exit_on_error_;
   update_engine::UpdateEngineClient* client_;
 };
 
-void UpdateWaitHandler::HandleStatusUpdate(int64_t /* last_checked_time */,
-                                           double /* progress */,
-                                           UpdateStatus current_operation,
-                                           const string& /* new_version */,
-                                           int64_t /* new_size */) {
-  if (exit_on_error_ && current_operation == UpdateStatus::IDLE) {
-    int last_attempt_error;
+void UpdateWaitHandler::HandleStatusUpdate(const UpdateEngineStatus& status) {
+  if (exit_on_error_ && status.status == UpdateStatus::IDLE) {
+    int last_attempt_error = static_cast<int>(ErrorCode::kSuccess);
     ErrorCode code = ErrorCode::kSuccess;
     if (client_ && client_->GetLastAttemptError(&last_attempt_error))
       code = static_cast<ErrorCode>(last_attempt_error);
 
     LOG(ERROR) << "Update failed, current operation is "
-               << UpdateStatusToString(current_operation)
-               << ", last error code is " << ErrorCodeToString(code) << "("
-               << last_attempt_error << ")";
+               << UpdateStatusToString(status.status) << ", last error code is "
+               << ErrorCodeToString(code) << "(" << last_attempt_error << ")";
     exit(1);
   }
-  if (current_operation == UpdateStatus::UPDATED_NEED_REBOOT) {
+  if (status.status == UpdateStatus::UPDATED_NEED_REBOOT) {
     LOG(INFO) << "Update succeeded -- reboot needed.";
     exit(0);
   }
@@ -321,8 +286,6 @@ int UpdateEngineClient::ProcessFlags() {
               "Show the previous OS version used before the update reboot.");
   DEFINE_bool(last_attempt_error, false, "Show the last attempt error.");
   DEFINE_bool(eol_status, false, "Show the current end-of-life status.");
-  DEFINE_bool(install, false, "Requests an install.");
-  DEFINE_string(dlc_module_ids, "", "colon-separated list of DLC IDs.");
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
@@ -507,30 +470,6 @@ int UpdateEngineClient::ProcessFlags() {
     }
   }
 
-  if (FLAGS_install) {
-    // Parse DLC module IDs.
-    vector<string> dlc_module_ids;
-    if (!FLAGS_dlc_module_ids.empty()) {
-      dlc_module_ids = base::SplitString(FLAGS_dlc_module_ids,
-                                         ":",
-                                         base::TRIM_WHITESPACE,
-                                         base::SPLIT_WANT_ALL);
-    }
-    if (dlc_module_ids.empty()) {
-      LOG(ERROR) << "dlc_module_ids is empty:" << FLAGS_dlc_module_ids;
-      return 1;
-    }
-    if (!client_->AttemptInstall(FLAGS_omaha_url, dlc_module_ids)) {
-      LOG(ERROR) << "AttemptInstall failed.";
-      return 1;
-    }
-    return 0;
-  } else if (!FLAGS_dlc_module_ids.empty()) {
-    LOG(ERROR) << "dlc_module_ids is not empty while install is not set:"
-               << FLAGS_dlc_module_ids;
-    return 1;
-  }
-
   // Initiate an update check, if necessary.
   if (do_update_request) {
     LOG_IF(WARNING, FLAGS_reboot) << "-reboot flag ignored.";
@@ -539,7 +478,7 @@ int UpdateEngineClient::ProcessFlags() {
       app_version = "ForcedUpdate";
       LOG(INFO) << "Forcing an update by setting app_version to ForcedUpdate.";
     }
-    LOG(INFO) << "Initiating update check and install.";
+    LOG(INFO) << "Initiating update check.";
     if (!client_->AttemptUpdate(
             app_version, FLAGS_omaha_url, FLAGS_interactive)) {
       LOG(ERROR) << "Error checking for update.";
@@ -622,21 +561,26 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(ERROR) << "Error getting last attempt error.";
     } else {
       ErrorCode code = static_cast<ErrorCode>(last_attempt_error);
-      printf(
-          "ERROR_CODE=%i\n"
-          "ERROR_MESSAGE=%s\n",
-          last_attempt_error,
-          ErrorCodeToString(code).c_str());
+
+      KeyValueStore last_attempt_error_store;
+      last_attempt_error_store.SetString(
+          "ERROR_CODE", base::NumberToString(last_attempt_error));
+      last_attempt_error_store.SetString("ERROR_MESSAGE",
+                                         ErrorCodeToString(code));
+      printf("%s", last_attempt_error_store.SaveToString().c_str());
     }
   }
 
   if (FLAGS_eol_status) {
-    int eol_status;
-    if (!client_->GetEolStatus(&eol_status)) {
-      LOG(ERROR) << "Error getting the end-of-life status.";
+    UpdateEngineStatus status;
+    if (!client_->GetStatus(&status)) {
+      LOG(ERROR) << "Error GetStatus() for getting EOL info.";
     } else {
-      EolStatus eol_status_code = static_cast<EolStatus>(eol_status);
-      printf("EOL_STATUS=%s\n", EolStatusToString(eol_status_code));
+      EolDate eol_date_code = status.eol_date;
+
+      KeyValueStore eol_status_store;
+      eol_status_store.SetString("EOL_DATE", EolDateToString(eol_date_code));
+      printf("%s", eol_status_store.SaveToString().c_str());
     }
   }
 

@@ -32,10 +32,6 @@ ConnectionType ParseConnectionType(const std::string& type_str) {
     return ConnectionType::kEthernet;
   } else if (type_str == shill::kTypeWifi) {
     return ConnectionType::kWifi;
-  } else if (type_str == shill::kTypeWimax) {
-    return ConnectionType::kWimax;
-  } else if (type_str == shill::kTypeBluetooth) {
-    return ConnectionType::kBluetooth;
   } else if (type_str == shill::kTypeCellular) {
     return ConnectionType::kCellular;
   } else if (type_str == kTypeDisconnected) {
@@ -61,10 +57,6 @@ const char* StringForConnectionType(ConnectionType type) {
       return shill::kTypeEthernet;
     case ConnectionType::kWifi:
       return shill::kTypeWifi;
-    case ConnectionType::kWimax:
-      return shill::kTypeWimax;
-    case ConnectionType::kBluetooth:
-      return shill::kTypeBluetooth;
     case ConnectionType::kCellular:
       return shill::kTypeCellular;
     case ConnectionType::kDisconnected:

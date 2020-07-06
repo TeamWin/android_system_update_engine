@@ -30,10 +30,10 @@
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/annotated_operation.h"
-#include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
+#include "update_engine/payload_generator/xz.h"
 
 using std::string;
 using std::vector;
@@ -48,8 +48,8 @@ bool ExtentEquals(const Extent& ext,
   return ext.start_block() == start_block && ext.num_blocks() == num_blocks;
 }
 
-// Tests splitting of a REPLACE/REPLACE_BZ operation.
-void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
+// Tests splitting of a REPLACE/REPLACE_XZ operation.
+void TestSplitReplaceOrReplaceXzOperation(InstallOperation::Type orig_type,
                                           bool compressible) {
   const size_t op_ex1_start_block = 2;
   const size_t op_ex1_num_blocks = 2;
@@ -71,7 +71,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
   }
   ASSERT_EQ(part_size, part_data.size());
   test_utils::ScopedTempFile part_file(
-      "SplitReplaceOrReplaceBzTest_part.XXXXXX");
+      "SplitReplaceOrReplaceXzTest_part.XXXXXX");
   ASSERT_TRUE(test_utils::WriteFileVector(part_file.path(), part_data));
 
   // Create original operation and blob data.
@@ -97,7 +97,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
   if (orig_type == InstallOperation::REPLACE) {
     op_blob = op_data;
   } else {
-    ASSERT_TRUE(BzipCompress(op_data, &op_blob));
+    ASSERT_TRUE(XzCompress(op_data, &op_blob));
   }
   op.set_data_offset(0);
   op.set_data_length(op_blob.size());
@@ -108,7 +108,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
 
   // Create the data file.
   test_utils::ScopedTempFile data_file(
-      "SplitReplaceOrReplaceBzTest_data.XXXXXX");
+      "SplitReplaceOrReplaceXzTest_data.XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(data_file.path(), op_blob));
   int data_fd = open(data_file.path().c_str(), O_RDWR, 000);
   EXPECT_GE(data_fd, 0);
@@ -118,14 +118,14 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
 
   // Split the operation.
   vector<AnnotatedOperation> result_ops;
-  PayloadVersion version(kChromeOSMajorPayloadVersion,
+  PayloadVersion version(kBrilloMajorPayloadVersion,
                          kSourceMinorPayloadVersion);
   ASSERT_TRUE(ABGenerator::SplitAReplaceOp(
       version, aop, part_file.path(), &result_ops, &blob_file));
 
   // Check the result.
   InstallOperation::Type expected_type =
-      compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
+      compressible ? InstallOperation::REPLACE_XZ : InstallOperation::REPLACE;
 
   ASSERT_EQ(2U, result_ops.size());
 
@@ -143,7 +143,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
       part_data.begin() + op_ex1_offset + op_ex1_size);
   brillo::Blob first_expected_blob;
   if (compressible) {
-    ASSERT_TRUE(BzipCompress(first_expected_data, &first_expected_blob));
+    ASSERT_TRUE(XzCompress(first_expected_data, &first_expected_blob));
   } else {
     first_expected_blob = first_expected_data;
   }
@@ -173,7 +173,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
       part_data.begin() + op_ex2_offset + op_ex2_size);
   brillo::Blob second_expected_blob;
   if (compressible) {
-    ASSERT_TRUE(BzipCompress(second_expected_data, &second_expected_blob));
+    ASSERT_TRUE(XzCompress(second_expected_data, &second_expected_blob));
   } else {
     second_expected_blob = second_expected_data;
   }
@@ -199,8 +199,8 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation::Type orig_type,
   }
 }
 
-// Tests merging of REPLACE/REPLACE_BZ operations.
-void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
+// Tests merging of REPLACE/REPLACE_XZ operations.
+void TestMergeReplaceOrReplaceXzOperations(InstallOperation::Type orig_type,
                                            bool compressible) {
   const size_t first_op_num_blocks = 1;
   const size_t second_op_num_blocks = 2;
@@ -221,7 +221,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
   }
   ASSERT_EQ(part_size, part_data.size());
   test_utils::ScopedTempFile part_file(
-      "MergeReplaceOrReplaceBzTest_part.XXXXXX");
+      "MergeReplaceOrReplaceXzTest_part.XXXXXX");
   ASSERT_TRUE(test_utils::WriteFileVector(part_file.path(), part_data));
 
   // Create original operations and blob data.
@@ -239,7 +239,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
   if (orig_type == InstallOperation::REPLACE) {
     first_op_blob = first_op_data;
   } else {
-    ASSERT_TRUE(BzipCompress(first_op_data, &first_op_blob));
+    ASSERT_TRUE(XzCompress(first_op_data, &first_op_blob));
   }
   first_op.set_data_offset(0);
   first_op.set_data_length(first_op_blob.size());
@@ -259,7 +259,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
   if (orig_type == InstallOperation::REPLACE) {
     second_op_blob = second_op_data;
   } else {
-    ASSERT_TRUE(BzipCompress(second_op_data, &second_op_blob));
+    ASSERT_TRUE(XzCompress(second_op_data, &second_op_blob));
   }
   second_op.set_data_offset(first_op_blob.size());
   second_op.set_data_length(second_op_blob.size());
@@ -272,7 +272,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
 
   // Create the data file.
   test_utils::ScopedTempFile data_file(
-      "MergeReplaceOrReplaceBzTest_data.XXXXXX");
+      "MergeReplaceOrReplaceXzTest_data.XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(data_file.path(), blob_data));
   int data_fd = open(data_file.path().c_str(), O_RDWR, 000);
   EXPECT_GE(data_fd, 0);
@@ -281,14 +281,14 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
   BlobFileWriter blob_file(data_fd, &data_file_size);
 
   // Merge the operations.
-  PayloadVersion version(kChromeOSMajorPayloadVersion,
+  PayloadVersion version(kBrilloMajorPayloadVersion,
                          kSourceMinorPayloadVersion);
   EXPECT_TRUE(ABGenerator::MergeOperations(
       &aops, version, 5, part_file.path(), &blob_file));
 
   // Check the result.
   InstallOperation::Type expected_op_type =
-      compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
+      compressible ? InstallOperation::REPLACE_XZ : InstallOperation::REPLACE;
   EXPECT_EQ(1U, aops.size());
   InstallOperation new_op = aops[0].op;
   EXPECT_EQ(expected_op_type, new_op.type());
@@ -303,7 +303,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation::Type orig_type,
                              part_data.begin() + total_op_size);
   brillo::Blob expected_blob;
   if (compressible) {
-    ASSERT_TRUE(BzipCompress(expected_data, &expected_blob));
+    ASSERT_TRUE(XzCompress(expected_data, &expected_blob));
   } else {
     expected_blob = expected_data;
   }
@@ -384,19 +384,19 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
 }
 
 TEST_F(ABGeneratorTest, SplitReplaceTest) {
-  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE, false);
+  TestSplitReplaceOrReplaceXzOperation(InstallOperation::REPLACE, false);
 }
 
-TEST_F(ABGeneratorTest, SplitReplaceIntoReplaceBzTest) {
-  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE, true);
+TEST_F(ABGeneratorTest, SplitReplaceIntoReplaceXzTest) {
+  TestSplitReplaceOrReplaceXzOperation(InstallOperation::REPLACE, true);
 }
 
-TEST_F(ABGeneratorTest, SplitReplaceBzTest) {
-  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE_BZ, true);
+TEST_F(ABGeneratorTest, SplitReplaceXzTest) {
+  TestSplitReplaceOrReplaceXzOperation(InstallOperation::REPLACE_XZ, true);
 }
 
-TEST_F(ABGeneratorTest, SplitReplaceBzIntoReplaceTest) {
-  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE_BZ, false);
+TEST_F(ABGeneratorTest, SplitReplaceXzIntoReplaceTest) {
+  TestSplitReplaceOrReplaceXzOperation(InstallOperation::REPLACE_XZ, false);
 }
 
 TEST_F(ABGeneratorTest, SortOperationsByDestinationTest) {
@@ -464,7 +464,7 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   aops.push_back(third_aop);
 
   BlobFileWriter blob_file(0, nullptr);
-  PayloadVersion version(kChromeOSMajorPayloadVersion,
+  PayloadVersion version(kBrilloMajorPayloadVersion,
                          kSourceMinorPayloadVersion);
   EXPECT_TRUE(ABGenerator::MergeOperations(&aops, version, 5, "", &blob_file));
 
@@ -484,19 +484,19 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
 }
 
 TEST_F(ABGeneratorTest, MergeReplaceOperationsTest) {
-  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE, false);
+  TestMergeReplaceOrReplaceXzOperations(InstallOperation::REPLACE, false);
 }
 
-TEST_F(ABGeneratorTest, MergeReplaceOperationsToReplaceBzTest) {
-  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE, true);
+TEST_F(ABGeneratorTest, MergeReplaceOperationsToReplaceXzTest) {
+  TestMergeReplaceOrReplaceXzOperations(InstallOperation::REPLACE, true);
 }
 
-TEST_F(ABGeneratorTest, MergeReplaceBzOperationsTest) {
-  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE_BZ, true);
+TEST_F(ABGeneratorTest, MergeReplaceXzOperationsTest) {
+  TestMergeReplaceOrReplaceXzOperations(InstallOperation::REPLACE_XZ, true);
 }
 
-TEST_F(ABGeneratorTest, MergeReplaceBzOperationsToReplaceTest) {
-  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE_BZ, false);
+TEST_F(ABGeneratorTest, MergeReplaceXzOperationsToReplaceTest) {
+  TestMergeReplaceOrReplaceXzOperations(InstallOperation::REPLACE_XZ, false);
 }
 
 TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
@@ -537,7 +537,7 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   aops.push_back(fourth_aop);
 
   BlobFileWriter blob_file(0, nullptr);
-  PayloadVersion version(kChromeOSMajorPayloadVersion,
+  PayloadVersion version(kBrilloMajorPayloadVersion,
                          kSourceMinorPayloadVersion);
   EXPECT_TRUE(ABGenerator::MergeOperations(&aops, version, 4, "", &blob_file));
 

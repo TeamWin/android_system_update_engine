@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/common/constants.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/image_properties.h"
 
@@ -51,6 +53,7 @@ class OmahaRequestParams {
         delta_okay_(true),
         interactive_(false),
         rollback_allowed_(false),
+        rollback_data_save_requested_(false),
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
@@ -58,6 +61,24 @@ class OmahaRequestParams {
         is_install_(false) {}
 
   virtual ~OmahaRequestParams();
+
+  enum ActiveCountingType {
+    kDayBased = 0,
+    kDateBased,
+  };
+
+  struct AppParams {
+    ActiveCountingType active_counting_type;
+    // |name| is only used for DLCs to store the DLC ID.
+    std::string name;
+    int64_t ping_active;
+    int64_t ping_date_last_active;
+    int64_t ping_date_last_rollcall;
+    bool send_ping;
+    // |updated| is only used for DLCs to decide sending DBus message to
+    // dlcservice on an install/update completion.
+    bool updated = true;
+  };
 
   // Setters and getters for the various properties.
   inline std::string os_platform() const { return os_platform_; }
@@ -84,6 +105,7 @@ class OmahaRequestParams {
   inline std::string hwid() const { return hwid_; }
   inline std::string fw_version() const { return fw_version_; }
   inline std::string ec_version() const { return ec_version_; }
+  inline std::string device_requisition() const { return device_requisition_; }
 
   inline void set_app_version(const std::string& version) {
     image_props_.version = version;
@@ -132,6 +154,23 @@ class OmahaRequestParams {
 
   inline bool rollback_allowed() const { return rollback_allowed_; }
 
+  inline void set_rollback_data_save_requested(
+      bool rollback_data_save_requested) {
+    rollback_data_save_requested_ = rollback_data_save_requested;
+  }
+
+  inline bool rollback_data_save_requested() const {
+    return rollback_data_save_requested_;
+  }
+
+  inline void set_rollback_allowed_milestones(int rollback_allowed_milestones) {
+    rollback_allowed_milestones_ = rollback_allowed_milestones;
+  }
+
+  inline int rollback_allowed_milestones() const {
+    return rollback_allowed_milestones_;
+  }
+
   inline void set_wall_clock_based_wait_enabled(bool enabled) {
     wall_clock_based_wait_enabled_ = enabled;
   }
@@ -165,19 +204,36 @@ class OmahaRequestParams {
   inline int64_t max_update_checks_allowed() const {
     return max_update_checks_allowed_;
   }
-  inline void set_dlc_module_ids(
-      const std::vector<std::string>& dlc_module_ids) {
-    dlc_module_ids_ = dlc_module_ids;
+  inline void set_dlc_apps_params(
+      const std::map<std::string, AppParams>& dlc_apps_params) {
+    dlc_apps_params_ = dlc_apps_params;
   }
-  inline std::vector<std::string> dlc_module_ids() const {
-    return dlc_module_ids_;
+  inline const std::map<std::string, AppParams>& dlc_apps_params() const {
+    return dlc_apps_params_;
   }
   inline void set_is_install(bool is_install) { is_install_ = is_install; }
   inline bool is_install() const { return is_install_; }
 
-  // Returns the app id corresponding to the current value of the
+  inline void set_autoupdate_token(const std::string& token) {
+    autoupdate_token_ = token;
+  }
+  inline const std::string& autoupdate_token() const {
+    return autoupdate_token_;
+  }
+
+  // Returns the App ID corresponding to the current value of the
   // download channel.
   virtual std::string GetAppId() const;
+
+  // Returns the DLC app ID.
+  virtual std::string GetDlcAppId(const std::string& dlc_id) const;
+
+  // Returns true if the App ID is a DLC App ID that is currently part of the
+  // request parameters.
+  virtual bool IsDlcAppId(const std::string& app_id) const;
+
+  // If the App ID is a DLC App ID will set to no update.
+  void SetDlcNoUpdate(const std::string& app_id);
 
   // Suggested defaults
   static const char kOsVersion[];
@@ -210,8 +266,10 @@ class OmahaRequestParams {
   // or Init is called again.
   virtual void UpdateDownloadChannel();
 
-  // Returns whether we should powerwash for this update.
-  virtual bool ShouldPowerwash() const;
+  // Returns whether we should powerwash for this update. Note that this is
+  // just an indication, the final decision to powerwash or not is made in the
+  // response handler.
+  bool ShouldPowerwash() const;
 
   // Check if the provided update URL is official, meaning either the default
   // autoupdate server or the autoupdate autotest server.
@@ -239,6 +297,9 @@ class OmahaRequestParams {
   }
   void set_is_powerwash_allowed(bool powerwash_allowed) {
     mutable_image_props_.is_powerwash_allowed = powerwash_allowed;
+  }
+  void set_device_requisition(const std::string& requisition) {
+    device_requisition_ = requisition;
   }
 
  private:
@@ -309,6 +370,9 @@ class OmahaRequestParams {
   std::string hwid_;        // Hardware Qualification ID of the client
   std::string fw_version_;  // Chrome OS Firmware Version.
   std::string ec_version_;  // Chrome OS EC Version.
+  // TODO(b:133324571) tracks removal of this field once it is no longer
+  // needed in AU requests. Remove by October 1st 2019.
+  std::string device_requisition_;  // Chrome OS Requisition type.
   bool delta_okay_;         // If this client can accept a delta
   bool interactive_;        // Whether this is a user-initiated update check
 
@@ -321,6 +385,12 @@ class OmahaRequestParams {
 
   // Whether the client is accepting rollback images too.
   bool rollback_allowed_;
+
+  // Whether rollbacks should preserve some system state during powerwash.
+  bool rollback_data_save_requested_;
+
+  // How many milestones the client can rollback to.
+  int rollback_allowed_milestones_;
 
   // True if scattering or staging are enabled, in which case waiting_period_
   // specifies the amount of absolute time that we've to wait for before sending
@@ -339,13 +409,18 @@ class OmahaRequestParams {
   // When reading files, prepend root_ to the paths. Useful for testing.
   std::string root_;
 
-  // A list of DLC module IDs to install.
-  std::vector<std::string> dlc_module_ids_;
+  // A list of DLC modules to install. A mapping from DLC App ID to |AppParams|.
+  std::map<std::string, AppParams> dlc_apps_params_;
 
   // This variable defines whether the payload is being installed in the current
   // partition. At the moment, this is used for installing DLC modules on the
   // current active partition instead of the inactive partition.
   bool is_install_;
+
+  // Token used when making an update request for a specific build.
+  // For example: Token for a Quick Fix Build:
+  // https://cloud.google.com/docs/chrome-enterprise/policies/?policy=DeviceQuickFixBuildToken
+  std::string autoupdate_token_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestParams);
 };
