@@ -181,7 +181,7 @@ bool HardwareAndroid::CancelPowerwash() {
 
 bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {
   base::FilePath local_path(constants::kNonVolatileDirectory);
-  if (!base::PathExists(local_path)) {
+  if (!base::DirectoryExists(local_path)) {
     LOG(ERROR) << "Non-volatile directory not found: " << local_path.value();
     return false;
   }
