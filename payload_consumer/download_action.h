@@ -134,9 +134,6 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   // Start downloading the current payload using delta_performer.
   void StartDownloading();
 
-  // The InstallPlan passed in
-  InstallPlan install_plan_;
-
   // Pointer to the current payload in install_plan_.payloads.
   InstallPlan::Payload* payload_{nullptr};
 
