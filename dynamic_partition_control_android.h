@@ -57,6 +57,11 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   bool ListDynamicPartitionsForSlot(
       uint32_t current_slot, std::vector<std::string>* partitions) override;
 
+  bool VerifyExtentsForUntouchedPartitions(
+      uint32_t source_slot,
+      uint32_t target_slot,
+      const std::vector<std::string>& partitions) override;
+
   bool GetDeviceDir(std::string* path) override;
 
   // Return the device for partition |partition_name| at slot |slot|.
@@ -85,16 +90,14 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   virtual bool UnmapPartitionOnDeviceMapper(
       const std::string& target_partition_name);
 
-  // Retrieve metadata from |super_device| at slot |source_slot|.
-  //
-  // If |target_slot| != kInvalidSlot, before returning the metadata, this
-  // function modifies the metadata so that during updates, the metadata can be
-  // written to |target_slot|. In particular, on retrofit devices, the returned
-  // metadata automatically includes block devices at |target_slot|.
-  //
-  // If |target_slot| == kInvalidSlot, this function returns metadata at
-  // |source_slot| without modifying it. This is the same as
-  // LoadMetadataBuilder(const std::string&, uint32_t).
+  // Retrieves metadata from |super_device| at slot |slot|.
+  virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
+      const std::string& super_device, uint32_t slot);
+
+  // Retrieves metadata from |super_device| at slot |source_slot|. And modifies
+  // the metadata so that during updates, the metadata can be written to
+  // |target_slot|. In particular, on retrofit devices, the returned metadata
+  // automatically includes block devices at |target_slot|.
   virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
       const std::string& super_device,
       uint32_t source_slot,
@@ -132,10 +135,6 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // parameter is not set.
   virtual bool GetDmDevicePathByName(const std::string& name,
                                      std::string* path);
-
-  // Retrieve metadata from |super_device| at slot |source_slot|.
-  virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
-      const std::string& super_device, uint32_t source_slot);
 
   // Return the name of the super partition (which stores super partition
   // metadata) for a given slot.

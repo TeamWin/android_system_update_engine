@@ -76,4 +76,11 @@ bool DynamicPartitionControlStub::GetDeviceDir(std::string* path) {
   return true;
 }
 
+bool DynamicPartitionControlStub::VerifyExtentsForUntouchedPartitions(
+    uint32_t source_slot,
+    uint32_t target_slot,
+    const std::vector<std::string>& partitions) {
+  return true;
+}
+
 }  // namespace chromeos_update_engine

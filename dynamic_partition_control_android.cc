@@ -293,9 +293,16 @@ bool DynamicPartitionControlAndroid::GetDmDevicePathByName(
 
 std::unique_ptr<MetadataBuilder>
 DynamicPartitionControlAndroid::LoadMetadataBuilder(
-    const std::string& super_device, uint32_t source_slot) {
-  return LoadMetadataBuilder(
-      super_device, source_slot, BootControlInterface::kInvalidSlot);
+    const std::string& super_device, uint32_t slot) {
+  auto builder = MetadataBuilder::New(PartitionOpener(), super_device, slot);
+  if (builder == nullptr) {
+    LOG(WARNING) << "No metadata slot " << BootControlInterface::SlotName(slot)
+                 << " in " << super_device;
+    return nullptr;
+  }
+  LOG(INFO) << "Loaded metadata from slot "
+            << BootControlInterface::SlotName(slot) << " in " << super_device;
+  return builder;
 }
 
 std::unique_ptr<MetadataBuilder>
@@ -303,26 +310,19 @@ DynamicPartitionControlAndroid::LoadMetadataBuilder(
     const std::string& super_device,
     uint32_t source_slot,
     uint32_t target_slot) {
-  std::unique_ptr<MetadataBuilder> builder;
-  if (target_slot == BootControlInterface::kInvalidSlot) {
-    builder =
-        MetadataBuilder::New(PartitionOpener(), super_device, source_slot);
-  } else {
-    bool always_keep_source_slot = !target_supports_snapshot_;
-    builder = MetadataBuilder::NewForUpdate(PartitionOpener(),
-                                            super_device,
-                                            source_slot,
-                                            target_slot,
-                                            always_keep_source_slot);
-  }
-
+  bool always_keep_source_slot = !target_supports_snapshot_;
+  auto builder = MetadataBuilder::NewForUpdate(PartitionOpener(),
+                                               super_device,
+                                               source_slot,
+                                               target_slot,
+                                               always_keep_source_slot);
   if (builder == nullptr) {
     LOG(WARNING) << "No metadata slot "
                  << BootControlInterface::SlotName(source_slot) << " in "
                  << super_device;
     return nullptr;
   }
-  LOG(INFO) << "Loaded metadata from slot "
+  LOG(INFO) << "Created metadata for new update from slot "
             << BootControlInterface::SlotName(source_slot) << " in "
             << super_device;
   return builder;
@@ -495,6 +495,7 @@ bool DynamicPartitionControlAndroid::PreparePartitionsForUpdate(
     }
   }
 
+  // TODO(xunchang) support partial update on non VAB enabled devices.
   TEST_AND_RETURN_FALSE(PrepareDynamicPartitionsForUpdate(
       source_slot, target_slot, manifest, delete_source));
 
@@ -1111,6 +1112,28 @@ bool DynamicPartitionControlAndroid::ListDynamicPartitionsForSlot(
   }
   *partitions = std::move(result);
   return true;
+}
+
+bool DynamicPartitionControlAndroid::VerifyExtentsForUntouchedPartitions(
+    uint32_t source_slot,
+    uint32_t target_slot,
+    const std::vector<std::string>& partitions) {
+  std::string device_dir_str;
+  TEST_AND_RETURN_FALSE(GetDeviceDir(&device_dir_str));
+  base::FilePath device_dir(device_dir_str);
+
+  auto source_super_device =
+      device_dir.Append(GetSuperPartitionName(source_slot)).value();
+  auto source_builder = LoadMetadataBuilder(source_super_device, source_slot);
+  TEST_AND_RETURN_FALSE(source_builder != nullptr);
+
+  auto target_super_device =
+      device_dir.Append(GetSuperPartitionName(target_slot)).value();
+  auto target_builder = LoadMetadataBuilder(target_super_device, target_slot);
+  TEST_AND_RETURN_FALSE(target_builder != nullptr);
+
+  return MetadataBuilder::VerifyExtentsAgainstSourceMetadata(
+      *source_builder, source_slot, *target_builder, target_slot, partitions);
 }
 
 bool DynamicPartitionControlAndroid::ExpectMetadataMounted() {

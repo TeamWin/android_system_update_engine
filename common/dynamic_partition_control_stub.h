@@ -51,6 +51,11 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
   bool ListDynamicPartitionsForSlot(
       uint32_t current_slot, std::vector<std::string>* partitions) override;
   bool GetDeviceDir(std::string* path) override;
+
+  bool VerifyExtentsForUntouchedPartitions(
+      uint32_t source_slot,
+      uint32_t target_slot,
+      const std::vector<std::string>& partitions) override;
 };
 
 }  // namespace chromeos_update_engine
