@@ -97,8 +97,6 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // ready. Called when the post-install script was run for all the partitions.
   void CompletePostinstall(ErrorCode error_code);
 
-  InstallPlan install_plan_;
-
   // The path where the filesystem will be mounted during post-install.
   std::string fs_mount_dir_;
 

@@ -592,6 +592,8 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
     SetStatusAndNotify(UpdateStatus::CLEANUP_PREVIOUS_UPDATE);
   }
   if (type == DownloadAction::StaticType()) {
+    auto download_action = static_cast<DownloadAction*>(action);
+    install_plan_ = *download_action->install_plan();
     SetStatusAndNotify(UpdateStatus::VERIFYING);
   } else if (type == FilesystemVerifierAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);

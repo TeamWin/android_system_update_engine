@@ -117,9 +117,6 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   bool cancelled_{false};  // true if the action has been cancelled.
 
-  // The install plan we're passed in via the input pipe.
-  InstallPlan install_plan_;
-
   // Calculates the hash of the data.
   std::unique_ptr<HashCalculator> hasher_;
 
