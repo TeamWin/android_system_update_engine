@@ -50,25 +50,14 @@ bool PartitionUpdateGeneratorAndroid::
         BootControlInterface::Slot target_slot,
         const std::set<std::string>& partitions_in_payload,
         std::vector<PartitionUpdate>* update_list) {
-  auto ret = GetStaticAbPartitionsOnDevice();
-  if (!ret.has_value()) {
+  auto ab_partitions = GetStaticAbPartitionsOnDevice();
+  if (!ab_partitions.has_value()) {
     LOG(ERROR) << "Failed to load static a/b partitions";
     return false;
   }
-  auto ab_partitions = ret.value();
-
-  // Add the dynamic partitions.
-  auto dynamic_control = boot_control_->GetDynamicPartitionControl();
-  std::vector<std::string> dynamic_partitions;
-  if (!dynamic_control->ListDynamicPartitionsForSlot(source_slot,
-                                                     &dynamic_partitions)) {
-    LOG(ERROR) << "Failed to load dynamic partitions from slot " << source_slot;
-    return false;
-  }
-  ab_partitions.insert(dynamic_partitions.begin(), dynamic_partitions.end());
 
   std::vector<PartitionUpdate> partition_updates;
-  for (const auto& partition_name : ab_partitions) {
+  for (const auto& partition_name : ab_partitions.value()) {
     if (partitions_in_payload.find(partition_name) !=
         partitions_in_payload.end()) {
       LOG(INFO) << partition_name << " has included in payload";
@@ -159,13 +148,15 @@ PartitionUpdateGeneratorAndroid::CreatePartitionUpdate(
     return std::nullopt;
   }
 
-  if (is_source_dynamic != is_target_dynamic) {
-    LOG(ERROR) << "Source slot " << source_slot << " for partition "
-               << partition_name << " is " << (is_source_dynamic ? "" : "not")
-               << " dynamic, but target slot " << target_slot << " is "
+  if (is_source_dynamic || is_target_dynamic) {
+    LOG(ERROR) << "Partition " << partition_name << " is expected to be a"
+               << " static partition. source slot is "
+               << (is_source_dynamic ? "" : "not")
+               << " dynamic, and target slot " << target_slot << " is "
                << (is_target_dynamic ? "" : "not") << " dynamic.";
     return std::nullopt;
   }
+
   auto source_size = utils::FileSize(source_device);
   auto target_size = utils::FileSize(target_device);
   if (source_size == -1 || target_size == -1 || source_size != target_size ||
@@ -175,11 +166,8 @@ PartitionUpdateGeneratorAndroid::CreatePartitionUpdate(
     return std::nullopt;
   }
 
-  return CreatePartitionUpdate(partition_name,
-                               source_device,
-                               target_device,
-                               source_size,
-                               is_source_dynamic);
+  return CreatePartitionUpdate(
+      partition_name, source_device, target_device, source_size);
 }
 
 std::optional<PartitionUpdate>
@@ -187,8 +175,7 @@ PartitionUpdateGeneratorAndroid::CreatePartitionUpdate(
     const std::string& partition_name,
     const std::string& source_device,
     const std::string& target_device,
-    int64_t partition_size,
-    bool is_dynamic) {
+    int64_t partition_size) {
   PartitionUpdate partition_update;
   partition_update.set_partition_name(partition_name);
   auto old_partition_info = partition_update.mutable_old_partition_info();
@@ -202,18 +189,15 @@ PartitionUpdateGeneratorAndroid::CreatePartitionUpdate(
   auto new_partition_info = partition_update.mutable_new_partition_info();
   new_partition_info->set_size(partition_size);
   new_partition_info->set_hash(raw_hash->data(), raw_hash->size());
-  // TODO(xunchang) TBD, should we skip hashing and verification of the
-  // dynamic partitions not in payload?
-  if (!is_dynamic) {
-    auto copy_operation = partition_update.add_operations();
-    copy_operation->set_type(InstallOperation::SOURCE_COPY);
-    Extent copy_extent;
-    copy_extent.set_start_block(0);
-    copy_extent.set_num_blocks(partition_size / block_size_);
 
-    *copy_operation->add_src_extents() = copy_extent;
-    *copy_operation->add_dst_extents() = copy_extent;
-  }
+  auto copy_operation = partition_update.add_operations();
+  copy_operation->set_type(InstallOperation::SOURCE_COPY);
+  Extent copy_extent;
+  copy_extent.set_start_block(0);
+  copy_extent.set_num_blocks(partition_size / block_size_);
+
+  *copy_operation->add_src_extents() = copy_extent;
+  *copy_operation->add_dst_extents() = copy_extent;
 
   return partition_update;
 }

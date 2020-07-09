@@ -56,8 +56,7 @@ class PartitionUpdateGeneratorAndroid
       const std::string& partition_name,
       const std::string& source_device,
       const std::string& target_device,
-      int64_t partition_size,
-      bool is_dynamic);
+      int64_t partition_size);
 
   std::optional<PartitionUpdate> CreatePartitionUpdate(
       const std::string& partition_name,

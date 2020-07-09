@@ -130,6 +130,13 @@ class DynamicPartitionControlInterface {
   // the result in |path|. Returns true on success.
   // Sample result: /dev/block/by-name/
   virtual bool GetDeviceDir(std::string* path) = 0;
+
+  // Verifies that the untouched dynamic partitions in the target metadata have
+  // the same extents as the source metadata.
+  virtual bool VerifyExtentsForUntouchedPartitions(
+      uint32_t source_slot,
+      uint32_t target_slot,
+      const std::vector<std::string>& partitions) = 0;
 };
 
 }  // namespace chromeos_update_engine
