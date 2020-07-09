@@ -158,6 +158,10 @@ struct InstallPlan {
   // If not blank, a base-64 encoded representation of the PEM-encoded
   // public key in the response.
   std::string public_key_rsa;
+
+  // The name of dynamic partitions not included in the payload. Only used
+  // for partial updates.
+  std::vector<std::string> untouched_dynamic_partitions;
 };
 
 class InstallPlanAction;
