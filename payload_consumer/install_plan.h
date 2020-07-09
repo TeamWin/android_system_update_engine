@@ -195,9 +195,10 @@ class InstallPlanAction : public Action<InstallPlanAction> {
   typedef ActionTraits<InstallPlanAction>::InputObjectType InputObjectType;
   typedef ActionTraits<InstallPlanAction>::OutputObjectType OutputObjectType;
 
- private:
+ protected:
   InstallPlan install_plan_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(InstallPlanAction);
 };
 
