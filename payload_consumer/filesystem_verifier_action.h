@@ -57,8 +57,13 @@ class FilesystemVerifyDelegate {
 
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
-  FilesystemVerifierAction()
-      : verity_writer_(verity_writer::CreateVerityWriter()) {}
+  explicit FilesystemVerifierAction(
+      DynamicPartitionControlInterface* dynamic_control)
+      : verity_writer_(verity_writer::CreateVerityWriter()),
+        dynamic_control_(dynamic_control) {
+    CHECK(dynamic_control_);
+  }
+
   ~FilesystemVerifierAction() override = default;
 
   void PerformAction() override;
@@ -122,6 +127,9 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // Write verity data of the current partition.
   std::unique_ptr<VerityWriterInterface> verity_writer_;
+
+  // Verifies the untouched dynamic partitions for partial updates.
+  DynamicPartitionControlInterface* dynamic_control_{nullptr};
 
   // Reads and hashes this many bytes from the head of the input stream. When
   // the partition starts to be hashed, this field is initialized from the

@@ -52,6 +52,10 @@ class MockDynamicPartitionControlAndroid
               (override));
   MOCK_METHOD(std::unique_ptr<::android::fs_mgr::MetadataBuilder>,
               LoadMetadataBuilder,
+              (const std::string&, uint32_t),
+              (override));
+  MOCK_METHOD(std::unique_ptr<::android::fs_mgr::MetadataBuilder>,
+              LoadMetadataBuilder,
               (const std::string&, uint32_t, uint32_t),
               (override));
   MOCK_METHOD(bool,
