@@ -806,15 +806,32 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
 
     auto generator = partition_update_generator::Create(boot_control_,
                                                         manifest_.block_size());
-    std::vector<PartitionUpdate> other_partitions;
+    std::vector<PartitionUpdate> untouched_static_partitions;
     TEST_AND_RETURN_FALSE(
         generator->GenerateOperationsForPartitionsNotInPayload(
             install_plan_->source_slot,
             install_plan_->target_slot,
             touched_partitions,
-            &other_partitions));
-    partitions_.insert(
-        partitions_.end(), other_partitions.begin(), other_partitions.end());
+            &untouched_static_partitions));
+    partitions_.insert(partitions_.end(),
+                       untouched_static_partitions.begin(),
+                       untouched_static_partitions.end());
+
+    // Save the untouched dynamic partitions in install plan.
+    std::vector<std::string> dynamic_partitions;
+    if (!boot_control_->GetDynamicPartitionControl()
+             ->ListDynamicPartitionsForSlot(install_plan_->source_slot,
+                                            &dynamic_partitions)) {
+      LOG(ERROR) << "Failed to load dynamic partitions from slot "
+                 << install_plan_->source_slot;
+      return false;
+    }
+    install_plan_->untouched_dynamic_partitions.clear();
+    for (const auto& name : dynamic_partitions) {
+      if (touched_partitions.find(name) == touched_partitions.end()) {
+        install_plan_->untouched_dynamic_partitions.push_back(name);
+      }
+    }
   }
 
   // Fill in the InstallPlan::partitions based on the partitions from the
