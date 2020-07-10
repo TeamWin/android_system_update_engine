@@ -131,6 +131,10 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   // called or if CloseP2PSharingFd() has been called.
   void WriteToP2PFile(const void* data, size_t length, off_t file_offset);
 
+  // Attempt to load cached manifest data from prefs
+  // return true on success, false otherwise.
+  bool LoadCachedManifest(int64_t manifest_size);
+
   // Start downloading the current payload using delta_performer.
   void StartDownloading();
 

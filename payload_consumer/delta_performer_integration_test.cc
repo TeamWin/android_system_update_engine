@@ -28,6 +28,7 @@
 #include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <gmock/gmock-matchers.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 #include <openssl/pem.h>
@@ -188,7 +189,7 @@ static void SignGeneratedPayload(const string& payload_path,
   string private_key_path = GetBuildArtifactsPath(kUnittestPrivateKeyPath);
   size_t signature_size;
   ASSERT_TRUE(PayloadSigner::GetMaximumSignatureSize(private_key_path,
-                                                   &signature_size));
+                                                     &signature_size));
   brillo::Blob metadata_hash, payload_hash;
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path, {signature_size}, &payload_hash, &metadata_hash));
@@ -226,12 +227,13 @@ static void SignGeneratedShellPayloadWithKeys(
   string delta_generator_path = GetBuildArtifactsPath("delta_generator");
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                 "%s -in_file=%s -signature_size=%s -out_hash_file=%s "
-                 "-out_metadata_hash_file=%s",
+                "%s -in_file=%s -signature_size=%s -out_hash_file=%s "
+                "-out_metadata_hash_file=%s",
                 delta_generator_path.c_str(),
                 payload_path.c_str(),
                 signature_size_string.c_str(),
-                hash_file.path().c_str(), metadata_hash_file.path().c_str())));
+                hash_file.path().c_str(),
+                metadata_hash_file.path().c_str())));
 
   // Sign the hash with all private keys.
   vector<test_utils::ScopedTempFile> sig_files, metadata_sig_files;
@@ -248,16 +250,19 @@ static void SignGeneratedShellPayloadWithKeys(
 
     brillo::Blob metadata_hash, metadata_signature;
     ASSERT_TRUE(utils::ReadFile(metadata_hash_file.path(), &metadata_hash));
-    ASSERT_TRUE(PayloadSigner::SignHash(metadata_hash, key_path, &metadata_signature));
+    ASSERT_TRUE(
+        PayloadSigner::SignHash(metadata_hash, key_path, &metadata_signature));
 
     test_utils::ScopedTempFile metadata_sig_file("signature.XXXXXX");
-    ASSERT_TRUE(test_utils::WriteFileVector(metadata_sig_file.path(), metadata_signature));
+    ASSERT_TRUE(test_utils::WriteFileVector(metadata_sig_file.path(),
+                                            metadata_signature));
 
     metadata_sig_file_paths.push_back(metadata_sig_file.path());
     metadata_sig_files.push_back(std::move(metadata_sig_file));
   }
   string sig_files_string = base::JoinString(sig_file_paths, ":");
-  string metadata_sig_files_string = base::JoinString(metadata_sig_file_paths, ":");
+  string metadata_sig_files_string =
+      base::JoinString(metadata_sig_file_paths, ":");
 
   // Add the signature to the payload.
   ASSERT_EQ(0,
@@ -735,6 +740,11 @@ static void ApplyDeltaFile(bool full_kernel,
       .WillRepeatedly(Return(true));
   EXPECT_CALL(prefs, SetString(kPrefsDynamicPartitionMetadataUpdated, _))
       .WillRepeatedly(Return(true));
+  EXPECT_CALL(prefs,
+              SetString(kPrefsManifestBytes,
+                        testing::SizeIs(state->metadata_signature_size +
+                                        state->metadata_size)))
+      .WillRepeatedly(Return(true));
   if (op_hash_test == kValidOperationData && signature_test != kSignatureNone) {
     EXPECT_CALL(prefs, SetString(kPrefsUpdateStateSignatureBlob, _))
         .WillOnce(Return(true));
@@ -1026,12 +1036,8 @@ TEST(DeltaPerformerIntegrationTest, RunAsRootFullKernelSmallImageTest) {
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootFullSmallImageTest) {
-  DoSmallImageTest(true,
-                   true,
-                   -1,
-                   kSignatureGenerator,
-                   true,
-                   kFullPayloadMinorVersion);
+  DoSmallImageTest(
+      true, true, -1, kSignatureGenerator, true, kFullPayloadMinorVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSignNoneTest) {
@@ -1094,12 +1100,8 @@ TEST(DeltaPerformerIntegrationTest,
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootSmallImageSourceOpsTest) {
-  DoSmallImageTest(false,
-                   false,
-                   -1,
-                   kSignatureGenerator,
-                   false,
-                   kSourceMinorPayloadVersion);
+  DoSmallImageTest(
+      false, false, -1, kSignatureGenerator, false, kSourceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest,
