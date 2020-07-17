@@ -585,6 +585,9 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
     if ((*error = ValidateManifest()) != ErrorCode::kSuccess)
       return false;
     manifest_valid_ = true;
+    if (!install_plan_->is_resume) {
+      prefs_->SetString(kPrefsManifestBytes, {buffer_.begin(), buffer_.end()});
+    }
 
     // Clear the download buffer.
     DiscardBuffer(false, metadata_size_);
