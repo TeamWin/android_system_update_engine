@@ -104,6 +104,7 @@ extern const char kPrefsUrlSwitchCount[];
 extern const char kPrefsVerityWritten[];
 extern const char kPrefsWallClockScatteringWaitPeriod[];
 extern const char kPrefsWallClockStagingWaitPeriod[];
+extern const char kPrefsManifestBytes[];
 
 // Keys used when storing and loading payload properties.
 extern const char kPayloadPropertyFileSize[];

@@ -78,7 +78,9 @@ class DeltaPerformer : public FileWriter {
         download_delegate_(download_delegate),
         install_plan_(install_plan),
         payload_(payload),
-        interactive_(interactive) {}
+        interactive_(interactive) {
+    CHECK(install_plan_);
+  }
 
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
