@@ -55,8 +55,7 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       code_(ErrorCode::kSuccess),
       delegate_(nullptr),
       p2p_sharing_fd_(-1),
-      p2p_visible_(true) {
-}
+      p2p_visible_(true) {}
 
 DownloadAction::~DownloadAction() {}
 
@@ -203,18 +202,76 @@ void DownloadAction::PerformAction() {
   StartDownloading();
 }
 
+bool DownloadAction::LoadCachedManifest(int64_t manifest_size) {
+  std::string cached_manifest_bytes;
+  if (!prefs_->GetString(kPrefsManifestBytes, &cached_manifest_bytes) ||
+      cached_manifest_bytes.size() <= 0) {
+    LOG(INFO) << "Cached Manifest data not found";
+    return false;
+  }
+  if (static_cast<int64_t>(cached_manifest_bytes.size()) != manifest_size) {
+    LOG(WARNING) << "Cached metadata has unexpected size: "
+                 << cached_manifest_bytes.size() << " vs. " << manifest_size;
+    return false;
+  }
+
+  ErrorCode error;
+  const bool success =
+      delta_performer_->Write(
+          cached_manifest_bytes.data(), cached_manifest_bytes.size(), &error) &&
+      delta_performer_->IsManifestValid();
+  if (success) {
+    LOG(INFO) << "Successfully parsed cached manifest";
+  } else {
+    // If parsing of cached data failed, fall back to fetch them using HTTP
+    LOG(WARNING) << "Cached manifest data fails to load, error code:"
+                 << static_cast<int>(error) << "," << error;
+  }
+  return success;
+}
+
 void DownloadAction::StartDownloading() {
   download_active_ = true;
   http_fetcher_->ClearRanges();
+
+  if (writer_ && writer_ != delta_performer_.get()) {
+    LOG(INFO) << "Using writer for test.";
+  } else {
+    delta_performer_.reset(new DeltaPerformer(prefs_,
+                                              boot_control_,
+                                              hardware_,
+                                              delegate_,
+                                              &install_plan_,
+                                              payload_,
+                                              interactive_));
+    writer_ = delta_performer_.get();
+  }
+
   if (install_plan_.is_resume &&
       payload_ == &install_plan_.payloads[resume_payload_index_]) {
-    // Resuming an update so fetch the update manifest metadata first.
+    // Resuming an update so parse the cached manifest first
     int64_t manifest_metadata_size = 0;
     int64_t manifest_signature_size = 0;
     prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
     prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
-    http_fetcher_->AddRange(base_offset_,
-                            manifest_metadata_size + manifest_signature_size);
+
+    // TODO(zhangkelvin) Add unittest for success and fallback route
+    if (!LoadCachedManifest(manifest_metadata_size + manifest_signature_size)) {
+      if (delta_performer_) {
+        // Create a new DeltaPerformer to reset all its state
+        delta_performer_ = std::make_unique<DeltaPerformer>(prefs_,
+                                                            boot_control_,
+                                                            hardware_,
+                                                            delegate_,
+                                                            &install_plan_,
+                                                            payload_,
+                                                            interactive_);
+        writer_ = delta_performer_.get();
+      }
+      http_fetcher_->AddRange(base_offset_,
+                              manifest_metadata_size + manifest_signature_size);
+    }
+
     // If there're remaining unprocessed data blobs, fetch them. Be careful not
     // to request data beyond the end of the payload to avoid 416 HTTP response
     // error codes.
@@ -238,18 +295,6 @@ void DownloadAction::StartDownloading() {
     }
   }
 
-  if (writer_ && writer_ != delta_performer_.get()) {
-    LOG(INFO) << "Using writer for test.";
-  } else {
-    delta_performer_.reset(new DeltaPerformer(prefs_,
-                                              boot_control_,
-                                              hardware_,
-                                              delegate_,
-                                              &install_plan_,
-                                              payload_,
-                                              interactive_));
-    writer_ = delta_performer_.get();
-  }
   if (system_state_ != nullptr) {
     const PayloadStateInterface* payload_state = system_state_->payload_state();
     string file_id = utils::CalculateP2PFileId(payload_->hash, payload_->size);
