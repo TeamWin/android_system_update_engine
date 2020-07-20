@@ -445,6 +445,10 @@ int Main(int argc, char** argv) {
       out_maximum_signature_size_file,
       "",
       "Path to the output maximum signature size given a private key.");
+  DEFINE_bool(is_partial_update,
+              false,
+              "The payload only targets a subset of partitions on the device,"
+              "e.g. generic kernel image update.");
 
   brillo::FlagHelper::Init(
       argc,
@@ -629,6 +633,10 @@ int Main(int argc, char** argv) {
     CHECK(payload_config.target.ValidateDynamicPartitionMetadata());
   }
 
+  if (FLAGS_is_partial_update) {
+    payload_config.is_partial_update = true;
+  }
+
   CHECK(!FLAGS_out_file.empty());
 
   // Ignore failures. These are optional arguments.
@@ -702,7 +710,8 @@ int Main(int argc, char** argv) {
 
   payload_config.max_timestamp = FLAGS_max_timestamp;
 
-  if (payload_config.version.minor >= kVerityMinorPayloadVersion)
+  if (payload_config.is_delta &&
+      payload_config.version.minor >= kVerityMinorPayloadVersion)
     CHECK(payload_config.target.LoadVerityConfig());
 
   LOG(INFO) << "Generating " << (payload_config.is_delta ? "delta" : "full")
