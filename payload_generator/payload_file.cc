@@ -78,6 +78,9 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
     *(manifest_.mutable_dynamic_partition_metadata()) =
         *(config.target.dynamic_partition_metadata);
 
+  if (config.is_partial_update) {
+    manifest_.set_partial_update(true);
+  }
   return true;
 }
 
