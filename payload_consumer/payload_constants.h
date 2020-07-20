@@ -56,6 +56,9 @@ extern const uint32_t kPuffdiffMinorPayloadVersion;
 // The minor version that allows Verity hash tree and FEC generation.
 extern const uint32_t kVerityMinorPayloadVersion;
 
+// The minor version that allows partial update, e.g. kernel only update.
+extern const uint32_t kPartialUpdateMinorPayloadVersion;
+
 // The minimum and maximum supported minor version.
 extern const uint32_t kMinSupportedMinorPayloadVersion;
 extern const uint32_t kMaxSupportedMinorPayloadVersion;

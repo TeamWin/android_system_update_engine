@@ -234,7 +234,8 @@ bool PayloadVersion::Validate() const {
                         minor == kOpSrcHashMinorPayloadVersion ||
                         minor == kBrotliBsdiffMinorPayloadVersion ||
                         minor == kPuffdiffMinorPayloadVersion ||
-                        minor == kVerityMinorPayloadVersion);
+                        minor == kVerityMinorPayloadVersion ||
+                        minor == kPartialUpdateMinorPayloadVersion);
   return true;
 }
 
@@ -273,13 +274,14 @@ bool PayloadVersion::OperationAllowed(InstallOperation::Type operation) const {
   return false;
 }
 
-bool PayloadVersion::IsDelta() const {
+bool PayloadVersion::IsDeltaOrPartial() const {
   return minor != kFullPayloadMinorVersion;
 }
 
 bool PayloadGenerationConfig::Validate() const {
   TEST_AND_RETURN_FALSE(version.Validate());
-  TEST_AND_RETURN_FALSE(version.IsDelta() == is_delta);
+  TEST_AND_RETURN_FALSE(version.IsDeltaOrPartial() ==
+                        (is_delta || is_partial_update));
   if (is_delta) {
     for (const PartitionConfig& part : source.partitions) {
       if (!part.path.empty()) {
@@ -305,6 +307,10 @@ bool PayloadGenerationConfig::Validate() const {
     TEST_AND_RETURN_FALSE(part.size % block_size == 0);
     if (version.minor < kVerityMinorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.verity.IsEmpty());
+  }
+
+  if (version.minor < kPartialUpdateMinorPayloadVersion) {
+    TEST_AND_RETURN_FALSE(!is_partial_update);
   }
 
   TEST_AND_RETURN_FALSE(hard_chunk_size == -1 ||
