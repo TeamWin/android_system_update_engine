@@ -189,6 +189,9 @@ system running on the device, 0 if not specified."
   DEFINE_string disable_fec_computation "" \
     "Optional: Disables the on device fec data computation for incremental \
 update. This feature is enabled by default."
+  DEFINE_string is_partial_update "" \
+    "Optional: True if the payload is for partial update. i.e. it only updates \
+a subset of partitions on device."
 fi
 if [[ "${COMMAND}" == "hash" || "${COMMAND}" == "sign" ]]; then
   DEFINE_string unsigned_payload "" "Path to the input unsigned payload."
@@ -654,19 +657,31 @@ cmd_generate() {
     --new_mapfiles="${new_mapfiles}"
   )
 
+  if [[ "${FLAGS_is_partial_update}" == "true" ]]; then
+    GENERATOR_ARGS+=( --is_partial_update="true" )
+    # Need at least minor version 7 for partial update, so generate with minor
+    # version 7 if we don't have a source image. Let the delta_generator to fail
+    # the other incompatiable minor versions.
+    if [[ -z "${FORCE_MINOR_VERSION}" ]]; then
+      FORCE_MINOR_VERSION="7"
+    fi
+  fi
+
   if [[ "${payload_type}" == "delta" ]]; then
     # Source image args:
     GENERATOR_ARGS+=(
       --old_partitions="${old_partitions}"
       --old_mapfiles="${old_mapfiles}"
     )
-    if [[ -n "${FORCE_MINOR_VERSION}" ]]; then
-      GENERATOR_ARGS+=( --minor_version="${FORCE_MINOR_VERSION}" )
-    fi
     if [[ -n "${FLAGS_disable_fec_computation}" ]]; then
       GENERATOR_ARGS+=(
         --disable_fec_computation="${FLAGS_disable_fec_computation}" )
     fi
+  fi
+
+  # minor version is set only for delta or partial payload.
+  if [[ -n "${FORCE_MINOR_VERSION}" ]]; then
+    GENERATOR_ARGS+=( --minor_version="${FORCE_MINOR_VERSION}" )
   fi
 
   if [[ -n "${FORCE_MAJOR_VERSION}" ]]; then
