@@ -1576,9 +1576,12 @@ ErrorCode DeltaPerformer::ValidateManifest() {
                                     });
 
   // The presence of an old partition hash is the sole indicator for a delta
-  // update.
+  // update. Also, always treat the partial update as delta so that we can
+  // perform the minor version check correctly.
   InstallPayloadType actual_payload_type =
-      has_old_fields ? InstallPayloadType::kDelta : InstallPayloadType::kFull;
+      (has_old_fields || manifest_.partial_update())
+          ? InstallPayloadType::kDelta
+          : InstallPayloadType::kFull;
 
   if (payload_->type == InstallPayloadType::kUnknown) {
     LOG(INFO) << "Detected a '"
