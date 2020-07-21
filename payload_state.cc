@@ -618,10 +618,6 @@ PayloadType PayloadState::CalculatePayloadType() {
   return kPayloadTypeForcedFull;
 }
 
-// TODO(zeuthen): Currently we don't report the UpdateEngine.Attempt.*
-// metrics if the attempt ends abnormally, e.g. if the update_engine
-// process crashes or the device is rebooted. See
-// http://crbug.com/357676
 void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
   int attempt_number = GetPayloadAttemptNumber();
 
