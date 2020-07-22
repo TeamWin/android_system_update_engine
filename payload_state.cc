@@ -672,6 +672,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
     case metrics::AttemptResult::kAbnormalTermination:
     case metrics::AttemptResult::kUpdateCanceled:
     case metrics::AttemptResult::kUpdateSucceededNotActive:
+    case metrics::AttemptResult::kUpdateSkipped:
     case metrics::AttemptResult::kNumConstants:
     case metrics::AttemptResult::kUnset:
       break;
