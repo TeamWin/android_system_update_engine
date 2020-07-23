@@ -140,11 +140,7 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // the postinstall program and the task watching for them.
   int progress_fd_{-1};
 
-#ifdef __ANDROID__
-  brillo::MessageLoop::TaskId progress_task_{brillo::MessageLoop::kTaskIdNull};
-#else
   std::unique_ptr<base::FileDescriptorWatcher::Controller> progress_controller_;
-#endif  // __ANDROID__
 
   // A buffer of a partial read line from the progress file descriptor.
   std::string progress_buffer_;

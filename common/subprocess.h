@@ -123,12 +123,8 @@ class Subprocess {
 
     // These are used to monitor the stdout of the running process, including
     // the stderr if it was redirected.
-#ifdef __ANDROID__
-    brillo::MessageLoop::TaskId stdout_task_id{
-        brillo::MessageLoop::kTaskIdNull};
-#else
     std::unique_ptr<base::FileDescriptorWatcher::Controller> stdout_controller;
-#endif  // __ANDROID__
+
     int stdout_fd{-1};
     std::string stdout;
   };

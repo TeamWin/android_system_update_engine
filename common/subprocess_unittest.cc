@@ -74,9 +74,7 @@ class SubprocessTest : public ::testing::Test {
   brillo::BaseMessageLoop loop_{&base_loop_};
   brillo::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
-#ifndef __ANDROID__
   unique_ptr<base::FileDescriptorWatcher::Controller> watcher_;
-#endif  // __ANDROID__
 
 };
 
@@ -261,23 +259,6 @@ TEST_F(SubprocessTest, CancelTest) {
   int fifo_fd = HANDLE_EINTR(open(fifo_path.c_str(), O_RDONLY));
   EXPECT_GE(fifo_fd, 0);
 
-#ifdef __ANDROID__
-  loop_.WatchFileDescriptor(FROM_HERE,
-                            fifo_fd,
-                            MessageLoop::WatchMode::kWatchRead,
-                            false,
-                            base::Bind(
-                                [](int fifo_fd, uint32_t tag) {
-                                  char c;
-                                  EXPECT_EQ(1,
-                                            HANDLE_EINTR(read(fifo_fd, &c, 1)));
-                                  EXPECT_EQ('X', c);
-                                  LOG(INFO) << "Killing tag " << tag;
-                                  Subprocess::Get().KillExec(tag);
-                                },
-                                fifo_fd,
-                                tag));
-#else
   watcher_ = base::FileDescriptorWatcher::WatchReadable(
       fifo_fd,
       base::Bind(
@@ -295,7 +276,6 @@ TEST_F(SubprocessTest, CancelTest) {
           base::Unretained(&watcher_),
           fifo_fd,
           tag));
-#endif  // __ANDROID__
 
   // This test would leak a callback that runs when the child process exits
   // unless we wait for it to run.
