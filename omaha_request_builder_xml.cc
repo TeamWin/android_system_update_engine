@@ -216,7 +216,7 @@ string OmahaRequestBuilderXml::GetCohortArg(const string arg_name,
     if (!prefs_->GetString(prefs_key, &cohort_value) || cohort_value.empty())
       return "";
   }
-  // This is a sanity check to avoid sending a huge XML file back to Ohama due
+  // This is a validity check to avoid sending a huge XML file back to Ohama due
   // to a compromised stateful partition making the update check fail in low
   // network environments envent after a reboot.
   if (cohort_value.size() > 1024) {
