@@ -255,12 +255,8 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // the message loop. libcurl may open/close descriptors and switch their
   // directions so maintain two separate lists so that watch conditions can be
   // set appropriately.
-#ifdef __ANDROID__
-  std::map<int, brillo::MessageLoop::TaskId> fd_task_maps_[2];
-#else
   std::map<int, std::unique_ptr<base::FileDescriptorWatcher::Controller>>
       fd_controller_maps_[2];
-#endif  // __ANDROID__
 
   // The TaskId of the timer we're waiting on. kTaskIdNull if we are not waiting
   // on it.

@@ -129,12 +129,7 @@ void Subprocess::OnStdoutReady(SubprocessRecord* record) {
     if (!ok || eof) {
       // There was either an error or an EOF condition, so we are done watching
       // the file descriptor.
-#ifdef __ANDROID__
-      MessageLoop::current()->CancelTask(record->stdout_task_id);
-      record->stdout_task_id = MessageLoop::kTaskIdNull;
-#else
       record->stdout_controller.reset();
-#endif  // __ANDROID__
       return;
     }
   } while (bytes_read);
@@ -149,12 +144,7 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
   // Make sure we read any remaining process output and then close the pipe.
   OnStdoutReady(record);
 
-#ifdef __ANDROID__
-  MessageLoop::current()->CancelTask(record->stdout_task_id);
-  record->stdout_task_id = MessageLoop::kTaskIdNull;
-#else
   record->stdout_controller.reset();
-#endif  // __ANDROID__
 
   // Don't print any log if the subprocess exited with exit code 0.
   if (info.si_code != CLD_EXITED) {
@@ -209,18 +199,9 @@ pid_t Subprocess::ExecFlags(const vector<string>& cmd,
                << record->stdout_fd << ".";
   }
 
-#ifdef __ANDROID__
-  record->stdout_task_id = MessageLoop::current()->WatchFileDescriptor(
-      FROM_HERE,
-      record->stdout_fd,
-      MessageLoop::WatchMode::kWatchRead,
-      true,
-      base::Bind(&Subprocess::OnStdoutReady, record.get()));
-#else
   record->stdout_controller = base::FileDescriptorWatcher::WatchReadable(
       record->stdout_fd,
       base::BindRepeating(&Subprocess::OnStdoutReady, record.get()));
-#endif  // __ANDROID__
 
   subprocess_records_[pid] = std::move(record);
   return pid;
