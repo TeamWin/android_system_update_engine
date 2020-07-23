@@ -82,7 +82,7 @@ class BootControlChromeOS : public BootControlInterface {
 
   // Extracts DLC module ID and package ID from partition name. The structure of
   // the partition name is dlc/<dlc-id>/<dlc-package>. For example:
-  // dlc/dummy-dlc/dummy-package
+  // dlc/fake-dlc/fake-package
   bool ParseDlcPartitionName(const std::string partition_name,
                              std::string* dlc_id,
                              std::string* dlc_package) const;

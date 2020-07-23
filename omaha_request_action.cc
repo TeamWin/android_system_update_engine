@@ -351,7 +351,7 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   // If we have the value stored on disk, just return it.
   int64_t stored_value;
   if (prefs->GetInt64(kPrefsInstallDateDays, &stored_value)) {
-    // Convert and sanity-check.
+    // Convert and validity-check.
     int install_date_days = static_cast<int>(stored_value);
     if (install_date_days >= 0)
       return install_date_days;
