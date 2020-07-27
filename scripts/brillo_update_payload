@@ -897,7 +897,7 @@ cmd_check() {
 }
 
 # Sanity check that the real generator exists:
-GENERATOR="$(which delta_generator || true)"
+[[ -x "${GENERATOR}" ]] || GENERATOR="$(which delta_generator || true)"
 [[ -x "${GENERATOR}" ]] || die "can't find delta_generator"
 
 case "$COMMAND" in
