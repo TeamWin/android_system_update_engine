@@ -280,7 +280,7 @@ TEST_F(SubprocessTest, CancelTest) {
   // This test would leak a callback that runs when the child process exits
   // unless we wait for it to run.
   brillo::MessageLoopRunUntil(
-      &loop_, TimeDelta::FromSeconds(120), base::Bind([] {
+      &loop_, TimeDelta::FromSeconds(20), base::Bind([] {
         return Subprocess::Get().subprocess_records_.empty();
       }));
   EXPECT_TRUE(Subprocess::Get().subprocess_records_.empty());
