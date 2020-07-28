@@ -341,6 +341,26 @@ TEST_F(UmChromeOSPolicyTest,
       EvalStatus::kAskMeAgainLater, &Policy::UpdateCheckAllowed, &result);
 }
 
+TEST_F(UmChromeOSPolicyTest, TestUpdateCheckIntervalTimeout) {
+  fake_state_.updater_provider()
+      ->var_test_update_check_interval_timeout()
+      ->reset(new int64_t(10));
+  fake_state_.system_provider()->var_is_official_build()->reset(
+      new bool(false));
+
+  // The first time, update should not be allowed.
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kAskMeAgainLater, &Policy::UpdateCheckAllowed, &result);
+
+  // After moving the time forward more than the update check interval, it
+  // should now allow for update.
+  fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
+                               TimeDelta::FromSeconds(11));
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
+}
+
 TEST_F(UmChromeOSPolicyTest,
        UpdateCheckAllowedUpdatesDisabledWhenNotEnoughSlotsAbUpdates) {
   // UpdateCheckAllowed should return false (kSucceeded) if the image booted

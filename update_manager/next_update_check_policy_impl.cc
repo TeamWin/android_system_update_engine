@@ -72,6 +72,11 @@ EvalStatus NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime(
       ec->GetValue(updater_provider->var_updater_started_time());
   POLICY_CHECK_VALUE_AND_FAIL(updater_started_time, error);
 
+  // This value is used for testing only and it will get deleted after the first
+  // time it is read.
+  const int64_t* interval_timeout =
+      ec->GetValue(updater_provider->var_test_update_check_interval_timeout());
+
   const Time* last_checked_time =
       ec->GetValue(updater_provider->var_last_checked_time());
 
@@ -83,13 +88,21 @@ EvalStatus NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime(
   // If this is the first attempt, compute and return an initial value.
   if (last_checked_time == nullptr ||
       *last_checked_time < *updater_started_time) {
-    *next_update_check = *updater_started_time +
-                         FuzzedInterval(&prng,
-                                        constants.timeout_initial_interval,
-                                        constants.timeout_regular_fuzz);
+    TimeDelta time_diff =
+        interval_timeout == nullptr
+            ? FuzzedInterval(&prng,
+                             constants.timeout_initial_interval,
+                             constants.timeout_regular_fuzz)
+            : TimeDelta::FromSeconds(*interval_timeout);
+    *next_update_check = *updater_started_time + time_diff;
     return EvalStatus::kSucceeded;
   }
 
+  if (interval_timeout != nullptr) {
+    *next_update_check =
+        *last_checked_time + TimeDelta::FromSeconds(*interval_timeout);
+    return EvalStatus::kSucceeded;
+  }
   // Check whether the server is enforcing a poll interval; if not, this value
   // will be zero.
   const unsigned int* server_dictated_poll_interval =

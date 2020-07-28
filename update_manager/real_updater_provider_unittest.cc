@@ -445,4 +445,30 @@ TEST_F(UmRealUpdaterProviderTest, GetUpdateRestrictionsNone) {
   UmTestUtils::ExpectVariableHasValue(UpdateRestrictions::kNone,
                                       provider_->var_update_restrictions());
 }
+
+TEST_F(UmRealUpdaterProviderTest, TestUpdateCheckIntervalTimeout) {
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_test_update_check_interval_timeout());
+  fake_prefs_.SetInt64(
+      chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout, 1);
+  UmTestUtils::ExpectVariableHasValue(
+      static_cast<int64_t>(1),
+      provider_->var_test_update_check_interval_timeout());
+
+  // Make sure the value does not exceed a threshold of 10 minutes.
+  fake_prefs_.SetInt64(
+      chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout, 11 * 60);
+  UmTestUtils::ExpectVariableHasValue(
+      static_cast<int64_t>(10 * 60),
+      provider_->var_test_update_check_interval_timeout());
+  UmTestUtils::ExpectVariableHasValue(
+      static_cast<int64_t>(10 * 60),
+      provider_->var_test_update_check_interval_timeout());
+
+  // Just to make sure it is not cached anywhere and deleted. The variable is
+  // allowd to be read 3 times.
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_test_update_check_interval_timeout());
+}
+
 }  // namespace chromeos_update_manager
