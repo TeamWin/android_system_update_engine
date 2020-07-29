@@ -896,7 +896,7 @@ cmd_check() {
   check_update_payload ${PAYCHECK_ARGS[@]} --check
 }
 
-# Sanity check that the real generator exists:
+# Check that the real generator exists:
 [[ -x "${GENERATOR}" ]] || GENERATOR="$(which delta_generator || true)"
 [[ -x "${GENERATOR}" ]] || die "can't find delta_generator"
 
