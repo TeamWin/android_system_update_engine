@@ -60,9 +60,9 @@ class PayloadFile {
   // Computes a SHA256 hash of the given buf and sets the hash value in the
   // operation so that update_engine could verify. This hash should be set
   // for all operations that have a non-zero data blob. One exception is the
-  // dummy operation for signature blob because the contents of the signature
+  // fake operation for signature blob because the contents of the signature
   // blob will not be available at payload creation time. So, update_engine will
-  // gracefully ignore the dummy signature operation.
+  // gracefully ignore the fake signature operation.
   static bool AddOperationHash(InstallOperation* op, const brillo::Blob& buf);
 
   // Install operations in the manifest may reference data blobs, which
