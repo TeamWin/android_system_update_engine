@@ -82,7 +82,7 @@ bool ConvertSignaturesToProtobuf(const vector<brillo::Blob>& signatures,
 // Given an unsigned payload under |payload_path| and the |payload_signature|
 // and |metadata_signature| generates an updated payload that includes the
 // signatures. It populates |out_metadata_size| with the size of the final
-// manifest after adding the dummy signature operation, and
+// manifest after adding the fake signature operation, and
 // |out_signatures_offset| with the expected offset for the new blob, and
 // |out_metadata_signature_size| which will be size of |metadata_signature|
 // if the payload major version supports metadata signature, 0 otherwise.
