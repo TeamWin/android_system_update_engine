@@ -737,7 +737,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
     CheckpointUpdateProgress(false);
   }
 
-  // In major version 2, we don't add dummy operation to the payload.
+  // In major version 2, we don't add unused operation to the payload.
   // If we already extracted the signature we should skip this step.
   if (manifest_.has_signatures_offset() && manifest_.has_signatures_size() &&
       signatures_message_data_.empty()) {
@@ -1567,7 +1567,7 @@ DeltaPerformer::CreatePayloadVerifier() {
 }
 
 ErrorCode DeltaPerformer::ValidateManifest() {
-  // Perform assorted checks to sanity check the manifest, make sure it
+  // Perform assorted checks to validation check the manifest, make sure it
   // matches data from other sources, and that it is a supported version.
   bool has_old_fields = std::any_of(manifest_.partitions().begin(),
                                     manifest_.partitions().end(),
@@ -1660,7 +1660,7 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
     // corresponding update should have been produced with the operation
     // hashes. So if it happens it means either we've turned operation hash
     // generation off in DeltaDiffGenerator or it's a regression of some sort.
-    // One caveat though: The last operation is a dummy signature operation
+    // One caveat though: The last operation is a unused signature operation
     // that doesn't have a hash at the time the manifest is created. So we
     // should not complaint about that operation. This operation can be
     // recognized by the fact that it's offset is mentioned in the manifest.
@@ -1795,7 +1795,7 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
       resumed_update_failures > kMaxResumedUpdateFailures)
     return false;
 
-  // Sanity check the rest.
+  // Validation check the rest.
   int64_t next_data_offset = -1;
   if (!(prefs->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset) &&
         next_data_offset >= 0))
