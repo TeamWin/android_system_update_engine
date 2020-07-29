@@ -47,7 +47,7 @@ namespace {
 const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
 
 // The stateful directory used by update_engine to store powerwash-safe files.
-// The files stored here must be safelisted in the powerwash scripts.
+// The files stored here must be added to the powerwash script allowlist.
 const char kPowerwashSafeDirectory[] =
     "/mnt/stateful_partition/unencrypted/preserve";
 

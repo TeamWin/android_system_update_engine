@@ -366,14 +366,14 @@ class PayloadState : public PayloadStateInterface {
   // check where policy was available. This info is preserved over powerwash.
   void LoadRollbackHappened();
 
-  // Loads the blocklisted version from our prefs file.
+  // Loads the excluded version from our prefs file.
   void LoadRollbackVersion();
 
-  // Blacklists this version from getting AU'd to until we receive a new update
+  // Excludes this version from getting AU'd to until we receive a new update
   // response.
   void SetRollbackVersion(const std::string& rollback_version);
 
-  // Clears any blocklisted version.
+  // Clears any excluded version.
   void ResetRollbackVersion();
 
   inline uint32_t GetUrlIndex() {
@@ -565,7 +565,7 @@ class PayloadState : public PayloadStateInterface {
   // forced updates to avoid update-rollback loops.
   bool rollback_happened_;
 
-  // This stores a blocklisted version set as part of rollback. When we rollback
+  // This stores an excluded version set as part of rollback. When we rollback
   // we store the version of the os from which we are rolling back from in order
   // to guarantee that we do not re-update to it on the next au attempt after
   // reboot.
