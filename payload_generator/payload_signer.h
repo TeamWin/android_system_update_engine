@@ -62,7 +62,7 @@ class PayloadSigner {
   // size in |metadata_signature_size| and signatures offset in
   // |signatures_offset|, calculates the payload signature blob into
   // |out_serialized_signature|. Note that the payload must already have an
-  // updated manifest that includes the dummy signature op and correct metadata
+  // updated manifest that includes the fake signature op and correct metadata
   // signature size in header. Returns true on success, false otherwise.
   static bool SignPayload(const std::string& unsigned_payload_path,
                           const std::vector<std::string>& private_key_paths,
@@ -92,7 +92,7 @@ class PayloadSigner {
                                     brillo::Blob* out_payload_hash_data,
                                     brillo::Blob* out_metadata_hash);
 
-  // Given an unsigned payload in |payload_path| (with no dummy signature op)
+  // Given an unsigned payload in |payload_path| (with no fake signature op)
   // and the raw |payload_signatures| and |metadata_signatures| updates the
   // payload to include the signature thus turning it into a signed payload. The
   // new payload is stored in |signed_payload_path|. |payload_path| and
