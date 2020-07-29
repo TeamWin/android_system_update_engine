@@ -43,7 +43,7 @@ class PayloadFile {
   // reference a blob stored in the file provided to WritePayload().
   bool AddPartition(const PartitionConfig& old_conf,
                     const PartitionConfig& new_conf,
-                    const std::vector<AnnotatedOperation>& aops);
+                    std::vector<AnnotatedOperation> aops);
 
   // Write the payload to the |payload_file| file. The operations reference
   // blobs in the |data_blobs_path| file and the blobs will be reordered in the
