@@ -29,7 +29,7 @@ using std::unique_ptr;
 
 namespace chromeos_update_engine {
 
-constexpr char kDummyHash[] =
+constexpr char kFakeHash[] =
     "71ff43d76e2488e394e46872f5b066cc25e394c2c3e3790dd319517883b33db1";
 
 class ExcluderChromeOSTest : public ::testing::Test {
@@ -47,20 +47,20 @@ class ExcluderChromeOSTest : public ::testing::Test {
 };
 
 TEST_F(ExcluderChromeOSTest, ExclusionCheck) {
-  EXPECT_FALSE(excluder_->IsExcluded(kDummyHash));
-  EXPECT_TRUE(excluder_->Exclude(kDummyHash));
-  EXPECT_TRUE(excluder_->IsExcluded(kDummyHash));
+  EXPECT_FALSE(excluder_->IsExcluded(kFakeHash));
+  EXPECT_TRUE(excluder_->Exclude(kFakeHash));
+  EXPECT_TRUE(excluder_->IsExcluded(kFakeHash));
 }
 
 TEST_F(ExcluderChromeOSTest, ResetFlow) {
   EXPECT_TRUE(excluder_->Exclude("abc"));
-  EXPECT_TRUE(excluder_->Exclude(kDummyHash));
+  EXPECT_TRUE(excluder_->Exclude(kFakeHash));
   EXPECT_TRUE(excluder_->IsExcluded("abc"));
-  EXPECT_TRUE(excluder_->IsExcluded(kDummyHash));
+  EXPECT_TRUE(excluder_->IsExcluded(kFakeHash));
 
   EXPECT_TRUE(excluder_->Reset());
   EXPECT_FALSE(excluder_->IsExcluded("abc"));
-  EXPECT_FALSE(excluder_->IsExcluded(kDummyHash));
+  EXPECT_FALSE(excluder_->IsExcluded(kFakeHash));
 }
 
 }  // namespace chromeos_update_engine
