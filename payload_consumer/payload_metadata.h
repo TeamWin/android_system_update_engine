@@ -63,7 +63,7 @@ class PayloadMetadata {
   // |metadata_signature| (if present) or the metadata signature in payload
   // itself (if present). Returns ErrorCode::kSuccess on match or a suitable
   // error code otherwise. This method must be called before any part of the
-  // metadata is parsed so that a man-in-the-middle attack on the SSL connection
+  // metadata is parsed so that an on-path attack on the SSL connection
   // to the payload server doesn't exploit any vulnerability in the code that
   // parses the protocol buffer.
   ErrorCode ValidateMetadataSignature(
