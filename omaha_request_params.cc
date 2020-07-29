@@ -66,7 +66,7 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   image_props_ = LoadImageProperties(system_state_);
   mutable_image_props_ = LoadMutableImageProperties(system_state_);
 
-  // Sanity check the channel names.
+  // Validation check the channel names.
   if (!IsValidChannel(image_props_.current_channel))
     image_props_.current_channel = "stable-channel";
   if (!IsValidChannel(mutable_image_props_.target_channel))
