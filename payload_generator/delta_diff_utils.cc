@@ -938,7 +938,7 @@ bool IsExtFilesystem(const string& device) {
   if (magic != EXT2_SUPER_MAGIC)
     return false;
 
-  // Sanity check the parameters.
+  // Validation check the parameters.
   TEST_AND_RETURN_FALSE(log_block_size >= EXT2_MIN_BLOCK_LOG_SIZE &&
                         log_block_size <= EXT2_MAX_BLOCK_LOG_SIZE);
   TEST_AND_RETURN_FALSE(block_count > 0);
