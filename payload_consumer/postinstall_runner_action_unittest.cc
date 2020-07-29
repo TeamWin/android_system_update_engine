@@ -227,7 +227,7 @@ void PostinstallRunnerActionTest::RunPostinstallActionWithInstallPlan(
   EXPECT_TRUE(processor_delegate_.processing_stopped_called_ ||
               processor_delegate_.processing_done_called_);
   if (processor_delegate_.processing_done_called_) {
-    // Sanity check that the code was set when the processor finishes.
+    // Validation check that the code was set when the processor finishes.
     EXPECT_TRUE(processor_delegate_.code_set_);
   }
 }
