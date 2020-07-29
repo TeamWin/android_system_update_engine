@@ -76,7 +76,7 @@ class MockHttpFetcher : public HttpFetcher {
   void set_connect_timeout(int connect_timeout_seconds) override {}
   void set_max_retry_count(int max_retry_count) override {}
 
-  // Dummy: no bytes were downloaded.
+  // No bytes were downloaded in the mock class.
   size_t GetBytesDownloaded() override { return sent_size_; }
 
   // Begins the transfer if it hasn't already begun.

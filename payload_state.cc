@@ -1058,7 +1058,7 @@ void PayloadState::LoadUpdateTimestampStart() {
     stored_time = Time::FromInternalValue(stored_value);
   }
 
-  // Sanity check: If the time read from disk is in the future
+  // Validation check: If the time read from disk is in the future
   // (modulo some slack to account for possible NTP drift
   // adjustments), something is fishy and we should report and
   // reset.
@@ -1105,7 +1105,7 @@ void PayloadState::LoadUpdateDurationUptime() {
     stored_delta = TimeDelta::FromInternalValue(stored_value);
   }
 
-  // Sanity-check: Uptime can never be greater than the wall-clock
+  // Validation check: Uptime can never be greater than the wall-clock
   // difference (modulo some slack). If it is, report and reset
   // to the wall-clock difference.
   TimeDelta diff = GetUpdateDuration() - stored_delta;
