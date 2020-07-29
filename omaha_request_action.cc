@@ -952,10 +952,10 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
     int code = GetHTTPResponseCode();
     LOG(ERROR) << "Omaha request network transfer failed with HTTPResponseCode="
                << code;
-    // Makes sure we send sane error values.
+    // Makes sure we send proper error values.
     if (code < 0 || code >= 1000) {
       code = 999;
-      LOG(WARNING) << "Converting to sane HTTPResponseCode=" << code;
+      LOG(WARNING) << "Converting to proper HTTPResponseCode=" << code;
     }
     completer.set_code(static_cast<ErrorCode>(
         static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + code));
