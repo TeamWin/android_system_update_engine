@@ -598,7 +598,6 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
     string* error,
     UpdateBackoffAndDownloadUrlResult* result,
     const UpdateState& update_state) const {
-  // Sanity checks.
   DCHECK_GE(update_state.download_errors_max, 0);
 
   // Set default result values.
@@ -670,7 +669,7 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
   Time prev_err_time;
   bool is_first = true;
   for (const auto& err_tuple : update_state.download_errors) {
-    // Do some sanity checks.
+    // Do some validation checks.
     int used_url_idx = get<0>(err_tuple);
     if (is_first && url_idx >= 0 && used_url_idx != url_idx) {
       LOG(WARNING) << "First URL in error log (" << used_url_idx

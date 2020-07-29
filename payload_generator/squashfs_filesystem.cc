@@ -275,7 +275,7 @@ bool SquashfsFilesystem::Init(const string& map,
     auto last = std::unique(zlib_blks.begin(), zlib_blks.end());
     zlib_blks.erase(last, zlib_blks.end());
 
-    // Sanity check. Make sure zlib blocks are not overlapping.
+    // Make sure zlib blocks are not overlapping.
     auto result = std::adjacent_find(
         zlib_blks.begin(),
         zlib_blks.end(),
