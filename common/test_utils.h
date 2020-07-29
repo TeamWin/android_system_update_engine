@@ -78,7 +78,7 @@ std::string Readlink(const std::string& path);
 
 void FillWithData(brillo::Blob* buffer);
 
-// Compare the value of native array for download source parameter.
+// Compare the value of builtin array for download source parameter.
 MATCHER_P(DownloadSourceMatcher, source_array, "") {
   return std::equal(source_array, source_array + kNumDownloadSources, arg);
 }
