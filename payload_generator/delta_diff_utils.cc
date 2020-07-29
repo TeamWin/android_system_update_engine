@@ -708,15 +708,15 @@ bool ReadExtentsToDiff(const string& old_part,
       version.OperationAllowed(InstallOperation::SOURCE_BSDIFF);
   if (bsdiff_allowed &&
       blocks_to_read * kBlockSize > kMaxBsdiffDestinationSize) {
-    LOG(INFO) << "bsdiff blacklisted, data too big: "
-              << blocks_to_read * kBlockSize << " bytes";
+    LOG(INFO) << "bsdiff ignored, data too big: " << blocks_to_read * kBlockSize
+              << " bytes";
     bsdiff_allowed = false;
   }
 
   bool puffdiff_allowed = version.OperationAllowed(InstallOperation::PUFFDIFF);
   if (puffdiff_allowed &&
       blocks_to_read * kBlockSize > kMaxPuffdiffDestinationSize) {
-    LOG(INFO) << "puffdiff blacklisted, data too big: "
+    LOG(INFO) << "puffdiff ignored, data too big: "
               << blocks_to_read * kBlockSize << " bytes";
     puffdiff_allowed = false;
   }
