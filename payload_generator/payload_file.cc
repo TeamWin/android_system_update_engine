@@ -86,10 +86,10 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
 
 bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
                                const PartitionConfig& new_conf,
-                               const vector<AnnotatedOperation>& aops) {
+                               vector<AnnotatedOperation> aops) {
   Partition part;
   part.name = new_conf.name;
-  part.aops = aops;
+  part.aops = std::move(aops);
   part.postinstall = new_conf.postinstall;
   part.verity = new_conf.verity;
   // Initialize the PartitionInfo objects if present.
@@ -172,9 +172,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
     TEST_AND_RETURN_FALSE(PayloadSigner::SignatureBlobLength(
         {private_key_path}, &signature_blob_length));
     PayloadSigner::AddSignatureToManifest(
-        next_blob_offset,
-        signature_blob_length,
-        &manifest_);
+        next_blob_offset, signature_blob_length, &manifest_);
   }
 
   // Serialize protobuf
