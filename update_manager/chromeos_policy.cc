@@ -466,7 +466,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
 // ConnectionManager::IsUpdateAllowedOver(); be sure to deprecate the latter.
 //
 // TODO(garnold) The current logic generally treats the list of allowed
-// connections coming from the device policy as a whitelist, meaning that it
+// connections coming from the device policy as an allowlist, meaning that it
 // can only be used for enabling connections, but not disable them. Further,
 // certain connection types cannot be enabled even by policy.
 // In effect, the only thing that device policy can change is to enable

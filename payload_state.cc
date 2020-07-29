@@ -1154,7 +1154,7 @@ void PayloadState::LoadRollbackVersion() {
 
 void PayloadState::SetRollbackVersion(const string& rollback_version) {
   CHECK(powerwash_safe_prefs_);
-  LOG(INFO) << "Blacklisting version " << rollback_version;
+  LOG(INFO) << "Excluding version " << rollback_version;
   rollback_version_ = rollback_version;
   powerwash_safe_prefs_->SetString(kPrefsRollbackVersion, rollback_version);
 }
