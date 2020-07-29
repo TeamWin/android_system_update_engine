@@ -124,7 +124,7 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   bool SetupP2PSharingFd();
 
   // Writes |length| bytes of payload from |data| into |file_offset|
-  // of the p2p file. Also does sanity checks; for example ensures we
+  // of the p2p file. Also does validation checks; for example ensures we
   // don't end up with a file with holes in it.
   //
   // This method does nothing if SetupP2PSharingFd() hasn't been
