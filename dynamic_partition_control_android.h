@@ -267,6 +267,10 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // doing anything.
   bool EnsureMetadataMounted();
 
+  // Set boolean flags related to target build. This includes flags like
+  // target_supports_snapshot_ and is_target_dynamic_.
+  bool SetTargetBuildVars(const DeltaArchiveManifest& manifest);
+
   std::set<std::string> mapped_devices_;
   const FeatureFlag dynamic_partitions_;
   const FeatureFlag virtual_ab_;
