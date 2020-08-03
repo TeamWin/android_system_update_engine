@@ -79,6 +79,8 @@ class ActionPipe {
 
  private:
   ObjectType contents_;
+  // Give unit test access
+  friend class DownloadActionTest;
 
   // The ctor is private. This is because this class should construct itself
   // via the static Bond() method.
