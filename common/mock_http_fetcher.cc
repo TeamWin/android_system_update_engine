@@ -22,6 +22,7 @@
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/time/time.h>
+#include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest.h>
 
 // This is a mock implementation of HttpFetcher which is useful for testing.
@@ -43,12 +44,12 @@ void MockHttpFetcher::BeginTransfer(const std::string& url) {
     SignalTransferComplete();
     return;
   }
-  if (sent_size_ < data_.size())
+  if (sent_offset_ < data_.size())
     SendData(true);
 }
 
 void MockHttpFetcher::SendData(bool skip_delivery) {
-  if (fail_transfer_ || sent_size_ == data_.size()) {
+  if (fail_transfer_ || sent_offset_ == data_.size()) {
     SignalTransferComplete();
     return;
   }
@@ -60,19 +61,22 @@ void MockHttpFetcher::SendData(bool skip_delivery) {
 
   // Setup timeout callback even if the transfer is about to be completed in
   // order to get a call to |TransferComplete|.
-  if (timeout_id_ == MessageLoop::kTaskIdNull) {
+  if (timeout_id_ == MessageLoop::kTaskIdNull && delay_) {
+    CHECK(MessageLoop::current());
     timeout_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&MockHttpFetcher::TimeoutCallback, base::Unretained(this)),
         base::TimeDelta::FromMilliseconds(10));
   }
 
-  if (!skip_delivery) {
+  if (!skip_delivery || !delay_) {
     const size_t chunk_size =
-        min(kMockHttpFetcherChunkSize, data_.size() - sent_size_);
-    sent_size_ += chunk_size;
+        min(kMockHttpFetcherChunkSize, data_.size() - sent_offset_);
+    sent_offset_ += chunk_size;
+    bytes_sent_ += chunk_size;
     CHECK(delegate_);
-    delegate_->ReceivedBytes(this, &data_[sent_size_ - chunk_size], chunk_size);
+    delegate_->ReceivedBytes(
+        this, &data_[sent_offset_ - chunk_size], chunk_size);
   }
   // We may get terminated and deleted right after |ReceivedBytes| call, so we
   // should not access any class member variable after this call.
@@ -81,7 +85,7 @@ void MockHttpFetcher::SendData(bool skip_delivery) {
 void MockHttpFetcher::TimeoutCallback() {
   CHECK(!paused_);
   timeout_id_ = MessageLoop::kTaskIdNull;
-  CHECK_LE(sent_size_, data_.size());
+  CHECK_LE(sent_offset_, data_.size());
   // Same here, we should not access any member variable after this call.
   SendData(false);
 }
@@ -90,10 +94,15 @@ void MockHttpFetcher::TimeoutCallback() {
 // The transfer cannot be resumed.
 void MockHttpFetcher::TerminateTransfer() {
   LOG(INFO) << "Terminating transfer.";
-  // Kill any timeout, it is ok to call with kTaskIdNull.
-  MessageLoop::current()->CancelTask(timeout_id_);
-  timeout_id_ = MessageLoop::kTaskIdNull;
-  delegate_->TransferTerminated(this);
+  // During testing, MessageLoop may or may not be available.
+  // So don't call CancelTask() unless necessary.
+  if (timeout_id_ != MessageLoop::kTaskIdNull) {
+    MessageLoop::current()->CancelTask(timeout_id_);
+    timeout_id_ = MessageLoop::kTaskIdNull;
+  }
+  if (delegate_) {
+    delegate_->TransferTerminated(this);
+  }
 }
 
 void MockHttpFetcher::SetHeader(const std::string& header_name,
