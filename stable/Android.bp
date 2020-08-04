@@ -37,3 +37,29 @@ aidl_interface {
         },
     },
 }
+
+// update_engine_stable_client (type: executable)
+// ========================================================
+// update_engine console client installed to APEXes
+cc_binary {
+    name: "update_engine_stable_client",
+
+    header_libs: [
+        "libupdate_engine_headers",
+    ],
+    shared_libs: [
+        "libbinder_ndk",
+        "libbase",
+        "liblog",
+    ],
+    static_libs: [
+        "libgflags",
+        "libupdate_engine_stable-ndk_platform",
+    ],
+    srcs: [
+        "update_engine_stable_client.cc",
+    ],
+    apex_available: [
+        "com.android.gki.*",
+    ],
+}
