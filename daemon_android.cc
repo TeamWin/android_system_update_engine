@@ -47,16 +47,26 @@ int DaemonAndroid::OnInit() {
   LOG_IF(ERROR, !daemon_state_android->Initialize())
       << "Failed to initialize system state.";
 
+  auto binder_wrapper = android::BinderWrapper::Get();
+
   // Create the Binder Service.
   binder_service_ = new BinderUpdateEngineAndroidService{
       daemon_state_android->service_delegate()};
-  auto binder_wrapper = android::BinderWrapper::Get();
   if (!binder_wrapper->RegisterService(binder_service_->ServiceName(),
                                        binder_service_)) {
     LOG(ERROR) << "Failed to register binder service.";
   }
-
   daemon_state_->AddObserver(binder_service_.get());
+
+  // Create the stable binder service.
+  stable_binder_service_ = new BinderUpdateEngineAndroidStableService{
+      daemon_state_android->service_delegate()};
+  if (!binder_wrapper->RegisterService(stable_binder_service_->ServiceName(),
+                                       stable_binder_service_)) {
+    LOG(ERROR) << "Failed to register stable binder service.";
+  }
+  daemon_state_->AddObserver(stable_binder_service_.get());
+
   daemon_state_->StartUpdater();
   return EX_OK;
 }
