@@ -22,6 +22,7 @@
 #include <brillo/binder_watcher.h>
 
 #include "update_engine/binder_service_android.h"
+#include "update_engine/binder_service_stable_android.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/daemon_base.h"
 #include "update_engine/daemon_state_interface.h"
@@ -43,6 +44,7 @@ class DaemonAndroid : public DaemonBase {
 
   brillo::BinderWatcher binder_watcher_;
   android::sp<BinderUpdateEngineAndroidService> binder_service_;
+  android::sp<BinderUpdateEngineAndroidStableService> stable_binder_service_;
 
   // The daemon state with all the required daemon classes for the configured
   // platform.
