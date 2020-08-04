@@ -1149,7 +1149,8 @@ bool DeltaPerformer::PerformSourceCopyOperation(
     }
     if (read_ok && expected_source_hash == source_hash)
       return true;
-
+    LOG(WARNING) << "Source hash from RAW device mismatched, attempting to "
+                    "correct using ECC";
     if (!OpenCurrentECCPartition()) {
       // The following function call will return false since the source hash
       // mismatches, but we still want to call it so it prints the appropriate
@@ -1162,7 +1163,6 @@ bool DeltaPerformer::PerformSourceCopyOperation(
                  << ", expected "
                  << base::HexEncode(expected_source_hash.data(),
                                     expected_source_hash.size());
-
     if (should_optimize) {
       TEST_AND_RETURN_FALSE(fd_utils::ReadAndHashExtents(
           source_ecc_fd_, operation.src_extents(), block_size_, &source_hash));
