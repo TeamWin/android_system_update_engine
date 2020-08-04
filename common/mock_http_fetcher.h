@@ -132,10 +132,10 @@ class MockHttpFetcher : public HttpFetcher {
   brillo::Blob data_;
 
   // The current offset, marks the first byte that will be sent next
-  size_t sent_offset_;
+  size_t sent_offset_{0};
 
   // Total number of bytes transferred
-  size_t bytes_sent_;
+  size_t bytes_sent_{0};
 
   // The extra headers set.
   std::map<std::string, std::string> extra_headers_;
@@ -145,13 +145,13 @@ class MockHttpFetcher : public HttpFetcher {
   brillo::MessageLoop::TaskId timeout_id_;
 
   // True iff the fetcher is paused.
-  bool paused_;
+  bool paused_{false};
 
   // Set to true if the transfer should fail.
-  bool fail_transfer_;
+  bool fail_transfer_{false};
 
   // Set to true if BeginTransfer should EXPECT fail.
-  bool never_use_;
+  bool never_use_{false};
 
   // Whether it should wait for 10ms before sending data to delegates
   bool delay_{true};
