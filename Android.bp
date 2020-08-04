@@ -729,3 +729,12 @@ cc_prebuilt_binary {
         },
     },
 }
+
+// update_engine header library
+cc_library_headers {
+    name: "libupdate_engine_headers",
+    export_include_dirs: ["."],
+    apex_available: [
+        "com.android.gki.*",
+    ],
+}
