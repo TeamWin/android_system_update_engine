@@ -24,29 +24,14 @@
 #include <brillo/errors/error.h>
 #include <utils/String8.h>
 
+#include "update_engine/binder_service_android_common.h"
+
 using android::binder::Status;
 using android::os::IUpdateEngineCallback;
 using android::os::ParcelFileDescriptor;
 using std::string;
 using std::vector;
 using update_engine::UpdateEngineStatus;
-
-namespace {
-Status ErrorPtrToStatus(const brillo::ErrorPtr& error) {
-  return Status::fromServiceSpecificError(
-      1, android::String8{error->GetMessage().c_str()});
-}
-
-vector<string> ToVecString(const vector<android::String16>& inp) {
-  vector<string> out;
-  out.reserve(inp.size());
-  for (const auto& e : inp) {
-    out.emplace_back(android::String8{e}.string());
-  }
-  return out;
-}
-
-}  // namespace
 
 namespace chromeos_update_engine {
 

@@ -272,6 +272,7 @@ cc_defaults {
         "libbrillo-binder",
         "libcurl",
         "libcutils",
+        "libupdate_engine_stable-cpp",
         "liblog",
         "libssl",
         "libstatslog",
@@ -298,6 +299,7 @@ cc_library_static {
     srcs: [
         ":libupdate_engine_aidl",
         "binder_service_android.cc",
+        "binder_service_stable_android.cc",
         "certificate_checker.cc",
         "daemon_android.cc",
         "daemon_state_android.cc",
