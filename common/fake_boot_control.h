@@ -57,6 +57,9 @@ class FakeBootControl : public BootControlInterface {
     if (part_it == devices_[slot].end())
       return false;
     *device = part_it->second;
+    if (is_dynamic != nullptr) {
+      *is_dynamic = false;
+    }
     return true;
   }
 
