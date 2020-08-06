@@ -306,7 +306,6 @@ cc_library_static {
         "hardware_android.cc",
         "libcurl_http_fetcher.cc",
         "logging_android.cc",
-        "metrics_reporter_android.cc",
         "metrics_utils.cc",
         "network_selector_android.cc",
         "update_attempter_android.cc",
@@ -331,7 +330,7 @@ cc_binary {
         "otacerts",
     ],
 
-    srcs: ["main.cc"],
+    srcs: ["main.cc", "metrics_reporter_android.cc"],
     init_rc: ["update_engine.rc"],
 }
 
@@ -706,6 +705,7 @@ cc_test {
         "testrunner.cc",
         "update_attempter_android_unittest.cc",
         "update_status_utils_unittest.cc",
+        "metrics_reporter_stub.cc",
     ],
 }
 
