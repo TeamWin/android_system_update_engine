@@ -50,10 +50,9 @@ DEFINE_string(headers,
               "",
               "A list of key-value pairs, one element of the list per line.");
 
-int Exit(int return_code) {
+[[noreturn]] int Exit(int return_code) {
   LOG(INFO) << "Exit: " << return_code;
   exit(return_code);
-  __builtin_unreachable();
 }
 // Called whenever the UpdateEngine daemon dies.
 void UpdateEngineServiceDied(void*) {
@@ -98,7 +97,6 @@ UpdateEngineClientAndroid::UECallback::onPayloadApplicationComplete(
   Exit((code == ErrorCode::kSuccess || code == ErrorCode::kUpdatedButNotActive)
            ? EX_OK
            : EX_SOFTWARE);
-  __builtin_unreachable();
 }
 
 int UpdateEngineClientAndroid::Run() {
