@@ -96,6 +96,8 @@ class PayloadFile {
 
     PostInstallConfig postinstall;
     VerityConfig verity;
+    // Per partition timestamp.
+    std::string version;
   };
 
   std::vector<Partition> part_vec_;
