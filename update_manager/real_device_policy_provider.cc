@@ -104,9 +104,10 @@ void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
 }
 
 template <typename T>
-void RealDevicePolicyProvider::UpdateVariable(AsyncCopyVariable<T>* var,
-                                              bool (DevicePolicy::*getter)(T*)
-                                                  const) {
+void RealDevicePolicyProvider::UpdateVariable(
+    AsyncCopyVariable<T>* var,
+    // NOLINTNEXTLINE(readability/casting)
+    bool (DevicePolicy::*getter)(T*) const) {
   T new_value;
   if (policy_provider_->device_policy_is_loaded() &&
       (policy_provider_->GetDevicePolicy().*getter)(&new_value)) {
