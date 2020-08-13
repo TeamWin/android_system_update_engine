@@ -838,6 +838,11 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     MetadataBuilder* builder,
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest) {
+  // Check preconditions.
+  CHECK(!GetVirtualAbFeatureFlag().IsEnabled() || IsRecovery())
+      << "UpdatePartitionMetadata is called on a Virtual A/B device "
+         "but source partitions is not deleted. This is not allowed.";
+
   // If applying downgrade from Virtual A/B to non-Virtual A/B, the left-over
   // COW group needs to be deleted to ensure there are enough space to create
   // target partitions.
@@ -853,7 +858,12 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
 
   std::string expr;
   uint64_t allocatable_space = builder->AllocatableSpace();
-  if (!GetDynamicPartitionsFeatureFlag().IsRetrofit()) {
+  // On device retrofitting dynamic partitions, allocatable_space = super.
+  // On device launching dynamic partitions w/o VAB,
+  //   allocatable_space = super / 2.
+  // On device launching dynamic partitions with VAB, allocatable_space = super.
+  if (!GetDynamicPartitionsFeatureFlag().IsRetrofit() &&
+      !GetVirtualAbFeatureFlag().IsEnabled()) {
     allocatable_space /= 2;
     expr = "half of ";
   }
