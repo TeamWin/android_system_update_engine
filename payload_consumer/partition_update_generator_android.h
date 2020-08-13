@@ -29,11 +29,11 @@
 #include "update_engine/payload_consumer/partition_update_generator_interface.h"
 
 namespace chromeos_update_engine {
+
 class PartitionUpdateGeneratorAndroid
     : public PartitionUpdateGeneratorInterface {
  public:
   PartitionUpdateGeneratorAndroid(BootControlInterface* boot_control,
-                                  std::string device_dir,
                                   size_t block_size);
 
   bool GenerateOperationsForPartitionsNotInPayload(
@@ -41,14 +41,12 @@ class PartitionUpdateGeneratorAndroid
       BootControlInterface::Slot target_slot,
       const std::set<std::string>& partitions_in_payload,
       std::vector<PartitionUpdate>* update_list) override;
+  virtual std::vector<std::string> GetAbPartitionsOnDevice() const;
 
  private:
   friend class PartitionUpdateGeneratorAndroidTest;
   FRIEND_TEST(PartitionUpdateGeneratorAndroidTest, GetStaticPartitions);
   FRIEND_TEST(PartitionUpdateGeneratorAndroidTest, CreatePartitionUpdate);
-
-  // Gets the name of the static a/b partitions on the device.
-  std::optional<std::set<std::string>> GetStaticAbPartitionsOnDevice();
 
   // Creates a PartitionUpdate object for a given partition to update from
   // source to target. Returns std::nullopt on failure.
@@ -58,17 +56,10 @@ class PartitionUpdateGeneratorAndroid
       const std::string& target_device,
       int64_t partition_size);
 
-  std::optional<PartitionUpdate> CreatePartitionUpdate(
-      const std::string& partition_name,
-      BootControlInterface::Slot source_slot,
-      BootControlInterface::Slot target_slot);
-
   std::optional<brillo::Blob> CalculateHashForPartition(
       const std::string& block_device, int64_t partition_size);
 
   BootControlInterface* boot_control_;
-  // Path to look for a/b partitions
-  std::string block_device_dir_;
   size_t block_size_;
 };
 
