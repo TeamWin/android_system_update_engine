@@ -18,30 +18,23 @@
 
 #include <filesystem>
 #include <memory>
-#include <set>
-#include <string_view>
 #include <utility>
 
+#include <android-base/properties.h>
 #include <android-base/strings.h>
 #include <base/logging.h>
+#include <base/strings/string_split.h>
 
+#include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/utils.h"
-
-namespace {
-// TODO(xunchang) use definition in fs_mgr, e.g. fs_mgr_get_slot_suffix
-const char* SUFFIX_A = "_a";
-const char* SUFFIX_B = "_b";
-}  // namespace
 
 namespace chromeos_update_engine {
 
 PartitionUpdateGeneratorAndroid::PartitionUpdateGeneratorAndroid(
     BootControlInterface* boot_control,
-    std::string device_dir,
     size_t block_size)
     : boot_control_(boot_control),
-      block_device_dir_(std::move(device_dir)),
       block_size_(block_size) {}
 
 bool PartitionUpdateGeneratorAndroid::
@@ -50,22 +43,57 @@ bool PartitionUpdateGeneratorAndroid::
         BootControlInterface::Slot target_slot,
         const std::set<std::string>& partitions_in_payload,
         std::vector<PartitionUpdate>* update_list) {
-  auto ab_partitions = GetStaticAbPartitionsOnDevice();
-  if (!ab_partitions.has_value()) {
+  auto ab_partitions = GetAbPartitionsOnDevice();
+  if (ab_partitions.empty()) {
     LOG(ERROR) << "Failed to load static a/b partitions";
     return false;
   }
 
   std::vector<PartitionUpdate> partition_updates;
-  for (const auto& partition_name : ab_partitions.value()) {
+  for (const auto& partition_name : ab_partitions) {
     if (partitions_in_payload.find(partition_name) !=
         partitions_in_payload.end()) {
       LOG(INFO) << partition_name << " has included in payload";
       continue;
     }
+    bool is_source_dynamic = false;
+    std::string source_device;
 
-    auto partition_update =
-        CreatePartitionUpdate(partition_name, source_slot, target_slot);
+    TEST_AND_RETURN_FALSE(
+        boot_control_->GetPartitionDevice(partition_name,
+                                          source_slot,
+                                          true, /* not_in_payload */
+                                          &source_device,
+                                          &is_source_dynamic));
+    bool is_target_dynamic = false;
+    std::string target_device;
+    TEST_AND_RETURN_FALSE(boot_control_->GetPartitionDevice(
+        partition_name, target_slot, true, &target_device, &is_target_dynamic));
+
+    if (is_source_dynamic || is_target_dynamic) {
+      if (is_source_dynamic != is_target_dynamic) {
+        LOG(ERROR) << "Partition " << partition_name << " is expected to be a"
+                   << " static partition. source slot is "
+                   << (is_source_dynamic ? "" : "not")
+                   << " dynamic, and target slot " << target_slot << " is "
+                   << (is_target_dynamic ? "" : "not") << " dynamic.";
+        return false;
+      } else {
+        continue;
+      }
+    }
+
+    auto source_size = utils::FileSize(source_device);
+    auto target_size = utils::FileSize(target_device);
+    if (source_size == -1 || target_size == -1 || source_size != target_size ||
+        source_size % block_size_ != 0) {
+      LOG(ERROR) << "Invalid partition size. source size " << source_size
+                 << ", target size " << target_size;
+      return false;
+    }
+
+    auto partition_update = CreatePartitionUpdate(
+        partition_name, source_device, target_device, source_size);
     if (!partition_update.has_value()) {
       LOG(ERROR) << "Failed to create partition update for " << partition_name;
       return false;
@@ -76,98 +104,14 @@ bool PartitionUpdateGeneratorAndroid::
   return true;
 }
 
-std::optional<std::set<std::string>>
-PartitionUpdateGeneratorAndroid::GetStaticAbPartitionsOnDevice() {
-  if (std::error_code error_code;
-      !std::filesystem::exists(block_device_dir_, error_code) || error_code) {
-    LOG(ERROR) << "Failed to find " << block_device_dir_ << " "
-               << error_code.message();
-    return std::nullopt;
-  }
-
-  std::error_code error_code;
-  auto it = std::filesystem::directory_iterator(block_device_dir_, error_code);
-  if (error_code) {
-    LOG(ERROR) << "Failed to iterate " << block_device_dir_ << " "
-               << error_code.message();
-    return std::nullopt;
-  }
-
-  std::set<std::string> partitions_with_suffix;
-  for (const auto& entry : it) {
-    auto partition_name = entry.path().filename().string();
-    if (android::base::EndsWith(partition_name, SUFFIX_A) ||
-        android::base::EndsWith(partition_name, SUFFIX_B)) {
-      partitions_with_suffix.insert(partition_name);
-    }
-  }
-
-  // Second iteration to add the partition name without suffixes.
-  std::set<std::string> ab_partitions;
-  for (std::string_view name : partitions_with_suffix) {
-    if (!android::base::ConsumeSuffix(&name, SUFFIX_A)) {
-      continue;
-    }
-
-    // Add to the output list if the partition exist for both slot a and b.
-    auto base_name = std::string(name);
-    if (partitions_with_suffix.find(base_name + SUFFIX_B) !=
-        partitions_with_suffix.end()) {
-      ab_partitions.insert(base_name);
-    } else {
-      LOG(WARNING) << "Failed to find the b partition for " << base_name;
-    }
-  }
-
-  return ab_partitions;
-}
-
-std::optional<PartitionUpdate>
-PartitionUpdateGeneratorAndroid::CreatePartitionUpdate(
-    const std::string& partition_name,
-    BootControlInterface::Slot source_slot,
-    BootControlInterface::Slot target_slot) {
-  bool is_source_dynamic = false;
-  std::string source_device;
-  if (!boot_control_->GetPartitionDevice(partition_name,
-                                         source_slot,
-                                         true, /* not_in_payload */
-                                         &source_device,
-                                         &is_source_dynamic)) {
-    LOG(ERROR) << "Failed to load source " << partition_name;
-    return std::nullopt;
-  }
-  bool is_target_dynamic = false;
-  std::string target_device;
-  if (!boot_control_->GetPartitionDevice(partition_name,
-                                         target_slot,
-                                         true,
-                                         &target_device,
-                                         &is_target_dynamic)) {
-    LOG(ERROR) << "Failed to load target " << partition_name;
-    return std::nullopt;
-  }
-
-  if (is_source_dynamic || is_target_dynamic) {
-    LOG(ERROR) << "Partition " << partition_name << " is expected to be a"
-               << " static partition. source slot is "
-               << (is_source_dynamic ? "" : "not")
-               << " dynamic, and target slot " << target_slot << " is "
-               << (is_target_dynamic ? "" : "not") << " dynamic.";
-    return std::nullopt;
-  }
-
-  auto source_size = utils::FileSize(source_device);
-  auto target_size = utils::FileSize(target_device);
-  if (source_size == -1 || target_size == -1 || source_size != target_size ||
-      source_size % block_size_ != 0) {
-    LOG(ERROR) << "Invalid partition size. source size " << source_size
-               << ", target size " << target_size;
-    return std::nullopt;
-  }
-
-  return CreatePartitionUpdate(
-      partition_name, source_device, target_device, source_size);
+std::vector<std::string>
+PartitionUpdateGeneratorAndroid::GetAbPartitionsOnDevice() const {
+  auto partition_list_str =
+      android::base::GetProperty("ro.product.ab_ota_partitions", "");
+  return base::SplitString(partition_list_str,
+                           ",",
+                           base::TRIM_WHITESPACE,
+                           base::SPLIT_WANT_NONEMPTY);
 }
 
 std::optional<PartitionUpdate>
@@ -183,6 +127,8 @@ PartitionUpdateGeneratorAndroid::CreatePartitionUpdate(
 
   auto raw_hash = CalculateHashForPartition(source_device, partition_size);
   if (!raw_hash.has_value()) {
+    LOG(ERROR) << "Failed to calculate hash for partition " << source_device
+               << " size: " << partition_size;
     return {};
   }
   old_partition_info->set_hash(raw_hash->data(), raw_hash->size());
@@ -225,16 +171,9 @@ namespace partition_update_generator {
 std::unique_ptr<PartitionUpdateGeneratorInterface> Create(
     BootControlInterface* boot_control, size_t block_size) {
   CHECK(boot_control);
-  auto dynamic_control = boot_control->GetDynamicPartitionControl();
-  CHECK(dynamic_control);
-  std::string dir_path;
-  if (!dynamic_control->GetDeviceDir(&dir_path)) {
-    return nullptr;
-  }
 
   return std::unique_ptr<PartitionUpdateGeneratorInterface>(
-      new PartitionUpdateGeneratorAndroid(
-          boot_control, std::move(dir_path), block_size));
+      new PartitionUpdateGeneratorAndroid(boot_control, block_size));
 }
 }  // namespace partition_update_generator
 
