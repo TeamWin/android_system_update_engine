@@ -236,6 +236,13 @@ TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
   EXPECT_FALSE(params_.ToMoreStableChannel());
 }
 
+TEST_F(OmahaRequestParamsTest, TargetChannelHintTest) {
+  EXPECT_TRUE(params_.Init("", "", false));
+  const string kHint("foo-hint");
+  params_.set_lts_tag(kHint);
+  EXPECT_EQ(kHint, params_.lts_tag());
+}
+
 TEST_F(OmahaRequestParamsTest, ShouldPowerwashTest) {
   params_.mutable_image_props_.is_powerwash_allowed = false;
   EXPECT_FALSE(params_.ShouldPowerwash());

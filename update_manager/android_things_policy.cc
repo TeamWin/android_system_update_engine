@@ -58,6 +58,7 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
   // Set the default return values.
   result->updates_enabled = true;
   result->target_channel.clear();
+  result->lts_tag.clear();
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
   result->rollback_data_save_requested = false;

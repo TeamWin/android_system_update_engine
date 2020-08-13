@@ -1528,6 +1528,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   request_params_.set_os_board("x86 generic<id");
   request_params_.set_current_channel("unittest_track&lt;");
   request_params_.set_target_channel("unittest_track&lt;");
+  request_params_.set_lts_tag("unittest_hint&lt;");
   request_params_.set_hwid("<OEM MODEL>");
   fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
@@ -1547,6 +1548,8 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   EXPECT_EQ(string::npos, post_str.find("x86 generic<id"));
   EXPECT_NE(string::npos, post_str.find("unittest_track&amp;lt;"));
   EXPECT_EQ(string::npos, post_str.find("unittest_track&lt;"));
+  EXPECT_NE(string::npos, post_str.find("unittest_hint&amp;lt;"));
+  EXPECT_EQ(string::npos, post_str.find("unittest_hint&lt;"));
   EXPECT_NE(string::npos, post_str.find("&lt;OEM MODEL&gt;"));
   EXPECT_EQ(string::npos, post_str.find("<OEM MODEL>"));
   EXPECT_NE(string::npos, post_str.find("cohort=\"evil\nstring\""));
@@ -1799,6 +1802,17 @@ TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsNotSetTest) {
       string::npos,
       post_str.find("cohorthint=\"" + string(xml_encoded_cohort_hint) + "\""));
   EXPECT_EQ(string::npos, post_str.find(omaha_cohort_hint));
+}
+
+TEST_F(OmahaRequestActionTest, TargetChannelHintTest) {
+  tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+  request_params_.set_lts_tag("hint>");
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_NE(string::npos, post_str.find("ltstag=\"hint&gt;\""));
 }
 
 void OmahaRequestActionTest::PingTest(bool ping_only) {

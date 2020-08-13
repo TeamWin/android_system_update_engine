@@ -148,6 +148,10 @@ class OmahaRequestParams {
     return target_version_prefix_;
   }
 
+  inline std::string lts_tag() const { return lts_tag_; }
+
+  inline void set_lts_tag(const std::string& hint) { lts_tag_ = hint; }
+
   inline void set_rollback_allowed(bool rollback_allowed) {
     rollback_allowed_ = rollback_allowed;
   }
@@ -366,6 +370,9 @@ class OmahaRequestParams {
   //   in which case, we'd detect elsewhere that the target channel has been
   //   changed and cancel the current download attempt.
   std::string download_channel_;
+
+  // The value defining the parameters of the LTS (Long Term Support).
+  std::string lts_tag_;
 
   std::string hwid_;        // Hardware Qualification ID of the client
   std::string fw_version_;  // Chrome OS Firmware Version.

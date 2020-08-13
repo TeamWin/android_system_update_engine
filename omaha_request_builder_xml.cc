@@ -154,6 +154,11 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
             app_body += " rollback_allowed=\"true\"";
           }
         }
+        if (!params_->lts_tag().empty()) {
+          app_body += base::StringPrintf(
+              " ltstag=\"%s\"",
+              XmlEncodeWithDefault(params_->lts_tag()).c_str());
+        }
         app_body += "></updatecheck>\n";
       }
 

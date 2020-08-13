@@ -177,6 +177,7 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
 
   UmTestUtils::ExpectVariableNotSet(provider_->var_release_channel());
   UmTestUtils::ExpectVariableNotSet(provider_->var_release_channel_delegated());
+  UmTestUtils::ExpectVariableNotSet(provider_->var_release_lts_tag());
   UmTestUtils::ExpectVariableNotSet(provider_->var_update_disabled());
   UmTestUtils::ExpectVariableNotSet(provider_->var_target_version_prefix());
   UmTestUtils::ExpectVariableNotSet(

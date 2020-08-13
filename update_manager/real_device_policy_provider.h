@@ -64,6 +64,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_release_channel_delegated_;
   }
 
+  Variable<std::string>* var_release_lts_tag() override {
+    return &var_release_lts_tag_;
+  }
+
   Variable<bool>* var_update_disabled() override {
     return &var_update_disabled_;
   }
@@ -191,6 +195,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::string> var_release_channel_{"release_channel"};
   AsyncCopyVariable<bool> var_release_channel_delegated_{
       "release_channel_delegated"};
+  AsyncCopyVariable<std::string> var_release_lts_tag_{"release_lts_tag"};
   AsyncCopyVariable<bool> var_update_disabled_{"update_disabled"};
   AsyncCopyVariable<std::string> var_target_version_prefix_{
       "target_version_prefix"};

@@ -215,6 +215,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
   // Set the default return values.
   result->updates_enabled = true;
   result->target_channel.clear();
+  result->lts_tag.clear();
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
   result->rollback_allowed_milestones = -1;

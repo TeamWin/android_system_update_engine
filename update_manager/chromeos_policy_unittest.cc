@@ -262,6 +262,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
       new bool(false));
   fake_state_.device_policy_provider()->var_release_channel()->reset(
       new string("foo-channel"));
+  fake_state_.device_policy_provider()->var_release_lts_tag()->reset(
+      new string("foo-hint"));
 
   UpdateCheckParams result;
   ExpectPolicyStatus(
@@ -270,6 +272,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   EXPECT_EQ("1.2", result.target_version_prefix);
   EXPECT_EQ(5, result.rollback_allowed_milestones);
   EXPECT_EQ("foo-channel", result.target_channel);
+  EXPECT_EQ("foo-hint", result.lts_tag);
   EXPECT_FALSE(result.interactive);
 }
 

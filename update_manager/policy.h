@@ -60,6 +60,8 @@ struct UpdateCheckParams {
   int rollback_allowed_milestones;
   // A target channel, if so imposed by policy; otherwise, an empty string.
   std::string target_channel;
+  // Specifies if the channel hint, e.g. LTS (Long Term Support) updates.
+  std::string lts_tag;
 
   // Whether the allowed update is interactive (user-initiated) or periodic.
   bool interactive;

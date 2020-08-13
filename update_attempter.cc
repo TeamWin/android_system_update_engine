@@ -247,6 +247,7 @@ void UpdateAttempter::ReportOSAge() {
 void UpdateAttempter::Update(const string& app_version,
                              const string& omaha_url,
                              const string& target_channel,
+                             const string& lts_tag,
                              const string& target_version_prefix,
                              bool rollback_allowed,
                              bool rollback_data_save_requested,
@@ -284,6 +285,7 @@ void UpdateAttempter::Update(const string& app_version,
   if (!CalculateUpdateParams(app_version,
                              omaha_url,
                              target_channel,
+                             lts_tag,
                              target_version_prefix,
                              rollback_allowed,
                              rollback_data_save_requested,
@@ -359,6 +361,7 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
 bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& omaha_url,
                                             const string& target_channel,
+                                            const string& lts_tag,
                                             const string& target_version_prefix,
                                             bool rollback_allowed,
                                             bool rollback_data_save_requested,
@@ -377,6 +380,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
 
   // Update the target version prefix.
   omaha_request_params_->set_target_version_prefix(target_version_prefix);
+
+  // Update the LTS support.
+  omaha_request_params_->set_lts_tag(lts_tag);
 
   // Set whether rollback is allowed.
   omaha_request_params_->set_rollback_allowed(rollback_allowed);
@@ -1103,6 +1109,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
     Update(forced_app_version_,
            forced_omaha_url_,
            params.target_channel,
+           params.lts_tag,
            params.target_version_prefix,
            params.rollback_allowed,
            params.rollback_data_save_requested,

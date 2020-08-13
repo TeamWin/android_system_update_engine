@@ -220,6 +220,7 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(&var_release_channel_, &DevicePolicy::GetReleaseChannel);
   UpdateVariable(&var_release_channel_delegated_,
                  &DevicePolicy::GetReleaseChannelDelegated);
+  UpdateVariable(&var_release_lts_tag_, &DevicePolicy::GetReleaseLtsTag);
   UpdateVariable(&var_update_disabled_, &DevicePolicy::GetUpdateDisabled);
   UpdateVariable(&var_target_version_prefix_,
                  &DevicePolicy::GetTargetVersionPrefix);

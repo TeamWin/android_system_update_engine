@@ -126,6 +126,12 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
       if (release_channel_p)
         result->target_channel = *release_channel_p;
     }
+
+    const string* release_lts_tag_p =
+        ec->GetValue(dp_provider->var_release_lts_tag());
+    if (release_lts_tag_p) {
+      result->lts_tag = *release_lts_tag_p;
+    }
   }
   return EvalStatus::kContinue;
 }

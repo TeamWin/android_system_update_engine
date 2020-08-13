@@ -174,6 +174,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   void Update(const std::string& app_version,
               const std::string& omaha_url,
               const std::string& target_channel,
+              const std::string& lts_tag,
               const std::string& target_version_prefix,
               bool rollback_allowed,
               bool rollback_data_save_requested,
@@ -185,6 +186,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
       UpdateAttempter::Update(app_version,
                               omaha_url,
                               target_channel,
+                              lts_tag,
                               target_version_prefix,
                               rollback_allowed,
                               rollback_data_save_requested,
@@ -425,7 +427,7 @@ void UpdateAttempterTest::ScheduleQuitMainLoop() {
 void UpdateAttempterTest::SessionIdTestChange() {
   EXPECT_NE(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
   const auto old_session_id = attempter_.session_id_;
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_NE(old_session_id, attempter_.session_id_);
   ScheduleQuitMainLoop();
 }
@@ -795,7 +797,7 @@ void UpdateAttempterTest::UpdateTestStart() {
     EXPECT_CALL(*processor_, StartProcessing());
   }
 
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   loop_.PostTask(FROM_HERE,
                  base::Bind(&UpdateAttempterTest::UpdateTestVerify,
                             base::Unretained(this)));
@@ -995,7 +997,7 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_FALSE(actual_using_p2p_for_downloading_);
   EXPECT_FALSE(actual_using_p2p_for_sharing());
   ScheduleQuitMainLoop();
@@ -1017,7 +1019,7 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(false);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_FALSE(actual_using_p2p_for_downloading());
   EXPECT_FALSE(actual_using_p2p_for_sharing());
   ScheduleQuitMainLoop();
@@ -1040,7 +1042,7 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping());
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_FALSE(actual_using_p2p_for_downloading());
   EXPECT_FALSE(actual_using_p2p_for_sharing());
   ScheduleQuitMainLoop();
@@ -1062,7 +1064,7 @@ void UpdateAttempterTest::P2PEnabledStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping());
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_TRUE(actual_using_p2p_for_downloading());
   EXPECT_TRUE(actual_using_p2p_for_sharing());
   ScheduleQuitMainLoop();
@@ -1086,6 +1088,7 @@ void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping());
   attempter_.Update("",
+                    "",
                     "",
                     "",
                     "",
@@ -1123,7 +1126,7 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));
 
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   ScheduleQuitMainLoop();
@@ -1161,7 +1164,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));
 
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   // Make sure the file still exists.
@@ -1177,7 +1180,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   // However, if the count is already 0, it's not decremented. Test that.
   initial_value = 0;
   EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   EXPECT_TRUE(fake_prefs.Exists(kPrefsUpdateCheckCount));
   EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value, new_value);
@@ -1225,6 +1228,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
 
   // Trigger an interactive check so we can test that scattering is disabled.
   attempter_.Update("",
+                    "",
                     "",
                     "",
                     "",
@@ -1284,7 +1288,7 @@ void UpdateAttempterTest::StagingSetsPrefsAndTurnsOffScatteringStart() {
   FakePrefs fake_prefs;
   SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
 
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   // Check that prefs have the correct values.
   int64_t update_count;
   EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &update_count));
@@ -1342,7 +1346,7 @@ void UpdateAttempterTest::StagingOffIfInteractiveStart() {
   SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
 
   attempter_.Update(
-      "", "", "", "", false, false, 0, false, /* interactive = */ true);
+      "", "", "", "", "", false, false, 0, false, /* interactive = */ true);
   CheckStagingOff();
 
   ScheduleQuitMainLoop();
@@ -1363,7 +1367,7 @@ void UpdateAttempterTest::StagingOffIfOobeStart() {
   SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
 
   attempter_.Update(
-      "", "", "", "", false, false, 0, false, /* interactive = */ true);
+      "", "", "", "", "", false, false, 0, false, /* interactive = */ true);
   CheckStagingOff();
 
   ScheduleQuitMainLoop();
@@ -1692,18 +1696,29 @@ TEST_F(UpdateAttempterTest, UpdateAfterInstall) {
 
 TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
   attempter_.CalculateUpdateParams(
-      "", "", "", "1234", false, false, 4, false, false);
+      "", "", "", "", "1234", false, false, 4, false, false);
   EXPECT_EQ("1234",
             fake_system_state_.request_params()->target_version_prefix());
 
   attempter_.CalculateUpdateParams(
-      "", "", "", "", false, 4, false, false, false);
+      "", "", "", "", "", false, 4, false, false, false);
   EXPECT_TRUE(
       fake_system_state_.request_params()->target_version_prefix().empty());
 }
 
+TEST_F(UpdateAttempterTest, TargetChannelHintSetAndReset) {
+  attempter_.CalculateUpdateParams(
+      "", "", "", "hint", "", false, false, 4, false, false);
+  EXPECT_EQ("hint", fake_system_state_.request_params()->lts_tag());
+
+  attempter_.CalculateUpdateParams(
+      "", "", "", "", "", false, 4, false, false, false);
+  EXPECT_TRUE(fake_system_state_.request_params()->lts_tag().empty());
+}
+
 TEST_F(UpdateAttempterTest, RollbackAllowedSetAndReset) {
   attempter_.CalculateUpdateParams("",
+                                   "",
                                    "",
                                    "",
                                    "1234",
@@ -1717,6 +1732,7 @@ TEST_F(UpdateAttempterTest, RollbackAllowedSetAndReset) {
             fake_system_state_.request_params()->rollback_allowed_milestones());
 
   attempter_.CalculateUpdateParams("",
+                                   "",
                                    "",
                                    "",
                                    "1234",
@@ -1844,7 +1860,7 @@ void UpdateAttempterTest::ResetRollbackHappenedStart(bool is_consumer,
               SetRollbackHappened(false))
       .Times(expected_reset ? 1 : 0);
   attempter_.policy_provider_ = std::move(mock_policy_provider);
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
   ScheduleQuitMainLoop();
 }
 
@@ -2185,7 +2201,7 @@ void UpdateAttempterTest::UpdateToQuickFixBuildStart(bool set_token) {
         .WillOnce(Return(false));
   attempter_.policy_provider_.reset(
       new policy::PolicyProvider(std::move(device_policy)));
-  attempter_.Update("", "", "", "", false, false, 0, false, false);
+  attempter_.Update("", "", "", "", "", false, false, 0, false, false);
 
   EXPECT_EQ(token, attempter_.omaha_request_params_->autoupdate_token());
   ScheduleQuitMainLoop();

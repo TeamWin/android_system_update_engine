@@ -44,6 +44,8 @@ class DevicePolicyProvider : public Provider {
 
   virtual Variable<bool>* var_release_channel_delegated() = 0;
 
+  virtual Variable<std::string>* var_release_lts_tag() = 0;
+
   virtual Variable<bool>* var_update_disabled() = 0;
 
   virtual Variable<std::string>* var_target_version_prefix() = 0;

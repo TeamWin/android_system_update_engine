@@ -42,6 +42,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_release_channel_delegated_;
   }
 
+  FakeVariable<std::string>* var_release_lts_tag() override {
+    return &var_release_lts_tag_;
+  }
+
   FakeVariable<bool>* var_update_disabled() override {
     return &var_update_disabled_;
   }
@@ -98,6 +102,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
                                                  kVariableModePoll};
   FakeVariable<bool> var_release_channel_delegated_{"release_channel_delegated",
                                                     kVariableModePoll};
+  FakeVariable<std::string> var_release_lts_tag_{"release_lts_tag",
+                                                 kVariableModePoll};
   FakeVariable<bool> var_update_disabled_{"update_disabled", kVariableModePoll};
   FakeVariable<std::string> var_target_version_prefix_{"target_version_prefix",
                                                        kVariableModePoll};

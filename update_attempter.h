@@ -85,6 +85,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   virtual void Update(const std::string& app_version,
                       const std::string& omaha_url,
                       const std::string& target_channel,
+                      const std::string& lts_tag,
                       const std::string& target_version_prefix,
                       bool rollback_allowed,
                       bool rollback_data_save_requested,
@@ -293,6 +294,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, SessionIdTestOnOmahaRequestActions);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
+  FRIEND_TEST(UpdateAttempterTest, TargetChannelHintSetAndReset);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
   FRIEND_TEST(UpdateAttempterTest, UpdateAfterInstall);
   FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
@@ -369,6 +371,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   bool CalculateUpdateParams(const std::string& app_version,
                              const std::string& omaha_url,
                              const std::string& target_channel,
+                             const std::string& lts_tag,
                              const std::string& target_version_prefix,
                              bool rollback_allowed,
                              bool rollback_data_save_requested,
