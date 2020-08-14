@@ -1475,14 +1475,6 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     }
   }
 
-  if (manifest_.has_old_rootfs_info() || manifest_.has_new_rootfs_info() ||
-      manifest_.has_old_kernel_info() || manifest_.has_new_kernel_info() ||
-      manifest_.install_operations_size() != 0 ||
-      manifest_.kernel_install_operations_size() != 0) {
-    LOG(ERROR) << "Manifest contains deprecated fields.";
-    return ErrorCode::kPayloadMismatchedType;
-  }
-
   if (manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
     LOG(ERROR) << "The current OS build timestamp ("
                << hardware_->GetBuildTimestamp()
