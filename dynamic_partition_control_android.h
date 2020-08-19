@@ -203,8 +203,11 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                             bool force_writable,
                             std::string* path);
 
-  // Update |builder| according to |partition_metadata|, assuming the device
-  // does not have Virtual A/B.
+  // Update |builder| according to |partition_metadata|.
+  // - In Android mode, this is only called when the device
+  //   does not have Virtual A/B.
+  // - When sideloading, this maybe called as a fallback path if CoW cannot
+  //   be created.
   bool UpdatePartitionMetadata(android::fs_mgr::MetadataBuilder* builder,
                                uint32_t target_slot,
                                const DeltaArchiveManifest& manifest);

@@ -175,9 +175,11 @@ inline DeltaArchiveManifest PartitionSizesToManifest(
 }
 
 inline std::unique_ptr<MetadataBuilder> NewFakeMetadata(
-    const DeltaArchiveManifest& manifest, uint32_t partition_attr = 0) {
+    const DeltaArchiveManifest& manifest,
+    uint32_t partition_attr = 0,
+    uint64_t super_size = kDefaultSuperSize) {
   auto builder =
-      MetadataBuilder::New(kDefaultSuperSize, kFakeMetadataSize, kMaxNumSlots);
+      MetadataBuilder::New(super_size, kFakeMetadataSize, kMaxNumSlots);
   for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
     EXPECT_TRUE(builder->AddGroup(group.name(), group.size()));
     for (const auto& partition_name : group.partition_names()) {
