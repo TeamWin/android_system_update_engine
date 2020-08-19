@@ -113,21 +113,24 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
   // |slot|.
   void SetMetadata(uint32_t slot,
                    const PartitionSuffixSizes& sizes,
-                   uint32_t partition_attr = 0) {
+                   uint32_t partition_attr = 0,
+                   uint64_t super_size = kDefaultSuperSize) {
     EXPECT_CALL(dynamicControl(),
                 LoadMetadataBuilder(GetSuperDevice(slot), slot))
         .Times(AnyNumber())
-        .WillRepeatedly(Invoke([sizes, partition_attr](auto, auto) {
+        .WillRepeatedly(Invoke([=](auto, auto) {
           return NewFakeMetadata(PartitionSuffixSizesToManifest(sizes),
-                                 partition_attr);
+                                 partition_attr,
+                                 super_size);
         }));
 
     EXPECT_CALL(dynamicControl(),
                 LoadMetadataBuilder(GetSuperDevice(slot), slot, _))
         .Times(AnyNumber())
-        .WillRepeatedly(Invoke([sizes, partition_attr](auto, auto, auto) {
+        .WillRepeatedly(Invoke([=](auto, auto, auto) {
           return NewFakeMetadata(PartitionSuffixSizesToManifest(sizes),
-                                 partition_attr);
+                                 partition_attr,
+                                 super_size);
         }));
   }
 
@@ -1006,8 +1009,11 @@ TEST_P(SnapshotPartitionTestP, RecoveryErrorShouldDeleteSource) {
         return dynamicControl().RealPrepareDynamicPartitionsForUpdate(
             source_slot, target_slot, manifest, delete_source);
       }));
+  // Only one slot of space in super
+  uint64_t super_size = kDefaultGroupSize + 1_MiB;
   // Expectation on PrepareDynamicPartitionsForUpdate
-  SetMetadata(source(), {{S("system"), 2_GiB}, {S("vendor"), 1_GiB}});
+  SetMetadata(
+      source(), {{S("system"), 2_GiB}, {S("vendor"), 1_GiB}}, 0, super_size);
   ExpectUnmap({T("system"), T("vendor")});
   // Expect that the source partitions aren't present in target super metadata.
   ExpectStoreMetadata({{T("system"), 3_GiB}, {T("vendor"), 1_GiB}});
