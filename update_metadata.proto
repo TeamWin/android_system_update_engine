@@ -288,6 +288,11 @@ message PartitionUpdate {
 
   // The number of FEC roots.
   optional uint32 fec_roots = 16 [default = 2];
+
+  // Per-partition version used for downgrade detection, added
+  // as an effort to support partial updates. For most partitions,
+  // this is the build timestamp.
+  optional string version = 17;
 }
 
 message DynamicPartitionGroup {
