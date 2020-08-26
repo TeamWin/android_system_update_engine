@@ -36,9 +36,11 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/error_code.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
+#include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/fake_file_descriptor.h"
@@ -897,6 +899,24 @@ TEST_F(DeltaPerformerTest, ValidateManifestDowngrade) {
                         kMaxSupportedMajorPayloadVersion,
                         InstallPayloadType::kFull,
                         ErrorCode::kPayloadTimestampError);
+}
+
+TEST_F(DeltaPerformerTest, ValidatePerPartitionTimestampSuccess) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+
+  manifest.set_minor_version(kFullPayloadMinorVersion);
+  manifest.set_max_timestamp(2);
+  fake_hardware_.SetBuildTimestamp(1);
+  auto& partition = *manifest.add_partitions();
+  partition.set_version("10");
+  partition.set_partition_name("system");
+  fake_hardware_.SetVersion("system", "5");
+
+  RunManifestValidation(manifest,
+                        kMaxSupportedMajorPayloadVersion,
+                        InstallPayloadType::kFull,
+                        ErrorCode::kSuccess);
 }
 
 TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {

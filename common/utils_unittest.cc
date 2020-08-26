@@ -481,4 +481,12 @@ TEST(UtilsTest, GetFilePathTest) {
   IGNORE_EINTR(close(fd));
 }
 
+TEST(UtilsTest, ValidatePerPartitionTimestamp) {
+  ASSERT_FALSE(utils::IsTimestampNewer("10", "5"));
+  ASSERT_TRUE(utils::IsTimestampNewer("10", "11"));
+  ASSERT_FALSE(utils::IsTimestampNewer("10", "lol"));
+  ASSERT_FALSE(utils::IsTimestampNewer("lol", "ZZZ"));
+  ASSERT_TRUE(utils::IsTimestampNewer("10", ""));
+}
+
 }  // namespace chromeos_update_engine

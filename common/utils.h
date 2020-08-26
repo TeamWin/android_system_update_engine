@@ -323,6 +323,12 @@ std::string GetTimeAsString(time_t utime);
 // with |Excluder| as the exclusion name.
 std::string GetExclusionName(const std::string& str_to_convert);
 
+// Parse `old_version` and `new_version` as integer timestamps and
+// return true if `new_version` is larger/newer.
+// Returns true if either one is empty. Return false if
+bool IsTimestampNewer(const std::string& old_version,
+                      const std::string& new_version);
+
 }  // namespace utils
 
 // Utility class to close a file descriptor
