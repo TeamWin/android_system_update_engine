@@ -820,7 +820,7 @@ ErrorCode GetBaseErrorCode(ErrorCode code) {
   return base_code;
 }
 
-string StringVectorToString(const vector<string> &vec_str) {
+string StringVectorToString(const vector<string>& vec_str) {
   string str = "[";
   for (vector<string>::const_iterator i = vec_str.begin(); i != vec_str.end();
        ++i) {
@@ -849,7 +849,7 @@ string CalculateP2PFileId(const brillo::Blob& payload_hash,
                             encoded_hash.c_str());
 }
 
-bool ConvertToOmahaInstallDate(Time time, int *out_num_days) {
+bool ConvertToOmahaInstallDate(Time time, int* out_num_days) {
   time_t unix_time = time.ToTimeT();
   // Output of: date +"%s" --date="Jan 1, 2007 0:00 PST".
   const time_t kOmahaEpoch = 1167638400;
@@ -980,6 +980,29 @@ string GetTimeAsString(time_t utime) {
 
 string GetExclusionName(const string& str_to_convert) {
   return base::NumberToString(base::StringPieceHash()(str_to_convert));
+}
+
+static bool ParseTimestamp(const std::string& str, int64_t* out) {
+  if (!base::StringToInt64(str, out)) {
+    LOG(WARNING) << "Invalid timestamp: " << str;
+    return false;
+  }
+  return true;
+}
+
+bool IsTimestampNewer(const std::string& old_version,
+                      const std::string& new_version) {
+  if (old_version.empty() || new_version.empty()) {
+    LOG(WARNING)
+        << "One of old/new timestamp is empty, permit update anyway. Old: "
+        << old_version << " New: " << new_version;
+    return true;
+  }
+  int64_t old_ver = 0;
+  TEST_AND_RETURN_FALSE(ParseTimestamp(old_version, &old_ver));
+  int64_t new_ver = 0;
+  TEST_AND_RETURN_FALSE(ParseTimestamp(new_version, &new_ver));
+  return old_ver <= new_ver;
 }
 
 }  // namespace utils

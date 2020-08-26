@@ -49,6 +49,12 @@ class PrefsInterface;
 // This class performs the actions in a delta update synchronously. The delta
 // update itself should be passed in in chunks as it is received.
 
+enum class TimestampCheckResult {
+  SUCCESS,
+  FAILURE,
+  DOWNGRADE,
+};
+
 class DeltaPerformer : public FileWriter {
  public:
   // Defines the granularity of progress logging in terms of how many "completed
@@ -309,6 +315,10 @@ class DeltaPerformer : public FileWriter {
   // metadata of partitions and map necessary devices before opening devices.
   // Also see comment for the static PreparePartitionsForUpdate().
   bool PreparePartitionsForUpdate(uint64_t* required_size);
+
+  // Check if current manifest contains timestamp errors. (ill-formed or
+  // downgrade)
+  TimestampCheckResult CheckTimestampError() const;
 
   // Update Engine preference store.
   PrefsInterface* prefs_;

@@ -1625,23 +1625,68 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     LOG(ERROR) << "Manifest contains deprecated fields.";
     return ErrorCode::kPayloadMismatchedType;
   }
-
-  if (manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
-    LOG(ERROR) << "The current OS build timestamp ("
-               << hardware_->GetBuildTimestamp()
-               << ") is newer than the maximum timestamp in the manifest ("
-               << manifest_.max_timestamp() << ")";
+  TimestampCheckResult result = CheckTimestampError();
+  if (result == TimestampCheckResult::DOWNGRADE) {
     if (!hardware_->AllowDowngrade()) {
       return ErrorCode::kPayloadTimestampError;
     }
     LOG(INFO) << "The current OS build allows downgrade, continuing to apply"
                  " the payload with an older timestamp.";
+  } else if (result == TimestampCheckResult::FAILURE) {
+    return ErrorCode::kPayloadTimestampError;
   }
 
   // TODO(crbug.com/37661) we should be adding more and more manifest checks,
   // such as partition boundaries, etc.
 
   return ErrorCode::kSuccess;
+}
+
+TimestampCheckResult DeltaPerformer::CheckTimestampError() const {
+  bool is_partial_update =
+      manifest_.has_partial_update() && manifest_.partial_update();
+  const auto& partitions = manifest_.partitions();
+  auto&& timestamp_valid = [this](const PartitionUpdate& partition) {
+    return hardware_->IsPartitionUpdateValid(partition.partition_name(),
+                                             partition.version());
+  };
+  if (is_partial_update) {
+    // for partial updates, all partition MUST have valid timestamps
+    // But max_timestamp can be empty
+    for (const auto& partition : partitions) {
+      if (!partition.has_version()) {
+        LOG(ERROR)
+            << "PartitionUpdate " << partition.partition_name()
+            << " does ot have a version field. Not allowed in partial updates.";
+        return TimestampCheckResult::FAILURE;
+      }
+      if (!timestamp_valid(partition)) {
+        // Warning because the system might allow downgrade.
+        LOG(WARNING) << "PartitionUpdate " << partition.partition_name()
+                     << " has an older version than partition on device.";
+        return TimestampCheckResult::DOWNGRADE;
+      }
+    }
+
+    return TimestampCheckResult::SUCCESS;
+  }
+  if (manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
+    LOG(ERROR) << "The current OS build timestamp ("
+               << hardware_->GetBuildTimestamp()
+               << ") is newer than the maximum timestamp in the manifest ("
+               << manifest_.max_timestamp() << ")";
+    return TimestampCheckResult::DOWNGRADE;
+  }
+  // Otherwise... partitions can have empty timestamps.
+  for (const auto& partition : partitions) {
+    if (partition.has_version() && !timestamp_valid(partition)) {
+      // Warning because the system might allow downgrade.
+      LOG(WARNING) << "PartitionUpdate " << partition.partition_name()
+                   << " has an older version than partition on device.";
+      return TimestampCheckResult::DOWNGRADE;
+    }
+  }
+  return TimestampCheckResult::SUCCESS;
 }
 
 ErrorCode DeltaPerformer::ValidateOperationHash(

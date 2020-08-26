@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_HARDWARE_ANDROID_H_
 
 #include <string>
+#include <string_view>
 
 #include <base/macros.h>
 #include <base/time/time.h>
@@ -28,7 +29,7 @@
 namespace chromeos_update_engine {
 
 // Implements the real interface with the hardware in the Android platform.
-class HardwareAndroid final : public HardwareInterface {
+class HardwareAndroid : public HardwareInterface {
  public:
   HardwareAndroid() = default;
   ~HardwareAndroid() override = default;
@@ -58,6 +59,11 @@ class HardwareAndroid final : public HardwareInterface {
   bool GetFirstActiveOmahaPingSent() const override;
   bool SetFirstActiveOmahaPingSent() override;
   void SetWarmReset(bool warm_reset) override;
+  [[nodiscard]] std::string GetVersionForLogging(
+      const std::string& partition_name) const override;
+  [[nodiscard]] bool IsPartitionUpdateValid(
+      const std::string& partition_name,
+      const std::string& new_version) const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HardwareAndroid);
