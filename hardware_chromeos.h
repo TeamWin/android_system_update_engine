@@ -63,6 +63,10 @@ class HardwareChromeOS final : public HardwareInterface {
   bool GetFirstActiveOmahaPingSent() const override;
   bool SetFirstActiveOmahaPingSent() override;
   void SetWarmReset(bool warm_reset) override;
+  std::string GetVersionForLogging(
+      const std::string& partition_name) const override;
+  bool IsPartitionUpdateValid(const std::string& partition_name,
+                              const std::string& new_version) const override;
 
  private:
   friend class HardwareChromeOSTest;
