@@ -19,13 +19,17 @@
 #include <sys/types.h>
 
 #include <memory>
+#include <string>
+#include <string_view>
 
+#include <android-base/parseint.h>
 #include <android-base/properties.h>
 #include <base/files/file_util.h>
 #include <bootloader_message/bootloader_message.h>
 
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/common/utils.h"
 
 using android::base::GetBoolProperty;
 using android::base::GetIntProperty;
@@ -221,6 +225,26 @@ void HardwareAndroid::SetWarmReset(bool warm_reset) {
   if (!android::base::SetProperty(warm_reset_prop, warm_reset ? "1" : "0")) {
     LOG(WARNING) << "Failed to set prop " << warm_reset_prop;
   }
+}
+
+std::string HardwareAndroid::GetVersionForLogging(
+    const std::string& partition_name) const {
+  return android::base::GetProperty("ro." + partition_name + ".build.date.utc",
+                                    "");
+}
+
+bool HardwareAndroid::IsPartitionUpdateValid(
+    const std::string& partition_name, const std::string& new_version) const {
+  const auto old_version = GetVersionForLogging(partition_name);
+  // TODO(zhangkelvin)  for some partitions, missing a current timestamp should
+  // be an error, e.g. system, vendor, product etc.
+  auto applicable = utils::IsTimestampNewer(old_version, new_version);
+  if (!applicable) {
+    LOG(ERROR) << "Timestamp on partition " << partition_name
+               << " is newer than update. Partition timestamp: " << old_version
+               << " Update timestamp: " << new_version;
+  }
+  return applicable;
 }
 
 }  // namespace chromeos_update_engine
