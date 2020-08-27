@@ -252,6 +252,7 @@ void UpdateAttempter::Update(const string& app_version,
                              bool rollback_allowed,
                              bool rollback_data_save_requested,
                              int rollback_allowed_milestones,
+                             bool rollback_on_channel_downgrade,
                              bool obey_proxies,
                              bool interactive) {
   // This is normally called frequently enough so it's appropriate to use as a
@@ -290,6 +291,7 @@ void UpdateAttempter::Update(const string& app_version,
                              rollback_allowed,
                              rollback_data_save_requested,
                              rollback_allowed_milestones,
+                             rollback_on_channel_downgrade,
                              obey_proxies,
                              interactive)) {
     return;
@@ -366,6 +368,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             bool rollback_allowed,
                                             bool rollback_data_save_requested,
                                             int rollback_allowed_milestones,
+                                            bool rollback_on_channel_downgrade,
                                             bool obey_proxies,
                                             bool interactive) {
   http_response_code_ = 0;
@@ -424,11 +427,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     LOG(INFO) << "No target channel mandated by policy.";
   } else {
     LOG(INFO) << "Setting target channel as mandated: " << target_channel;
-    // Pass in false for powerwash_allowed until we add it to the policy
-    // protobuf.
     string error_message;
     if (!omaha_request_params_->SetTargetChannel(
-            target_channel, false, &error_message)) {
+            target_channel, rollback_on_channel_downgrade, &error_message)) {
       LOG(ERROR) << "Setting the channel failed: " << error_message;
     }
 
@@ -1114,6 +1115,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
            params.rollback_allowed,
            params.rollback_data_save_requested,
            params.rollback_allowed_milestones,
+           params.rollback_on_channel_downgrade,
            /*obey_proxies=*/false,
            params.interactive);
     // Always clear the forced app_version and omaha_url after an update attempt

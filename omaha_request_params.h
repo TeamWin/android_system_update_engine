@@ -302,6 +302,10 @@ class OmahaRequestParams {
   void set_is_powerwash_allowed(bool powerwash_allowed) {
     mutable_image_props_.is_powerwash_allowed = powerwash_allowed;
   }
+  bool is_powerwash_allowed() {
+    return mutable_image_props_.is_powerwash_allowed;
+  }
+
   void set_device_requisition(const std::string& requisition) {
     device_requisition_ = requisition;
   }

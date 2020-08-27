@@ -63,6 +63,7 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
   result->rollback_allowed = false;
   result->rollback_data_save_requested = false;
   result->rollback_allowed_milestones = -1;
+  result->rollback_on_channel_downgrade = false;
   result->interactive = false;
 
   // Build a list of policies to consult.  Note that each policy may modify the

@@ -117,14 +117,23 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
     if (rollback_allowed_milestones_p)
       result->rollback_allowed_milestones = *rollback_allowed_milestones_p;
 
-    // Determine whether a target channel is dictated by policy.
+    // Determine whether a target channel is dictated by policy and whether we
+    // should rollback in case that channel is more stable.
     const bool* release_channel_delegated_p =
         ec->GetValue(dp_provider->var_release_channel_delegated());
     if (release_channel_delegated_p && !(*release_channel_delegated_p)) {
       const string* release_channel_p =
           ec->GetValue(dp_provider->var_release_channel());
-      if (release_channel_p)
+      if (release_channel_p) {
         result->target_channel = *release_channel_p;
+        const ChannelDowngradeBehavior* channel_downgrade_behavior_p =
+            ec->GetValue(dp_provider->var_channel_downgrade_behavior());
+        if (channel_downgrade_behavior_p &&
+            *channel_downgrade_behavior_p ==
+                ChannelDowngradeBehavior::kRollback) {
+          result->rollback_on_channel_downgrade = true;
+        }
+      }
     }
 
     const string* release_lts_tag_p =

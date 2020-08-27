@@ -58,6 +58,9 @@ struct UpdateCheckParams {
   // (e.g. no device policy is available yet), in this case no version
   // roll-forward should happen.
   int rollback_allowed_milestones;
+  // Whether a rollback with data save should be initiated on channel
+  // downgrade (e.g. beta to stable).
+  bool rollback_on_channel_downgrade{false};
   // A target channel, if so imposed by policy; otherwise, an empty string.
   std::string target_channel;
   // Specifies if the channel hint, e.g. LTS (Long Term Support) updates.

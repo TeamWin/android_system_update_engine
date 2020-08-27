@@ -90,6 +90,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                       bool rollback_allowed,
                       bool rollback_data_save_requested,
                       int rollback_allowed_milestones,
+                      bool rollback_on_channel_downgrade,
                       bool obey_proxies,
                       bool interactive);
 
@@ -284,6 +285,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, RollbackAfterInstall);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowed);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowedSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, ChannelDowngradeNoRollback);
+  FRIEND_TEST(UpdateAttempterTest, ChannelDowngradeRollback);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackFailure);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackFailure);
@@ -376,6 +379,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                              bool rollback_allowed,
                              bool rollback_data_save_requested,
                              int rollback_allowed_milestones,
+                             bool rollback_on_channel_downgrade,
                              bool obey_proxies,
                              bool interactive);
 
