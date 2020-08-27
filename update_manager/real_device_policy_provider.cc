@@ -264,6 +264,8 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
                  &RealDevicePolicyProvider::ConvertDisallowedTimeIntervals);
   UpdateVariable(&var_channel_downgrade_behavior_,
                  &RealDevicePolicyProvider::ConvertChannelDowngradeBehavior);
+  UpdateVariable(&var_device_minimum_version_,
+                 &DevicePolicy::GetHighestDeviceMinimumVersion);
 }
 
 }  // namespace chromeos_update_manager

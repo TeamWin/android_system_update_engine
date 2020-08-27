@@ -430,4 +430,19 @@ TEST_F(UmRealDevicePolicyProviderTest, ChannelDowngradeBehaviorTooLarge) {
       provider_->var_channel_downgrade_behavior());
 }
 
+TEST_F(UmRealDevicePolicyProviderTest, DeviceMinimumVersionPolicySet) {
+  SetUpExistentDevicePolicy();
+
+  base::Version device_minimum_version("13315.60.12");
+
+  EXPECT_CALL(mock_device_policy_, GetHighestDeviceMinimumVersion(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(device_minimum_version), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(device_minimum_version,
+                                      provider_->var_device_minimum_version());
+}
+
 }  // namespace chromeos_update_manager

@@ -118,6 +118,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_channel_downgrade_behavior_;
   }
 
+  Variable<base::Version>* var_device_minimum_version() override {
+    return &var_device_minimum_version_;
+  }
+
  private:
   FRIEND_TEST(UmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
@@ -228,6 +232,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
       "auto_launched_kiosk_app_id"};
   AsyncCopyVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
       "channel_downgrade_behavior"};
+  AsyncCopyVariable<base::Version> var_device_minimum_version_{
+      "device_minimum_version"};
 
   DISALLOW_COPY_AND_ASSIGN(RealDevicePolicyProvider);
 };

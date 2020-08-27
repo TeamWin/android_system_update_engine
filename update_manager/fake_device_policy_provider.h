@@ -100,6 +100,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_channel_downgrade_behavior_;
   }
 
+  FakeVariable<base::Version>* var_device_minimum_version() override {
+    return &var_device_minimum_version_;
+  }
+
  private:
   FakeVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",
                                                   kVariableModePoll};
@@ -133,6 +137,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
       "disallowed_time_intervals", kVariableModePoll};
   FakeVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
       "channel_downgrade_behavior", kVariableModePoll};
+  FakeVariable<base::Version> var_device_minimum_version_{
+      "device_minimum_version", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeDevicePolicyProvider);
 };
