@@ -92,6 +92,7 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
   part.aops = std::move(aops);
   part.postinstall = new_conf.postinstall;
   part.verity = new_conf.verity;
+  part.version = new_conf.version;
   // Initialize the PartitionInfo objects if present.
   if (!old_conf.path.empty())
     TEST_AND_RETURN_FALSE(
@@ -132,6 +133,9 @@ bool PayloadFile::WritePayload(const string& payload_file,
   for (const auto& part : part_vec_) {
     PartitionUpdate* partition = manifest_.add_partitions();
     partition->set_partition_name(part.name);
+    if (!part.version.empty()) {
+      partition->set_version(part.version);
+    }
     if (part.postinstall.run) {
       partition->set_run_postinstall(true);
       if (!part.postinstall.path.empty())
