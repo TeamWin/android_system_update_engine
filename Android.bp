@@ -491,6 +491,7 @@ cc_library_static {
         "payload_generator/extent_utils.cc",
         "payload_generator/full_update_generator.cc",
         "payload_generator/mapfile_filesystem.cc",
+        "payload_generator/merge_sequence_generator.cc",
         "payload_generator/payload_file.cc",
         "payload_generator/payload_generation_config_android.cc",
         "payload_generator/payload_generation_config.cc",
