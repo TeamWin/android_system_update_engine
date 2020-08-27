@@ -119,6 +119,9 @@ struct PartitionConfig {
 
   // Enables the on device fec data computation by default.
   bool disable_fec_computation = false;
+
+  // Per-partition version, usually a number representing timestamp.
+  std::string version;
 };
 
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
