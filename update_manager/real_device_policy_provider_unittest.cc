@@ -195,6 +195,8 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_auto_launched_kiosk_app_id());
   UmTestUtils::ExpectVariableNotSet(provider_->var_disallowed_time_intervals());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_channel_downgrade_behavior());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
@@ -375,6 +377,57 @@ TEST_F(UmRealDevicePolicyProviderTest, DisallowedIntervalsConverted) {
           WeeklyTimeInterval(WeeklyTime(1, TimeDelta::FromHours(1)),
                              WeeklyTime(3, TimeDelta::FromHours(10)))},
       provider_->var_disallowed_time_intervals());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, ChannelDowngradeBehaviorConverted) {
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetChannelDowngradeBehavior(_))
+#if USE_DBUS
+      .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
+      .WillRepeatedly(DoAll(SetArgPointee<0>(static_cast<int>(
+                                ChannelDowngradeBehavior::kRollback)),
+                            Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      ChannelDowngradeBehavior::kRollback,
+      provider_->var_channel_downgrade_behavior());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, ChannelDowngradeBehaviorTooSmall) {
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetChannelDowngradeBehavior(_))
+#if USE_DBUS
+      .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
+      .WillRepeatedly(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_channel_downgrade_behavior());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, ChannelDowngradeBehaviorTooLarge) {
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetChannelDowngradeBehavior(_))
+#if USE_DBUS
+      .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
+      .WillRepeatedly(DoAll(SetArgPointee<0>(10), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_channel_downgrade_behavior());
 }
 
 }  // namespace chromeos_update_manager

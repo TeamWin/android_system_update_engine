@@ -87,6 +87,11 @@ class DevicePolicyProvider : public Provider {
   virtual Variable<WeeklyTimeIntervalVector>*
   var_disallowed_time_intervals() = 0;
 
+  // Variable that determins whether we should powerwash and rollback on channel
+  // downgrade for enrolled devices.
+  virtual Variable<ChannelDowngradeBehavior>*
+  var_channel_downgrade_behavior() = 0;
+
  protected:
   DevicePolicyProvider() {}
 

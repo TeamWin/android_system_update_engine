@@ -209,6 +209,21 @@ bool RealDevicePolicyProvider::ConvertHasOwner(bool* has_owner) const {
   return true;
 }
 
+bool RealDevicePolicyProvider::ConvertChannelDowngradeBehavior(
+    ChannelDowngradeBehavior* channel_downgrade_behavior) const {
+  int behavior;
+  if (!policy_provider_->GetDevicePolicy().GetChannelDowngradeBehavior(
+          &behavior)) {
+    return false;
+  }
+  if (behavior < static_cast<int>(ChannelDowngradeBehavior::kFirstValue) ||
+      behavior > static_cast<int>(ChannelDowngradeBehavior::kLastValue)) {
+    return false;
+  }
+  *channel_downgrade_behavior = static_cast<ChannelDowngradeBehavior>(behavior);
+  return true;
+}
+
 void RealDevicePolicyProvider::RefreshDevicePolicy() {
   if (!policy_provider_->Reload()) {
     LOG(INFO) << "No device policies/settings present.";
@@ -247,6 +262,8 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
                  &DevicePolicy::GetAutoLaunchedKioskAppId);
   UpdateVariable(&var_disallowed_time_intervals_,
                  &RealDevicePolicyProvider::ConvertDisallowedTimeIntervals);
+  UpdateVariable(&var_channel_downgrade_behavior_,
+                 &RealDevicePolicyProvider::ConvertChannelDowngradeBehavior);
 }
 
 }  // namespace chromeos_update_manager

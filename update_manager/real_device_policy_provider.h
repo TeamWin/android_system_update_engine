@@ -113,6 +113,11 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_disallowed_time_intervals_;
   }
 
+  Variable<ChannelDowngradeBehavior>* var_channel_downgrade_behavior()
+      override {
+    return &var_channel_downgrade_behavior_;
+  }
+
  private:
   FRIEND_TEST(UmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
@@ -174,6 +179,11 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   // devices do not have an owner).
   bool ConvertHasOwner(bool* has_owner) const;
 
+  // Wrapper for |DevicePolicy::GetChannelDowngradeBehavior| that converts the
+  // result to |ChannelDowngradeBehavior|.
+  bool ConvertChannelDowngradeBehavior(
+      ChannelDowngradeBehavior* channel_downgrade_behavior) const;
+
   // Used for fetching information about the device policy.
   policy::PolicyProvider* policy_provider_;
 
@@ -216,6 +226,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
       "update_time_restrictions"};
   AsyncCopyVariable<std::string> var_auto_launched_kiosk_app_id_{
       "auto_launched_kiosk_app_id"};
+  AsyncCopyVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
+      "channel_downgrade_behavior"};
 
   DISALLOW_COPY_AND_ASSIGN(RealDevicePolicyProvider);
 };

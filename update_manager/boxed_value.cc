@@ -232,4 +232,22 @@ string BoxedValue::ValuePrinter<WeeklyTimeIntervalVector>(const void* value) {
   return retval;
 }
 
+template <>
+string BoxedValue::ValuePrinter<ChannelDowngradeBehavior>(const void* value) {
+  const ChannelDowngradeBehavior* val =
+      reinterpret_cast<const ChannelDowngradeBehavior*>(value);
+  switch (*val) {
+    case ChannelDowngradeBehavior::kUnspecified:
+      return "Unspecified";
+    case ChannelDowngradeBehavior::kWaitForVersionToCatchUp:
+      return "Wait for the target channel to catch up";
+    case ChannelDowngradeBehavior::kRollback:
+      return "Roll back and powerwash on channel downgrade";
+    case ChannelDowngradeBehavior::kAllowUserToConfigure:
+      return "User decides on channel downgrade behavior";
+  }
+  NOTREACHED();
+  return "Unknown";
+}
+
 }  // namespace chromeos_update_manager

@@ -95,6 +95,11 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_disallowed_time_intervals_;
   }
 
+  FakeVariable<ChannelDowngradeBehavior>* var_channel_downgrade_behavior()
+      override {
+    return &var_channel_downgrade_behavior_;
+  }
+
  private:
   FakeVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",
                                                   kVariableModePoll};
@@ -126,6 +131,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
       "auto_launched_kiosk_app_id", kVariableModePoll};
   FakeVariable<WeeklyTimeIntervalVector> var_disallowed_time_intervals_{
       "disallowed_time_intervals", kVariableModePoll};
+  FakeVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
+      "channel_downgrade_behavior", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeDevicePolicyProvider);
 };
