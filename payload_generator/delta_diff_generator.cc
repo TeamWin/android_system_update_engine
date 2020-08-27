@@ -39,6 +39,7 @@
 #include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/full_update_generator.h"
+#include "update_engine/payload_generator/merge_sequence_generator.h"
 #include "update_engine/payload_generator/payload_file.h"
 
 using std::string;
@@ -59,12 +60,14 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
       const PartitionConfig& new_part,
       BlobFileWriter* file_writer,
       std::vector<AnnotatedOperation>* aops,
+      std::vector<CowMergeOperation>* cow_merge_sequence,
       std::unique_ptr<chromeos_update_engine::OperationsGenerator> strategy)
       : config_(config),
         old_part_(old_part),
         new_part_(new_part),
         file_writer_(file_writer),
         aops_(aops),
+        cow_merge_sequence_(cow_merge_sequence),
         strategy_(std::move(strategy)) {}
   PartitionProcessor(PartitionProcessor&&) noexcept = default;
   void Run() override {
@@ -78,6 +81,17 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
       LOG(FATAL) << "GenerateOperations(" << old_part_.name << ", "
                  << new_part_.name << ") failed";
     }
+
+    bool snapshot_enabled =
+        config_.target.dynamic_partition_metadata &&
+        config_.target.dynamic_partition_metadata->snapshot_enabled();
+    if (old_part_.path.empty() || !snapshot_enabled) {
+      return;
+    }
+    auto generator = MergeSequenceGenerator::Create(*aops_);
+    if (!generator || !generator->Generate(cow_merge_sequence_)) {
+      LOG(FATAL) << "Failed to generate merge sequence";
+    }
   }
 
  private:
@@ -86,6 +100,7 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
   const PartitionConfig& new_part_;
   BlobFileWriter* file_writer_;
   std::vector<AnnotatedOperation>* aops_;
+  std::vector<CowMergeOperation>* cow_merge_sequence_;
   std::unique_ptr<chromeos_update_engine::OperationsGenerator> strategy_;
   DISALLOW_COPY_AND_ASSIGN(PartitionProcessor);
 };
@@ -123,6 +138,8 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
     PartitionConfig empty_part("");
     std::vector<std::vector<AnnotatedOperation>> all_aops;
     all_aops.resize(config.target.partitions.size());
+    std::vector<std::vector<CowMergeOperation>> all_merge_sequences;
+    all_merge_sequences.resize(config.target.partitions.size());
     std::vector<PartitionProcessor> partition_tasks{};
     auto thread_count = std::min<int>(diff_utils::GetMaxThreads(),
                                       config.target.partitions.size());
@@ -153,6 +170,7 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
                                                    new_part,
                                                    &blob_file,
                                                    &all_aops[i],
+                                                   &all_merge_sequences[i],
                                                    std::move(strategy)));
     }
     thread_pool.Start();
@@ -166,7 +184,10 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
           config.is_delta ? config.source.partitions[i] : empty_part;
       const PartitionConfig& new_part = config.target.partitions[i];
       TEST_AND_RETURN_FALSE(
-          payload.AddPartition(old_part, new_part, std::move(all_aops[i])));
+          payload.AddPartition(old_part,
+                               new_part,
+                               std::move(all_aops[i]),
+                               std::move(all_merge_sequences[i])));
     }
   }
 

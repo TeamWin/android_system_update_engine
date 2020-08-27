@@ -225,6 +225,22 @@ message InstallOperation {
   optional bytes src_sha256_hash = 9;
 }
 
+// Hints to VAB snapshot to skip writing some blocks if these blocks are
+// identical to the ones on the source image. The src & dst extents for each
+// CowMergeOperation should be contiguous, and they're a subset of an OTA
+// InstallOperation.
+// During merge time, we need to follow the pre-computed sequence to avoid
+// read after write, similar to the inplace update schema.
+message CowMergeOperation {
+  enum Type {
+    COW_COPY = 0;  // identical blocks
+  }
+  optional Type type = 1;
+
+  optional Extent src_extent = 2;
+  optional Extent dst_extent = 3;
+}
+
 // Describes the update to apply to a single partition.
 message PartitionUpdate {
   // A platform-specific name to identify the partition set being updated. For
@@ -293,6 +309,11 @@ message PartitionUpdate {
   // as an effort to support partial updates. For most partitions,
   // this is the build timestamp.
   optional string version = 17;
+
+  // A sorted list of CowMergeOperation. When writing cow, we can choose to
+  // skip writing the raw bytes for these extents. During snapshot merge, the
+  // bytes will read from the source partitions instead.
+  repeated CowMergeOperation merge_operations = 18;
 }
 
 message DynamicPartitionGroup {
