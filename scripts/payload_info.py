@@ -74,7 +74,9 @@ class PayloadCommand(object):
     for partition in manifest.partitions:
       DisplayValue('  Number of "%s" ops' % partition.partition_name,
                    len(partition.operations))
-
+    for partition in manifest.partitions:
+      DisplayValue("Timestamp for " +
+                   partition.partition_name, partition.version)
     DisplayValue('Block size', manifest.block_size)
     DisplayValue('Minor version', manifest.minor_version)
 
