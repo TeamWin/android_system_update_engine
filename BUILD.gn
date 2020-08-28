@@ -254,7 +254,7 @@ static_library("libupdate_engine") {
     "expat",
     "libcurl",
     "libdebugd-client",
-    "libmetrics-${libbase_ver}",
+    "libmetrics",
     "libpower_manager-client",
     "libsession_manager-client",
     "libshill-client",
