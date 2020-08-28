@@ -29,6 +29,16 @@
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
+// Constructs CowMergeOperation from src & dst extents
+CowMergeOperation CreateCowMergeOperation(const Extent& src_extent,
+                                          const Extent& dst_extent);
+
+// Comparator for CowMergeOperation.
+bool operator<(const CowMergeOperation& op1, const CowMergeOperation& op2);
+bool operator==(const CowMergeOperation& op1, const CowMergeOperation& op2);
+
+std::ostream& operator<<(std::ostream& os,
+                         const CowMergeOperation& merge_operation);
 
 // This class takes a list of CowMergeOperations; and sorts them so that no
 // read after write will happen by following the sequence. When there is a
@@ -48,6 +58,7 @@ class MergeSequenceGenerator {
   bool Generate(std::vector<CowMergeOperation>* sequence) const;
 
  private:
+  friend class MergeSequenceGeneratorTest;
   explicit MergeSequenceGenerator(std::vector<CowMergeOperation> transfers)
       : operations_(std::move(transfers)) {}
 

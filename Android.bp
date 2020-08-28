@@ -696,6 +696,7 @@ cc_test {
         "payload_generator/fake_filesystem.cc",
         "payload_generator/full_update_generator_unittest.cc",
         "payload_generator/mapfile_filesystem_unittest.cc",
+        "payload_generator/merge_sequence_generator_unittest.cc",
         "payload_generator/payload_file_unittest.cc",
         "payload_generator/payload_generation_config_android_unittest.cc",
         "payload_generator/payload_generation_config_unittest.cc",
