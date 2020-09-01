@@ -22,9 +22,21 @@
 #include <string>
 
 #include <android-base/properties.h>
+#include <base/strings/string_util.h>
+#include <fs_mgr.h>
+#include <libdm/dm.h>
+#include <liblp/builder.h>
+#include <liblp/liblp.h>
 #include <statslog.h>
 
 #include "update_engine/common/constants.h"
+
+using android::fs_mgr::GetPartitionGroupName;
+using android::fs_mgr::LpMetadata;
+using android::fs_mgr::MetadataBuilder;
+using android::fs_mgr::ReadMetadata;
+using android::fs_mgr::SlotNumberForSlotSuffix;
+using base::EndsWith;
 
 namespace {
 // A number offset adds on top of the enum value. e.g. ErrorCode::SUCCESS will
@@ -58,6 +70,42 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
     metrics::AttemptResult attempt_result,
     ErrorCode error_code) {
   int64_t payload_size_mib = payload_size / kNumBytesInOneMiB;
+
+  int64_t super_partition_size_bytes = 0;
+  int64_t super_free_space = 0;
+  int64_t slot_size_bytes = 0;
+
+  if (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false)) {
+    uint32_t slot = SlotNumberForSlotSuffix(fs_mgr_get_slot_suffix());
+    auto super_device = fs_mgr_get_super_partition_name();
+    std::unique_ptr<LpMetadata> metadata = ReadMetadata(super_device, slot);
+    if (metadata) {
+      super_partition_size_bytes = GetTotalSuperPartitionSize(*metadata);
+
+      for (const auto& group : metadata->groups) {
+        if (EndsWith(GetPartitionGroupName(group),
+                     fs_mgr_get_slot_suffix(),
+                     base::CompareCase::SENSITIVE)) {
+          slot_size_bytes += group.maximum_size;
+        }
+      }
+
+      auto metadata_builder = MetadataBuilder::New(*metadata);
+      if (metadata_builder) {
+        auto free_regions = metadata_builder->GetFreeRegions();
+        for (const auto& interval : free_regions) {
+          super_free_space += interval.length();
+        }
+        super_free_space *= android::dm::kSectorSize;
+      } else {
+        LOG(ERROR) << "Cannot create metadata builder.";
+      }
+    } else {
+      LOG(ERROR) << "Could not read dynamic partition metadata for device: "
+                 << super_device;
+    }
+  }
+
   android::util::stats_write(
       android::util::UPDATE_ENGINE_UPDATE_ATTEMPT_REPORTED,
       attempt_number,
@@ -67,7 +115,10 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
       payload_size_mib,
       GetStatsdEnumValue(static_cast<int32_t>(attempt_result)),
       GetStatsdEnumValue(static_cast<int32_t>(error_code)),
-      android::base::GetProperty("ro.build.fingerprint", "").c_str());
+      android::base::GetProperty("ro.build.fingerprint", "").c_str(),
+      super_partition_size_bytes,
+      slot_size_bytes,
+      super_free_space);
 }
 
 void MetricsReporterAndroid::ReportUpdateAttemptDownloadMetrics(
@@ -100,13 +151,13 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
 
   android::util::stats_write(
       android::util::UPDATE_ENGINE_SUCCESSFUL_UPDATE_REPORTED,
-      attempt_count,
+      static_cast<int32_t>(attempt_count),
       GetStatsdEnumValue(static_cast<int32_t>(payload_type)),
-      payload_size_mib,
-      total_bytes_downloaded,
-      download_overhead_percentage,
-      total_duration.InMinutes(),
-      reboot_count);
+      static_cast<int32_t>(payload_size_mib),
+      static_cast<int32_t>(total_bytes_downloaded),
+      static_cast<int32_t>(download_overhead_percentage),
+      static_cast<int32_t>(total_duration.InMinutes()),
+      static_cast<int32_t>(reboot_count));
 }
 
 void MetricsReporterAndroid::ReportAbnormallyTerminatedUpdateAttemptMetrics() {
