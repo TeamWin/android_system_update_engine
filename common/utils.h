@@ -324,10 +324,15 @@ std::string GetTimeAsString(time_t utime);
 std::string GetExclusionName(const std::string& str_to_convert);
 
 // Parse `old_version` and `new_version` as integer timestamps and
-// return true if `new_version` is larger/newer.
-// Returns true if either one is empty. Return false if
-bool IsTimestampNewer(const std::string& old_version,
-                      const std::string& new_version);
+// Return kSuccess if `new_version` is larger/newer.
+// Return kSuccess if either one is empty.
+// Return kError if |old_version| is not empty and not an integer.
+// Return kDownloadManifestParseError if |new_version| is not empty and not an
+// integer.
+// Return kPayloadTimestampError if both are integers but |new_version| <
+// |old_version|.
+ErrorCode IsTimestampNewer(const std::string& old_version,
+                           const std::string& new_version);
 
 }  // namespace utils
 
