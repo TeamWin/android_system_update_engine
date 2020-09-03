@@ -460,7 +460,7 @@ class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
     if (prefs_ && prefs_->Exists(key) && prefs_->GetInt64(key, &result)) {
       // This specific value is used for testing only. So it should not be kept
       // around and should be deleted after a few reads.
-      if (++read_count_ > 2)
+      if (++read_count_ > 5)
         prefs_->Delete(key);
 
       // Limit the timeout interval to 10 minutes so it is not abused if it is
