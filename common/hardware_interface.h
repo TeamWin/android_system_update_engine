@@ -25,6 +25,8 @@
 #include <base/files/file_path.h>
 #include <base/time/time.h>
 
+#include "update_engine/common/error_code.h"
+
 namespace chromeos_update_engine {
 
 // The hardware interface allows access to the crossystem exposed properties,
@@ -153,8 +155,15 @@ class HardwareInterface {
   // version number of partition `partition_name`. The notion of
   // "newer" is defined by this function. Caller should not make
   // any assumption about the underlying logic.
-  virtual bool IsPartitionUpdateValid(const std::string& partition_name,
-                                      const std::string& new_version) const = 0;
+  // Return:
+  // - kSuccess if update is valid.
+  // - kPayloadTimestampError if downgrade is detected
+  // - kDownloadManifestParseError if |new_version| has an incorrect format
+  // - Other error values if the source of error is known, or kError for
+  //   a generic error on the device.
+  virtual ErrorCode IsPartitionUpdateValid(
+      const std::string& partition_name,
+      const std::string& new_version) const = 0;
 };
 
 }  // namespace chromeos_update_engine

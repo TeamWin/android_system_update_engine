@@ -990,19 +990,26 @@ static bool ParseTimestamp(const std::string& str, int64_t* out) {
   return true;
 }
 
-bool IsTimestampNewer(const std::string& old_version,
-                      const std::string& new_version) {
+ErrorCode IsTimestampNewer(const std::string& old_version,
+                           const std::string& new_version) {
   if (old_version.empty() || new_version.empty()) {
     LOG(WARNING)
         << "One of old/new timestamp is empty, permit update anyway. Old: "
         << old_version << " New: " << new_version;
-    return true;
+    return ErrorCode::kSuccess;
   }
   int64_t old_ver = 0;
-  TEST_AND_RETURN_FALSE(ParseTimestamp(old_version, &old_ver));
+  if (!ParseTimestamp(old_version, &old_ver)) {
+    return ErrorCode::kError;
+  }
   int64_t new_ver = 0;
-  TEST_AND_RETURN_FALSE(ParseTimestamp(new_version, &new_ver));
-  return old_ver <= new_ver;
+  if (!ParseTimestamp(new_version, &new_ver)) {
+    return ErrorCode::kDownloadManifestParseError;
+  }
+  if (old_ver > new_ver) {
+    return ErrorCode::kPayloadTimestampError;
+  }
+  return ErrorCode::kSuccess;
 }
 
 }  // namespace utils
