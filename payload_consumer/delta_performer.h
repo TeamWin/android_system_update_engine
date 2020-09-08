@@ -48,13 +48,6 @@ class PrefsInterface;
 
 // This class performs the actions in a delta update synchronously. The delta
 // update itself should be passed in in chunks as it is received.
-
-enum class TimestampCheckResult {
-  SUCCESS,
-  FAILURE,
-  DOWNGRADE,
-};
-
 class DeltaPerformer : public FileWriter {
  public:
   // Defines the granularity of progress logging in terms of how many "completed
@@ -316,9 +309,14 @@ class DeltaPerformer : public FileWriter {
   // Also see comment for the static PreparePartitionsForUpdate().
   bool PreparePartitionsForUpdate(uint64_t* required_size);
 
-  // Check if current manifest contains timestamp errors. (ill-formed or
-  // downgrade)
-  TimestampCheckResult CheckTimestampError() const;
+  // Check if current manifest contains timestamp errors.
+  // Return:
+  // - kSuccess if update is valid.
+  // - kPayloadTimestampError if downgrade is detected
+  // - kDownloadManifestParseError if |new_version| has an incorrect format
+  // - Other error values if the source of error is known, or kError for
+  //   a generic error on the device.
+  ErrorCode CheckTimestampError() const;
 
   // Update Engine preference store.
   PrefsInterface* prefs_;
