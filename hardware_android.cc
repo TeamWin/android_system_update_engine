@@ -27,6 +27,7 @@
 #include <base/files/file_util.h>
 #include <bootloader_message/bootloader_message.h>
 
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/utils.h"
@@ -233,18 +234,19 @@ std::string HardwareAndroid::GetVersionForLogging(
                                     "");
 }
 
-bool HardwareAndroid::IsPartitionUpdateValid(
+ErrorCode HardwareAndroid::IsPartitionUpdateValid(
     const std::string& partition_name, const std::string& new_version) const {
   const auto old_version = GetVersionForLogging(partition_name);
   // TODO(zhangkelvin)  for some partitions, missing a current timestamp should
   // be an error, e.g. system, vendor, product etc.
-  auto applicable = utils::IsTimestampNewer(old_version, new_version);
-  if (!applicable) {
-    LOG(ERROR) << "Timestamp on partition " << partition_name
-               << " is newer than update. Partition timestamp: " << old_version
+  auto error_code = utils::IsTimestampNewer(old_version, new_version);
+  if (error_code != ErrorCode::kSuccess) {
+    LOG(ERROR) << "Timestamp check failed with "
+               << utils::ErrorCodeToString(error_code)
+               << " Partition timestamp: " << old_version
                << " Update timestamp: " << new_version;
   }
-  return applicable;
+  return error_code;
 }
 
 }  // namespace chromeos_update_engine

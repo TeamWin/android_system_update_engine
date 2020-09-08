@@ -482,11 +482,13 @@ TEST(UtilsTest, GetFilePathTest) {
 }
 
 TEST(UtilsTest, ValidatePerPartitionTimestamp) {
-  ASSERT_FALSE(utils::IsTimestampNewer("10", "5"));
-  ASSERT_TRUE(utils::IsTimestampNewer("10", "11"));
-  ASSERT_FALSE(utils::IsTimestampNewer("10", "lol"));
-  ASSERT_FALSE(utils::IsTimestampNewer("lol", "ZZZ"));
-  ASSERT_TRUE(utils::IsTimestampNewer("10", ""));
+  ASSERT_EQ(ErrorCode::kPayloadTimestampError,
+            utils::IsTimestampNewer("10", "5"));
+  ASSERT_EQ(ErrorCode::kSuccess, utils::IsTimestampNewer("10", "11"));
+  ASSERT_EQ(ErrorCode::kDownloadManifestParseError,
+            utils::IsTimestampNewer("10", "lol"));
+  ASSERT_EQ(ErrorCode::kError, utils::IsTimestampNewer("lol", "ZZZ"));
+  ASSERT_EQ(ErrorCode::kSuccess, utils::IsTimestampNewer("10", ""));
 }
 
 }  // namespace chromeos_update_engine

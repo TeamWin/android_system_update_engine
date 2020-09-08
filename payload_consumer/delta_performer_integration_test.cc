@@ -1206,28 +1206,68 @@ TEST_F(DeltaPerformerIntegrationTest,
 }
 
 TEST_F(DeltaPerformerIntegrationTest,
-       ValidatePerPartitionTimestampPartialUpdate) {
-  // The Manifest we are validating.
-  DeltaArchiveManifest manifest;
-
+       ValidatePerPartitionTimestampPartialUpdatePass) {
   fake_hardware_.SetVersion("system", "5");
   fake_hardware_.SetVersion("product", "99");
-  fake_hardware_.SetBuildTimestamp(1);
 
+  DeltaArchiveManifest manifest;
   manifest.set_minor_version(kPartialUpdateMinorPayloadVersion);
-  manifest.set_max_timestamp(2);
   manifest.set_partial_update(true);
-  AddPartition(&manifest, "system", 10);
-  {
-    auto& partition = *manifest.add_partitions();
-    // For partial updates, missing timestamp should
-    // trigger an error
-    partition.set_partition_name("product");
-  }
+  AddPartition(&manifest, "product", 100);
+  RunManifestValidation(
+      manifest, kMaxSupportedMajorPayloadVersion, ErrorCode::kSuccess);
+}
 
+TEST_F(DeltaPerformerIntegrationTest,
+       ValidatePerPartitionTimestampPartialUpdateDowngrade) {
+  fake_hardware_.SetVersion("system", "5");
+  fake_hardware_.SetVersion("product", "99");
+
+  DeltaArchiveManifest manifest;
+  manifest.set_minor_version(kPartialUpdateMinorPayloadVersion);
+  manifest.set_partial_update(true);
+  AddPartition(&manifest, "product", 98);
   RunManifestValidation(manifest,
                         kMaxSupportedMajorPayloadVersion,
                         ErrorCode::kPayloadTimestampError);
+}
+
+TEST_F(DeltaPerformerIntegrationTest,
+       ValidatePerPartitionTimestampPartialUpdateMissingVersion) {
+  fake_hardware_.SetVersion("system", "5");
+  fake_hardware_.SetVersion("product", "99");
+
+  DeltaArchiveManifest manifest;
+  manifest.set_minor_version(kPartialUpdateMinorPayloadVersion);
+  manifest.set_partial_update(true);
+  {
+    auto& partition = *manifest.add_partitions();
+    // For partial updates, missing timestamp should trigger an error
+    partition.set_partition_name("product");
+    // has_version() == false.
+  }
+  RunManifestValidation(manifest,
+                        kMaxSupportedMajorPayloadVersion,
+                        ErrorCode::kDownloadManifestParseError);
+}
+
+TEST_F(DeltaPerformerIntegrationTest,
+       ValidatePerPartitionTimestampPartialUpdateEmptyVersion) {
+  fake_hardware_.SetVersion("system", "5");
+  fake_hardware_.SetVersion("product", "99");
+
+  DeltaArchiveManifest manifest;
+  manifest.set_minor_version(kPartialUpdateMinorPayloadVersion);
+  manifest.set_partial_update(true);
+  {
+    auto& partition = *manifest.add_partitions();
+    // For partial updates, missing timestamp should trigger an error
+    partition.set_partition_name("product");
+    partition.set_version("something");
+  }
+  RunManifestValidation(manifest,
+                        kMaxSupportedMajorPayloadVersion,
+                        ErrorCode::kDownloadManifestParseError);
 }
 
 }  // namespace chromeos_update_engine
