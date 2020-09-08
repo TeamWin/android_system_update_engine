@@ -17,6 +17,7 @@
 #include "update_engine/hardware_android.h"
 
 #include <sys/types.h>
+#include <sys/utsname.h>
 
 #include <memory>
 #include <string>
@@ -26,6 +27,8 @@
 #include <android-base/properties.h>
 #include <base/files/file_util.h>
 #include <bootloader_message/bootloader_message.h>
+#include <kver/kernel_release.h>
+#include <kver/utils.h>
 
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/hardware.h"
@@ -35,6 +38,8 @@
 using android::base::GetBoolProperty;
 using android::base::GetIntProperty;
 using android::base::GetProperty;
+using android::kver::IsKernelUpdateValid;
+using android::kver::KernelRelease;
 using std::string;
 
 namespace chromeos_update_engine {
@@ -50,6 +55,11 @@ const char kPropProductManufacturer[] = "ro.product.manufacturer";
 const char kPropBootHardwareSKU[] = "ro.boot.hardware.sku";
 const char kPropBootRevision[] = "ro.boot.revision";
 const char kPropBuildDateUTC[] = "ro.build.date.utc";
+
+string GetPartitionBuildDate(const string& partition_name) {
+  return android::base::GetProperty("ro." + partition_name + ".build.date.utc",
+                                    "");
+}
 
 }  // namespace
 
@@ -228,15 +238,33 @@ void HardwareAndroid::SetWarmReset(bool warm_reset) {
   }
 }
 
-std::string HardwareAndroid::GetVersionForLogging(
-    const std::string& partition_name) const {
-  return android::base::GetProperty("ro." + partition_name + ".build.date.utc",
-                                    "");
+string HardwareAndroid::GetVersionForLogging(
+    const string& partition_name) const {
+  if (partition_name == "boot") {
+    struct utsname buf;
+    if (uname(&buf) != 0) {
+      PLOG(ERROR) << "Unable to call uname()";
+      return "";
+    }
+    auto kernel_release =
+        KernelRelease::Parse(buf.release, true /* allow_suffix */);
+    return kernel_release.has_value() ? kernel_release->string() : "";
+  }
+  return GetPartitionBuildDate(partition_name);
 }
 
 ErrorCode HardwareAndroid::IsPartitionUpdateValid(
-    const std::string& partition_name, const std::string& new_version) const {
-  const auto old_version = GetVersionForLogging(partition_name);
+    const string& partition_name, const string& new_version) const {
+  if (partition_name == "boot") {
+    struct utsname buf;
+    if (uname(&buf) != 0) {
+      PLOG(ERROR) << "Unable to call uname()";
+      return ErrorCode::kError;
+    }
+    return IsKernelUpdateValid(buf.release, new_version);
+  }
+
+  const auto old_version = GetPartitionBuildDate(partition_name);
   // TODO(zhangkelvin)  for some partitions, missing a current timestamp should
   // be an error, e.g. system, vendor, product etc.
   auto error_code = utils::IsTimestampNewer(old_version, new_version);
@@ -247,6 +275,31 @@ ErrorCode HardwareAndroid::IsPartitionUpdateValid(
                << " Update timestamp: " << new_version;
   }
   return error_code;
+}
+
+ErrorCode HardwareAndroid::IsKernelUpdateValid(const string& old_release,
+                                               const string& new_release) {
+  // Check that the package either contain an empty version (indicating that the
+  // new build does not use GKI), or a valid GKI kernel release.
+  std::optional<KernelRelease> new_kernel_release;
+  if (new_release.empty()) {
+    LOG(INFO) << "New build does not contain GKI.";
+  } else {
+    new_kernel_release =
+        KernelRelease::Parse(new_release, true /* allow_suffix */);
+    if (!new_kernel_release.has_value()) {
+      LOG(ERROR) << "New kernel release is not valid GKI kernel release: "
+                 << new_release;
+      return ErrorCode::kDownloadManifestParseError;
+    }
+  }
+
+  auto old_kernel_release =
+      KernelRelease::Parse(old_release, true /* allow_suffix */);
+  return android::kver::IsKernelUpdateValid(old_kernel_release,
+                                            new_kernel_release)
+             ? ErrorCode::kSuccess
+             : ErrorCode::kPayloadTimestampError;
 }
 
 }  // namespace chromeos_update_engine
