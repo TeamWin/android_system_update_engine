@@ -389,10 +389,11 @@ std::string HardwareChromeOS::GetVersionForLogging(
   // TODO(zhangkelvin) Implement per-partition timestamp for Chrome OS.
   return "";
 }
-bool HardwareChromeOS::IsPartitionUpdateValid(
+
+ErrorCode HardwareChromeOS::IsPartitionUpdateValid(
     const std::string& partition_name, const std::string& new_version) const {
   // TODO(zhangkelvin) Implement per-partition timestamp for Chrome OS.
-  return true;
+  return ErrorCode::kSuccess;
 }
 
 }  // namespace chromeos_update_engine

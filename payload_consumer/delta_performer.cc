@@ -41,6 +41,8 @@
 #include <puffin/puffpatch.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/error_code.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
@@ -1625,15 +1627,19 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     LOG(ERROR) << "Manifest contains deprecated fields.";
     return ErrorCode::kPayloadMismatchedType;
   }
-  TimestampCheckResult result = CheckTimestampError();
-  if (result == TimestampCheckResult::DOWNGRADE) {
-    if (!hardware_->AllowDowngrade()) {
-      return ErrorCode::kPayloadTimestampError;
+  ErrorCode error_code = CheckTimestampError();
+  if (error_code != ErrorCode::kSuccess) {
+    if (error_code == ErrorCode::kPayloadTimestampError) {
+      if (!hardware_->AllowDowngrade()) {
+        return ErrorCode::kPayloadTimestampError;
+      }
+      LOG(INFO) << "The current OS build allows downgrade, continuing to apply"
+                   " the payload with an older timestamp.";
+    } else {
+      LOG(ERROR) << "Timestamp check returned "
+                 << utils::ErrorCodeToString(error_code);
+      return error_code;
     }
-    LOG(INFO) << "The current OS build allows downgrade, continuing to apply"
-                 " the payload with an older timestamp.";
-  } else if (result == TimestampCheckResult::FAILURE) {
-    return ErrorCode::kPayloadTimestampError;
   }
 
   // TODO(crbug.com/37661) we should be adding more and more manifest checks,
@@ -1642,51 +1648,87 @@ ErrorCode DeltaPerformer::ValidateManifest() {
   return ErrorCode::kSuccess;
 }
 
-TimestampCheckResult DeltaPerformer::CheckTimestampError() const {
+ErrorCode DeltaPerformer::CheckTimestampError() const {
   bool is_partial_update =
       manifest_.has_partial_update() && manifest_.partial_update();
   const auto& partitions = manifest_.partitions();
-  auto&& timestamp_valid = [this](const PartitionUpdate& partition) {
-    return hardware_->IsPartitionUpdateValid(partition.partition_name(),
-                                             partition.version());
+
+  // Check version field for a given PartitionUpdate object. If an error
+  // is encountered, set |error_code| accordingly. If downgrade is detected,
+  // |downgrade_detected| is set. Return true if the program should continue to
+  // check the next partition or not, or false if it should exit early due to
+  // errors.
+  auto&& timestamp_valid = [this](const PartitionUpdate& partition,
+                                  bool allow_empty_version,
+                                  bool* downgrade_detected) -> ErrorCode {
+    if (!partition.has_version()) {
+      if (allow_empty_version) {
+        return ErrorCode::kSuccess;
+      }
+      LOG(ERROR)
+          << "PartitionUpdate " << partition.partition_name()
+          << " does ot have a version field. Not allowed in partial updates.";
+      return ErrorCode::kDownloadManifestParseError;
+    }
+
+    auto error_code = hardware_->IsPartitionUpdateValid(
+        partition.partition_name(), partition.version());
+    switch (error_code) {
+      case ErrorCode::kSuccess:
+        break;
+      case ErrorCode::kPayloadTimestampError:
+        *downgrade_detected = true;
+        LOG(WARNING) << "PartitionUpdate " << partition.partition_name()
+                     << " has an older version than partition on device.";
+        break;
+      default:
+        LOG(ERROR) << "IsPartitionUpdateValid(" << partition.partition_name()
+                   << ") returned" << utils::ErrorCodeToString(error_code);
+        break;
+    }
+    return error_code;
   };
+
+  bool downgrade_detected = false;
+
   if (is_partial_update) {
     // for partial updates, all partition MUST have valid timestamps
     // But max_timestamp can be empty
     for (const auto& partition : partitions) {
-      if (!partition.has_version()) {
-        LOG(ERROR)
-            << "PartitionUpdate " << partition.partition_name()
-            << " does ot have a version field. Not allowed in partial updates.";
-        return TimestampCheckResult::FAILURE;
-      }
-      if (!timestamp_valid(partition)) {
-        // Warning because the system might allow downgrade.
-        LOG(WARNING) << "PartitionUpdate " << partition.partition_name()
-                     << " has an older version than partition on device.";
-        return TimestampCheckResult::DOWNGRADE;
+      auto error_code = timestamp_valid(
+          partition, false /* allow_empty_version */, &downgrade_detected);
+      if (error_code != ErrorCode::kSuccess &&
+          error_code != ErrorCode::kPayloadTimestampError) {
+        return error_code;
       }
     }
-
-    return TimestampCheckResult::SUCCESS;
+    if (downgrade_detected) {
+      return ErrorCode::kPayloadTimestampError;
+    }
+    return ErrorCode::kSuccess;
   }
+
+  // For non-partial updates, check max_timestamp first.
   if (manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
     LOG(ERROR) << "The current OS build timestamp ("
                << hardware_->GetBuildTimestamp()
                << ") is newer than the maximum timestamp in the manifest ("
                << manifest_.max_timestamp() << ")";
-    return TimestampCheckResult::DOWNGRADE;
+    return ErrorCode::kPayloadTimestampError;
   }
   // Otherwise... partitions can have empty timestamps.
   for (const auto& partition : partitions) {
-    if (partition.has_version() && !timestamp_valid(partition)) {
-      // Warning because the system might allow downgrade.
-      LOG(WARNING) << "PartitionUpdate " << partition.partition_name()
-                   << " has an older version than partition on device.";
-      return TimestampCheckResult::DOWNGRADE;
+    auto error_code = timestamp_valid(
+        partition, true /* allow_empty_version */, &downgrade_detected);
+    if (error_code != ErrorCode::kSuccess &&
+        error_code != ErrorCode::kPayloadTimestampError) {
+      return error_code;
     }
   }
-  return TimestampCheckResult::SUCCESS;
+  if (downgrade_detected) {
+    return ErrorCode::kPayloadTimestampError;
+  }
+  return ErrorCode::kSuccess;
 }
 
 ErrorCode DeltaPerformer::ValidateOperationHash(
