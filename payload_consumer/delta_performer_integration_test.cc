@@ -1261,7 +1261,7 @@ TEST_F(DeltaPerformerIntegrationTest,
   manifest.set_partial_update(true);
   {
     auto& partition = *manifest.add_partitions();
-    // For partial updates, missing timestamp should trigger an error
+    // For partial updates, invalid timestamp should trigger an error
     partition.set_partition_name("product");
     partition.set_version("something");
   }
