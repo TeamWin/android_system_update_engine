@@ -23,6 +23,7 @@
 #include <base/macros.h>
 #include <base/time/time.h>
 
+#include "update_engine/common/error_code.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/hardware_interface.h"
 
@@ -61,7 +62,7 @@ class HardwareAndroid : public HardwareInterface {
   void SetWarmReset(bool warm_reset) override;
   [[nodiscard]] std::string GetVersionForLogging(
       const std::string& partition_name) const override;
-  [[nodiscard]] bool IsPartitionUpdateValid(
+  [[nodiscard]] ErrorCode IsPartitionUpdateValid(
       const std::string& partition_name,
       const std::string& new_version) const override;
 
