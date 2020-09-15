@@ -202,7 +202,7 @@ class FakeHardware : public HardwareInterface {
     build_timestamp_ = build_timestamp;
   }
 
-  void SetWarmReset(bool warm_reset) { warm_reset_ = warm_reset; }
+  void SetWarmReset(bool warm_reset) override { warm_reset_ = warm_reset; }
 
   // Getters to verify state.
   int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
