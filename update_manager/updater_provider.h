@@ -36,6 +36,7 @@ enum class Stage {
   kUpdatedNeedReboot,
   kReportingErrorEvent,
   kAttemptingRollback,
+  kCleanupPreviousUpdate,
 };
 
 enum class UpdateRequestStatus {
