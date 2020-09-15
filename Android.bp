@@ -730,12 +730,12 @@ cc_test {
 
 // Brillo update payload generation script
 // ========================================================
-cc_prebuilt_binary {
+sh_binary {
     name: "brillo_update_payload",
     device_supported: false,
     host_supported: true,
 
-    srcs: ["scripts/brillo_update_payload"],
+    src: "scripts/brillo_update_payload",
     required: [
         "delta_generator",
         "shflags",
