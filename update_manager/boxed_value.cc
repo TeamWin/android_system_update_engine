@@ -177,6 +177,8 @@ string BoxedValue::ValuePrinter<Stage>(const void* value) {
       return "Reporting Error Event";
     case Stage::kAttemptingRollback:
       return "Attempting Rollback";
+    case Stage::kCleanupPreviousUpdate:
+      return "Cleanup Previous Update";
   }
   NOTREACHED();
   return "Unknown";
