@@ -169,6 +169,8 @@ const StageVariable::CurrOpStrToStage StageVariable::curr_op_str_to_stage[] = {
      Stage::kReportingErrorEvent},
     {update_engine::kUpdateStatusAttemptingRollback,
      Stage::kAttemptingRollback},
+    {update_engine::kUpdateStatusCleanupPreviousUpdate,
+     Stage::kCleanupPreviousUpdate},
 };
 
 const Stage* StageVariable::GetValue(TimeDelta /* timeout */, string* errmsg) {
