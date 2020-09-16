@@ -472,4 +472,23 @@ TEST(UtilsTest, ParseDottedVersion) {
   ExpectInvalidParseRollbackKeyVersion("1.99999");
 }
 
+TEST(UtilsTest, GetFilePathTest) {
+  test_utils::ScopedTempFile file;
+  int fd = HANDLE_EINTR(open(file.path().c_str(), O_RDONLY));
+  EXPECT_GE(fd, 0);
+  EXPECT_EQ(file.path(), utils::GetFilePath(fd));
+  EXPECT_EQ("not found", utils::GetFilePath(-1));
+  IGNORE_EINTR(close(fd));
+}
+
+TEST(UtilsTest, ValidatePerPartitionTimestamp) {
+  ASSERT_EQ(ErrorCode::kPayloadTimestampError,
+            utils::IsTimestampNewer("10", "5"));
+  ASSERT_EQ(ErrorCode::kSuccess, utils::IsTimestampNewer("10", "11"));
+  ASSERT_EQ(ErrorCode::kDownloadManifestParseError,
+            utils::IsTimestampNewer("10", "lol"));
+  ASSERT_EQ(ErrorCode::kError, utils::IsTimestampNewer("lol", "ZZZ"));
+  ASSERT_EQ(ErrorCode::kSuccess, utils::IsTimestampNewer("10", ""));
+}
+
 }  // namespace chromeos_update_engine

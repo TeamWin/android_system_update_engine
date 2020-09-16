@@ -46,7 +46,7 @@ class MockHttpFetcher : public HttpFetcher {
                   size_t size,
                   ProxyResolver* proxy_resolver)
       : HttpFetcher(proxy_resolver),
-        sent_size_(0),
+        sent_offset_(0),
         timeout_id_(brillo::MessageLoop::kTaskIdNull),
         paused_(false),
         fail_transfer_(false),
@@ -64,7 +64,7 @@ class MockHttpFetcher : public HttpFetcher {
 
   // Ignores this.
   void SetOffset(off_t offset) override {
-    sent_size_ = offset;
+    sent_offset_ = offset;
     if (delegate_)
       delegate_->SeekToOffset(offset);
   }
@@ -76,8 +76,8 @@ class MockHttpFetcher : public HttpFetcher {
   void set_connect_timeout(int connect_timeout_seconds) override {}
   void set_max_retry_count(int max_retry_count) override {}
 
-  // Dummy: no bytes were downloaded.
-  size_t GetBytesDownloaded() override { return sent_size_; }
+  // No bytes were downloaded in the mock class.
+  size_t GetBytesDownloaded() override { return bytes_sent_; }
 
   // Begins the transfer if it hasn't already begun.
   void BeginTransfer(const std::string& url) override;
@@ -113,6 +113,8 @@ class MockHttpFetcher : public HttpFetcher {
 
   const brillo::Blob& post_data() const { return post_data_; }
 
+  void set_delay(bool delay) { delay_ = delay; }
+
  private:
   // Sends data to the delegate and sets up a timeout callback if needed. There
   // must be a delegate. If |skip_delivery| is true, no bytes will be delivered,
@@ -129,8 +131,11 @@ class MockHttpFetcher : public HttpFetcher {
   // A full copy of the data we'll return to the delegate
   brillo::Blob data_;
 
-  // The number of bytes we've sent so far
-  size_t sent_size_;
+  // The current offset, marks the first byte that will be sent next
+  size_t sent_offset_{0};
+
+  // Total number of bytes transferred
+  size_t bytes_sent_{0};
 
   // The extra headers set.
   std::map<std::string, std::string> extra_headers_;
@@ -140,13 +145,16 @@ class MockHttpFetcher : public HttpFetcher {
   brillo::MessageLoop::TaskId timeout_id_;
 
   // True iff the fetcher is paused.
-  bool paused_;
+  bool paused_{false};
 
   // Set to true if the transfer should fail.
-  bool fail_transfer_;
+  bool fail_transfer_{false};
 
   // Set to true if BeginTransfer should EXPECT fail.
-  bool never_use_;
+  bool never_use_{false};
+
+  // Whether it should wait for 10ms before sending data to delegates
+  bool delay_{true};
 
   DISALLOW_COPY_AND_ASSIGN(MockHttpFetcher);
 };

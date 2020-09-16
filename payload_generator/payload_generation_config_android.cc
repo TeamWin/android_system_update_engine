@@ -63,11 +63,13 @@ bool AvbDescriptorCallback(const AvbDescriptor* descriptor, void* user_data) {
   part->verity.hash_tree_extent = ExtentForBytes(
       hashtree.hash_block_size, hashtree.tree_offset, hashtree.tree_size);
 
-  part->verity.fec_data_extent =
-      ExtentForBytes(hashtree.data_block_size, 0, hashtree.fec_offset);
-  part->verity.fec_extent = ExtentForBytes(
-      hashtree.data_block_size, hashtree.fec_offset, hashtree.fec_size);
-  part->verity.fec_roots = hashtree.fec_num_roots;
+  if (!part->disable_fec_computation) {
+    part->verity.fec_data_extent =
+        ExtentForBytes(hashtree.data_block_size, 0, hashtree.fec_offset);
+    part->verity.fec_extent = ExtentForBytes(
+        hashtree.data_block_size, hashtree.fec_offset, hashtree.fec_size);
+    part->verity.fec_roots = hashtree.fec_num_roots;
+  }
   return true;
 }
 
@@ -205,7 +207,8 @@ bool ImageConfig::LoadVerityConfig() {
               ExtentForRange(hash_start_block, tree_size / block_size);
         }
         fec_ecc_metadata ecc_data;
-        if (fh.get_ecc_metadata(ecc_data) && ecc_data.valid) {
+        if (!part.disable_fec_computation && fh.get_ecc_metadata(ecc_data) &&
+            ecc_data.valid) {
           TEST_AND_RETURN_FALSE(block_size == FEC_BLOCKSIZE);
           part.verity.fec_data_extent = ExtentForRange(0, ecc_data.blocks);
           part.verity.fec_extent =

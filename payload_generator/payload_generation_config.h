@@ -116,6 +116,12 @@ struct PartitionConfig {
 
   PostInstallConfig postinstall;
   VerityConfig verity;
+
+  // Enables the on device fec data computation by default.
+  bool disable_fec_computation = false;
+
+  // Per-partition version, usually a number representing timestamp.
+  std::string version;
 };
 
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
@@ -165,10 +171,10 @@ struct PayloadVersion {
   bool Validate() const;
 
   // Return whether the passed |operation| is allowed by this payload.
-  bool OperationAllowed(InstallOperation_Type operation) const;
+  bool OperationAllowed(InstallOperation::Type operation) const;
 
-  // Whether this payload version is a delta payload.
-  bool IsDelta() const;
+  // Whether this payload version is a delta or partial payload.
+  bool IsDeltaOrPartial() const;
 
   // The major version of the payload.
   uint64_t major;
@@ -194,6 +200,10 @@ struct PayloadGenerationConfig {
 
   // Whether the requested payload is a delta payload.
   bool is_delta = false;
+
+  // Whether the requested payload is a partial payload, i.e. only update a
+  // subset of partitions on device.
+  bool is_partial_update = false;
 
   // The major/minor version of the payload.
   PayloadVersion version;

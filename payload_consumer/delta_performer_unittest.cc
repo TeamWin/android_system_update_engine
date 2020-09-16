@@ -36,9 +36,11 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/error_code.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
+#include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/fake_file_descriptor.h"
@@ -161,6 +163,11 @@ class DeltaPerformerTest : public ::testing::Test {
     install_plan_.target_slot = 1;
     EXPECT_CALL(mock_delegate_, ShouldCancel(_))
         .WillRepeatedly(testing::Return(false));
+    performer_.set_update_certificates_path("");
+    // Set the public key corresponding to the unittest private key.
+    string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
+    EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
+    performer_.set_public_key_path(public_key_path);
   }
 
   // Test helper placed where it can easily be friended from DeltaPerformer.
@@ -179,19 +186,22 @@ class DeltaPerformerTest : public ::testing::Test {
 
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
                                const vector<AnnotatedOperation>& aops,
-                               bool sign_payload) {
+                               bool sign_payload,
+                               PartitionConfig* old_part = nullptr) {
     return GeneratePayload(blob_data,
                            aops,
                            sign_payload,
                            kMaxSupportedMajorPayloadVersion,
-                           kMaxSupportedMinorPayloadVersion);
+                           kMaxSupportedMinorPayloadVersion,
+                           old_part);
   }
 
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
                                const vector<AnnotatedOperation>& aops,
                                bool sign_payload,
                                uint64_t major_version,
-                               uint32_t minor_version) {
+                               uint32_t minor_version,
+                               PartitionConfig* old_part = nullptr) {
     test_utils::ScopedTempFile blob_file("Blob-XXXXXX");
     EXPECT_TRUE(test_utils::WriteFileVector(blob_file.path(), blob_data));
 
@@ -202,24 +212,29 @@ class DeltaPerformerTest : public ::testing::Test {
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
 
-    PartitionConfig old_part(kPartitionNameRoot);
+    std::unique_ptr<PartitionConfig> old_part_uptr;
+    if (!old_part) {
+      old_part_uptr = std::make_unique<PartitionConfig>(kPartitionNameRoot);
+      old_part = old_part_uptr.get();
+    }
     if (minor_version != kFullPayloadMinorVersion) {
       // When generating a delta payload we need to include the old partition
       // information to mark it as a delta payload.
-      old_part.path = "/dev/null";
-      old_part.size = 0;
+      if (old_part->path.empty()) {
+        old_part->path = "/dev/null";
+      }
     }
     PartitionConfig new_part(kPartitionNameRoot);
     new_part.path = "/dev/zero";
     new_part.size = 1234;
 
-    payload.AddPartition(old_part, new_part, aops);
+    payload.AddPartition(*old_part, new_part, aops, {});
 
     // We include a kernel partition without operations.
-    old_part.name = kPartitionNameKernel;
+    old_part->name = kPartitionNameKernel;
     new_part.name = kPartitionNameKernel;
     new_part.size = 0;
-    payload.AddPartition(old_part, new_part, {});
+    payload.AddPartition(*old_part, new_part, {}, {});
 
     test_utils::ScopedTempFile payload_file("Payload-XXXXXX");
     string private_key =
@@ -235,7 +250,8 @@ class DeltaPerformerTest : public ::testing::Test {
   }
 
   brillo::Blob GenerateSourceCopyPayload(const brillo::Blob& copied_data,
-                                         bool add_hash) {
+                                         bool add_hash,
+                                         PartitionConfig* old_part = nullptr) {
     PayloadGenerationConfig config;
     const uint64_t kDefaultBlockSize = config.block_size;
     EXPECT_EQ(0U, copied_data.size() % kDefaultBlockSize);
@@ -249,7 +265,7 @@ class DeltaPerformerTest : public ::testing::Test {
     if (add_hash)
       aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-    return GeneratePayload(brillo::Blob(), {aop}, false);
+    return GeneratePayload(brillo::Blob(), {aop}, false, old_part);
   }
 
   // Apply |payload_data| on partition specified in |source_path|.
@@ -316,7 +332,7 @@ class DeltaPerformerTest : public ::testing::Test {
     // When filling in size in manifest, exclude the size of the 24-byte header.
     uint64_t size_in_manifest = htobe64(actual_metadata_size - 24);
     performer_.Write(&size_in_manifest, 8, &error_code);
-    uint32_t signature_size = htobe64(10);
+    auto signature_size = htobe64(10);
     bool result = performer_.Write(&signature_size, 4, &error_code);
     if (expected_metadata_size == actual_metadata_size ||
         !hash_checks_mandatory) {
@@ -388,12 +404,6 @@ class DeltaPerformerTest : public ::testing::Test {
       expected_result = MetadataParseResult::kSuccess;
       expected_error = ErrorCode::kSuccess;
     }
-
-    // Use the public key corresponding to the private key used above to
-    // sign the metadata.
-    string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
-    EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
-    performer_.set_public_key_path(public_key_path);
 
     // Init actual_error with an invalid value so that we make sure
     // ParsePayloadMetadata properly populates it in all cases.
@@ -581,10 +591,15 @@ TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), {aop}, false);
-
   test_utils::ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), expected_data));
+
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = expected_data.size();
+
+  brillo::Blob payload_data =
+      GeneratePayload(brillo::Blob(), {aop}, false, &old_part);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, source.path(), true));
 }
@@ -604,10 +619,15 @@ TEST_F(DeltaPerformerTest, PuffdiffOperationTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(src, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data = GeneratePayload(puffdiff_payload, {aop}, false);
-
   test_utils::ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), src));
+
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = src.size();
+
+  brillo::Blob payload_data =
+      GeneratePayload(puffdiff_payload, {aop}, false, &old_part);
 
   brillo::Blob dst(std::begin(dst_deflates), std::end(dst_deflates));
   EXPECT_EQ(dst, ApplyPayload(payload_data, source.path(), true));
@@ -627,10 +647,15 @@ TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), {aop}, false);
-
   test_utils::ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), actual_data));
+
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = actual_data.size();
+
+  brillo::Blob payload_data =
+      GeneratePayload(brillo::Blob(), {aop}, false, &old_part);
 
   EXPECT_EQ(actual_data, ApplyPayload(payload_data, source.path(), false));
 }
@@ -650,7 +675,12 @@ TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyFallbackTest) {
   FakeFileDescriptor* fake_fec = SetFakeECCFile(kCopyOperationSize);
   brillo::Blob expected_data = FakeFileDescriptorData(kCopyOperationSize);
 
-  brillo::Blob payload_data = GenerateSourceCopyPayload(expected_data, true);
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = invalid_data.size();
+
+  brillo::Blob payload_data =
+      GenerateSourceCopyPayload(expected_data, true, &old_part);
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, source.path(), true));
   // Verify that the fake_fec was actually used.
   EXPECT_EQ(1U, fake_fec->GetReadOps().size());
@@ -671,8 +701,13 @@ TEST_F(DeltaPerformerTest, ErrorCorrectionSourceCopyWhenNoHashFallbackTest) {
   // the expected.
   FakeFileDescriptor* fake_fec = SetFakeECCFile(kCopyOperationSize / 2);
 
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = expected_data.size();
+
   // The payload operation doesn't include an operation hash.
-  brillo::Blob payload_data = GenerateSourceCopyPayload(expected_data, false);
+  brillo::Blob payload_data =
+      GenerateSourceCopyPayload(expected_data, false, &old_part);
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, source.path(), true));
   // Verify that the fake_fec was attempted to be used. Since the file
   // descriptor is shorter it can actually do more than one read to realize it
@@ -866,6 +901,24 @@ TEST_F(DeltaPerformerTest, ValidateManifestDowngrade) {
                         ErrorCode::kPayloadTimestampError);
 }
 
+TEST_F(DeltaPerformerTest, ValidatePerPartitionTimestampSuccess) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+
+  manifest.set_minor_version(kFullPayloadMinorVersion);
+  manifest.set_max_timestamp(2);
+  fake_hardware_.SetBuildTimestamp(1);
+  auto& partition = *manifest.add_partitions();
+  partition.set_version("10");
+  partition.set_partition_name("system");
+  fake_hardware_.SetVersion("system", "5");
+
+  RunManifestValidation(manifest,
+                        kMaxSupportedMajorPayloadVersion,
+                        InstallPayloadType::kFull,
+                        ErrorCode::kSuccess);
+}
+
 TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   unsigned int seed = time(nullptr);
   EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
@@ -968,7 +1021,6 @@ TEST_F(DeltaPerformerTest, BrilloParsePayloadMetadataTest) {
   brillo::Blob payload_data = GeneratePayload(
       {}, {}, true, kBrilloMajorPayloadVersion, kSourceMinorPayloadVersion);
   install_plan_.hash_checks_mandatory = true;
-  performer_.set_public_key_path(GetBuildArtifactsPath(kUnittestPublicKeyPath));
   payload_.size = payload_data.size();
   ErrorCode error;
   EXPECT_EQ(MetadataParseResult::kSuccess,

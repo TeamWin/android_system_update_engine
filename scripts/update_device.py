@@ -20,12 +20,14 @@
 from __future__ import absolute_import
 
 import argparse
+import binascii
 import hashlib
 import logging
 import os
 import socket
 import subprocess
 import sys
+import struct
 import threading
 import xml.etree.ElementTree
 import zipfile
@@ -87,17 +89,49 @@ class AndroidOTAPackage(object):
   # Android OTA package file paths.
   OTA_PAYLOAD_BIN = 'payload.bin'
   OTA_PAYLOAD_PROPERTIES_TXT = 'payload_properties.txt'
+  SECONDARY_OTA_PAYLOAD_BIN = 'secondary/payload.bin'
+  SECONDARY_OTA_PAYLOAD_PROPERTIES_TXT = 'secondary/payload_properties.txt'
+  PAYLOAD_MAGIC_HEADER = b'CrAU'
 
-  def __init__(self, otafilename):
+  def __init__(self, otafilename, secondary_payload=False):
     self.otafilename = otafilename
 
     otazip = zipfile.ZipFile(otafilename, 'r')
-    payload_info = otazip.getinfo(self.OTA_PAYLOAD_BIN)
-    self.offset = payload_info.header_offset
-    self.offset += zipfile.sizeFileHeader
-    self.offset += len(payload_info.extra) + len(payload_info.filename)
-    self.size = payload_info.file_size
-    self.properties = otazip.read(self.OTA_PAYLOAD_PROPERTIES_TXT)
+    payload_entry = (self.SECONDARY_OTA_PAYLOAD_BIN if secondary_payload else
+                     self.OTA_PAYLOAD_BIN)
+    payload_info = otazip.getinfo(payload_entry)
+
+    if payload_info.compress_type != 0:
+      logging.error(
+          "Expected layload to be uncompressed, got compression method %d",
+          payload_info.compress_type)
+    # Don't use len(payload_info.extra). Because that returns size of extra
+    # fields in central directory. We need to look at local file directory,
+    # as these two might have different sizes.
+    with open(otafilename, "rb") as fp:
+      fp.seek(payload_info.header_offset)
+      data = fp.read(zipfile.sizeFileHeader)
+      fheader = struct.unpack(zipfile.structFileHeader, data)
+      # Last two fields of local file header are filename length and
+      # extra length
+      filename_len = fheader[-2]
+      extra_len = fheader[-1]
+      self.offset = payload_info.header_offset
+      self.offset += zipfile.sizeFileHeader
+      self.offset += filename_len + extra_len
+      self.size = payload_info.file_size
+      fp.seek(self.offset)
+      payload_header = fp.read(4)
+      if payload_header != self.PAYLOAD_MAGIC_HEADER:
+        logging.warning(
+            "Invalid header, expeted %s, got %s."
+            "Either the offset is not correct, or payload is corrupted",
+            binascii.hexlify(self.PAYLOAD_MAGIC_HEADER),
+            payload_header)
+
+    property_entry = (self.SECONDARY_OTA_PAYLOAD_PROPERTIES_TXT if
+                      secondary_payload else self.OTA_PAYLOAD_PROPERTIES_TXT)
+    self.properties = otazip.read(property_entry)
 
 
 class UpdateHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -280,9 +314,9 @@ def StartServer(ota_filename, serving_range):
   return t
 
 
-def AndroidUpdateCommand(ota_filename, payload_url, extra_headers):
+def AndroidUpdateCommand(ota_filename, secondary, payload_url, extra_headers):
   """Return the command to run to start the update in the Android device."""
-  ota = AndroidOTAPackage(ota_filename)
+  ota = AndroidOTAPackage(ota_filename, secondary)
   headers = ota.properties
   headers += 'USER_AGENT=Dalvik (something, something)\n'
   headers += 'NETWORK_ID=0\n'
@@ -365,6 +399,8 @@ def main():
                       help='Override the public key used to verify payload.')
   parser.add_argument('--extra-headers', type=str, default='',
                       help='Extra headers to pass to the device.')
+  parser.add_argument('--secondary', action='store_true',
+                      help='Update with the secondary payload in the package.')
   args = parser.parse_args()
   logging.basicConfig(
       level=logging.WARNING if args.no_verbose else logging.INFO)
@@ -400,7 +436,7 @@ def main():
     # command.
     payload_url = 'http://127.0.0.1:%d/payload' % DEVICE_PORT
     if use_omaha and zipfile.is_zipfile(args.otafile):
-      ota = AndroidOTAPackage(args.otafile)
+      ota = AndroidOTAPackage(args.otafile, args.secondary)
       serving_range = (ota.offset, ota.size)
     else:
       serving_range = (0, os.stat(args.otafile).st_size)
@@ -428,8 +464,8 @@ def main():
       update_cmd = \
           OmahaUpdateCommand('http://127.0.0.1:%d/update' % DEVICE_PORT)
     else:
-      update_cmd = \
-          AndroidUpdateCommand(args.otafile, payload_url, args.extra_headers)
+      update_cmd = AndroidUpdateCommand(args.otafile, args.secondary,
+                                        payload_url, args.extra_headers)
     cmds.append(['shell', 'su', '0'] + update_cmd)
 
     for cmd in cmds:

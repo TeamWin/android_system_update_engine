@@ -99,7 +99,7 @@ bool ChunkProcessor::ProcessChunk() {
       fd_, buffer_in_.data(), buffer_in_.size(), offset_, &bytes_read));
   TEST_AND_RETURN_FALSE(bytes_read == static_cast<ssize_t>(size_));
 
-  InstallOperation_Type op_type;
+  InstallOperation::Type op_type;
   TEST_AND_RETURN_FALSE(diff_utils::GenerateBestFullOperation(
       buffer_in_, version_, &op_blob, &op_type));
 
@@ -153,7 +153,7 @@ bool FullUpdateGenerator::GenerateOperations(
   aops->resize(num_chunks);
   vector<ChunkProcessor> chunk_processors;
   chunk_processors.reserve(num_chunks);
-  blob_file->SetTotalBlobs(num_chunks);
+  blob_file->IncTotalBlobs(num_chunks);
 
   for (size_t i = 0; i < num_chunks; ++i) {
     size_t start_block = i * chunk_blocks;
@@ -186,9 +186,6 @@ bool FullUpdateGenerator::GenerateOperations(
   for (ChunkProcessor& processor : chunk_processors)
     thread_pool.AddWork(&processor);
   thread_pool.JoinAll();
-
-  // All the work done, disable logging.
-  blob_file->SetTotalBlobs(0);
 
   // All the operations must have a type set at this point. Otherwise, a
   // ChunkProcessor failed to complete.

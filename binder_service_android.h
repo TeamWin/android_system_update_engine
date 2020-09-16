@@ -53,6 +53,11 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
       int64_t payload_offset,
       int64_t payload_size,
       const std::vector<android::String16>& header_kv_pairs) override;
+  android::binder::Status applyPayloadFd(
+      const ::android::os::ParcelFileDescriptor& pfd,
+      int64_t payload_offset,
+      int64_t payload_size,
+      const std::vector<android::String16>& header_kv_pairs) override;
   android::binder::Status bind(
       const android::sp<android::os::IUpdateEngineCallback>& callback,
       bool* return_value) override;
@@ -65,6 +70,12 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
   android::binder::Status resetStatus() override;
   android::binder::Status verifyPayloadApplicable(
       const android::String16& metadata_filename, bool* return_value) override;
+  android::binder::Status allocateSpaceForPayload(
+      const android::String16& metadata_filename,
+      const std::vector<android::String16>& header_kv_pairs,
+      int64_t* return_value) override;
+  android::binder::Status cleanupSuccessfulUpdate(
+      const android::sp<android::os::IUpdateEngineCallback>& callback) override;
 
  private:
   // Remove the passed |callback| from the list of registered callbacks. Called

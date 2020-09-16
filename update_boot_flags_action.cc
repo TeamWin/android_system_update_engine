@@ -50,8 +50,11 @@ void UpdateBootFlagsAction::PerformAction() {
   }
 }
 
-void UpdateBootFlagsAction::CompleteUpdateBootFlags(bool successful) {
+void UpdateBootFlagsAction::TerminateProcessing() {
   is_running_ = false;
+}
+
+void UpdateBootFlagsAction::CompleteUpdateBootFlags(bool successful) {
   if (!successful) {
     // We ignore the failure for now because if the updating boot flags is flaky
     // or has a bug in a specific release, then blocking the update can cause
@@ -61,6 +64,18 @@ void UpdateBootFlagsAction::CompleteUpdateBootFlags(bool successful) {
     // TODO(ahassani): Add new error code metric for kUpdateBootFlagsFailed.
     LOG(ERROR) << "Updating boot flags failed, but ignoring its failure.";
   }
+
+  // As the callback to MarkBootSuccessfulAsync, this function can still be
+  // called even after the current UpdateBootFlagsAction object get destroyed by
+  // the action processor. In this case, check the value of the static variable
+  // |is_running_| and skip executing the callback function.
+  if (!is_running_) {
+    LOG(INFO) << "UpdateBootFlagsAction is no longer running.";
+    return;
+  }
+
+  is_running_ = false;
+
   updated_boot_flags_ = true;
   processor_->ActionComplete(this, ErrorCode::kSuccess);
 }

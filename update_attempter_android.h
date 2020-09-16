@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include <android-base/unique_fd.h>
 #include <base/time/time.h>
 
 #include "update_engine/client_library/include/update_engine/update_status.h"
@@ -36,6 +37,7 @@
 #include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/service_delegate_android_interface.h"
 #include "update_engine/service_observer_interface.h"
@@ -46,7 +48,9 @@ class UpdateAttempterAndroid
     : public ServiceDelegateAndroidInterface,
       public ActionProcessorDelegate,
       public DownloadActionDelegate,
-      public PostinstallRunnerAction::DelegateInterface {
+      public FilesystemVerifyDelegate,
+      public PostinstallRunnerAction::DelegateInterface,
+      public CleanupPreviousUpdateActionDelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
 
@@ -65,12 +69,24 @@ class UpdateAttempterAndroid
                     int64_t payload_size,
                     const std::vector<std::string>& key_value_pair_headers,
                     brillo::ErrorPtr* error) override;
+  bool ApplyPayload(int fd,
+                    int64_t payload_offset,
+                    int64_t payload_size,
+                    const std::vector<std::string>& key_value_pair_headers,
+                    brillo::ErrorPtr* error) override;
   bool SuspendUpdate(brillo::ErrorPtr* error) override;
   bool ResumeUpdate(brillo::ErrorPtr* error) override;
   bool CancelUpdate(brillo::ErrorPtr* error) override;
   bool ResetStatus(brillo::ErrorPtr* error) override;
   bool VerifyPayloadApplicable(const std::string& metadata_filename,
                                brillo::ErrorPtr* error) override;
+  uint64_t AllocateSpaceForPayload(
+      const std::string& metadata_filename,
+      const std::vector<std::string>& key_value_pair_headers,
+      brillo::ErrorPtr* error) override;
+  void CleanupSuccessfulUpdate(
+      std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface> callback,
+      brillo::ErrorPtr* error) override;
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
@@ -87,8 +103,14 @@ class UpdateAttempterAndroid
   bool ShouldCancel(ErrorCode* cancel_reason) override;
   void DownloadComplete() override;
 
+  // FilesystemVerifyDelegate overrides
+  void OnVerifyProgressUpdate(double progress) override;
+
   // PostinstallRunnerAction::DelegateInterface
   void ProgressUpdate(double progress) override;
+
+  // CleanupPreviousUpdateActionDelegateInterface
+  void OnCleanupProgressUpdate(double progress) override;
 
  private:
   friend class UpdateAttempterAndroidTest;
@@ -151,10 +173,30 @@ class UpdateAttempterAndroid
   void UpdatePrefsOnUpdateStart(bool is_resume);
 
   // Prefs to delete:
-  //   |kPrefsNumReboots|, |kPrefsPayloadAttemptNumber|,
+  //   |kPrefsNumReboots|, |kPrefsCurrentBytesDownloaded|
   //   |kPrefsSystemUpdatedMarker|, |kPrefsUpdateTimestampStart|,
-  //   |kPrefsUpdateBootTimestampStart|, |kPrefsCurrentBytesDownloaded|
+  //   |kPrefsUpdateBootTimestampStart|
   void ClearMetricsPrefs();
+
+  // Return source and target slots for update.
+  BootControlInterface::Slot GetCurrentSlot() const;
+  BootControlInterface::Slot GetTargetSlot() const;
+
+  // Helper of public VerifyPayloadApplicable. Return the parsed manifest in
+  // |manifest|.
+  static bool VerifyPayloadParseManifest(const std::string& metadata_filename,
+                                         DeltaArchiveManifest* manifest,
+                                         brillo::ErrorPtr* error);
+
+  // Enqueue and run a CleanupPreviousUpdateAction.
+  void ScheduleCleanupPreviousUpdate();
+
+  // Notify and clear |cleanup_previous_update_callbacks_|.
+  void NotifyCleanupPreviousUpdateCallbacksAndClear();
+
+  // Remove |callback| from |cleanup_previous_update_callbacks_|.
+  void RemoveCleanupPreviousUpdateCallback(
+      CleanupSuccessfulUpdateCallbackInterface* callback);
 
   DaemonStateInterface* daemon_state_;
 
@@ -190,6 +232,14 @@ class UpdateAttempterAndroid
   std::unique_ptr<ClockInterface> clock_;
 
   std::unique_ptr<MetricsReporterInterface> metrics_reporter_;
+
+  ::android::base::unique_fd payload_fd_;
+
+  std::vector<std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface>>
+      cleanup_previous_update_callbacks_;
+  // Result of previous CleanupPreviousUpdateAction. Nullopt If
+  // CleanupPreviousUpdateAction has not been executed.
+  std::optional<ErrorCode> cleanup_previous_update_code_{std::nullopt};
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempterAndroid);
 };

@@ -17,6 +17,7 @@
 package android.os;
 
 import android.os.IUpdateEngineCallback;
+import android.os.ParcelFileDescriptor;
 
 /** @hide */
 interface IUpdateEngine {
@@ -25,6 +26,11 @@ interface IUpdateEngine {
                     in long payload_offset,
                     in long payload_size,
                     in String[] headerKeyValuePairs);
+  /** @hide */
+  void applyPayloadFd(in ParcelFileDescriptor pfd,
+                      in long payload_offset,
+                      in long payload_size,
+                      in String[] headerKeyValuePairs);
   /** @hide */
   boolean bind(IUpdateEngineCallback callback);
   /** @hide */
@@ -39,4 +45,30 @@ interface IUpdateEngine {
   void resetStatus();
   /** @hide */
   boolean verifyPayloadApplicable(in String metadataFilename);
+  /**
+   * Allocate space on userdata partition.
+   *
+   * @return 0 indicates allocation is successful.
+   *   Non-zero indicates space is insufficient. The returned value is the
+   *   total required space (in bytes) on userdata partition.
+   *
+   * @throws ServiceSpecificException for other errors.
+   *
+   * @hide
+   */
+  long allocateSpaceForPayload(in String metadataFilename,
+                               in String[] headerKeyValuePairs);
+  /** @hide
+   *
+   * Wait for merge to finish, and clean up necessary files.
+   *
+   * @param callback Report status updates in callback (not the one previously
+   * bound with {@link #bind()}).
+   * {@link IUpdateEngineCallback#onStatusUpdate} is called with
+   * CLEANUP_PREVIOUS_UPDATE and a progress value during the cleanup.
+   * {@link IUpdateEngineCallback#onPayloadApplicationComplete} is called at
+   * the end with SUCCESS if successful. ERROR if transient errors (e.g. merged
+   * but needs reboot). DEVICE_CORRUPTED for permanent errors.
+   */
+  void cleanupSuccessfulUpdate(IUpdateEngineCallback callback);
 }

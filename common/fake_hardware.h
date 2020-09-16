@@ -19,10 +19,13 @@
 
 #include <map>
 #include <string>
+#include <utility>
 
 #include <base/time/time.h>
 
+#include "update_engine/common/error_code.h"
 #include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/utils.h"
 
 namespace chromeos_update_engine {
 
@@ -132,6 +135,8 @@ class FakeHardware : public HardwareInterface {
 
   int64_t GetBuildTimestamp() const override { return build_timestamp_; }
 
+  bool AllowDowngrade() const override { return false; }
+
   bool GetFirstActiveOmahaPingSent() const override {
     return first_active_omaha_ping_sent_;
   }
@@ -197,11 +202,26 @@ class FakeHardware : public HardwareInterface {
     build_timestamp_ = build_timestamp;
   }
 
+  void SetWarmReset(bool warm_reset) override { warm_reset_ = warm_reset; }
+
   // Getters to verify state.
   int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
 
   bool GetIsRollbackPowerwashScheduled() const {
     return powerwash_scheduled_ && save_rollback_data_;
+  }
+  std::string GetVersionForLogging(
+      const std::string& partition_name) const override {
+    return partition_timestamps_[partition_name];
+  }
+  void SetVersion(const std::string& partition_name, std::string timestamp) {
+    partition_timestamps_[partition_name] = std::move(timestamp);
+  }
+  ErrorCode IsPartitionUpdateValid(
+      const std::string& partition_name,
+      const std::string& new_version) const override {
+    const auto old_version = GetVersionForLogging(partition_name);
+    return utils::IsTimestampNewer(old_version, new_version);
   }
 
  private:
@@ -225,6 +245,8 @@ class FakeHardware : public HardwareInterface {
   bool save_rollback_data_{false};
   int64_t build_timestamp_{0};
   bool first_active_omaha_ping_sent_{false};
+  bool warm_reset_{false};
+  mutable std::map<std::string, std::string> partition_timestamps_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeHardware);
 };

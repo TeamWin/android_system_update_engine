@@ -97,8 +97,6 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // ready. Called when the post-install script was run for all the partitions.
   void CompletePostinstall(ErrorCode error_code);
 
-  InstallPlan install_plan_;
-
   // The path where the filesystem will be mounted during post-install.
   std::string fs_mount_dir_;
 
@@ -141,6 +139,7 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // The parent progress file descriptor used to watch for progress reports from
   // the postinstall program and the task watching for them.
   int progress_fd_{-1};
+
   std::unique_ptr<base::FileDescriptorWatcher::Controller> progress_controller_;
 
   // A buffer of a partial read line from the progress file descriptor.

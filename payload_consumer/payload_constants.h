@@ -56,6 +56,9 @@ extern const uint32_t kPuffdiffMinorPayloadVersion;
 // The minor version that allows Verity hash tree and FEC generation.
 extern const uint32_t kVerityMinorPayloadVersion;
 
+// The minor version that allows partial update, e.g. kernel only update.
+extern const uint32_t kPartialUpdateMinorPayloadVersion;
+
 // The minimum and maximum supported minor version.
 extern const uint32_t kMinSupportedMinorPayloadVersion;
 extern const uint32_t kMaxSupportedMinorPayloadVersion;
@@ -77,7 +80,7 @@ extern const char kDeltaMagic[4];
 const uint64_t kSparseHole = std::numeric_limits<uint64_t>::max();
 
 // Return the name of the operation type.
-const char* InstallOperationTypeName(InstallOperation_Type op_type);
+const char* InstallOperationTypeName(InstallOperation::Type op_type);
 
 }  // namespace chromeos_update_engine
 

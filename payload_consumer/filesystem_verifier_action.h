@@ -49,14 +49,33 @@ enum class VerifierStep {
   kVerifySourceHash,
 };
 
+class FilesystemVerifyDelegate {
+ public:
+  virtual ~FilesystemVerifyDelegate() = default;
+  virtual void OnVerifyProgressUpdate(double progress) = 0;
+};
+
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
-  FilesystemVerifierAction()
-      : verity_writer_(verity_writer::CreateVerityWriter()) {}
+  explicit FilesystemVerifierAction(
+      DynamicPartitionControlInterface* dynamic_control)
+      : verity_writer_(verity_writer::CreateVerityWriter()),
+        dynamic_control_(dynamic_control) {
+    CHECK(dynamic_control_);
+  }
+
   ~FilesystemVerifierAction() override = default;
 
   void PerformAction() override;
   void TerminateProcessing() override;
+
+  // Used for listening to progress updates
+  void set_delegate(FilesystemVerifyDelegate* delegate) {
+    this->delegate_ = delegate;
+  }
+  [[nodiscard]] FilesystemVerifyDelegate* get_delegate() const {
+    return this->delegate_;
+  }
 
   // Debugging/logging
   static std::string StaticType() { return "FilesystemVerifierAction"; }
@@ -85,6 +104,9 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // true if TerminateProcessing() was called.
   void Cleanup(ErrorCode code);
 
+  // Invoke delegate callback to report progress, if delegate is not null
+  void UpdateProgress(double progress);
+
   // The type of the partition that we are verifying.
   VerifierStep verifier_step_ = VerifierStep::kVerifyTargetHash;
 
@@ -100,14 +122,14 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   bool cancelled_{false};  // true if the action has been cancelled.
 
-  // The install plan we're passed in via the input pipe.
-  InstallPlan install_plan_;
-
   // Calculates the hash of the data.
   std::unique_ptr<HashCalculator> hasher_;
 
   // Write verity data of the current partition.
   std::unique_ptr<VerityWriterInterface> verity_writer_;
+
+  // Verifies the untouched dynamic partitions for partial updates.
+  DynamicPartitionControlInterface* dynamic_control_{nullptr};
 
   // Reads and hashes this many bytes from the head of the input stream. When
   // the partition starts to be hashed, this field is initialized from the
@@ -118,6 +140,9 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // The byte offset that we are reading in the current partition.
   uint64_t offset_{0};
+
+  // An observer that observes progress updates of this action.
+  FilesystemVerifyDelegate* delegate_{};
 
   DISALLOW_COPY_AND_ASSIGN(FilesystemVerifierAction);
 };

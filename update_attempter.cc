@@ -824,8 +824,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                                            system_state_->hardware()),
       false,
       session_id_);
-  auto filesystem_verifier_action =
-      std::make_unique<FilesystemVerifierAction>();
+  auto filesystem_verifier_action = std::make_unique<FilesystemVerifierAction>(
+      system_state_->boot_control()->GetDynamicPartitionControl());
   auto update_complete_action = std::make_unique<OmahaRequestAction>(
       system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
@@ -1383,6 +1383,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
         case UpdateStatus::REPORTING_ERROR_EVENT:
         case UpdateStatus::ATTEMPTING_ROLLBACK:
         case UpdateStatus::DISABLED:
+        case UpdateStatus::CLEANUP_PREVIOUS_UPDATE:
           MarkDeltaUpdateFailure();
           break;
       }

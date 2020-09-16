@@ -366,4 +366,18 @@ bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
   return true;
 }
 
+void HardwareChromeOS::SetWarmReset(bool warm_reset) {}
+
+std::string HardwareChromeOS::GetVersionForLogging(
+    const std::string& partition_name) const {
+  // TODO(zhangkelvin) Implement per-partition timestamp for Chrome OS.
+  return "";
+}
+
+ErrorCode HardwareChromeOS::IsPartitionUpdateValid(
+    const std::string& partition_name, const std::string& new_version) const {
+  // TODO(zhangkelvin) Implement per-partition timestamp for Chrome OS.
+  return ErrorCode::kSuccess;
+}
+
 }  // namespace chromeos_update_engine

@@ -83,7 +83,9 @@ enum class ErrorCode : int {
   kInternalLibCurlError = 57,
   kUnresolvedHostError = 58,
   kUnresolvedHostRecovered = 59,
-  kPackageExcludedFromUpdate = 60,
+  kNotEnoughSpace = 60,
+  kDeviceCorrupted = 61,
+  kPackageExcludedFromUpdate = 62,
 
   // VERY IMPORTANT! When adding new error codes:
   //

@@ -154,6 +154,8 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kInternalLibCurlError:
     case ErrorCode::kUnresolvedHostError:
     case ErrorCode::kUnresolvedHostRecovered:
+    case ErrorCode::kNotEnoughSpace:
+    case ErrorCode::kDeviceCorrupted:
     case ErrorCode::kPackageExcludedFromUpdate:
       LOG(INFO) << "Not changing URL index or failure count due to error "
                 << chromeos_update_engine::utils::ErrorCodeToString(err_code)
@@ -598,7 +600,6 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
     string* error,
     UpdateBackoffAndDownloadUrlResult* result,
     const UpdateState& update_state) const {
-  // Sanity checks.
   DCHECK_GE(update_state.download_errors_max, 0);
 
   // Set default result values.
@@ -670,7 +671,7 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
   Time prev_err_time;
   bool is_first = true;
   for (const auto& err_tuple : update_state.download_errors) {
-    // Do some sanity checks.
+    // Do some validation checks.
     int used_url_idx = get<0>(err_tuple);
     if (is_first && url_idx >= 0 && used_url_idx != url_idx) {
       LOG(WARNING) << "First URL in error log (" << used_url_idx

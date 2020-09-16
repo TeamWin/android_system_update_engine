@@ -368,7 +368,7 @@ TEST_F(OmahaRequestBuilderXmlTest,
       1,
       CountSubstringInString(
           kRequestXml,
-          "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"60\"></event>"))
+          "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"62\"></event>"))
       << kRequestXml;
 }
 
@@ -399,7 +399,7 @@ TEST_F(OmahaRequestBuilderXmlTest,
       2,
       CountSubstringInString(
           kRequestXml,
-          "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"60\"></event>"))
+          "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"62\"></event>"))
       << kRequestXml;
 }
 }  // namespace chromeos_update_engine

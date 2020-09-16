@@ -16,58 +16,43 @@
 
 #include "update_engine/metrics_reporter_android.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 
-#include <metricslogger/metrics_logger.h>
+#include <android-base/properties.h>
+#include <base/strings/string_util.h>
+#include <fs_mgr.h>
+#include <libdm/dm.h>
+#include <liblp/builder.h>
+#include <liblp/liblp.h>
+#include <statslog.h>
 
 #include "update_engine/common/constants.h"
 
+using android::fs_mgr::GetPartitionGroupName;
+using android::fs_mgr::LpMetadata;
+using android::fs_mgr::MetadataBuilder;
+using android::fs_mgr::ReadMetadata;
+using android::fs_mgr::SlotNumberForSlotSuffix;
+using base::EndsWith;
+
 namespace {
-void LogHistogram(const std::string& metrics, int value) {
-  android::metricslogger::LogHistogram(metrics, value);
-  LOG(INFO) << "uploading " << value << " to histogram for metric " << metrics;
+// A number offset adds on top of the enum value. e.g. ErrorCode::SUCCESS will
+// be reported as 10000, and AttemptResult::UPDATE_CANCELED will be reported as
+// 10011. This keeps the ordering of update engine's enum definition when statsd
+// atoms reserve the value 0 for unknown state.
+constexpr auto kMetricsReporterEnumOffset = 10000;
+
+int32_t GetStatsdEnumValue(int32_t value) {
+  return kMetricsReporterEnumOffset + value;
 }
 }  // namespace
 
 namespace chromeos_update_engine {
 
 namespace metrics {
-
-// The histograms are defined in:
-// depot/google3/analysis/uma/configs/clearcut/TRON/histograms.xml
-constexpr char kMetricsUpdateEngineAttemptNumber[] =
-    "ota_update_engine_attempt_number";
-constexpr char kMetricsUpdateEngineAttemptResult[] =
-    "ota_update_engine_attempt_result";
-constexpr char kMetricsUpdateEngineAttemptDurationInMinutes[] =
-    "ota_update_engine_attempt_fixed_duration_boottime_in_minutes";
-constexpr char kMetricsUpdateEngineAttemptDurationUptimeInMinutes[] =
-    "ota_update_engine_attempt_duration_monotonic_in_minutes";
-constexpr char kMetricsUpdateEngineAttemptErrorCode[] =
-    "ota_update_engine_attempt_error_code";
-constexpr char kMetricsUpdateEngineAttemptPayloadSizeMiB[] =
-    "ota_update_engine_attempt_payload_size_mib";
-constexpr char kMetricsUpdateEngineAttemptPayloadType[] =
-    "ota_update_engine_attempt_payload_type";
-constexpr char kMetricsUpdateEngineAttemptCurrentBytesDownloadedMiB[] =
-    "ota_update_engine_attempt_fixed_current_bytes_downloaded_mib";
-
-constexpr char kMetricsUpdateEngineSuccessfulUpdateAttemptCount[] =
-    "ota_update_engine_successful_update_attempt_count";
-constexpr char kMetricsUpdateEngineSuccessfulUpdateTotalDurationInMinutes[] =
-    "ota_update_engine_successful_update_fixed_total_duration_in_minutes";
-constexpr char kMetricsUpdateEngineSuccessfulUpdatePayloadSizeMiB[] =
-    "ota_update_engine_successful_update_payload_size_mib";
-constexpr char kMetricsUpdateEngineSuccessfulUpdatePayloadType[] =
-    "ota_update_engine_successful_update_payload_type";
-constexpr char kMetricsUpdateEngineSuccessfulUpdateRebootCount[] =
-    "ota_update_engine_successful_update_reboot_count";
-constexpr char kMetricsUpdateEngineSuccessfulUpdateTotalBytesDownloadedMiB[] =
-    "ota_update_engine_successful_update_total_bytes_downloaded_mib";
-constexpr char
-    kMetricsUpdateEngineSuccessfulUpdateDownloadOverheadPercentage[] =
-        "ota_update_engine_successful_update_download_overhead_percentage";
 
 std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
   return std::make_unique<MetricsReporterAndroid>();
@@ -84,22 +69,56 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
     int64_t payload_size,
     metrics::AttemptResult attempt_result,
     ErrorCode error_code) {
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptNumber, attempt_number);
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptPayloadType,
-               static_cast<int>(payload_type));
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptDurationInMinutes,
-               duration.InMinutes());
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptDurationUptimeInMinutes,
-               duration_uptime.InMinutes());
-
   int64_t payload_size_mib = payload_size / kNumBytesInOneMiB;
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptPayloadSizeMiB,
-               payload_size_mib);
 
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptResult,
-               static_cast<int>(attempt_result));
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptErrorCode,
-               static_cast<int>(error_code));
+  int64_t super_partition_size_bytes = 0;
+  int64_t super_free_space = 0;
+  int64_t slot_size_bytes = 0;
+
+  if (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false)) {
+    uint32_t slot = SlotNumberForSlotSuffix(fs_mgr_get_slot_suffix());
+    auto super_device = fs_mgr_get_super_partition_name();
+    std::unique_ptr<LpMetadata> metadata = ReadMetadata(super_device, slot);
+    if (metadata) {
+      super_partition_size_bytes = GetTotalSuperPartitionSize(*metadata);
+
+      for (const auto& group : metadata->groups) {
+        if (EndsWith(GetPartitionGroupName(group),
+                     fs_mgr_get_slot_suffix(),
+                     base::CompareCase::SENSITIVE)) {
+          slot_size_bytes += group.maximum_size;
+        }
+      }
+
+      auto metadata_builder = MetadataBuilder::New(*metadata);
+      if (metadata_builder) {
+        auto free_regions = metadata_builder->GetFreeRegions();
+        for (const auto& interval : free_regions) {
+          super_free_space += interval.length();
+        }
+        super_free_space *= android::dm::kSectorSize;
+      } else {
+        LOG(ERROR) << "Cannot create metadata builder.";
+      }
+    } else {
+      LOG(ERROR) << "Could not read dynamic partition metadata for device: "
+                 << super_device;
+    }
+  }
+
+  android::util::stats_write(
+      android::util::UPDATE_ENGINE_UPDATE_ATTEMPT_REPORTED,
+      attempt_number,
+      GetStatsdEnumValue(static_cast<int32_t>(payload_type)),
+      duration.InMinutes(),
+      duration_uptime.InMinutes(),
+      payload_size_mib,
+      GetStatsdEnumValue(static_cast<int32_t>(attempt_result)),
+      GetStatsdEnumValue(static_cast<int32_t>(error_code)),
+      android::base::GetProperty("ro.build.fingerprint", "").c_str(),
+      super_partition_size_bytes,
+      slot_size_bytes,
+      super_free_space);
 }
 
 void MetricsReporterAndroid::ReportUpdateAttemptDownloadMetrics(
@@ -108,8 +127,9 @@ void MetricsReporterAndroid::ReportUpdateAttemptDownloadMetrics(
     DownloadSource /* download_source */,
     metrics::DownloadErrorCode /* payload_download_error_code */,
     metrics::ConnectionType /* connection_type */) {
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptCurrentBytesDownloadedMiB,
-               payload_bytes_downloaded / kNumBytesInOneMiB);
+  // TODO(xunchang) add statsd reporting
+  LOG(INFO) << "Current update attempt downloads "
+            << payload_bytes_downloaded / kNumBytesInOneMiB << " bytes data";
 }
 
 void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
@@ -123,37 +143,28 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
     base::TimeDelta /* total_duration_uptime */,
     int reboot_count,
     int /* url_switch_count */) {
-  LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdateAttemptCount,
-               attempt_count);
-  LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdatePayloadType,
-               static_cast<int>(payload_type));
-
   int64_t payload_size_mib = payload_size / kNumBytesInOneMiB;
-  LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdatePayloadSizeMiB,
-               payload_size_mib);
-
   int64_t total_bytes_downloaded = 0;
   for (size_t i = 0; i < kNumDownloadSources; i++) {
     total_bytes_downloaded += num_bytes_downloaded[i] / kNumBytesInOneMiB;
   }
-  LogHistogram(
-      metrics::kMetricsUpdateEngineSuccessfulUpdateTotalBytesDownloadedMiB,
-      total_bytes_downloaded);
-  LogHistogram(
-      metrics::kMetricsUpdateEngineSuccessfulUpdateDownloadOverheadPercentage,
-      download_overhead_percentage);
 
-  LogHistogram(
-      metrics::kMetricsUpdateEngineSuccessfulUpdateTotalDurationInMinutes,
-      total_duration.InMinutes());
-  LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdateRebootCount,
-               reboot_count);
+  android::util::stats_write(
+      android::util::UPDATE_ENGINE_SUCCESSFUL_UPDATE_REPORTED,
+      static_cast<int32_t>(attempt_count),
+      GetStatsdEnumValue(static_cast<int32_t>(payload_type)),
+      static_cast<int32_t>(payload_size_mib),
+      static_cast<int32_t>(total_bytes_downloaded),
+      static_cast<int32_t>(download_overhead_percentage),
+      static_cast<int32_t>(total_duration.InMinutes()),
+      static_cast<int32_t>(reboot_count));
 }
 
 void MetricsReporterAndroid::ReportAbnormallyTerminatedUpdateAttemptMetrics() {
   int attempt_result =
       static_cast<int>(metrics::AttemptResult::kAbnormalTermination);
-  LogHistogram(metrics::kMetricsUpdateEngineAttemptResult, attempt_result);
+  // TODO(xunchang) add statsd reporting
+  LOG(INFO) << "Abnormally terminated update attempt result " << attempt_result;
 }
 
 };  // namespace chromeos_update_engine

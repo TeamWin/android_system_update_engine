@@ -51,27 +51,27 @@ class PayloadSigner {
                        brillo::Blob* out_signature);
 
   // Sign |hash_data| blob with all private keys in |private_key_paths|, then
-  // convert the signatures to protobuf blob.
+  // convert the signatures to serialized protobuf.
   static bool SignHashWithKeys(
       const brillo::Blob& hash_data,
       const std::vector<std::string>& private_key_paths,
-      brillo::Blob* out_signature_blob);
+      std::string* out_serialized_signature);
 
   // Given an unsigned payload in |unsigned_payload_path|, private keys in
   // |private_key_path|, metadata size in |metadata_size|, metadata signature
   // size in |metadata_signature_size| and signatures offset in
   // |signatures_offset|, calculates the payload signature blob into
-  // |out_signature_blob|. Note that the payload must already have an
-  // updated manifest that includes the dummy signature op and correct metadata
+  // |out_serialized_signature|. Note that the payload must already have an
+  // updated manifest that includes the fake signature op and correct metadata
   // signature size in header. Returns true on success, false otherwise.
   static bool SignPayload(const std::string& unsigned_payload_path,
                           const std::vector<std::string>& private_key_paths,
                           const uint64_t metadata_size,
                           const uint32_t metadata_signature_size,
                           const uint64_t signatures_offset,
-                          brillo::Blob* out_signature_blob);
+                          std::string* out_serialized_signature);
 
-  // Returns the length of out_signature_blob that will result in a call
+  // Returns the length of out_serialized_signature that will result in a call
   // to SignPayload with the given private keys. Returns true on success.
   static bool SignatureBlobLength(
       const std::vector<std::string>& private_key_paths, uint64_t* out_length);
@@ -88,11 +88,11 @@ class PayloadSigner {
   //
   // The changes to payload are not preserved or written to disk.
   static bool HashPayloadForSigning(const std::string& payload_path,
-                                    const std::vector<int>& signature_sizes,
+                                    const std::vector<size_t>& signature_sizes,
                                     brillo::Blob* out_payload_hash_data,
                                     brillo::Blob* out_metadata_hash);
 
-  // Given an unsigned payload in |payload_path| (with no dummy signature op)
+  // Given an unsigned payload in |payload_path| (with no fake signature op)
   // and the raw |payload_signatures| and |metadata_signatures| updates the
   // payload to include the signature thus turning it into a signed payload. The
   // new payload is stored in |signed_payload_path|. |payload_path| and
@@ -102,6 +102,7 @@ class PayloadSigner {
   // otherwise.
   static bool AddSignatureToPayload(
       const std::string& payload_path,
+      const std::vector<size_t>& padded_signature_sizes,
       const std::vector<brillo::Blob>& payload_signatures,
       const std::vector<brillo::Blob>& metadata_signatures,
       const std::string& signed_payload_path,
@@ -115,6 +116,16 @@ class PayloadSigner {
                                    size_t metadata_size,
                                    const std::string& private_key_path,
                                    std::string* out_signature);
+
+  static bool ExtractPayloadProperties(const std::string& payload_path,
+                                       brillo::KeyValueStore* properties);
+
+  // This function calculates the maximum size, in bytes, of a signature signed
+  // by private_key_path. For an RSA key, this returns the number of bytes
+  // needed to represent the modulus. For an EC key, this returns the maximum
+  // size of a DER-encoded ECDSA signature.
+  static bool GetMaximumSignatureSize(const std::string& private_key_path,
+                                      size_t* signature_size);
 
  private:
   // This should never be constructed

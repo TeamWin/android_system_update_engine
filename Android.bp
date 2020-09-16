@@ -120,6 +120,7 @@ cc_defaults {
         "libbz",
         "libbspatch",
         "libbrotli",
+        "libc++fs",
         "libfec_rs",
         "libpuffpatch",
         "libverity_tree",
@@ -128,6 +129,7 @@ cc_defaults {
         "libbase",
         "libcrypto",
         "libfec",
+        "libziparchive",
     ],
 }
 
@@ -146,6 +148,7 @@ cc_library_static {
         "common/clock.cc",
         "common/constants.cc",
         "common/cpu_limiter.cc",
+        "common/dynamic_partition_control_stub.cc",
         "common/error_code_utils.cc",
         "common/file_fetcher.cc",
         "common/hash_calculator.cc",
@@ -161,6 +164,7 @@ cc_library_static {
         "common/utils.cc",
         "payload_consumer/bzip_extent_writer.cc",
         "payload_consumer/cached_file_descriptor.cc",
+        "payload_consumer/certificate_parser_android.cc",
         "payload_consumer/delta_performer.cc",
         "payload_consumer/download_action.cc",
         "payload_consumer/extent_reader.cc",
@@ -178,6 +182,7 @@ cc_library_static {
         "payload_consumer/verity_writer_android.cc",
         "payload_consumer/xz_extent_writer.cc",
         "payload_consumer/fec_file_descriptor.cc",
+        "payload_consumer/partition_update_generator_android.cc",
     ],
 }
 
@@ -188,16 +193,41 @@ cc_defaults {
     name: "libupdate_engine_boot_control_exports",
     defaults: ["update_metadata-protos_exports"],
 
-    static_libs: ["update_metadata-protos"],
+    static_libs: [
+        "libcutils",
+        "libfs_mgr_binder",
+        "libgsi",
+        "libpayload_consumer",
+        "libsnapshot",
+        "update_metadata-protos",
+    ],
     shared_libs: [
         "libbootloader_message",
-        "libfs_mgr",
-        "libhwbinder",
         "libhidlbase",
         "liblp",
+        "libstatslog",
         "libutils",
         "android.hardware.boot@1.0",
+        "android.hardware.boot@1.1",
     ],
+    header_libs: [
+        "avb_headers",
+    ],
+    target: {
+        recovery: {
+            static_libs: [
+                "libfs_mgr",
+                "libsnapshot_nobinder",
+            ],
+            exclude_static_libs: [
+                "libfs_mgr_binder",
+                "libsnapshot",
+            ],
+            exclude_shared_libs: [
+                "libstatslog",
+            ],
+        },
+    },
 }
 
 cc_library_static {
@@ -205,12 +235,15 @@ cc_library_static {
     defaults: [
         "ue_defaults",
         "libupdate_engine_boot_control_exports",
+        "libpayload_consumer_exports",
     ],
     recovery_available: true,
 
     srcs: [
         "boot_control_android.cc",
+        "cleanup_previous_update_action.cc",
         "dynamic_partition_control_android.cc",
+        "dynamic_partition_utils.cc",
     ],
 }
 
@@ -227,6 +260,7 @@ cc_defaults {
     ],
 
     static_libs: [
+        "libkver",
         "libpayload_consumer",
         "libupdate_engine_boot_control",
     ],
@@ -239,9 +273,10 @@ cc_defaults {
         "libbrillo-binder",
         "libcurl",
         "libcutils",
+        "libupdate_engine_stable-cpp",
         "liblog",
-        "libmetricslogger",
         "libssl",
+        "libstatslog",
         "libutils",
     ],
 }
@@ -265,12 +300,13 @@ cc_library_static {
     srcs: [
         ":libupdate_engine_aidl",
         "binder_service_android.cc",
+        "binder_service_stable_android.cc",
         "certificate_checker.cc",
         "daemon_android.cc",
         "daemon_state_android.cc",
         "hardware_android.cc",
         "libcurl_http_fetcher.cc",
-        "metrics_reporter_android.cc",
+        "logging_android.cc",
         "metrics_utils.cc",
         "network_selector_android.cc",
         "update_attempter_android.cc",
@@ -290,9 +326,12 @@ cc_binary {
     ],
 
     static_libs: ["libupdate_engine_android"],
-    required: ["cacerts_google"],
+    required: [
+        "cacerts_google",
+        "otacerts",
+    ],
 
-    srcs: ["main.cc"],
+    srcs: ["main.cc", "metrics_reporter_android.cc"],
     init_rc: ["update_engine.rc"],
 }
 
@@ -318,6 +357,7 @@ cc_binary {
 
     srcs: [
         "hardware_android.cc",
+        "logging_android.cc",
         "metrics_reporter_stub.cc",
         "metrics_utils.cc",
         "network_selector_stub.cc",
@@ -350,12 +390,12 @@ cc_binary {
         "libbrillo-stream",
         "libbrillo",
         "libchrome",
+        "libkver",
     ],
     target: {
         recovery: {
             exclude_shared_libs: [
                 "libprotobuf-cpp-lite",
-                "libhwbinder",
                 "libbrillo-stream",
                 "libbrillo",
                 "libchrome",
@@ -363,7 +403,9 @@ cc_binary {
         },
     },
 
-    required: ["android.hardware.boot@1.0-impl-wrapper.recovery"],
+    required: [
+        "otacerts.recovery",
+    ],
 }
 
 // update_engine_client (type: executable)
@@ -407,6 +449,9 @@ cc_defaults {
         "update_metadata-protos_exports",
     ],
 
+    header_libs: [
+        "bootimg_headers",
+    ],
     static_libs: [
         "libavb",
         "libbrotli",
@@ -422,6 +467,20 @@ cc_defaults {
     shared_libs: [
         "libbase",
         "libext2fs",
+    ],
+}
+
+cc_library_static {
+    name: "libpayload_extent_ranges",
+    defaults: [
+        "ue_defaults",
+    ],
+    host_supported: true,
+    srcs: [
+        "payload_generator/extent_ranges.cc",
+    ],
+    static_libs: [
+        "update_metadata-protos",
     ],
 }
 
@@ -448,6 +507,7 @@ cc_library_static {
         "payload_generator/extent_utils.cc",
         "payload_generator/full_update_generator.cc",
         "payload_generator/mapfile_filesystem.cc",
+        "payload_generator/merge_sequence_generator.cc",
         "payload_generator/payload_file.cc",
         "payload_generator/payload_generation_config_android.cc",
         "payload_generator/payload_generation_config.cc",
@@ -496,8 +556,6 @@ cc_test {
 
     gtest: false,
     stem: "delta_generator",
-    relative_install_path: "update_engine_unittests",
-    no_named_install_directory: true,
 }
 
 // test_http_server (type: executable)
@@ -512,8 +570,6 @@ cc_test {
     ],
 
     gtest: false,
-    relative_install_path: "update_engine_unittests",
-    no_named_install_directory: true,
 }
 
 // test_subprocess (type: executable)
@@ -525,8 +581,6 @@ cc_test {
     srcs: ["test_subprocess.cc"],
 
     gtest: false,
-    relative_install_path: "update_engine_unittests",
-    no_named_install_directory: true,
 }
 
 // Public keys for unittests.
@@ -534,14 +588,20 @@ cc_test {
 genrule {
     name: "ue_unittest_keys",
     cmd: "openssl rsa -in $(location unittest_key.pem) -pubout -out $(location unittest_key.pub.pem) &&" +
-        "openssl rsa -in $(location unittest_key2.pem) -pubout -out $(location unittest_key2.pub.pem)",
+        "openssl rsa -in $(location unittest_key2.pem) -pubout -out $(location unittest_key2.pub.pem) &&" +
+        "openssl rsa -in $(location unittest_key_RSA4096.pem) -pubout -out $(location unittest_key_RSA4096.pub.pem) &&" +
+        "openssl pkey -in $(location unittest_key_EC.pem) -pubout -out $(location unittest_key_EC.pub.pem)",
     srcs: [
         "unittest_key.pem",
         "unittest_key2.pem",
+        "unittest_key_RSA4096.pem",
+        "unittest_key_EC.pem",
     ],
     out: [
         "unittest_key.pub.pem",
         "unittest_key2.pub.pem",
+        "unittest_key_RSA4096.pub.pem",
+        "unittest_key_EC.pub.pem",
     ],
 }
 
@@ -571,11 +631,6 @@ cc_test {
         "libpayload_generator_exports",
         "libupdate_engine_android_exports",
     ],
-    required: [
-        "test_http_server",
-        "test_subprocess",
-        "ue_unittest_delta_generator",
-    ],
 
     static_libs: [
         "libpayload_generator",
@@ -583,21 +638,33 @@ cc_test {
         "libgmock",
         "libchrome_test_helpers",
         "libupdate_engine_android",
+        "libdm",
     ],
-    shared_libs: [
-        "libhidltransport",
+
+    header_libs: [
+        "libstorage_literals_headers",
     ],
 
     data: [
+        ":test_http_server",
+        ":test_subprocess",
+        ":ue_unittest_delta_generator",
         ":ue_unittest_disk_imgs",
         ":ue_unittest_keys",
+        "otacerts.zip",
         "unittest_key.pem",
         "unittest_key2.pem",
+        "unittest_key_RSA4096.pem",
+        "unittest_key_EC.pem",
         "update_engine.conf",
     ],
 
+    // We cannot use the default generated AndroidTest.xml because of the use of helper modules
+    // (i.e. test_http_server, test_subprocess, ue_unittest_delta_generator).
+    test_config: "test_config.xml",
+    test_suites: ["device-tests"],
+
     srcs: [
-        "boot_control_android_unittest.cc",
         "certificate_checker_unittest.cc",
         "common/action_pipe_unittest.cc",
         "common/action_processor_unittest.cc",
@@ -615,17 +682,22 @@ cc_test {
         "common/terminator_unittest.cc",
         "common/test_utils.cc",
         "common/utils_unittest.cc",
+        "dynamic_partition_control_android_unittest.cc",
         "libcurl_http_fetcher_unittest.cc",
+        "hardware_android_unittest.cc",
         "payload_consumer/bzip_extent_writer_unittest.cc",
         "payload_consumer/cached_file_descriptor_unittest.cc",
+        "payload_consumer/certificate_parser_android_unittest.cc",
         "payload_consumer/delta_performer_integration_test.cc",
         "payload_consumer/delta_performer_unittest.cc",
+        "payload_consumer/download_action_android_unittest.cc",
         "payload_consumer/extent_reader_unittest.cc",
         "payload_consumer/extent_writer_unittest.cc",
         "payload_consumer/fake_file_descriptor.cc",
         "payload_consumer/file_descriptor_utils_unittest.cc",
         "payload_consumer/file_writer_unittest.cc",
         "payload_consumer/filesystem_verifier_action_unittest.cc",
+        "payload_consumer/partition_update_generator_android_unittest.cc",
         "payload_consumer/postinstall_runner_action_unittest.cc",
         "payload_consumer/verity_writer_android_unittest.cc",
         "payload_consumer/xz_extent_writer_unittest.cc",
@@ -641,6 +713,7 @@ cc_test {
         "payload_generator/fake_filesystem.cc",
         "payload_generator/full_update_generator_unittest.cc",
         "payload_generator/mapfile_filesystem_unittest.cc",
+        "payload_generator/merge_sequence_generator_unittest.cc",
         "payload_generator/payload_file_unittest.cc",
         "payload_generator/payload_generation_config_android_unittest.cc",
         "payload_generator/payload_generation_config_unittest.cc",
@@ -651,17 +724,18 @@ cc_test {
         "testrunner.cc",
         "update_attempter_android_unittest.cc",
         "update_status_utils_unittest.cc",
+        "metrics_reporter_stub.cc",
     ],
 }
 
 // Brillo update payload generation script
 // ========================================================
-cc_prebuilt_binary {
+sh_binary {
     name: "brillo_update_payload",
     device_supported: false,
     host_supported: true,
 
-    srcs: ["scripts/brillo_update_payload"],
+    src: "scripts/brillo_update_payload",
     required: [
         "delta_generator",
         "shflags",
@@ -673,4 +747,14 @@ cc_prebuilt_binary {
             enabled: false,
         },
     },
+}
+
+// update_engine header library
+cc_library_headers {
+    name: "libupdate_engine_headers",
+    export_include_dirs: ["."],
+    apex_available: [
+        "com.android.gki.*",
+    ],
+    host_supported: true,
 }

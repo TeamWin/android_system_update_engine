@@ -17,12 +17,14 @@
 #ifndef UPDATE_ENGINE_BOOT_CONTROL_CHROMEOS_H_
 #define UPDATE_ENGINE_BOOT_CONTROL_CHROMEOS_H_
 
+#include <memory>
 #include <string>
 
 #include <base/callback.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/dynamic_partition_control_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -45,15 +47,18 @@ class BootControlChromeOS : public BootControlInterface {
   BootControlInterface::Slot GetCurrentSlot() const override;
   bool GetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,
+                          bool not_in_payload,
+                          std::string* device,
+                          bool* is_dynamic) const override;
+  bool GetPartitionDevice(const std::string& partition_name,
+                          BootControlInterface::Slot slot,
                           std::string* device) const override;
   bool IsSlotBootable(BootControlInterface::Slot slot) const override;
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
-  bool InitPartitionMetadata(Slot slot,
-                             const PartitionMetadata& partition_metadata,
-                             bool update_metadata) override;
-  void Cleanup() override;
+  bool IsSlotMarkedSuccessful(BootControlInterface::Slot slot) const override;
+  DynamicPartitionControlInterface* GetDynamicPartitionControl() override;
 
  private:
   friend class BootControlChromeOSTest;
@@ -77,7 +82,7 @@ class BootControlChromeOS : public BootControlInterface {
 
   // Extracts DLC module ID and package ID from partition name. The structure of
   // the partition name is dlc/<dlc-id>/<dlc-package>. For example:
-  // dlc/dummy-dlc/dummy-package
+  // dlc/fake-dlc/fake-package
   bool ParseDlcPartitionName(const std::string partition_name,
                              std::string* dlc_id,
                              std::string* dlc_package) const;
@@ -88,6 +93,8 @@ class BootControlChromeOS : public BootControlInterface {
 
   // The block device of the disk we booted from, without the partition number.
   std::string boot_disk_name_;
+
+  std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;
 
   DISALLOW_COPY_AND_ASSIGN(BootControlChromeOS);
 };

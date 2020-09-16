@@ -16,22 +16,22 @@
 
 #include "update_engine/binder_service_android.h"
 
+#include <memory>
+
 #include <base/bind.h>
 #include <base/logging.h>
 #include <binderwrapper/binder_wrapper.h>
 #include <brillo/errors/error.h>
 #include <utils/String8.h>
 
+#include "update_engine/binder_service_android_common.h"
+
 using android::binder::Status;
 using android::os::IUpdateEngineCallback;
+using android::os::ParcelFileDescriptor;
+using std::string;
+using std::vector;
 using update_engine::UpdateEngineStatus;
-
-namespace {
-Status ErrorPtrToStatus(const brillo::ErrorPtr& error) {
-  return Status::fromServiceSpecificError(
-      1, android::String8{error->GetMessage().c_str()});
-}
-}  // namespace
 
 namespace chromeos_update_engine {
 
@@ -57,6 +57,20 @@ void BinderUpdateEngineAndroidService::SendPayloadApplicationComplete(
 
 Status BinderUpdateEngineAndroidService::bind(
     const android::sp<IUpdateEngineCallback>& callback, bool* return_value) {
+  // Send an status update on connection (except when no update sent so far).
+  // Even though the status update is oneway, it still returns an erroneous
+  // status in case of a selinux denial. We should at least check this status
+  // and fails the binding.
+  if (last_status_ != -1) {
+    auto status = callback->onStatusUpdate(last_status_, last_progress_);
+    if (!status.isOk()) {
+      LOG(ERROR) << "Failed to call onStatusUpdate() from callback: "
+                 << status.toString8();
+      *return_value = false;
+      return Status::ok();
+    }
+  }
+
   callbacks_.emplace_back(callback);
 
   const android::sp<IBinder>& callback_binder =
@@ -68,12 +82,6 @@ Status BinderUpdateEngineAndroidService::bind(
           base::IgnoreResult(&BinderUpdateEngineAndroidService::UnbindCallback),
           base::Unretained(this),
           base::Unretained(callback_binder.get())));
-
-  // Send an status update on connection (except when no update sent so far),
-  // since the status update is oneway and we don't need to wait for the
-  // response.
-  if (last_status_ != -1)
-    callback->onStatusUpdate(last_status_, last_progress_);
 
   *return_value = true;
   return Status::ok();
@@ -94,17 +102,28 @@ Status BinderUpdateEngineAndroidService::applyPayload(
     const android::String16& url,
     int64_t payload_offset,
     int64_t payload_size,
-    const std::vector<android::String16>& header_kv_pairs) {
-  const std::string payload_url{android::String8{url}.string()};
-  std::vector<std::string> str_headers;
-  str_headers.reserve(header_kv_pairs.size());
-  for (const auto& header : header_kv_pairs) {
-    str_headers.emplace_back(android::String8{header}.string());
-  }
+    const vector<android::String16>& header_kv_pairs) {
+  const string payload_url{android::String8{url}.string()};
+  vector<string> str_headers = ToVecString(header_kv_pairs);
 
   brillo::ErrorPtr error;
   if (!service_delegate_->ApplyPayload(
           payload_url, payload_offset, payload_size, str_headers, &error)) {
+    return ErrorPtrToStatus(error);
+  }
+  return Status::ok();
+}
+
+Status BinderUpdateEngineAndroidService::applyPayloadFd(
+    const ParcelFileDescriptor& pfd,
+    int64_t payload_offset,
+    int64_t payload_size,
+    const vector<android::String16>& header_kv_pairs) {
+  vector<string> str_headers = ToVecString(header_kv_pairs);
+
+  brillo::ErrorPtr error;
+  if (!service_delegate_->ApplyPayload(
+          pfd.get(), payload_offset, payload_size, str_headers, &error)) {
     return ErrorPtrToStatus(error);
   }
   return Status::ok();
@@ -165,6 +184,60 @@ bool BinderUpdateEngineAndroidService::UnbindCallback(const IBinder* callback) {
   }
   callbacks_.erase(it);
   return true;
+}
+
+Status BinderUpdateEngineAndroidService::allocateSpaceForPayload(
+    const android::String16& metadata_filename,
+    const vector<android::String16>& header_kv_pairs,
+    int64_t* return_value) {
+  const std::string payload_metadata{
+      android::String8{metadata_filename}.string()};
+  vector<string> str_headers = ToVecString(header_kv_pairs);
+  LOG(INFO) << "Received a request of allocating space for " << payload_metadata
+            << ".";
+  brillo::ErrorPtr error;
+  *return_value =
+      static_cast<int64_t>(service_delegate_->AllocateSpaceForPayload(
+          payload_metadata, str_headers, &error));
+  if (error != nullptr)
+    return ErrorPtrToStatus(error);
+  return Status::ok();
+}
+
+class CleanupSuccessfulUpdateCallback
+    : public CleanupSuccessfulUpdateCallbackInterface {
+ public:
+  CleanupSuccessfulUpdateCallback(
+      const android::sp<IUpdateEngineCallback>& callback)
+      : callback_(callback) {}
+  void OnCleanupComplete(int32_t error_code) {
+    ignore_result(callback_->onPayloadApplicationComplete(error_code));
+  }
+  void OnCleanupProgressUpdate(double progress) {
+    ignore_result(callback_->onStatusUpdate(
+        static_cast<int32_t>(
+            update_engine::UpdateStatus::CLEANUP_PREVIOUS_UPDATE),
+        progress));
+  }
+  void RegisterForDeathNotifications(base::Closure unbind) {
+    const android::sp<android::IBinder>& callback_binder =
+        IUpdateEngineCallback::asBinder(callback_);
+    auto binder_wrapper = android::BinderWrapper::Get();
+    binder_wrapper->RegisterForDeathNotifications(callback_binder, unbind);
+  }
+
+ private:
+  android::sp<IUpdateEngineCallback> callback_;
+};
+
+Status BinderUpdateEngineAndroidService::cleanupSuccessfulUpdate(
+    const android::sp<IUpdateEngineCallback>& callback) {
+  brillo::ErrorPtr error;
+  service_delegate_->CleanupSuccessfulUpdate(
+      std::make_unique<CleanupSuccessfulUpdateCallback>(callback), &error);
+  if (error != nullptr)
+    return ErrorPtrToStatus(error);
+  return Status::ok();
 }
 
 }  // namespace chromeos_update_engine
