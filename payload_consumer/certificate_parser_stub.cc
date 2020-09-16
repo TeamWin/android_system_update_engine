@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include <payload_consumer/certificate_parser_stub.h>
+#include "update_engine/payload_consumer/certificate_parser_stub.h"
 
 namespace chromeos_update_engine {
 bool CertificateParserStub::ReadPublicKeysFromCertificates(

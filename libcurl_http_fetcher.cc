@@ -33,7 +33,6 @@
 #include <base/strings/stringprintf.h>
 #include <base/threading/thread_task_runner_handle.h>
 
-
 #ifdef __ANDROID__
 #include <cutils/qtaguid.h>
 #include <private/android_filesystem_config.h>
@@ -464,12 +463,12 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     // possible to watch file descriptors. Just poll it later. This usually
     // happens if brillo::FakeMessageLoop is used.
     if (!base::ThreadTaskRunnerHandle::IsSet()) {
-        MessageLoop::current()->PostDelayedTask(
-            FROM_HERE,
-            base::Bind(&LibcurlHttpFetcher::CurlPerformOnce,
-                       base::Unretained(this)),
-            TimeDelta::FromSeconds(1));
-        return;
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&LibcurlHttpFetcher::CurlPerformOnce,
+                     base::Unretained(this)),
+          TimeDelta::FromSeconds(1));
+      return;
     }
 #endif
     SetupMessageLoopSources();

@@ -224,7 +224,6 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
       progress_fd_,
       base::BindRepeating(&PostinstallRunnerAction::OnProgressFdReady,
                           base::Unretained(this)));
-
 }
 
 void PostinstallRunnerAction::OnProgressFdReady() {

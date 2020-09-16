@@ -75,7 +75,6 @@ class SubprocessTest : public ::testing::Test {
   brillo::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
   unique_ptr<base::FileDescriptorWatcher::Controller> watcher_;
-
 };
 
 namespace {
