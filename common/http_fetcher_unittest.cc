@@ -37,7 +37,11 @@
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
+#ifdef __CHROMEOS__
+#include <brillo/process/process.h>
+#else
 #include <brillo/process.h>
+#endif  // __CHROMEOS__
 #include <brillo/streams/file_stream.h>
 #include <brillo/streams/stream.h>
 #include <gtest/gtest.h>
