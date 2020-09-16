@@ -1376,6 +1376,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
         case UpdateStatus::REPORTING_ERROR_EVENT:
         case UpdateStatus::ATTEMPTING_ROLLBACK:
         case UpdateStatus::DISABLED:
+        case UpdateStatus::CLEANUP_PREVIOUS_UPDATE:
           MarkDeltaUpdateFailure();
           break;
       }
