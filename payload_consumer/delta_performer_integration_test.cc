@@ -340,26 +340,6 @@ static void GenerateDeltaFile(bool full_kernel,
 
   state->image_size = utils::FileSize(state->a_img);
 
-  // Create ImageInfo A & B
-  ImageInfo old_image_info;
-  ImageInfo new_image_info;
-
-  if (!full_rootfs) {
-    old_image_info.set_channel("src-channel");
-    old_image_info.set_board("src-board");
-    old_image_info.set_version("src-version");
-    old_image_info.set_key("src-key");
-    old_image_info.set_build_channel("src-build-channel");
-    old_image_info.set_build_version("src-build-version");
-  }
-
-  new_image_info.set_channel("test-channel");
-  new_image_info.set_board("test-board");
-  new_image_info.set_version("test-version");
-  new_image_info.set_key("test-key");
-  new_image_info.set_build_channel("test-build-channel");
-  new_image_info.set_build_version("test-build-version");
-
   // Make some changes to the A image.
   {
     string a_mnt;
@@ -513,7 +493,6 @@ static void GenerateDeltaFile(bool full_kernel,
       payload_config.source.partitions.front().path = state->a_img;
       if (!full_kernel)
         payload_config.source.partitions.back().path = state->old_kernel;
-      payload_config.source.image_info = old_image_info;
       EXPECT_TRUE(payload_config.source.LoadImageSize());
       for (PartitionConfig& part : payload_config.source.partitions)
         EXPECT_TRUE(part.OpenFilesystem());
@@ -526,7 +505,6 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.target.partitions.back().path = state->b_img;
     payload_config.target.partitions.emplace_back(kPartitionNameKernel);
     payload_config.target.partitions.back().path = state->new_kernel;
-    payload_config.target.image_info = new_image_info;
     EXPECT_TRUE(payload_config.target.LoadImageSize());
     for (PartitionConfig& part : payload_config.target.partitions)
       EXPECT_TRUE(part.OpenFilesystem());
@@ -664,22 +642,6 @@ static void ApplyDeltaFile(bool full_kernel,
       EXPECT_FALSE(rootfs_part.old_partition_info().hash().empty());
     }
     EXPECT_FALSE(rootfs_part.new_partition_info().hash().empty());
-
-    EXPECT_EQ(manifest.new_image_info().channel(), "test-channel");
-    EXPECT_EQ(manifest.new_image_info().board(), "test-board");
-    EXPECT_EQ(manifest.new_image_info().version(), "test-version");
-    EXPECT_EQ(manifest.new_image_info().key(), "test-key");
-    EXPECT_EQ(manifest.new_image_info().build_channel(), "test-build-channel");
-    EXPECT_EQ(manifest.new_image_info().build_version(), "test-build-version");
-
-    if (!full_rootfs) {
-      EXPECT_EQ(manifest.old_image_info().channel(), "src-channel");
-      EXPECT_EQ(manifest.old_image_info().board(), "src-board");
-      EXPECT_EQ(manifest.old_image_info().version(), "src-version");
-      EXPECT_EQ(manifest.old_image_info().key(), "src-key");
-      EXPECT_EQ(manifest.old_image_info().build_channel(), "src-build-channel");
-      EXPECT_EQ(manifest.old_image_info().build_version(), "src-build-version");
-    }
   }
 
   MockPrefs prefs;

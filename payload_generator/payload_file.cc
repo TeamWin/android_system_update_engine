@@ -64,13 +64,6 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
   TEST_AND_RETURN_FALSE(config.version.Validate());
   major_version_ = config.version.major;
   manifest_.set_minor_version(config.version.minor);
-
-  if (!config.source.ImageInfoIsEmpty())
-    *(manifest_.mutable_old_image_info()) = config.source.image_info;
-
-  if (!config.target.ImageInfoIsEmpty())
-    *(manifest_.mutable_new_image_info()) = config.target.image_info;
-
   manifest_.set_block_size(config.block_size);
   manifest_.set_max_timestamp(config.max_timestamp);
 

@@ -139,16 +139,16 @@ message PartitionInfo {
 //
 // All fields will be set, if this message is present.
 message ImageInfo {
-  optional string board = 1;
-  optional string key = 2;
-  optional string channel = 3;
-  optional string version = 4;
+  optional string board = 1 [deprecated = true];
+  optional string key = 2 [deprecated = true];
+  optional string channel = 3 [deprecated = true];
+  optional string version = 4 [deprecated = true];
 
   // If these values aren't present, they should be assumed to match
   // the equivalent value above. They are normally only different for
   // special image types such as nplusone images.
-  optional string build_channel = 5;
-  optional string build_version = 6;
+  optional string build_channel = 5 [deprecated = true];
+  optional string build_version = 6 [deprecated = true];
 }
 
 message InstallOperation {
@@ -325,9 +325,9 @@ message DeltaArchiveManifest {
   optional PartitionInfo new_rootfs_info = 9 [deprecated = true];
 
   // old_image_info will only be present for delta images.
-  optional ImageInfo old_image_info = 10;
+  optional ImageInfo old_image_info = 10 [deprecated = true];
 
-  optional ImageInfo new_image_info = 11;
+  optional ImageInfo new_image_info = 11 [deprecated = true];
 
   // The minor version, also referred as "delta version", of the payload.
   optional uint32 minor_version = 12 [default = 0];

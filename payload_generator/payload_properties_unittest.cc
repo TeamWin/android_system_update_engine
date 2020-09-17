@@ -57,8 +57,6 @@ class PayloadPropertiesTest : public ::testing::Test {
     PayloadGenerationConfig config;
     config.version.major = kBrilloMajorPayloadVersion;
     config.version.minor = kSourceMinorPayloadVersion;
-    config.source.image_info.set_version("123.0.0");
-    config.target.image_info.set_version("456.7.8");
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
 
@@ -114,11 +112,9 @@ TEST_F(PayloadPropertiesTest, GetPropertiesAsJsonTestHash) {
       "{"
       R"("is_delta":true,)"
       R"("metadata_signature":"",)"
-      R"("metadata_size":187,)"
-      R"("sha256_hex":"Rtrj9v3xXhrAi1741HAojtGxAQEOZ7mDyhzskIF4PJc=",)"
-      R"("size":233,)"
-      R"("source_version":"123.0.0",)"
-      R"("target_version":"456.7.8",)"
+      R"("metadata_size":165,)"
+      R"("sha256_hex":"cV7kfZBH3K0B6QJHxxykDh6b6x0WgVOmc63whPLOy7U=",)"
+      R"("size":211,)"
       R"("version":2)"
       "}";
   string json;
@@ -130,10 +126,10 @@ TEST_F(PayloadPropertiesTest, GetPropertiesAsJsonTestHash) {
 // Validate the hash of file and metadata are within the output.
 TEST_F(PayloadPropertiesTest, GetPropertiesAsKeyValueTestHash) {
   constexpr char kKeyValueProperties[] =
-      "FILE_HASH=Rtrj9v3xXhrAi1741HAojtGxAQEOZ7mDyhzskIF4PJc=\n"
-      "FILE_SIZE=233\n"
-      "METADATA_HASH=kiXTexy/s2aPttf4+r8KRZWYZ6FYvwhU6rJGcnnI+U0=\n"
-      "METADATA_SIZE=187\n";
+      "FILE_HASH=cV7kfZBH3K0B6QJHxxykDh6b6x0WgVOmc63whPLOy7U=\n"
+      "FILE_SIZE=211\n"
+      "METADATA_HASH=aEKYyzJt2E8Gz8fzB+gmekN5mriotZCSq6R+kDfdeV4=\n"
+      "METADATA_SIZE=165\n";
   string key_value;
   EXPECT_TRUE(PayloadProperties{payload_file.path()}.GetPropertiesAsKeyValue(
       &key_value));
