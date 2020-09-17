@@ -36,6 +36,102 @@ class UmEnterpriseDevicePolicyImplTest : public UmPolicyTestBase {
   }
 };
 
+TEST_F(UmEnterpriseDevicePolicyImplTest, KioskAppVersionSet) {
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()
+      ->var_allow_kiosk_app_control_chrome_version()
+      ->reset(new bool(true));
+
+  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+      new std::string("1234.5.6"));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kContinue, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_EQ(result.target_version_prefix, "1234.5.6");
+}
+
+TEST_F(UmEnterpriseDevicePolicyImplTest, KioskAppVersionUnreadableNoUpdate) {
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()
+      ->var_allow_kiosk_app_control_chrome_version()
+      ->reset(new bool(true));
+
+  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+      nullptr);
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kAskMeAgainLater, &Policy::UpdateCheckAllowed, &result);
+}
+
+TEST_F(UmEnterpriseDevicePolicyImplTest, KioskAppVersionUnreadableUpdate) {
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()
+      ->var_allow_kiosk_app_control_chrome_version()
+      ->reset(new bool(true));
+
+  // The real variable returns an empty string after several unsuccessful
+  // reading attempts. Fake this by setting it directly to empty string.
+  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+      new std::string(""));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kContinue, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_EQ(result.target_version_prefix, "");
+}
+
+TEST_F(UmEnterpriseDevicePolicyImplTest,
+       KioskAppVersionUnreadableUpdateWithMinVersion) {
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()
+      ->var_allow_kiosk_app_control_chrome_version()
+      ->reset(new bool(true));
+
+  // The real variable returns an empty string after several unsuccessful
+  // reading attempts. Fake this by setting it directly to empty string.
+  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+      new std::string(""));
+  // Update if the minimum version is above the current OS version.
+  fake_state_.device_policy_provider()->var_device_minimum_version()->reset(
+      new base::Version("2.0.0"));
+  fake_state_.system_provider()->var_chromeos_version()->reset(
+      new base::Version("1.0.0"));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kContinue, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_EQ(result.target_version_prefix, "");
+}
+
+TEST_F(UmEnterpriseDevicePolicyImplTest,
+       KioskAppVersionUnreadableNoUpdateWithMinVersion) {
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()
+      ->var_allow_kiosk_app_control_chrome_version()
+      ->reset(new bool(true));
+
+  // The real variable returns an empty string after several unsuccessful
+  // reading attempts. Fake this by setting it directly to empty string.
+  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+      new std::string(""));
+  // Block update if the minimum version is below the current OS version.
+  fake_state_.device_policy_provider()->var_device_minimum_version()->reset(
+      new base::Version("1.0.0"));
+  fake_state_.system_provider()->var_chromeos_version()->reset(
+      new base::Version("2.0.0"));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kAskMeAgainLater, &Policy::UpdateCheckAllowed, &result);
+}
+
 TEST_F(UmEnterpriseDevicePolicyImplTest, ChannelDowngradeBehaviorNoRollback) {
   fake_state_.device_policy_provider()->var_release_channel_delegated()->reset(
       new bool(false));

@@ -50,6 +50,10 @@ class FakeSystemProvider : public SystemProvider {
     return &var_kiosk_required_platform_version_;
   }
 
+  FakeVariable<base::Version>* var_chromeos_version() override {
+    return &var_version_;
+  }
+
  private:
   FakeVariable<bool> var_is_normal_boot_mode_{"is_normal_boot_mode",
                                               kVariableModeConst};
@@ -60,6 +64,8 @@ class FakeSystemProvider : public SystemProvider {
   FakeVariable<unsigned int> var_num_slots_{"num_slots", kVariableModePoll};
   FakeVariable<std::string> var_kiosk_required_platform_version_{
       "kiosk_required_platform_version", kVariableModePoll};
+  FakeVariable<base::Version> var_version_{"chromeos_version",
+                                           kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeSystemProvider);
 };
