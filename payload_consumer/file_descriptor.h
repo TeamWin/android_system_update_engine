@@ -21,7 +21,7 @@
 #include <sys/types.h>
 #include <memory>
 
-#include <base/logging.h>
+#include <base/macros.h>
 
 // Abstraction for managing opening, reading, writing and closing of file
 // descriptors. This includes an abstract class and one standard implementation
