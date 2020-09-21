@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_consumer/fec_file_descriptor.h"
 
+#include <base/logging.h>
+
 namespace chromeos_update_engine {
 
 bool FecFileDescriptor::Open(const char* path, int flags) {

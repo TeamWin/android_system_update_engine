@@ -755,6 +755,15 @@ cc_library_headers {
     export_include_dirs: ["."],
     apex_available: [
         "com.android.gki.*",
+        "//apex_available:platform",
     ],
     host_supported: true,
+    recovery_available: true,
+    ramdisk_available: true,
+
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    }
 }
