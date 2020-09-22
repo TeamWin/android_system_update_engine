@@ -261,7 +261,6 @@ cc_defaults {
 
     static_libs: [
         "gkiprops",
-        "libkver",
         "libpayload_consumer",
         "libupdate_engine_boot_control",
     ],
@@ -392,7 +391,6 @@ cc_binary {
         "libbrillo-stream",
         "libbrillo",
         "libchrome",
-        "libkver",
     ],
     target: {
         recovery: {
@@ -686,7 +684,6 @@ cc_test {
         "common/utils_unittest.cc",
         "dynamic_partition_control_android_unittest.cc",
         "libcurl_http_fetcher_unittest.cc",
-        "hardware_android_unittest.cc",
         "payload_consumer/bzip_extent_writer_unittest.cc",
         "payload_consumer/cached_file_descriptor_unittest.cc",
         "payload_consumer/certificate_parser_android_unittest.cc",
