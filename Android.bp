@@ -260,6 +260,7 @@ cc_defaults {
     ],
 
     static_libs: [
+        "gkiprops",
         "libkver",
         "libpayload_consumer",
         "libupdate_engine_boot_control",
@@ -383,6 +384,7 @@ cc_binary {
         // We add the static versions of the shared libraries that are not installed to
         // recovery image due to size concerns. Need to include all the static library
         // dependencies of these static libraries.
+        "gkiprops",
         "libevent",
         "libmodpb64",
         "libgtest_prod",

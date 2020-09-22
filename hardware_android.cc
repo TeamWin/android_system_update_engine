@@ -23,6 +23,7 @@
 #include <string>
 #include <string_view>
 
+#include <android/sysprop/GkiProperties.sysprop.h>
 #include <android-base/parseint.h>
 #include <android-base/properties.h>
 #include <base/files/file_util.h>
@@ -261,7 +262,10 @@ ErrorCode HardwareAndroid::IsPartitionUpdateValid(
       PLOG(ERROR) << "Unable to call uname()";
       return ErrorCode::kError;
     }
-    return IsKernelUpdateValid(buf.release, new_version);
+    bool prevent_downgrade =
+        android::sysprop::GkiProperties::prevent_downgrade_version().value_or(
+            false);
+    return IsKernelUpdateValid(buf.release, new_version, prevent_downgrade);
   }
 
   const auto old_version = GetPartitionBuildDate(partition_name);
@@ -278,7 +282,8 @@ ErrorCode HardwareAndroid::IsPartitionUpdateValid(
 }
 
 ErrorCode HardwareAndroid::IsKernelUpdateValid(const string& old_release,
-                                               const string& new_release) {
+                                               const string& new_release,
+                                               bool prevent_downgrade) {
   // Check that the package either contain an empty version (indicating that the
   // new build does not use GKI), or a valid GKI kernel release.
   std::optional<KernelRelease> new_kernel_release;
@@ -296,10 +301,17 @@ ErrorCode HardwareAndroid::IsKernelUpdateValid(const string& old_release,
 
   auto old_kernel_release =
       KernelRelease::Parse(old_release, true /* allow_suffix */);
-  return android::kver::IsKernelUpdateValid(old_kernel_release,
-                                            new_kernel_release)
-             ? ErrorCode::kSuccess
-             : ErrorCode::kPayloadTimestampError;
+  bool is_update_valid = android::kver::IsKernelUpdateValid(old_kernel_release,
+                                                            new_kernel_release);
+
+  if (!is_update_valid) {
+    if (prevent_downgrade) {
+      return ErrorCode::kPayloadTimestampError;
+    }
+    LOG(WARNING) << "Boot version downgrade detected, allowing update because "
+                 << "prevent_downgrade_version sysprop is not set.";
+  }
+  return ErrorCode::kSuccess;
 }
 
 }  // namespace chromeos_update_engine
