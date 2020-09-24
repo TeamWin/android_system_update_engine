@@ -70,9 +70,15 @@ class HardwareAndroid : public HardwareInterface {
  private:
   FRIEND_TEST(HardwareAndroidTest, IsKernelUpdateValid);
 
-  // Helper for IsPartitionUpdateValid.
+  // Helper for IsPartitionUpdateValid. Check an update from |old_release|
+  // to |new_release| is valid or not.
+  // - If |new_release| is invalid, return kDownloadManifestParseError
+  // - If downgrade detected, kPayloadTimestampError if |prevent_downgrade| is
+  //   set to true, or kSuccess if |prevent_downgrade| is set to false
+  // - If update is valid, kSuccess.
   static ErrorCode IsKernelUpdateValid(const std::string& old_release,
-                                       const std::string& new_release);
+                                       const std::string& new_release,
+                                       bool prevent_downgrade);
 
   DISALLOW_COPY_AND_ASSIGN(HardwareAndroid);
 };
