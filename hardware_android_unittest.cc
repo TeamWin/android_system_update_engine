@@ -14,54 +14,70 @@
 // limitations under the License.
 //
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/error_code.h"
-#include "update_engine/common/test_utils.h"
 #include "update_engine/hardware_android.h"
+
+using ::testing::NiceMock;
+using ::testing::Return;
 
 namespace chromeos_update_engine {
 
 TEST(HardwareAndroidTest, IsKernelUpdateValid) {
   EXPECT_EQ(ErrorCode::kSuccess,
-            HardwareAndroid::IsKernelUpdateValid("5.4.42-not-gki", ""))
+            HardwareAndroid::IsKernelUpdateValid(
+                "5.4.42-not-gki", "", true /*prevent_downgrade*/))
       << "Legacy update should be fine";
 
-  EXPECT_EQ(ErrorCode::kSuccess,
-            HardwareAndroid::IsKernelUpdateValid("5.4.42-not-gki",
-                                                 "5.4.42-android12-0"))
+  EXPECT_EQ(
+      ErrorCode::kSuccess,
+      HardwareAndroid::IsKernelUpdateValid(
+          "5.4.42-not-gki", "5.4.42-android12-0", true /*prevent_downgrade*/))
       << "Update to GKI should be fine";
 
-  EXPECT_EQ(
-      ErrorCode::kDownloadManifestParseError,
-      HardwareAndroid::IsKernelUpdateValid("5.4.42-not-gki", "5.4.42-not-gki"))
+  EXPECT_EQ(ErrorCode::kDownloadManifestParseError,
+            HardwareAndroid::IsKernelUpdateValid(
+                "5.4.42-not-gki", "5.4.42-not-gki", true /*prevent_downgrade*/))
       << "Should report parse error for invalid version field";
 
   EXPECT_EQ(ErrorCode::kSuccess,
-            HardwareAndroid::IsKernelUpdateValid(
-                "5.4.42-android12-0-something", "5.4.42-android12-0-something"))
+            HardwareAndroid::IsKernelUpdateValid("5.4.42-android12-0-something",
+                                                 "5.4.42-android12-0-something",
+                                                 true /*prevent_downgrade*/))
       << "Self update should be fine";
 
   EXPECT_EQ(ErrorCode::kSuccess,
-            HardwareAndroid::IsKernelUpdateValid(
-                "5.4.42-android12-0-something", "5.4.43-android12-0-something"))
+            HardwareAndroid::IsKernelUpdateValid("5.4.42-android12-0-something",
+                                                 "5.4.43-android12-0-something",
+                                                 true /*prevent_downgrade*/))
       << "Sub-level update should be fine";
 
   EXPECT_EQ(
       ErrorCode::kSuccess,
       HardwareAndroid::IsKernelUpdateValid("5.4.42-android12-0-something",
-                                           "5.10.10-android12-0-something"))
+                                           "5.10.10-android12-0-something",
+                                           true /*prevent_downgrade*/))
       << "KMI version update should be fine";
 
   EXPECT_EQ(ErrorCode::kPayloadTimestampError,
             HardwareAndroid::IsKernelUpdateValid("5.4.42-android12-0-something",
-                                                 "5.4.5-android12-0-something"))
+                                                 "5.4.5-android12-0-something",
+                                                 true /*prevent_downgrade*/))
       << "Should detect sub-level downgrade";
 
   EXPECT_EQ(ErrorCode::kPayloadTimestampError,
             HardwareAndroid::IsKernelUpdateValid("5.4.42-android12-0-something",
-                                                 "5.1.5-android12-0-something"))
+                                                 "5.1.5-android12-0-something",
+                                                 true /*prevent_downgrade*/))
       << "Should detect KMI version downgrade";
+
+  EXPECT_EQ(ErrorCode::kSuccess,
+            HardwareAndroid::IsKernelUpdateValid("5.4.42-android12-0-something",
+                                                 "5.4.5-android12-0-something",
+                                                 false /*prevent_downgrade*/))
+      << "Should suppress sub-level downgrade";
 }
 
 }  // namespace chromeos_update_engine
