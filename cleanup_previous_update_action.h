@@ -20,6 +20,7 @@
 #include <chrono>  // NOLINT(build/c++11) -- for merge times
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include <brillo/message_loops/message_loop.h>
 #include <libsnapshot/snapshot.h>
@@ -51,6 +52,7 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
       BootControlInterface* boot_control,
       android::snapshot::ISnapshotManager* snapshot,
       CleanupPreviousUpdateActionDelegateInterface* delegate);
+  ~CleanupPreviousUpdateAction();
 
   void PerformAction() override;
   void SuspendAction() override;
@@ -74,6 +76,11 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
   bool cancel_failed_{false};
   unsigned int last_percentage_{0};
   android::snapshot::ISnapshotMergeStats* merge_stats_;
+  brillo::MessageLoop::TaskId scheduled_task_{brillo::MessageLoop::kTaskIdNull};
+
+  // Helpers for task management.
+  void AcknowledgeTaskExecuted();
+  void CheckTaskScheduled(std::string_view name);
 
   void StopActionInternal();
   void StartActionInternal();
