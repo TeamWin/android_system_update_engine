@@ -56,6 +56,8 @@ class DynamicPartitionControlInterface {
 
   // Return the feature flags of Virtual A/B on this device.
   virtual FeatureFlag GetVirtualAbFeatureFlag() = 0;
+  // Return the feature flags of Virtual A/B Compression on this device.
+  virtual FeatureFlag GetVirtualAbCompressionFeatureFlag() = 0;
 
   // Attempt to optimize |operation|.
   // If successful, |optimized| contains an operation with extents that
