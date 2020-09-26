@@ -19,12 +19,25 @@
 
 #include <inttypes.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <brillo/errors/error.h>
 
 namespace chromeos_update_engine {
+
+// See ServiceDelegateAndroidInterface.CleanupSuccessfulUpdate
+// Wraps a IUpdateEngineCallback binder object used specifically for
+// CleanupSuccessfulUpdate.
+class CleanupSuccessfulUpdateCallbackInterface {
+ public:
+  virtual ~CleanupSuccessfulUpdateCallbackInterface() {}
+  virtual void OnCleanupProgressUpdate(double progress) = 0;
+  virtual void OnCleanupComplete(int32_t error_code) = 0;
+  // Call RegisterForDeathNotifications on the internal binder object.
+  virtual void RegisterForDeathNotifications(base::Closure unbind) = 0;
+};
 
 // This class defines the interface exposed by the Android version of the
 // daemon service. This interface only includes the method calls that such
@@ -42,6 +55,13 @@ class ServiceDelegateAndroidInterface {
   // correctly.
   virtual bool ApplyPayload(
       const std::string& payload_url,
+      int64_t payload_offset,
+      int64_t payload_size,
+      const std::vector<std::string>& key_value_pair_headers,
+      brillo::ErrorPtr* error) = 0;
+
+  virtual bool ApplyPayload(
+      int fd,
       int64_t payload_offset,
       int64_t payload_size,
       const std::vector<std::string>& key_value_pair_headers,
@@ -75,6 +95,28 @@ class ServiceDelegateAndroidInterface {
   // In case of error, returns false and sets |error| accordingly.
   virtual bool VerifyPayloadApplicable(const std::string& metadata_filename,
                                        brillo::ErrorPtr* error) = 0;
+
+  // Allocates space for a payload.
+  // Returns 0 if space is successfully preallocated.
+  // Return non-zero if not enough space is not available; returned value is
+  // the total space required (in bytes) to be free on the device for this
+  // update to be applied, and |error| is unset.
+  // In case of error, returns 0, and sets |error| accordingly.
+  //
+  // This function may block for several minutes in the worst case.
+  virtual uint64_t AllocateSpaceForPayload(
+      const std::string& metadata_filename,
+      const std::vector<std::string>& key_value_pair_headers,
+      brillo::ErrorPtr* error) = 0;
+
+  // Wait for merge to complete, then clean up merge after an update has been
+  // successful.
+  //
+  // This function returns immediately. Progress updates are provided in
+  // |callback|.
+  virtual void CleanupSuccessfulUpdate(
+      std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface> callback,
+      brillo::ErrorPtr* error) = 0;
 
  protected:
   ServiceDelegateAndroidInterface() = default;

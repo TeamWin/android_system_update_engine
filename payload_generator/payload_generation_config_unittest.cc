@@ -59,7 +59,7 @@ TEST_F(PayloadGenerationConfigTest, LoadDynamicPartitionMetadataTest) {
   ASSERT_TRUE(
       store.LoadFromString("super_partition_groups=group_a group_b\n"
                            "group_a_size=3221225472\n"
-                           "group_a_partition_list=system product_services\n"
+                           "group_a_partition_list=system system_ext\n"
                            "group_b_size=2147483648\n"
                            "group_b_partition_list=vendor\n"));
   EXPECT_TRUE(image_config.LoadDynamicPartitionMetadata(store));
@@ -72,7 +72,7 @@ TEST_F(PayloadGenerationConfigTest, LoadDynamicPartitionMetadataTest) {
   EXPECT_EQ(3221225472u, group_a.size());
   ASSERT_EQ(2, group_a.partition_names_size());
   EXPECT_EQ("system", group_a.partition_names(0));
-  EXPECT_EQ("product_services", group_a.partition_names(1));
+  EXPECT_EQ("system_ext", group_a.partition_names(1));
 
   const auto& group_b = image_config.dynamic_partition_metadata->groups(1);
   EXPECT_EQ("group_b", group_b.name());
@@ -108,17 +108,17 @@ TEST_F(PayloadGenerationConfigTest, ValidateDynamicPartitionMetadata) {
 
   PartitionConfig system("system");
   system.size = 2147483648u;
-  PartitionConfig product_services("product_services");
-  product_services.size = 1073741824u;
+  PartitionConfig system_ext("system_ext");
+  system_ext.size = 1073741824u;
 
   image_config.partitions.push_back(std::move(system));
-  image_config.partitions.push_back(std::move(product_services));
+  image_config.partitions.push_back(std::move(system_ext));
 
   brillo::KeyValueStore store;
   ASSERT_TRUE(
       store.LoadFromString("super_partition_groups=foo\n"
                            "foo_size=3221225472\n"
-                           "foo_partition_list=system product_services\n"));
+                           "foo_partition_list=system system_ext\n"));
   EXPECT_TRUE(image_config.LoadDynamicPartitionMetadata(store));
   EXPECT_NE(nullptr, image_config.dynamic_partition_metadata);
 

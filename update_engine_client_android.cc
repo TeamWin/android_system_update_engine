@@ -72,12 +72,15 @@ class UpdateEngineClientAndroid : public brillo::Daemon {
   // Called whenever the UpdateEngine daemon dies.
   void UpdateEngineServiceDied();
 
+  static std::vector<android::String16> ParseHeaders(const std::string& arg);
+
   // Copy of argc and argv passed to main().
   int argc_;
   char** argv_;
 
   android::sp<android::os::IUpdateEngine> service_;
   android::sp<android::os::BnUpdateEngineCallback> callback_;
+  android::sp<android::os::BnUpdateEngineCallback> cleanup_callback_;
 
   brillo::BinderWatcher binder_watcher_;
 };
@@ -123,15 +126,16 @@ int UpdateEngineClientAndroid::OnInit() {
   DEFINE_string(headers,
                 "",
                 "A list of key-value pairs, one element of the list per line. "
-                "Used when --update is passed.");
+                "Used when --update or --allocate is passed.");
 
   DEFINE_bool(verify,
               false,
               "Given payload metadata, verify if the payload is applicable.");
+  DEFINE_bool(allocate, false, "Given payload metadata, allocate space.");
   DEFINE_string(metadata,
                 "/data/ota_package/metadata",
                 "The path to the update payload metadata. "
-                "Used when --verify is passed.");
+                "Used when --verify or --allocate is passed.");
 
   DEFINE_bool(suspend, false, "Suspend an ongoing update and exit.");
   DEFINE_bool(resume, false, "Resume a suspended update.");
@@ -141,7 +145,10 @@ int UpdateEngineClientAndroid::OnInit() {
               false,
               "Follow status update changes until a final state is reached. "
               "Exit status is 0 if the update succeeded, and 1 otherwise.");
-
+  DEFINE_bool(merge,
+              false,
+              "Wait for previous update to merge. "
+              "Only available after rebooting to new slot.");
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
   brillo::FlagHelper::Init(argc_, argv_, "Android Update Engine Client");
@@ -200,6 +207,36 @@ int UpdateEngineClientAndroid::OnInit() {
     return ExitWhenIdle(status);
   }
 
+  if (FLAGS_allocate) {
+    auto headers = ParseHeaders(FLAGS_headers);
+    int64_t ret = 0;
+    Status status = service_->allocateSpaceForPayload(
+        android::String16{FLAGS_metadata.data(), FLAGS_metadata.size()},
+        headers,
+        &ret);
+    if (status.isOk()) {
+      if (ret == 0) {
+        LOG(INFO) << "Successfully allocated space for payload.";
+      } else {
+        LOG(INFO) << "Insufficient space; required " << ret << " bytes.";
+      }
+    } else {
+      LOG(INFO) << "Allocation failed.";
+    }
+    return ExitWhenIdle(status);
+  }
+
+  if (FLAGS_merge) {
+    // Register a callback object with the service.
+    cleanup_callback_ = new UECallback(this);
+    Status status = service_->cleanupSuccessfulUpdate(cleanup_callback_);
+    if (!status.isOk()) {
+      LOG(ERROR) << "Failed to call cleanupSuccessfulUpdate.";
+      return ExitWhenIdle(status);
+    }
+    keep_running = true;
+  }
+
   if (FLAGS_follow) {
     // Register a callback object with the service.
     callback_ = new UECallback(this);
@@ -212,12 +249,7 @@ int UpdateEngineClientAndroid::OnInit() {
   }
 
   if (FLAGS_update) {
-    std::vector<std::string> headers = base::SplitString(
-        FLAGS_headers, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    std::vector<android::String16> and_headers;
-    for (const auto& header : headers) {
-      and_headers.push_back(android::String16{header.data(), header.size()});
-    }
+    auto and_headers = ParseHeaders(FLAGS_headers);
     Status status = service_->applyPayload(
         android::String16{FLAGS_payload.data(), FLAGS_payload.size()},
         FLAGS_offset,
@@ -259,6 +291,17 @@ int UpdateEngineClientAndroid::ExitWhenIdle(int return_code) {
 void UpdateEngineClientAndroid::UpdateEngineServiceDied() {
   LOG(ERROR) << "UpdateEngineService died.";
   QuitWithExitCode(1);
+}
+
+std::vector<android::String16> UpdateEngineClientAndroid::ParseHeaders(
+    const std::string& arg) {
+  std::vector<std::string> headers = base::SplitString(
+      arg, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  std::vector<android::String16> and_headers;
+  for (const auto& header : headers) {
+    and_headers.push_back(android::String16{header.data(), header.size()});
+  }
+  return and_headers;
 }
 
 }  // namespace internal

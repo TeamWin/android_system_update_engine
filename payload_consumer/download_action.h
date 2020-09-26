@@ -124,18 +124,19 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   bool SetupP2PSharingFd();
 
   // Writes |length| bytes of payload from |data| into |file_offset|
-  // of the p2p file. Also does sanity checks; for example ensures we
+  // of the p2p file. Also does validation checks; for example ensures we
   // don't end up with a file with holes in it.
   //
   // This method does nothing if SetupP2PSharingFd() hasn't been
   // called or if CloseP2PSharingFd() has been called.
   void WriteToP2PFile(const void* data, size_t length, off_t file_offset);
 
+  // Attempt to load cached manifest data from prefs
+  // return true on success, false otherwise.
+  bool LoadCachedManifest(int64_t manifest_size);
+
   // Start downloading the current payload using delta_performer.
   void StartDownloading();
-
-  // The InstallPlan passed in
-  InstallPlan install_plan_;
 
   // Pointer to the current payload in install_plan_.payloads.
   InstallPlan::Payload* payload_{nullptr};

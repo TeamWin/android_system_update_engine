@@ -34,6 +34,7 @@ extern "C" {
 }
 
 #include "update_engine/common/boot_control.h"
+#include "update_engine/common/dynamic_partition_control_stub.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
@@ -134,6 +135,8 @@ bool BootControlChromeOS::Init() {
     return false;
   }
 
+  dynamic_partition_control_.reset(new DynamicPartitionControlStub());
+
   LOG(INFO) << "Booted from slot " << current_slot_ << " (slot "
             << SlotName(current_slot_) << ") of " << num_slots_
             << " slots present on disk " << boot_disk_name_;
@@ -173,9 +176,11 @@ bool BootControlChromeOS::ParseDlcPartitionName(
   return true;
 }
 
-bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
-                                             unsigned int slot,
-                                             string* device) const {
+bool BootControlChromeOS::GetPartitionDevice(const std::string& partition_name,
+                                             BootControlInterface::Slot slot,
+                                             bool not_in_payload,
+                                             std::string* device,
+                                             bool* is_dynamic) const {
   // Partition name prefixed with |kPartitionNamePrefixDlc| is a DLC module.
   if (base::StartsWith(partition_name,
                        kPartitionNamePrefixDlc,
@@ -201,7 +206,16 @@ bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
     return false;
 
   *device = part_device;
+  if (is_dynamic) {
+    *is_dynamic = false;
+  }
   return true;
+}
+
+bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
+                                             BootControlInterface::Slot slot,
+                                             string* device) const {
+  return GetPartitionDevice(partition_name, slot, false, device, nullptr);
 }
 
 bool BootControlChromeOS::IsSlotBootable(Slot slot) const {
@@ -350,13 +364,14 @@ int BootControlChromeOS::GetPartitionNumber(
   return -1;
 }
 
-bool BootControlChromeOS::InitPartitionMetadata(
-    Slot slot,
-    const PartitionMetadata& partition_metadata,
-    bool update_metadata) {
-  return true;
+bool BootControlChromeOS::IsSlotMarkedSuccessful(Slot slot) const {
+  LOG(ERROR) << __func__ << " not supported.";
+  return false;
 }
 
-void BootControlChromeOS::Cleanup() {}
+DynamicPartitionControlInterface*
+BootControlChromeOS::GetDynamicPartitionControl() {
+  return dynamic_partition_control_.get();
+}
 
 }  // namespace chromeos_update_engine

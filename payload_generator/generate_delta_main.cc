@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,7 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
+#include <base/strings/string_util.h>
 #include <brillo/flag_helper.h>
 #include <brillo/key_value_store.h>
 #include <brillo/message_loops/base_message_loop.h>
@@ -47,6 +49,7 @@
 // and an output file as arguments and the path to an output file and
 // generates a delta that can be sent to Chrome OS clients.
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -58,24 +61,21 @@ constexpr char kPayloadPropertiesFormatKeyValue[] = "key-value";
 constexpr char kPayloadPropertiesFormatJson[] = "json";
 
 void ParseSignatureSizes(const string& signature_sizes_flag,
-                         vector<int>* signature_sizes) {
+                         vector<size_t>* signature_sizes) {
   signature_sizes->clear();
   vector<string> split_strings = base::SplitString(
       signature_sizes_flag, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (const string& str : split_strings) {
-    int size = 0;
-    bool parsing_successful = base::StringToInt(str, &size);
+    size_t size = 0;
+    bool parsing_successful = base::StringToSizeT(str, &size);
     LOG_IF(FATAL, !parsing_successful) << "Invalid signature size: " << str;
-
-    LOG_IF(FATAL, size != (2048 / 8))
-        << "Only signature sizes of 256 bytes are supported.";
 
     signature_sizes->push_back(size);
   }
 }
 
 
-void CalculateHashForSigning(const vector<int>& sizes,
+void CalculateHashForSigning(const vector<size_t>& sizes,
                              const string& out_hash_file,
                              const string& out_metadata_hash_file,
                              const string& in_file) {
@@ -111,6 +111,7 @@ void SignatureFileFlagToBlobs(const string& signature_file_flag,
 
 void SignPayload(const string& in_file,
                  const string& out_file,
+                 const vector<size_t>& signature_sizes,
                  const string& payload_signature_file,
                  const string& metadata_signature_file,
                  const string& out_metadata_size_file) {
@@ -124,6 +125,7 @@ void SignPayload(const string& in_file,
   SignatureFileFlagToBlobs(metadata_signature_file, &metadata_signatures);
   uint64_t final_metadata_size;
   CHECK(PayloadSigner::AddSignatureToPayload(in_file,
+                                             signature_sizes,
                                              payload_signatures,
                                              metadata_signatures,
                                              out_file,
@@ -222,8 +224,8 @@ bool ApplyPayload(const string& payload_file,
                                        nullptr,
                                        new FileFetcher(),
                                        true /* interactive */);
-  auto filesystem_verifier_action =
-      std::make_unique<FilesystemVerifierAction>();
+  auto filesystem_verifier_action = std::make_unique<FilesystemVerifierAction>(
+      fake_boot_control.GetDynamicPartitionControl());
 
   BondActions(install_plan_action.get(), download_action.get());
   BondActions(download_action.get(), filesystem_verifier_action.get());
@@ -260,6 +262,39 @@ bool ExtractProperties(const string& payload_path,
     utils::WriteFile(
         props_file.c_str(), properties.c_str(), properties.length());
     LOG(INFO) << "Generated properties file at " << props_file;
+  }
+  return true;
+}
+
+template <typename Key, typename Val>
+string ToString(const map<Key, Val>& map) {
+  vector<string> result;
+  result.reserve(map.size());
+  for (const auto& it : map) {
+    result.emplace_back(it.first + ": " + it.second);
+  }
+  return "{" + base::JoinString(result, ",") + "}";
+}
+
+bool ParsePerPartitionTimestamps(const string& partition_timestamps,
+                                 PayloadGenerationConfig* config) {
+  base::StringPairs pairs;
+  CHECK(base::SplitStringIntoKeyValuePairs(
+      partition_timestamps, ':', ',', &pairs))
+      << "--partition_timestamps accepts commad "
+         "separated pairs. e.x. system:1234,vendor:5678";
+  map<string, string> partition_timestamps_map{
+      std::move_iterator(pairs.begin()), std::move_iterator(pairs.end())};
+  for (auto&& partition : config->target.partitions) {
+    auto&& it = partition_timestamps_map.find(partition.name);
+    if (it != partition_timestamps_map.end()) {
+      partition.version = std::move(it->second);
+      partition_timestamps_map.erase(it);
+    }
+  }
+  if (!partition_timestamps_map.empty()) {
+    LOG(ERROR) << "Unused timestamps: " << ToString(partition_timestamps_map);
+    return false;
   }
   return true;
 }
@@ -354,6 +389,11 @@ int Main(int argc, char** argv) {
                0,
                "The maximum timestamp of the OS allowed to apply this "
                "payload.");
+  DEFINE_string(
+      partition_timestamps,
+      "",
+      "The per-partition maximum timestamps which the OS allowed to apply this "
+      "payload. Passed in comma separated pairs, e.x. system:1234,vendor:5678");
 
   DEFINE_string(new_postinstall_config_file,
                 "",
@@ -363,6 +403,17 @@ int Main(int argc, char** argv) {
                 "",
                 "An info file specifying dynamic partition metadata. "
                 "Only allowed in major version 2 or newer.");
+  DEFINE_bool(disable_fec_computation,
+              false,
+              "Disables the fec data computation on device.");
+  DEFINE_string(
+      out_maximum_signature_size_file,
+      "",
+      "Path to the output maximum signature size given a private key.");
+  DEFINE_bool(is_partial_update,
+              false,
+              "The payload only targets a subset of partitions on the device,"
+              "e.g. generic kernel image update.");
 
   brillo::FlagHelper::Init(
       argc,
@@ -388,8 +439,34 @@ int Main(int argc, char** argv) {
   // Initialize the Xz compressor.
   XzCompressInit();
 
-  vector<int> signature_sizes;
-  ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
+  if (!FLAGS_out_maximum_signature_size_file.empty()) {
+    LOG_IF(FATAL, FLAGS_private_key.empty())
+        << "Private key is not provided when calculating the maximum signature "
+           "size.";
+
+    size_t maximum_signature_size;
+    if (!PayloadSigner::GetMaximumSignatureSize(FLAGS_private_key,
+                                                &maximum_signature_size)) {
+      LOG(ERROR) << "Failed to get the maximum signature size of private key: "
+                 << FLAGS_private_key;
+      return 1;
+    }
+    // Write the size string to output file.
+    string signature_size_string = std::to_string(maximum_signature_size);
+    if (!utils::WriteFile(FLAGS_out_maximum_signature_size_file.c_str(),
+                          signature_size_string.c_str(),
+                          signature_size_string.size())) {
+      PLOG(ERROR) << "Failed to write the maximum signature size to "
+                  << FLAGS_out_maximum_signature_size_file << ".";
+      return 1;
+    }
+    return 0;
+  }
+
+  vector<size_t> signature_sizes;
+  if (!FLAGS_signature_size.empty()) {
+    ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
+  }
 
   if (!FLAGS_out_hash_file.empty() || !FLAGS_out_metadata_hash_file.empty()) {
     CHECK(FLAGS_out_metadata_size_file.empty());
@@ -402,6 +479,7 @@ int Main(int argc, char** argv) {
   if (!FLAGS_payload_signature_file.empty()) {
     SignPayload(FLAGS_in_file,
                 FLAGS_out_file,
+                signature_sizes,
                 FLAGS_payload_signature_file,
                 FLAGS_metadata_signature_file,
                 FLAGS_out_metadata_size_file);
@@ -470,6 +548,8 @@ int Main(int argc, char** argv) {
         << "Partition name can't be empty, see --partition_names.";
     payload_config.target.partitions.emplace_back(partition_names[i]);
     payload_config.target.partitions.back().path = new_partitions[i];
+    payload_config.target.partitions.back().disable_fec_computation =
+        FLAGS_disable_fec_computation;
     if (i < new_mapfiles.size())
       payload_config.target.partitions.back().mapfile_path = new_mapfiles[i];
   }
@@ -520,6 +600,10 @@ int Main(int argc, char** argv) {
     CHECK(store.Load(base::FilePath(FLAGS_dynamic_partition_info_file)));
     CHECK(payload_config.target.LoadDynamicPartitionMetadata(store));
     CHECK(payload_config.target.ValidateDynamicPartitionMetadata());
+  }
+
+  if (FLAGS_is_partial_update) {
+    payload_config.is_partial_update = true;
   }
 
   CHECK(!FLAGS_out_file.empty());
@@ -576,8 +660,13 @@ int Main(int argc, char** argv) {
   }
 
   payload_config.max_timestamp = FLAGS_max_timestamp;
+  if (!FLAGS_partition_timestamps.empty()) {
+    CHECK(ParsePerPartitionTimestamps(FLAGS_partition_timestamps,
+                                      &payload_config));
+  }
 
-  if (payload_config.version.minor >= kVerityMinorPayloadVersion)
+  if (payload_config.is_delta &&
+      payload_config.version.minor >= kVerityMinorPayloadVersion)
     CHECK(payload_config.target.LoadVerityConfig());
 
   LOG(INFO) << "Generating " << (payload_config.is_delta ? "delta" : "full")

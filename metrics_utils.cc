@@ -72,6 +72,8 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kFilesystemCopierError:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kVerityCalculationError:
+    case ErrorCode::kNotEnoughSpace:
+    case ErrorCode::kDeviceCorrupted:
       return metrics::AttemptResult::kOperationExecutionError;
 
     case ErrorCode::kDownloadMetadataSignatureMismatch:
@@ -237,6 +239,8 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kRollbackNotPossible:
     case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
     case ErrorCode::kVerityCalculationError:
+    case ErrorCode::kNotEnoughSpace:
+    case ErrorCode::kDeviceCorrupted:
     case ErrorCode::kPackageExcludedFromUpdate:
       break;
 

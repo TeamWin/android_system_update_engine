@@ -43,7 +43,8 @@ class PayloadFile {
   // reference a blob stored in the file provided to WritePayload().
   bool AddPartition(const PartitionConfig& old_conf,
                     const PartitionConfig& new_conf,
-                    const std::vector<AnnotatedOperation>& aops);
+                    std::vector<AnnotatedOperation> aops,
+                    std::vector<CowMergeOperation> merge_sequence);
 
   // Write the payload to the |payload_file| file. The operations reference
   // blobs in the |data_blobs_path| file and the blobs will be reordered in the
@@ -60,9 +61,9 @@ class PayloadFile {
   // Computes a SHA256 hash of the given buf and sets the hash value in the
   // operation so that update_engine could verify. This hash should be set
   // for all operations that have a non-zero data blob. One exception is the
-  // dummy operation for signature blob because the contents of the signature
+  // fake operation for signature blob because the contents of the signature
   // blob will not be available at payload creation time. So, update_engine will
-  // gracefully ignore the dummy signature operation.
+  // gracefully ignore the fake signature operation.
   static bool AddOperationHash(InstallOperation* op, const brillo::Blob& buf);
 
   // Install operations in the manifest may reference data blobs, which
@@ -90,12 +91,15 @@ class PayloadFile {
 
     // The operations to be performed to this partition.
     std::vector<AnnotatedOperation> aops;
+    std::vector<CowMergeOperation> cow_merge_sequence;
 
     PartitionInfo old_info;
     PartitionInfo new_info;
 
     PostInstallConfig postinstall;
     VerityConfig verity;
+    // Per partition timestamp.
+    std::string version;
   };
 
   std::vector<Partition> part_vec_;

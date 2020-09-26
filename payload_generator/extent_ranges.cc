@@ -202,6 +202,15 @@ void ExtentRanges::SubtractRepeatedExtents(
   }
 }
 
+bool ExtentRanges::OverlapsWithExtent(const Extent& extent) const {
+  for (const auto& entry : extent_set_) {
+    if (ExtentsOverlap(entry, extent)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool ExtentRanges::ContainsBlock(uint64_t block) const {
   auto lower = extent_set_.lower_bound(ExtentForRange(block, 1));
   // The block could be on the extent before the one in |lower|.

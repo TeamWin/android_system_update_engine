@@ -30,6 +30,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -819,7 +820,7 @@ ErrorCode GetBaseErrorCode(ErrorCode code) {
   return base_code;
 }
 
-string StringVectorToString(const vector<string> &vec_str) {
+string StringVectorToString(const vector<string>& vec_str) {
   string str = "[";
   for (vector<string>::const_iterator i = vec_str.begin(); i != vec_str.end();
        ++i) {
@@ -848,7 +849,7 @@ string CalculateP2PFileId(const brillo::Blob& payload_hash,
                             encoded_hash.c_str());
 }
 
-bool ConvertToOmahaInstallDate(Time time, int *out_num_days) {
+bool ConvertToOmahaInstallDate(Time time, int* out_num_days) {
   time_t unix_time = time.ToTimeT();
   // Output of: date +"%s" --date="Jan 1, 2007 0:00 PST".
   const time_t kOmahaEpoch = 1167638400;
@@ -978,8 +979,56 @@ void ParseRollbackKeyVersion(const string& raw_version,
   }
 }
 
+string GetFilePath(int fd) {
+  base::FilePath proc("/proc/self/fd/" + std::to_string(fd));
+  base::FilePath file_name;
+
+  if (!base::ReadSymbolicLink(proc, &file_name)) {
+    return "not found";
+  }
+  return file_name.value();
+}
+
+string GetTimeAsString(time_t utime) {
+  struct tm tm;
+  CHECK_EQ(localtime_r(&utime, &tm), &tm);
+  char str[16];
+  CHECK_EQ(strftime(str, sizeof(str), "%Y%m%d-%H%M%S", &tm), 15u);
+  return str;
+}
+
 string GetExclusionName(const string& str_to_convert) {
   return base::NumberToString(base::StringPieceHash()(str_to_convert));
+}
+
+static bool ParseTimestamp(const std::string& str, int64_t* out) {
+  if (!base::StringToInt64(str, out)) {
+    LOG(WARNING) << "Invalid timestamp: " << str;
+    return false;
+  }
+  return true;
+}
+
+ErrorCode IsTimestampNewer(const std::string& old_version,
+                           const std::string& new_version) {
+  if (old_version.empty() || new_version.empty()) {
+    LOG(WARNING)
+        << "One of old/new timestamp is empty, permit update anyway. Old: "
+        << old_version << " New: " << new_version;
+    return ErrorCode::kSuccess;
+  }
+  int64_t old_ver = 0;
+  if (!ParseTimestamp(old_version, &old_ver)) {
+    return ErrorCode::kError;
+  }
+  int64_t new_ver = 0;
+  if (!ParseTimestamp(new_version, &new_ver)) {
+    return ErrorCode::kDownloadManifestParseError;
+  }
+  if (old_ver > new_ver) {
+    return ErrorCode::kPayloadTimestampError;
+  }
+  return ErrorCode::kSuccess;
 }
 
 }  // namespace utils

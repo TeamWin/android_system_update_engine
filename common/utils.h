@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_COMMON_UTILS_H_
 
 #include <errno.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -295,6 +296,9 @@ bool GetBootId(std::string* boot_id);
 // shell command. Returns true on success.
 bool GetVpdValue(std::string key, std::string* result);
 
+// This function gets the file path of the file pointed to by FileDiscriptor.
+std::string GetFilePath(int fd);
+
 // Divide |x| by |y| and round up to the nearest integer.
 constexpr uint64_t DivRoundUp(uint64_t x, uint64_t y) {
   return (x + y - 1) / y;
@@ -317,9 +321,22 @@ void ParseRollbackKeyVersion(const std::string& raw_version,
                              uint16_t* high_version,
                              uint16_t* low_version);
 
+// Return a string representation of |utime| for log file names.
+std::string GetTimeAsString(time_t utime);
 // Returns the string format of the hashed |str_to_convert| that can be used
 // with |Excluder| as the exclusion name.
 std::string GetExclusionName(const std::string& str_to_convert);
+
+// Parse `old_version` and `new_version` as integer timestamps and
+// Return kSuccess if `new_version` is larger/newer.
+// Return kSuccess if either one is empty.
+// Return kError if |old_version| is not empty and not an integer.
+// Return kDownloadManifestParseError if |new_version| is not empty and not an
+// integer.
+// Return kPayloadTimestampError if both are integers but |new_version| <
+// |old_version|.
+ErrorCode IsTimestampNewer(const std::string& old_version,
+                           const std::string& new_version);
 
 }  // namespace utils
 

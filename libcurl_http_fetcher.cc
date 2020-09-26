@@ -31,6 +31,7 @@
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/threading/thread_task_runner_handle.h>
 
 #ifdef __ANDROID__
 #include <cutils/qtaguid.h>
@@ -78,6 +79,7 @@ int LibcurlHttpFetcher::LibcurlCloseSocketCallback(void* clientp,
 #ifdef __ANDROID__
   qtaguid_untagSocket(item);
 #endif  // __ANDROID__
+
   LibcurlHttpFetcher* fetcher = static_cast<LibcurlHttpFetcher*>(clientp);
   // Stop watching the socket before closing it.
   for (size_t t = 0; t < base::size(fetcher->fd_controller_maps_); ++t) {
@@ -456,6 +458,19 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     // There's either more work to do or we are paused, so we just keep the
     // file descriptors to watch up to date and exit, until we are done with the
     // work and we are not paused.
+#ifdef __ANDROID__
+    // When there's no base::SingleThreadTaskRunner on current thread, it's not
+    // possible to watch file descriptors. Just poll it later. This usually
+    // happens if brillo::FakeMessageLoop is used.
+    if (!base::ThreadTaskRunnerHandle::IsSet()) {
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&LibcurlHttpFetcher::CurlPerformOnce,
+                     base::Unretained(this)),
+          TimeDelta::FromSeconds(1));
+      return;
+    }
+#endif
     SetupMessageLoopSources();
     return;
   }

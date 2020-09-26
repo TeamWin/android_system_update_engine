@@ -149,25 +149,34 @@ bool ImageConfig::LoadDynamicPartitionMetadata(
   for (const auto& group_name : group_names) {
     DynamicPartitionGroup* group = metadata->add_groups();
     group->set_name(group_name);
-    if (!store.GetString(group_name + "_size", &buf)) {
-      LOG(ERROR) << "Missing " << group_name + "_size.";
+    if (!store.GetString("super_" + group_name + "_group_size", &buf) &&
+        !store.GetString(group_name + "_size", &buf)) {
+      LOG(ERROR) << "Missing super_" << group_name + "_group_size or "
+                 << group_name << "_size.";
       return false;
     }
 
     uint64_t max_size;
     if (!base::StringToUint64(buf, &max_size)) {
-      LOG(ERROR) << group_name << "_size=" << buf << " is not an integer.";
+      LOG(ERROR) << "Group size for " << group_name << " = " << buf
+                 << " is not an integer.";
       return false;
     }
     group->set_size(max_size);
 
-    if (store.GetString(group_name + "_partition_list", &buf)) {
+    if (store.GetString("super_" + group_name + "_partition_list", &buf) ||
+        store.GetString(group_name + "_partition_list", &buf)) {
       auto partition_names = brillo::string_utils::Split(buf, " ");
       for (const auto& partition_name : partition_names) {
         group->add_partition_names()->assign(partition_name);
       }
     }
   }
+
+  bool snapshot_enabled = false;
+  store.GetBoolean("virtual_ab", &snapshot_enabled);
+  metadata->set_snapshot_enabled(snapshot_enabled);
+
   dynamic_partition_metadata = std::move(metadata);
   return true;
 }
@@ -217,11 +226,12 @@ bool PayloadVersion::Validate() const {
                         minor == kOpSrcHashMinorPayloadVersion ||
                         minor == kBrotliBsdiffMinorPayloadVersion ||
                         minor == kPuffdiffMinorPayloadVersion ||
-                        minor == kVerityMinorPayloadVersion);
+                        minor == kVerityMinorPayloadVersion ||
+                        minor == kPartialUpdateMinorPayloadVersion);
   return true;
 }
 
-bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
+bool PayloadVersion::OperationAllowed(InstallOperation::Type operation) const {
   switch (operation) {
     // Full operations:
     case InstallOperation::REPLACE:
@@ -252,13 +262,14 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
   return false;
 }
 
-bool PayloadVersion::IsDelta() const {
+bool PayloadVersion::IsDeltaOrPartial() const {
   return minor != kFullPayloadMinorVersion;
 }
 
 bool PayloadGenerationConfig::Validate() const {
   TEST_AND_RETURN_FALSE(version.Validate());
-  TEST_AND_RETURN_FALSE(version.IsDelta() == is_delta);
+  TEST_AND_RETURN_FALSE(version.IsDeltaOrPartial() ==
+                        (is_delta || is_partial_update));
   if (is_delta) {
     for (const PartitionConfig& part : source.partitions) {
       if (!part.path.empty()) {
@@ -281,6 +292,10 @@ bool PayloadGenerationConfig::Validate() const {
     TEST_AND_RETURN_FALSE(part.size % block_size == 0);
     if (version.minor < kVerityMinorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.verity.IsEmpty());
+  }
+
+  if (version.minor < kPartialUpdateMinorPayloadVersion) {
+    TEST_AND_RETURN_FALSE(!is_partial_update);
   }
 
   TEST_AND_RETURN_FALSE(hard_chunk_size == -1 ||

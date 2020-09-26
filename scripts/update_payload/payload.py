@@ -20,7 +20,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import hashlib
+import io
 import struct
+import zipfile
 
 from update_payload import applier
 from update_payload import checker
@@ -119,6 +121,10 @@ class Payload(object):
       payload_file: update payload file object open for reading
       payload_file_offset: the offset of the actual payload
     """
+    if zipfile.is_zipfile(payload_file):
+      with zipfile.ZipFile(payload_file) as zfp:
+        with zfp.open("payload.bin") as payload_fp:
+          payload_file = io.BytesIO(payload_fp.read())
     self.payload_file = payload_file
     self.payload_file_offset = payload_file_offset
     self.manifest_hasher = None

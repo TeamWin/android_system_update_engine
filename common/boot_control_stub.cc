@@ -15,12 +15,16 @@
 //
 
 #include "update_engine/common/boot_control_stub.h"
+#include "update_engine/common/dynamic_partition_control_stub.h"
 
 #include <base/logging.h>
 
 using std::string;
 
 namespace chromeos_update_engine {
+
+BootControlStub::BootControlStub()
+    : dynamic_partition_control_(new DynamicPartitionControlStub()) {}
 
 unsigned int BootControlStub::GetNumSlots() const {
   return 0;
@@ -29,6 +33,15 @@ unsigned int BootControlStub::GetNumSlots() const {
 BootControlInterface::Slot BootControlStub::GetCurrentSlot() const {
   LOG(ERROR) << __FUNCTION__ << " should never be called.";
   return 0;
+}
+
+bool BootControlStub::GetPartitionDevice(const std::string& partition_name,
+                                         BootControlInterface::Slot slot,
+                                         bool not_in_payload,
+                                         std::string* device,
+                                         bool* is_dynamic) const {
+  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+  return false;
 }
 
 bool BootControlStub::GetPartitionDevice(const string& partition_name,
@@ -59,16 +72,14 @@ bool BootControlStub::MarkBootSuccessfulAsync(
   return false;
 }
 
-bool BootControlStub::InitPartitionMetadata(
-    Slot slot,
-    const PartitionMetadata& partition_metadata,
-    bool update_metadata) {
+bool BootControlStub::IsSlotMarkedSuccessful(Slot slot) const {
   LOG(ERROR) << __FUNCTION__ << " should never be called.";
   return false;
 }
 
-void BootControlStub::Cleanup() {
-  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+DynamicPartitionControlInterface*
+BootControlStub::GetDynamicPartitionControl() {
+  return dynamic_partition_control_.get();
 }
 
 }  // namespace chromeos_update_engine

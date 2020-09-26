@@ -18,17 +18,20 @@
 #define UPDATE_ENGINE_HARDWARE_ANDROID_H_
 
 #include <string>
+#include <string_view>
 
 #include <base/macros.h>
 #include <base/time/time.h>
+#include <gtest/gtest_prod.h>
 
+#include "update_engine/common/error_code.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/hardware_interface.h"
 
 namespace chromeos_update_engine {
 
 // Implements the real interface with the hardware in the Android platform.
-class HardwareAndroid final : public HardwareInterface {
+class HardwareAndroid : public HardwareInterface {
  public:
   HardwareAndroid() = default;
   ~HardwareAndroid() override = default;
@@ -54,10 +57,23 @@ class HardwareAndroid final : public HardwareInterface {
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;
   int64_t GetBuildTimestamp() const override;
+  bool AllowDowngrade() const override;
   bool GetFirstActiveOmahaPingSent() const override;
   bool SetFirstActiveOmahaPingSent() override;
+  void SetWarmReset(bool warm_reset) override;
+  [[nodiscard]] std::string GetVersionForLogging(
+      const std::string& partition_name) const override;
+  [[nodiscard]] ErrorCode IsPartitionUpdateValid(
+      const std::string& partition_name,
+      const std::string& new_version) const override;
 
  private:
+  FRIEND_TEST(HardwareAndroidTest, IsKernelUpdateValid);
+
+  // Helper for IsPartitionUpdateValid.
+  static ErrorCode IsKernelUpdateValid(const std::string& old_release,
+                                       const std::string& new_release);
+
   DISALLOW_COPY_AND_ASSIGN(HardwareAndroid);
 };
 

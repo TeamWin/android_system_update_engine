@@ -218,7 +218,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
   }
 
   // Cleans up the following if they are non-null:
-  // curl(m) handles, fd_controller_maps_, timeout_id_.
+  // curl(m) handles, fd_controller_maps_(fd_task_maps_), timeout_id_.
   void CleanUp();
 
   // Force terminate the transfer. This will invoke the delegate's (if any)

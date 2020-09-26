@@ -28,6 +28,7 @@
 #include <base/bind.h>
 #include <brillo/data_encoding.h>
 #include <brillo/streams/file_stream.h>
+#include <base/strings/string_util.h>
 
 #include "update_engine/common/utils.h"
 
@@ -77,11 +78,32 @@ void FilesystemVerifierAction::Cleanup(ErrorCode code) {
     return;
   if (code == ErrorCode::kSuccess && HasOutputPipe())
     SetOutputObject(install_plan_);
+  UpdateProgress(1.0);
   processor_->ActionComplete(this, code);
+}
+
+void FilesystemVerifierAction::UpdateProgress(double progress) {
+  if (delegate_ != nullptr) {
+    delegate_->OnVerifyProgressUpdate(progress);
+  }
 }
 
 void FilesystemVerifierAction::StartPartitionHashing() {
   if (partition_index_ == install_plan_.partitions.size()) {
+    if (!install_plan_.untouched_dynamic_partitions.empty()) {
+      LOG(INFO) << "Verifying extents of untouched dynamic partitions ["
+                << base::JoinString(install_plan_.untouched_dynamic_partitions,
+                                    ", ")
+                << "]";
+      if (!dynamic_control_->VerifyExtentsForUntouchedPartitions(
+              install_plan_.source_slot,
+              install_plan_.target_slot,
+              install_plan_.untouched_dynamic_partitions)) {
+        Cleanup(ErrorCode::kFilesystemVerifierError);
+        return;
+      }
+    }
+
     Cleanup(ErrorCode::kSuccess);
     return;
   }
@@ -188,7 +210,6 @@ void FilesystemVerifierAction::OnReadDoneCallback(size_t bytes_read) {
     Cleanup(ErrorCode::kError);
     return;
   }
-
   if (bytes_read == 0) {
     LOG(ERROR) << "Failed to read the remaining " << partition_size_ - offset_
                << " bytes from partition "
@@ -203,6 +224,13 @@ void FilesystemVerifierAction::OnReadDoneCallback(size_t bytes_read) {
     return;
   }
 
+  // WE don't consider sizes of each partition. Every partition
+  // has the same length on progress bar.
+  // TODO(zhangkelvin) Take sizes of each partition into account
+
+  UpdateProgress(
+      (static_cast<double>(offset_) / partition_size_ + partition_index_) /
+      install_plan_.partitions.size());
   if (verifier_step_ == VerifierStep::kVerifyTargetHash &&
       install_plan_.write_verity) {
     if (!verity_writer_->Update(offset_, buffer_.data(), bytes_read)) {

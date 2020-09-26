@@ -276,7 +276,7 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
       target_part_path, dst_extents, &data, data.size(), kBlockSize));
 
   brillo::Blob blob;
-  InstallOperation_Type op_type;
+  InstallOperation::Type op_type;
   TEST_AND_RETURN_FALSE(
       diff_utils::GenerateBestFullOperation(data, version, &blob, &op_type));
 

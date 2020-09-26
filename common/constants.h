@@ -105,6 +105,7 @@ extern const char kPrefsUrlSwitchCount[];
 extern const char kPrefsVerityWritten[];
 extern const char kPrefsWallClockScatteringWaitPeriod[];
 extern const char kPrefsWallClockStagingWaitPeriod[];
+extern const char kPrefsManifestBytes[];
 
 // Keys used when storing and loading payload properties.
 extern const char kPayloadPropertyFileSize[];
@@ -214,6 +215,9 @@ const int kDownloadP2PMaxRetryCount = 5;
 // the server is on the same LAN and we want to fail fast.
 const int kDownloadConnectTimeoutSeconds = 30;
 const int kDownloadP2PConnectTimeoutSeconds = 5;
+
+// Size in bytes of SHA256 hash.
+const int kSHA256Size = 32;
 
 }  // namespace chromeos_update_engine
 

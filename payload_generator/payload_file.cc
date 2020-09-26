@@ -71,17 +71,23 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
     *(manifest_.mutable_dynamic_partition_metadata()) =
         *(config.target.dynamic_partition_metadata);
 
+  if (config.is_partial_update) {
+    manifest_.set_partial_update(true);
+  }
   return true;
 }
 
 bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
                                const PartitionConfig& new_conf,
-                               const vector<AnnotatedOperation>& aops) {
+                               vector<AnnotatedOperation> aops,
+                               vector<CowMergeOperation> merge_sequence) {
   Partition part;
   part.name = new_conf.name;
-  part.aops = aops;
+  part.aops = std::move(aops);
+  part.cow_merge_sequence = std::move(merge_sequence);
   part.postinstall = new_conf.postinstall;
   part.verity = new_conf.verity;
+  part.version = new_conf.version;
   // Initialize the PartitionInfo objects if present.
   if (!old_conf.path.empty())
     TEST_AND_RETURN_FALSE(
@@ -122,6 +128,9 @@ bool PayloadFile::WritePayload(const string& payload_file,
   for (const auto& part : part_vec_) {
     PartitionUpdate* partition = manifest_.add_partitions();
     partition->set_partition_name(part.name);
+    if (!part.version.empty()) {
+      partition->set_version(part.version);
+    }
     if (part.postinstall.run) {
       partition->set_run_postinstall(true);
       if (!part.postinstall.path.empty())
@@ -149,6 +158,10 @@ bool PayloadFile::WritePayload(const string& payload_file,
     for (const AnnotatedOperation& aop : part.aops) {
       *partition->add_operations() = aop.op;
     }
+    for (const auto& merge_op : part.cow_merge_sequence) {
+      *partition->add_merge_operations() = merge_op;
+    }
+
     if (part.old_info.has_size() || part.old_info.has_hash())
       *(partition->mutable_old_partition_info()) = part.old_info;
     if (part.new_info.has_size() || part.new_info.has_hash())
@@ -160,16 +173,14 @@ bool PayloadFile::WritePayload(const string& payload_file,
   uint64_t signature_blob_length = 0;
   if (!private_key_path.empty()) {
     TEST_AND_RETURN_FALSE(PayloadSigner::SignatureBlobLength(
-        vector<string>(1, private_key_path), &signature_blob_length));
+        {private_key_path}, &signature_blob_length));
     PayloadSigner::AddSignatureToManifest(
-        next_blob_offset,
-        signature_blob_length,
-        &manifest_);
+        next_blob_offset, signature_blob_length, &manifest_);
   }
 
   // Serialize protobuf
   string serialized_manifest;
-  TEST_AND_RETURN_FALSE(manifest_.AppendToString(&serialized_manifest));
+  TEST_AND_RETURN_FALSE(manifest_.SerializeToString(&serialized_manifest));
 
   uint64_t metadata_size =
       sizeof(kDeltaMagic) + 2 * sizeof(uint64_t) + serialized_manifest.size();
@@ -208,13 +219,12 @@ bool PayloadFile::WritePayload(const string& payload_file,
 
   // Write metadata signature blob.
   if (!private_key_path.empty()) {
-    brillo::Blob metadata_hash, metadata_signature;
+    brillo::Blob metadata_hash;
     TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(
         payload_file, metadata_size, &metadata_hash));
-    TEST_AND_RETURN_FALSE(
-        PayloadSigner::SignHashWithKeys(metadata_hash,
-                                        vector<string>(1, private_key_path),
-                                        &metadata_signature));
+    string metadata_signature;
+    TEST_AND_RETURN_FALSE(PayloadSigner::SignHashWithKeys(
+        metadata_hash, {private_key_path}, &metadata_signature));
     TEST_AND_RETURN_FALSE_ERRNO(
         writer.Write(metadata_signature.data(), metadata_signature.size()));
   }
@@ -238,16 +248,16 @@ bool PayloadFile::WritePayload(const string& payload_file,
   // Write payload signature blob.
   if (!private_key_path.empty()) {
     LOG(INFO) << "Signing the update...";
-    brillo::Blob signature_blob;
+    string signature;
     TEST_AND_RETURN_FALSE(PayloadSigner::SignPayload(
         payload_file,
-        vector<string>(1, private_key_path),
+        {private_key_path},
         metadata_size,
         metadata_signature_size,
         metadata_size + metadata_signature_size + manifest_.signatures_offset(),
-        &signature_blob));
+        &signature));
     TEST_AND_RETURN_FALSE_ERRNO(
-        writer.Write(signature_blob.data(), signature_blob.size()));
+        writer.Write(signature.data(), signature.size()));
   }
 
   ReportPayloadUsage(metadata_size);
@@ -323,15 +333,15 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
     const DeltaObject& object = object_count.first;
     // Use printf() instead of LOG(INFO) because timestamp makes it difficult to
     // compare two reports.
-    printf(
-        kFormatString,
-        object.size * 100.0 / total_size,
-        object.size,
-        (object.type >= 0 ? InstallOperationTypeName(
-                                static_cast<InstallOperation_Type>(object.type))
-                          : "-"),
-        object.name.c_str(),
-        object_count.second);
+    printf(kFormatString,
+           object.size * 100.0 / total_size,
+           object.size,
+           (object.type >= 0
+                ? InstallOperationTypeName(
+                      static_cast<InstallOperation::Type>(object.type))
+                : "-"),
+           object.name.c_str(),
+           object_count.second);
   }
   printf(kFormatString, 100.0, total_size, "", "<total>", total_op);
   fflush(stdout);

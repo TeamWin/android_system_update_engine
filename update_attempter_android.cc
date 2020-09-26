@@ -22,6 +22,7 @@
 #include <utility>
 
 #include <android-base/properties.h>
+#include <android-base/unique_fd.h>
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
@@ -30,6 +31,7 @@
 #include <brillo/strings/string_utils.h>
 #include <log/log_safetynet.h>
 
+#include "update_engine/cleanup_previous_update_action.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/file_fetcher.h"
@@ -38,6 +40,7 @@
 #include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector.h"
+#include "update_engine/payload_consumer/certificate_parser_interface.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
@@ -45,6 +48,7 @@
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_metadata.h"
+#include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_boot_flags_action.h"
 #include "update_engine/update_status_utils.h"
@@ -55,6 +59,7 @@
 #include "update_engine/libcurl_http_fetcher.h"
 #endif
 
+using android::base::unique_fd;
 using base::Bind;
 using base::Time;
 using base::TimeDelta;
@@ -94,6 +99,34 @@ bool GetHeaderAsBool(const string& header, bool default_value) {
   return default_value;
 }
 
+bool ParseKeyValuePairHeaders(const vector<string>& key_value_pair_headers,
+                              std::map<string, string>* headers,
+                              brillo::ErrorPtr* error) {
+  for (const string& key_value_pair : key_value_pair_headers) {
+    string key;
+    string value;
+    if (!brillo::string_utils::SplitAtFirst(
+            key_value_pair, "=", &key, &value, false)) {
+      return LogAndSetError(
+          error, FROM_HERE, "Passed invalid header: " + key_value_pair);
+    }
+    if (!headers->emplace(key, value).second)
+      return LogAndSetError(error, FROM_HERE, "Passed repeated key: " + key);
+  }
+  return true;
+}
+
+// Unique identifier for the payload. An empty string means that the payload
+// can't be resumed.
+string GetPayloadId(const std::map<string, string>& headers) {
+  return (headers.count(kPayloadPropertyFileHash)
+              ? headers.at(kPayloadPropertyFileHash)
+              : "") +
+         (headers.count(kPayloadPropertyMetadataHash)
+              ? headers.at(kPayloadPropertyMetadataHash)
+              : "");
+}
+
 }  // namespace
 
 UpdateAttempterAndroid::UpdateAttempterAndroid(
@@ -125,6 +158,12 @@ void UpdateAttempterAndroid::Init() {
   } else {
     SetStatusAndNotify(UpdateStatus::IDLE);
     UpdatePrefsAndReportUpdateMetricsOnReboot();
+#ifdef _UE_SIDELOAD
+    LOG(INFO) << "Skip ScheduleCleanupPreviousUpdate in sideload because "
+              << "ApplyPayload will call it later.";
+#else
+    ScheduleCleanupPreviousUpdate();
+#endif
   }
 }
 
@@ -145,22 +184,11 @@ bool UpdateAttempterAndroid::ApplyPayload(
   DCHECK(status_ == UpdateStatus::IDLE);
 
   std::map<string, string> headers;
-  for (const string& key_value_pair : key_value_pair_headers) {
-    string key;
-    string value;
-    if (!brillo::string_utils::SplitAtFirst(
-            key_value_pair, "=", &key, &value, false)) {
-      return LogAndSetError(
-          error, FROM_HERE, "Passed invalid header: " + key_value_pair);
-    }
-    if (!headers.emplace(key, value).second)
-      return LogAndSetError(error, FROM_HERE, "Passed repeated key: " + key);
+  if (!ParseKeyValuePairHeaders(key_value_pair_headers, &headers, error)) {
+    return false;
   }
 
-  // Unique identifier for the payload. An empty string means that the payload
-  // can't be resumed.
-  string payload_id = (headers[kPayloadPropertyFileHash] +
-                       headers[kPayloadPropertyMetadataHash]);
+  string payload_id = GetPayloadId(headers);
 
   // Setup the InstallPlan based on the request.
   install_plan_ = InstallPlan();
@@ -196,15 +224,22 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.is_resume = !payload_id.empty() &&
                             DeltaPerformer::CanResumeUpdate(prefs_, payload_id);
   if (!install_plan_.is_resume) {
-    if (!DeltaPerformer::ResetUpdateProgress(prefs_, false)) {
+    // No need to reset dynamic_partititon_metadata_updated. If previous calls
+    // to AllocateSpaceForPayload uses the same payload_id, reuse preallocated
+    // space. Otherwise, DeltaPerformer re-allocates space when the payload is
+    // applied.
+    if (!DeltaPerformer::ResetUpdateProgress(
+            prefs_,
+            false /* quick */,
+            true /* skip_dynamic_partititon_metadata_updated */)) {
       LOG(WARNING) << "Unable to reset the update progress.";
     }
     if (!prefs_->SetString(kPrefsUpdateCheckResponseHash, payload_id)) {
       LOG(WARNING) << "Unable to save the update check response hash.";
     }
   }
-  install_plan_.source_slot = boot_control_->GetCurrentSlot();
-  install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
+  install_plan_.source_slot = GetCurrentSlot();
+  install_plan_.target_slot = GetTargetSlot();
 
   install_plan_.powerwash_required =
       GetHeaderAsBool(headers[kPayloadPropertyPowerwash], false);
@@ -212,20 +247,8 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.switch_slot_on_reboot =
       GetHeaderAsBool(headers[kPayloadPropertySwitchSlotOnReboot], true);
 
-  install_plan_.run_post_install = true;
-  // Optionally skip post install if and only if:
-  // a) we're resuming
-  // b) post install has already succeeded before
-  // c) RUN_POST_INSTALL is set to 0.
-  if (install_plan_.is_resume && prefs_->Exists(kPrefsPostInstallSucceeded)) {
-    bool post_install_succeeded = false;
-    if (prefs_->GetBoolean(kPrefsPostInstallSucceeded,
-                           &post_install_succeeded) &&
-        post_install_succeeded) {
-      install_plan_.run_post_install =
-          GetHeaderAsBool(headers[kPayloadPropertyRunPostInstall], true);
-    }
-  }
+  install_plan_.run_post_install =
+      GetHeaderAsBool(headers[kPayloadPropertyRunPostInstall], true);
 
   // Skip writing verity if we're resuming and verity has already been written.
   install_plan_.write_verity = true;
@@ -288,6 +311,19 @@ bool UpdateAttempterAndroid::ApplyPayload(
   return true;
 }
 
+bool UpdateAttempterAndroid::ApplyPayload(
+    int fd,
+    int64_t payload_offset,
+    int64_t payload_size,
+    const vector<string>& key_value_pair_headers,
+    brillo::ErrorPtr* error) {
+  payload_fd_.reset(dup(fd));
+  const string payload_url = "fd://" + std::to_string(payload_fd_.get());
+
+  return ApplyPayload(
+      payload_url, payload_offset, payload_size, key_value_pair_headers, error);
+}
+
 bool UpdateAttempterAndroid::SuspendUpdate(brillo::ErrorPtr* error) {
   if (!processor_->IsRunning())
     return LogAndSetError(error, FROM_HERE, "No ongoing update to suspend.");
@@ -314,18 +350,19 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
             << UpdateStatusToString(status_) << " to UpdateStatus::IDLE";
 
   switch (status_) {
-    case UpdateStatus::IDLE:
+    case UpdateStatus::IDLE: {
+      if (!boot_control_->GetDynamicPartitionControl()->ResetUpdate(prefs_)) {
+        LOG(WARNING) << "Failed to reset snapshots. UpdateStatus is IDLE but"
+                     << "space might not be freed.";
+      }
       return true;
+    }
 
     case UpdateStatus::UPDATED_NEED_REBOOT: {
-      // Remove the reboot marker so that if the machine is rebooted
-      // after resetting to idle state, it doesn't go back to
-      // UpdateStatus::UPDATED_NEED_REBOOT state.
-      bool ret_value = prefs_->Delete(kPrefsUpdateCompletedOnBootId);
-      ClearMetricsPrefs();
+      bool ret_value = true;
 
       // Update the boot flags so the current slot has higher priority.
-      if (!boot_control_->SetActiveBootSlot(boot_control_->GetCurrentSlot()))
+      if (!boot_control_->SetActiveBootSlot(GetCurrentSlot()))
         ret_value = false;
 
       // Mark the current slot as successful again, since marking it as active
@@ -333,6 +370,20 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
       // the current slot as successful worked.
       if (!boot_control_->MarkBootSuccessfulAsync(Bind([](bool successful) {})))
         ret_value = false;
+
+      // Resets the warm reset property since we won't switch the slot.
+      hardware_->SetWarmReset(false);
+
+      // Remove update progress for DeltaPerformer and remove snapshots.
+      if (!boot_control_->GetDynamicPartitionControl()->ResetUpdate(prefs_))
+        ret_value = false;
+
+      // Remove the reboot marker so that if the machine is rebooted
+      // after resetting to idle state, it doesn't go back to
+      // UpdateStatus::UPDATED_NEED_REBOOT state.
+      if (!prefs_->Delete(kPrefsUpdateCompletedOnBootId))
+        ret_value = false;
+      ClearMetricsPrefs();
 
       if (!ret_value) {
         return LogAndSetError(
@@ -352,8 +403,10 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
   }
 }
 
-bool UpdateAttempterAndroid::VerifyPayloadApplicable(
-    const std::string& metadata_filename, brillo::ErrorPtr* error) {
+bool UpdateAttempterAndroid::VerifyPayloadParseManifest(
+    const std::string& metadata_filename,
+    DeltaArchiveManifest* manifest,
+    brillo::ErrorPtr* error) {
   FileDescriptorPtr fd(new EintrSafeFileDescriptor);
   if (!fd->Open(metadata_filename.c_str(), O_RDONLY)) {
     return LogAndSetError(
@@ -395,24 +448,39 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
   }
   fd->Close();
 
-  string public_key;
-  if (!utils::ReadFile(constants::kUpdatePayloadPublicKeyPath, &public_key)) {
-    return LogAndSetError(error, FROM_HERE, "Failed to read public key.");
+  auto payload_verifier = PayloadVerifier::CreateInstanceFromZipPath(
+      constants::kUpdateCertificatesPath);
+  if (!payload_verifier) {
+    return LogAndSetError(error,
+                          FROM_HERE,
+                          "Failed to create the payload verifier from " +
+                              std::string(constants::kUpdateCertificatesPath));
   }
-  errorcode =
-      payload_metadata.ValidateMetadataSignature(metadata, "", public_key);
+  errorcode = payload_metadata.ValidateMetadataSignature(
+      metadata, "", *payload_verifier);
   if (errorcode != ErrorCode::kSuccess) {
     return LogAndSetError(error,
                           FROM_HERE,
                           "Failed to validate metadata signature: " +
                               utils::ErrorCodeToString(errorcode));
   }
-  DeltaArchiveManifest manifest;
-  if (!payload_metadata.GetManifest(metadata, &manifest)) {
+  if (!payload_metadata.GetManifest(metadata, manifest)) {
     return LogAndSetError(error, FROM_HERE, "Failed to parse manifest.");
   }
 
-  BootControlInterface::Slot current_slot = boot_control_->GetCurrentSlot();
+  return true;
+}
+
+bool UpdateAttempterAndroid::VerifyPayloadApplicable(
+    const std::string& metadata_filename, brillo::ErrorPtr* error) {
+  DeltaArchiveManifest manifest;
+  TEST_AND_RETURN_FALSE(
+      VerifyPayloadParseManifest(metadata_filename, &manifest, error));
+
+  FileDescriptorPtr fd(new EintrSafeFileDescriptor);
+  ErrorCode errorcode;
+
+  BootControlInterface::Slot current_slot = GetCurrentSlot();
   for (const PartitionUpdate& partition : manifest.partitions()) {
     if (!partition.has_old_partition_info())
       continue;
@@ -452,6 +520,11 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
 void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
                                             ErrorCode code) {
   LOG(INFO) << "Processing Done.";
+
+  if (status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE) {
+    TerminateUpdateAndNotify(code);
+    return;
+  }
 
   switch (code) {
     case ErrorCode::kSuccess:
@@ -497,9 +570,15 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
   // Reset download progress regardless of whether or not the download
   // action succeeded.
   const string type = action->Type();
-  if (type == DownloadAction::StaticType()) {
-    download_progress_ = 0;
+  if (type == CleanupPreviousUpdateAction::StaticType() ||
+      (type == NoOpAction::StaticType() &&
+       status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE)) {
+    cleanup_previous_update_code_ = code;
+    NotifyCleanupPreviousUpdateCallbacksAndClear();
   }
+  // download_progress_ is actually used by other actions, such as
+  // filesystem_verify_action. Therefore we always clear it.
+  download_progress_ = 0;
   if (type == PostinstallRunnerAction::StaticType()) {
     bool succeeded =
         code == ErrorCode::kSuccess || code == ErrorCode::kUpdatedButNotActive;
@@ -509,9 +588,15 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
     // If an action failed, the ActionProcessor will cancel the whole thing.
     return;
   }
+  if (type == UpdateBootFlagsAction::StaticType()) {
+    SetStatusAndNotify(UpdateStatus::CLEANUP_PREVIOUS_UPDATE);
+  }
   if (type == DownloadAction::StaticType()) {
-    SetStatusAndNotify(UpdateStatus::FINALIZING);
+    auto download_action = static_cast<DownloadAction*>(action);
+    install_plan_ = *download_action->install_plan();
+    SetStatusAndNotify(UpdateStatus::VERIFYING);
   } else if (type == FilesystemVerifierAction::StaticType()) {
+    SetStatusAndNotify(UpdateStatus::FINALIZING);
     prefs_->SetBoolean(kPrefsVerityWritten, true);
   }
 }
@@ -562,6 +647,11 @@ void UpdateAttempterAndroid::ProgressUpdate(double progress) {
   }
 }
 
+void UpdateAttempterAndroid::OnVerifyProgressUpdate(double progress) {
+  assert(status_ == UpdateStatus::VERIFYING);
+  ProgressUpdate(progress);
+}
+
 void UpdateAttempterAndroid::ScheduleProcessingStart() {
   LOG(INFO) << "Scheduling an action processor start.";
   brillo::MessageLoop::current()->PostTask(
@@ -576,13 +666,22 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
     return;
   }
 
-  boot_control_->Cleanup();
+  if (status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE) {
+    LOG(INFO) << "Terminating cleanup previous update.";
+    SetStatusAndNotify(UpdateStatus::IDLE);
+    for (auto observer : daemon_state_->service_observers())
+      observer->SendPayloadApplicationComplete(error_code);
+    return;
+  }
+
+  boot_control_->GetDynamicPartitionControl()->Cleanup();
 
   download_progress_ = 0;
   UpdateStatus new_status =
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
                                          : UpdateStatus::IDLE);
   SetStatusAndNotify(new_status);
+  payload_fd_.reset();
 
   // The network id is only applicable to one download attempt and once it's
   // done the network id should not be re-used anymore.
@@ -596,6 +695,9 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   CollectAndReportUpdateMetricsOnUpdateFinished(error_code);
   ClearMetricsPrefs();
   if (error_code == ErrorCode::kSuccess) {
+    // We should only reset the PayloadAttemptNumber if the update succeeds, or
+    // we switch to a different payload.
+    prefs_->Delete(kPrefsPayloadAttemptNumber);
     metrics_utils::SetSystemUpdatedMarker(clock_.get(), prefs_);
     // Clear the total bytes downloaded if and only if the update succeeds.
     prefs_->SetInt64(kPrefsTotalBytesDownloaded, 0);
@@ -623,6 +725,9 @@ void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
   // Actions:
   auto update_boot_flags_action =
       std::make_unique<UpdateBootFlagsAction>(boot_control_);
+  auto cleanup_previous_update_action =
+      boot_control_->GetDynamicPartitionControl()
+          ->GetCleanupPreviousUpdateAction(boot_control_, prefs_, this);
   auto install_plan_action = std::make_unique<InstallPlanAction>(install_plan_);
   auto download_action =
       std::make_unique<DownloadAction>(prefs_,
@@ -633,10 +738,11 @@ void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
                                        true /* interactive */);
   download_action->set_delegate(this);
   download_action->set_base_offset(base_offset_);
-  auto filesystem_verifier_action =
-      std::make_unique<FilesystemVerifierAction>();
+  auto filesystem_verifier_action = std::make_unique<FilesystemVerifierAction>(
+      boot_control_->GetDynamicPartitionControl());
   auto postinstall_runner_action =
       std::make_unique<PostinstallRunnerAction>(boot_control_, hardware_);
+  filesystem_verifier_action->set_delegate(this);
   postinstall_runner_action->set_delegate(this);
 
   // Bond them together. We have to use the leaf-types when calling
@@ -647,6 +753,7 @@ void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
               postinstall_runner_action.get());
 
   processor_->EnqueueAction(std::move(update_boot_flags_action));
+  processor_->EnqueueAction(std::move(cleanup_previous_update_action));
   processor_->EnqueueAction(std::move(install_plan_action));
   processor_->EnqueueAction(std::move(download_action));
   processor_->EnqueueAction(std::move(filesystem_verifier_action));
@@ -731,11 +838,15 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
         total_bytes_downloaded;
 
     int download_overhead_percentage = 0;
-    if (current_bytes_downloaded > 0) {
+    if (total_bytes_downloaded >= payload_size) {
+      CHECK_GT(payload_size, 0);
       download_overhead_percentage =
-          (total_bytes_downloaded - current_bytes_downloaded) * 100ull /
-          current_bytes_downloaded;
+          (total_bytes_downloaded - payload_size) * 100ull / payload_size;
+    } else {
+      LOG(WARNING) << "Downloaded bytes " << total_bytes_downloaded
+                   << " is smaller than the payload size " << payload_size;
     }
+
     metrics_reporter_->ReportSuccessfulUpdateMetrics(
         static_cast<int>(attempt_number),
         0,  // update abandoned count
@@ -826,10 +937,118 @@ void UpdateAttempterAndroid::ClearMetricsPrefs() {
   CHECK(prefs_);
   prefs_->Delete(kPrefsCurrentBytesDownloaded);
   prefs_->Delete(kPrefsNumReboots);
-  prefs_->Delete(kPrefsPayloadAttemptNumber);
   prefs_->Delete(kPrefsSystemUpdatedMarker);
   prefs_->Delete(kPrefsUpdateTimestampStart);
   prefs_->Delete(kPrefsUpdateBootTimestampStart);
+}
+
+BootControlInterface::Slot UpdateAttempterAndroid::GetCurrentSlot() const {
+  return boot_control_->GetCurrentSlot();
+}
+
+BootControlInterface::Slot UpdateAttempterAndroid::GetTargetSlot() const {
+  return GetCurrentSlot() == 0 ? 1 : 0;
+}
+
+uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
+    const std::string& metadata_filename,
+    const vector<string>& key_value_pair_headers,
+    brillo::ErrorPtr* error) {
+  DeltaArchiveManifest manifest;
+  if (!VerifyPayloadParseManifest(metadata_filename, &manifest, error)) {
+    return 0;
+  }
+  std::map<string, string> headers;
+  if (!ParseKeyValuePairHeaders(key_value_pair_headers, &headers, error)) {
+    return 0;
+  }
+
+  string payload_id = GetPayloadId(headers);
+  uint64_t required_size = 0;
+  if (!DeltaPerformer::PreparePartitionsForUpdate(prefs_,
+                                                  boot_control_,
+                                                  GetTargetSlot(),
+                                                  manifest,
+                                                  payload_id,
+                                                  &required_size)) {
+    if (required_size == 0) {
+      LogAndSetError(error, FROM_HERE, "Failed to allocate space for payload.");
+      return 0;
+    } else {
+      LOG(ERROR) << "Insufficient space for payload: " << required_size
+                 << " bytes";
+      return required_size;
+    }
+  }
+
+  LOG(INFO) << "Successfully allocated space for payload.";
+  return 0;
+}
+
+void UpdateAttempterAndroid::CleanupSuccessfulUpdate(
+    std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface> callback,
+    brillo::ErrorPtr* error) {
+  if (cleanup_previous_update_code_.has_value()) {
+    LOG(INFO) << "CleanupSuccessfulUpdate has previously completed with "
+              << utils::ErrorCodeToString(*cleanup_previous_update_code_);
+    if (callback) {
+      callback->OnCleanupComplete(
+          static_cast<int32_t>(*cleanup_previous_update_code_));
+    }
+    return;
+  }
+  if (callback) {
+    auto callback_ptr = callback.get();
+    cleanup_previous_update_callbacks_.emplace_back(std::move(callback));
+    callback_ptr->RegisterForDeathNotifications(
+        base::Bind(&UpdateAttempterAndroid::RemoveCleanupPreviousUpdateCallback,
+                   base::Unretained(this),
+                   base::Unretained(callback_ptr)));
+  }
+  ScheduleCleanupPreviousUpdate();
+}
+
+void UpdateAttempterAndroid::ScheduleCleanupPreviousUpdate() {
+  // If a previous CleanupSuccessfulUpdate call has not finished, or an update
+  // is in progress, skip enqueueing the action.
+  if (processor_->IsRunning()) {
+    LOG(INFO) << "Already processing an update. CleanupPreviousUpdate should "
+              << "be done when the current update finishes.";
+    return;
+  }
+  LOG(INFO) << "Scheduling CleanupPreviousUpdateAction.";
+  auto action =
+      boot_control_->GetDynamicPartitionControl()
+          ->GetCleanupPreviousUpdateAction(boot_control_, prefs_, this);
+  processor_->EnqueueAction(std::move(action));
+  processor_->set_delegate(this);
+  SetStatusAndNotify(UpdateStatus::CLEANUP_PREVIOUS_UPDATE);
+  processor_->StartProcessing();
+}
+
+void UpdateAttempterAndroid::OnCleanupProgressUpdate(double progress) {
+  for (auto&& callback : cleanup_previous_update_callbacks_) {
+    callback->OnCleanupProgressUpdate(progress);
+  }
+}
+
+void UpdateAttempterAndroid::NotifyCleanupPreviousUpdateCallbacksAndClear() {
+  CHECK(cleanup_previous_update_code_.has_value());
+  for (auto&& callback : cleanup_previous_update_callbacks_) {
+    callback->OnCleanupComplete(
+        static_cast<int32_t>(*cleanup_previous_update_code_));
+  }
+  cleanup_previous_update_callbacks_.clear();
+}
+
+void UpdateAttempterAndroid::RemoveCleanupPreviousUpdateCallback(
+    CleanupSuccessfulUpdateCallbackInterface* callback) {
+  auto end_it =
+      std::remove_if(cleanup_previous_update_callbacks_.begin(),
+                     cleanup_previous_update_callbacks_.end(),
+                     [&](const auto& e) { return e.get() == callback; });
+  cleanup_previous_update_callbacks_.erase(
+      end_it, cleanup_previous_update_callbacks_.end());
 }
 
 }  // namespace chromeos_update_engine

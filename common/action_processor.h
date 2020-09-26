@@ -89,7 +89,7 @@ class ActionProcessor {
   // But this call deletes the action if there no other object has a reference
   // to it, so in that case, the caller should not try to access any of its
   // member variables after this call.
-  void ActionComplete(AbstractAction* actionptr, ErrorCode code);
+  virtual void ActionComplete(AbstractAction* actionptr, ErrorCode code);
 
  private:
   FRIEND_TEST(ActionProcessorTest, ChainActionsTest);

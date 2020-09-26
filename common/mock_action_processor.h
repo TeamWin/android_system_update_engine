@@ -32,6 +32,8 @@ class MockActionProcessor : public ActionProcessor {
   MOCK_METHOD0(StartProcessing, void());
   MOCK_METHOD1(EnqueueAction, void(AbstractAction* action));
 
+  MOCK_METHOD2(ActionComplete, void(AbstractAction*, ErrorCode));
+
   // This is a legacy workaround described in:
   // https://github.com/google/googletest/blob/master/googlemock/docs/CookBook.md#legacy-workarounds-for-move-only-types-legacymoveonly
   void EnqueueAction(std::unique_ptr<AbstractAction> action) override {

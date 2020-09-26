@@ -52,23 +52,9 @@ class BootImgFilesystem : public FilesystemInterface {
   // The boot.img file path.
   std::string filename_;
 
-// https://android.googlesource.com/platform/system/core/+/master/mkbootimg/include/bootimg/bootimg.h
-#define BOOT_MAGIC "ANDROID!"
-#define BOOT_MAGIC_SIZE 8
-  struct boot_img_hdr {
-    // Must be BOOT_MAGIC.
-    uint8_t magic[BOOT_MAGIC_SIZE];
-    uint32_t kernel_size;  /* size in bytes */
-    uint32_t kernel_addr;  /* physical load addr */
-    uint32_t ramdisk_size; /* size in bytes */
-    uint32_t ramdisk_addr; /* physical load addr */
-    uint32_t second_size;  /* size in bytes */
-    uint32_t second_addr;  /* physical load addr */
-    uint32_t tags_addr;    /* physical addr for kernel tags */
-    uint32_t page_size;    /* flash page size we assume */
-  } __attribute__((packed));
-  // The boot image header.
-  boot_img_hdr hdr_;
+  uint32_t kernel_size_;  /* size in bytes */
+  uint32_t ramdisk_size_; /* size in bytes */
+  uint32_t page_size_;    /* flash page size we assume */
 
   DISALLOW_COPY_AND_ASSIGN(BootImgFilesystem);
 };
