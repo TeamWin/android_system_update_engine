@@ -36,6 +36,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   ~DynamicPartitionControlAndroid();
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
+  FeatureFlag GetVirtualAbCompressionFeatureFlag() override;
   bool OptimizeOperation(const std::string& partition_name,
                          const InstallOperation& operation,
                          InstallOperation* optimized) override;
@@ -277,6 +278,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   std::set<std::string> mapped_devices_;
   const FeatureFlag dynamic_partitions_;
   const FeatureFlag virtual_ab_;
+  const FeatureFlag virtual_ab_compression_;
   std::unique_ptr<android::snapshot::ISnapshotManager> snapshot_;
   std::unique_ptr<android::snapshot::AutoDevice> metadata_device_;
   bool target_supports_snapshot_ = false;
