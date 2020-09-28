@@ -22,7 +22,6 @@
 
 #include <base/macros.h>
 #include <base/time/time.h>
-#include <gtest/gtest_prod.h>
 
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/hardware.h"
@@ -68,18 +67,6 @@ class HardwareAndroid : public HardwareInterface {
       const std::string& new_version) const override;
 
  private:
-  FRIEND_TEST(HardwareAndroidTest, IsKernelUpdateValid);
-
-  // Helper for IsPartitionUpdateValid. Check an update from |old_release|
-  // to |new_release| is valid or not.
-  // - If |new_release| is invalid, return kDownloadManifestParseError
-  // - If downgrade detected, kPayloadTimestampError if |prevent_downgrade| is
-  //   set to true, or kSuccess if |prevent_downgrade| is set to false
-  // - If update is valid, kSuccess.
-  static ErrorCode IsKernelUpdateValid(const std::string& old_release,
-                                       const std::string& new_release,
-                                       bool prevent_downgrade);
-
   DISALLOW_COPY_AND_ASSIGN(HardwareAndroid);
 };
 
