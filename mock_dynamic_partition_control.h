@@ -22,6 +22,9 @@
 
 #include <gmock/gmock.h>
 
+#include <libsnapshot/cow_writer.h>
+
+#include "libsnapshot/snapshot_writer.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/dynamic_partition_control_interface.h"
 #include "update_engine/dynamic_partition_control_android.h"
@@ -80,6 +83,12 @@ class MockDynamicPartitionControlAndroid
   MOCK_METHOD(bool,
               PrepareDynamicPartitionsForUpdate,
               (uint32_t, uint32_t, const DeltaArchiveManifest&, bool),
+              (override));
+  MOCK_METHOD(std::unique_ptr<android::snapshot::ISnapshotWriter>,
+              OpenCowWriter,
+              (const std::string& unsuffixed_partition_name,
+               const std::optional<std::string>& source_path,
+               bool is_append),
               (override));
 
   void set_fake_mapped_devices(const std::set<std::string>& fake) override {
