@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_COMMON_CONSTANTS_H_
 #define UPDATE_ENGINE_COMMON_CONSTANTS_H_
 
+#include <cstdint>
+
 namespace chromeos_update_engine {
 
 // The root path of all exclusion prefs.
@@ -153,30 +155,30 @@ typedef enum {
 } PayloadType;
 
 // Maximum number of times we'll allow using p2p for the same update payload.
-const int kMaxP2PAttempts = 10;
+constexpr int kMaxP2PAttempts = 10;
 
 // Maximum wallclock time we allow attempting to update using p2p for
 // the same update payload - five days.
-const int kMaxP2PAttemptTimeSeconds = 5 * 24 * 60 * 60;
+constexpr int kMaxP2PAttemptTimeSeconds = 5 * 24 * 60 * 60;
 
 // The maximum amount of time to spend waiting for p2p-client(1) to
 // return while waiting in line to use the LAN - six hours.
-const int kMaxP2PNetworkWaitTimeSeconds = 6 * 60 * 60;
+constexpr int kMaxP2PNetworkWaitTimeSeconds = 6 * 60 * 60;
 
 // The maximum number of payload files to keep in /var/cache/p2p.
-const int kMaxP2PFilesToKeep = 3;
+constexpr int kMaxP2PFilesToKeep = 3;
 
 // The maximum number of days to keep a p2p file;
-const int kMaxP2PFileAgeDays = 5;
+constexpr int kMaxP2PFileAgeDays = 5;
 
 // The default number of UMA buckets for metrics.
-const int kNumDefaultUmaBuckets = 50;
+constexpr int kNumDefaultUmaBuckets = 50;
 
-// General constants
-const int kNumBytesInOneMiB = 1024 * 1024;
+// General constexprants
+constexpr int kNumBytesInOneMiB = 1024 * 1024;
 
 // Number of redirects allowed when downloading.
-const int kDownloadMaxRedirects = 10;
+constexpr int kDownloadMaxRedirects = 10;
 
 // The minimum average speed that downloads must sustain...
 //
@@ -184,8 +186,8 @@ const int kDownloadMaxRedirects = 10;
 // connectivity and we want to make as much forward progress as
 // possible. For p2p this is high (25 kB/second) since we can assume
 // high bandwidth (same LAN) and we want to fail fast.
-const int kDownloadLowSpeedLimitBps = 1;
-const int kDownloadP2PLowSpeedLimitBps = 25 * 1000;
+constexpr int kDownloadLowSpeedLimitBps = 1;
+constexpr int kDownloadP2PLowSpeedLimitBps = 25 * 1000;
 
 // ... measured over this period.
 //
@@ -194,18 +196,18 @@ const int kDownloadP2PLowSpeedLimitBps = 25 * 1000;
 // for the workstation to generate the payload. For normal operation
 // and p2p, make this relatively low since we want to fail fast in
 // those cases.
-const int kDownloadLowSpeedTimeSeconds = 30;
-const int kDownloadDevModeLowSpeedTimeSeconds = 180;
-const int kDownloadP2PLowSpeedTimeSeconds = 60;
+constexpr int kDownloadLowSpeedTimeSeconds = 30;
+constexpr int kDownloadDevModeLowSpeedTimeSeconds = 180;
+constexpr int kDownloadP2PLowSpeedTimeSeconds = 60;
 
 // The maximum amount of HTTP server reconnect attempts.
 //
 // This is set high in order to maximize the attempt's chance of
 // succeeding. When using p2p, this is low in order to fail fast.
-const int kDownloadMaxRetryCount = 20;
-const int kDownloadMaxRetryCountOobeNotComplete = 3;
-const int kDownloadMaxRetryCountInteractive = 3;
-const int kDownloadP2PMaxRetryCount = 5;
+constexpr int kDownloadMaxRetryCount = 20;
+constexpr int kDownloadMaxRetryCountOobeNotComplete = 3;
+constexpr int kDownloadMaxRetryCountInteractive = 3;
+constexpr int kDownloadP2PMaxRetryCount = 5;
 
 // The connect timeout, in seconds.
 //
@@ -213,11 +215,19 @@ const int kDownloadP2PMaxRetryCount = 5;
 // connectivity and we may be using HTTPS which involves complicated
 // multi-roundtrip setup. For p2p, this is set low because we can
 // the server is on the same LAN and we want to fail fast.
-const int kDownloadConnectTimeoutSeconds = 30;
-const int kDownloadP2PConnectTimeoutSeconds = 5;
+constexpr int kDownloadConnectTimeoutSeconds = 30;
+constexpr int kDownloadP2PConnectTimeoutSeconds = 5;
 
 // Size in bytes of SHA256 hash.
-const int kSHA256Size = 32;
+constexpr int kSHA256Size = 32;
+
+// A hardcoded label to mark end of all InstallOps
+// This number must be greater than number of install ops.
+// Number of install ops is bounded by number of blocks on any partition.
+// Currently, the block size is 4096. Using |kEndOfInstallLabel| of 2^48 will
+// allow partitions with 2^48 * 4096 = 2^60 bytes. That's 1024PB? Partitions on
+// android aren't getting that big any time soon.
+constexpr uint64_t kEndOfInstallLabel = (1ULL << 48);
 
 }  // namespace chromeos_update_engine
 

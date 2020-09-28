@@ -29,6 +29,12 @@
 
 namespace chromeos_update_engine {
 
+EintrSafeFileDescriptor::~EintrSafeFileDescriptor() {
+  if (IsOpen()) {
+    Close();
+  }
+}
+
 bool EintrSafeFileDescriptor::Open(const char* path, int flags, mode_t mode) {
   CHECK_EQ(fd_, -1);
   return ((fd_ = HANDLE_EINTR(open(path, flags, mode))) >= 0);
