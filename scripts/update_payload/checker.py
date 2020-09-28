@@ -1148,17 +1148,13 @@ class PayloadChecker(object):
       sig_report = report.AddSubReport(sig_name)
 
       # Check: Signature contains mandatory fields.
-      self._CheckMandatoryField(sig, 'version', sig_report, sig_name)
       self._CheckMandatoryField(sig, 'data', None, sig_name)
       sig_report.AddField('data len', len(sig.data))
 
       # Check: Signatures pertains to actual payload hash.
-      if sig.version == 1:
+      if sig.data:
         self._CheckSha256Signature(sig.data, pubkey_file_name,
                                    payload_hasher.digest(), sig_name)
-      else:
-        raise error.PayloadError('Unknown signature version (%d).' %
-                                 sig.version)
 
   def Run(self, pubkey_file_name=None, metadata_sig_file=None, metadata_size=0,
           part_sizes=None, report_out_file=None):
