@@ -429,15 +429,6 @@ void LogPartitionInfo(const vector<PartitionUpdate>& partitions) {
 
 }  // namespace
 
-uint32_t DeltaPerformer::GetMinorVersion() const {
-  if (manifest_.has_minor_version()) {
-    return manifest_.minor_version();
-  }
-  return payload_->type == InstallPayloadType::kDelta
-             ? kMaxSupportedMinorPayloadVersion
-             : kFullPayloadMinorVersion;
-}
-
 bool DeltaPerformer::IsHeaderParsed() const {
   return metadata_size_ != 0;
 }
