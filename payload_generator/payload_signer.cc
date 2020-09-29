@@ -309,10 +309,7 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
   int key_type = EVP_PKEY_id(private_key.get());
   brillo::Blob signature;
   if (key_type == EVP_PKEY_RSA) {
-    // TODO(b/158580694): Switch back to get0 version and remove manual freeing
-    // of the object once the bug is resolved or gale has been moved to
-    // informational.
-    RSA* rsa = EVP_PKEY_get1_RSA(private_key.get());
+    RSA* rsa = EVP_PKEY_get0_RSA(private_key.get());
     TEST_AND_RETURN_FALSE(rsa != nullptr);
 
     brillo::Blob padded_hash = hash;
@@ -327,17 +324,12 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
     if (signature_size < 0) {
       LOG(ERROR) << "Signing hash failed: "
                  << ERR_error_string(ERR_get_error(), nullptr);
-      RSA_free(rsa);
       return false;
     }
-    RSA_free(rsa);
     TEST_AND_RETURN_FALSE(static_cast<size_t>(signature_size) ==
                           signature.size());
   } else if (key_type == EVP_PKEY_EC) {
-    // TODO(b/158580694): Switch back to get0 version and remove manual freeing
-    // of the object once the bug is resolved or gale has been moved to
-    // informational.
-    EC_KEY* ec_key = EVP_PKEY_get1_EC_KEY(private_key.get());
+    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(private_key.get());
     TEST_AND_RETURN_FALSE(ec_key != nullptr);
 
     signature.resize(ECDSA_size(ec_key));
@@ -350,10 +342,8 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
                    ec_key) != 1) {
       LOG(ERROR) << "Signing hash failed: "
                  << ERR_error_string(ERR_get_error(), nullptr);
-      EC_KEY_free(ec_key);
       return false;
     }
-    EC_KEY_free(ec_key);
 
     // NIST P-256
     LOG(ERROR) << "signature max size " << signature.size() << " size "

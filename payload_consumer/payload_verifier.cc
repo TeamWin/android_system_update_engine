@@ -175,10 +175,7 @@ bool PayloadVerifier::VerifyRawSignature(
     }
 
     if (key_type == EVP_PKEY_EC) {
-      // TODO(b/158580694): Switch back to get0 version and remove manual
-      // freeing of the object once the bug is resolved or gale has been moved
-      // to informational.
-      EC_KEY* ec_key = EVP_PKEY_get1_EC_KEY(public_key.get());
+      EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key.get());
       TEST_AND_RETURN_FALSE(ec_key != nullptr);
       if (ECDSA_verify(0,
                        sha256_hash_data.data(),
@@ -186,10 +183,8 @@ bool PayloadVerifier::VerifyRawSignature(
                        sig_data.data(),
                        sig_data.size(),
                        ec_key) == 1) {
-        EC_KEY_free(ec_key);
         return true;
       }
-      EC_KEY_free(ec_key);
     }
 
     LOG(ERROR) << "Unsupported key type " << key_type;
@@ -204,21 +199,16 @@ bool PayloadVerifier::GetRawHashFromSignature(
     const brillo::Blob& sig_data,
     const EVP_PKEY* public_key,
     brillo::Blob* out_hash_data) const {
-  // TODO(b/158580694): Switch back to get0 version and remove manual freeing of
-  // the object once the bug is resolved or gale has been moved to
-  // informational.
-  //
   // The code below executes the equivalent of:
   //
   // openssl rsautl -verify -pubin -inkey <(echo pem_public_key)
   //   -in |sig_data| -out |out_hash_data|
-  RSA* rsa = EVP_PKEY_get1_RSA(const_cast<EVP_PKEY*>(public_key));
+  RSA* rsa = EVP_PKEY_get0_RSA(const_cast<EVP_PKEY*>(public_key));
 
   TEST_AND_RETURN_FALSE(rsa != nullptr);
   unsigned int keysize = RSA_size(rsa);
   if (sig_data.size() > 2 * keysize) {
     LOG(ERROR) << "Signature size is too big for public key size.";
-    RSA_free(rsa);
     return false;
   }
 
@@ -226,7 +216,6 @@ bool PayloadVerifier::GetRawHashFromSignature(
   brillo::Blob hash_data(keysize);
   int decrypt_size = RSA_public_decrypt(
       sig_data.size(), sig_data.data(), hash_data.data(), rsa, RSA_NO_PADDING);
-  RSA_free(rsa);
   TEST_AND_RETURN_FALSE(decrypt_size > 0 &&
                         decrypt_size <= static_cast<int>(hash_data.size()));
   hash_data.resize(decrypt_size);
