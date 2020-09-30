@@ -68,29 +68,23 @@ CleanupPreviousUpdateAction::CleanupPreviousUpdateAction(
       merge_stats_(nullptr) {}
 
 void CleanupPreviousUpdateAction::PerformAction() {
-  ResumeAction();
+  StartActionInternal();
 }
 
 void CleanupPreviousUpdateAction::TerminateProcessing() {
-  SuspendAction();
+  StopActionInternal();
 }
 
 void CleanupPreviousUpdateAction::ResumeAction() {
-  CHECK(prefs_);
-  CHECK(boot_control_);
-
-  LOG(INFO) << "Starting/resuming CleanupPreviousUpdateAction";
-  running_ = true;
   StartActionInternal();
 }
 
 void CleanupPreviousUpdateAction::SuspendAction() {
-  LOG(INFO) << "Stopping/suspending CleanupPreviousUpdateAction";
-  running_ = false;
+  StopActionInternal();
 }
 
 void CleanupPreviousUpdateAction::ActionCompleted(ErrorCode error_code) {
-  running_ = false;
+  StopActionInternal();
   ReportMergeStats();
   metadata_device_ = nullptr;
 }
@@ -103,7 +97,17 @@ std::string CleanupPreviousUpdateAction::StaticType() {
   return "CleanupPreviousUpdateAction";
 }
 
+void CleanupPreviousUpdateAction::StopActionInternal() {
+  LOG(INFO) << "Stopping/suspending/completing CleanupPreviousUpdateAction";
+  running_ = false;
+}
+
 void CleanupPreviousUpdateAction::StartActionInternal() {
+  CHECK(prefs_);
+  CHECK(boot_control_);
+
+  LOG(INFO) << "Starting/resuming CleanupPreviousUpdateAction";
+  running_ = true;
   // Do nothing on non-VAB device.
   if (!boot_control_->GetDynamicPartitionControl()
            ->GetVirtualAbFeatureFlag()
