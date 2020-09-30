@@ -67,6 +67,10 @@ CleanupPreviousUpdateAction::CleanupPreviousUpdateAction(
       last_percentage_(0),
       merge_stats_(nullptr) {}
 
+CleanupPreviousUpdateAction::~CleanupPreviousUpdateAction() {
+  StopActionInternal();
+}
+
 void CleanupPreviousUpdateAction::PerformAction() {
   StartActionInternal();
 }
@@ -97,9 +101,44 @@ std::string CleanupPreviousUpdateAction::StaticType() {
   return "CleanupPreviousUpdateAction";
 }
 
+// This function is called at the beginning of all delayed functions. By
+// resetting |scheduled_task_|, the delayed function acknowledges that the task
+// has already been executed, therefore there's no need to cancel it in the
+// future. This avoids StopActionInternal() from resetting task IDs in an
+// unexpected way because task IDs could be reused.
+void CleanupPreviousUpdateAction::AcknowledgeTaskExecuted() {
+  if (scheduled_task_ != MessageLoop::kTaskIdNull) {
+    LOG(INFO) << "Executing task " << scheduled_task_;
+  }
+  scheduled_task_ = MessageLoop::kTaskIdNull;
+}
+
+// Check that scheduled_task_ is a valid task ID. Otherwise, terminate the
+// action.
+void CleanupPreviousUpdateAction::CheckTaskScheduled(std::string_view name) {
+  if (scheduled_task_ == MessageLoop::kTaskIdNull) {
+    LOG(ERROR) << "Unable to schedule " << name;
+    processor_->ActionComplete(this, ErrorCode::kError);
+  } else {
+    LOG(INFO) << "CleanupPreviousUpdateAction scheduled task ID "
+              << scheduled_task_ << " for " << name;
+  }
+}
+
 void CleanupPreviousUpdateAction::StopActionInternal() {
   LOG(INFO) << "Stopping/suspending/completing CleanupPreviousUpdateAction";
   running_ = false;
+
+  if (scheduled_task_ != MessageLoop::kTaskIdNull) {
+    if (MessageLoop::current()->CancelTask(scheduled_task_)) {
+      LOG(INFO) << "CleanupPreviousUpdateAction cancelled pending task ID "
+                << scheduled_task_;
+    } else {
+      LOG(ERROR) << "CleanupPreviousUpdateAction unable to cancel task ID "
+                 << scheduled_task_;
+    }
+  }
+  scheduled_task_ = MessageLoop::kTaskIdNull;
 }
 
 void CleanupPreviousUpdateAction::StartActionInternal() {
@@ -124,14 +163,16 @@ void CleanupPreviousUpdateAction::StartActionInternal() {
 
 void CleanupPreviousUpdateAction::ScheduleWaitBootCompleted() {
   TEST_AND_RETURN(running_);
-  MessageLoop::current()->PostDelayedTask(
+  scheduled_task_ = MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule,
                  base::Unretained(this)),
       kCheckBootCompletedInterval);
+  CheckTaskScheduled("WaitBootCompleted");
 }
 
 void CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule() {
+  AcknowledgeTaskExecuted();
   TEST_AND_RETURN(running_);
   if (!kIsRecovery &&
       !android::base::GetBoolProperty(kBootCompletedProp, false)) {
@@ -146,15 +187,17 @@ void CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule() {
 
 void CleanupPreviousUpdateAction::ScheduleWaitMarkBootSuccessful() {
   TEST_AND_RETURN(running_);
-  MessageLoop::current()->PostDelayedTask(
+  scheduled_task_ = MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(
           &CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule,
           base::Unretained(this)),
       kCheckSlotMarkedSuccessfulInterval);
+  CheckTaskScheduled("WaitMarkBootSuccessful");
 }
 
 void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
+  AcknowledgeTaskExecuted();
   TEST_AND_RETURN(running_);
   if (!kIsRecovery &&
       !boot_control_->IsSlotMarkedSuccessful(boot_control_->GetCurrentSlot())) {
@@ -216,14 +259,16 @@ void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
 
 void CleanupPreviousUpdateAction::ScheduleWaitForMerge() {
   TEST_AND_RETURN(running_);
-  MessageLoop::current()->PostDelayedTask(
+  scheduled_task_ = MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&CleanupPreviousUpdateAction::WaitForMergeOrSchedule,
                  base::Unretained(this)),
       kWaitForMergeInterval);
+  CheckTaskScheduled("WaitForMerge");
 }
 
 void CleanupPreviousUpdateAction::WaitForMergeOrSchedule() {
+  AcknowledgeTaskExecuted();
   TEST_AND_RETURN(running_);
   auto state = snapshot_->ProcessUpdateState(
       std::bind(&CleanupPreviousUpdateAction::OnMergePercentageUpdate, this),
