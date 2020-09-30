@@ -199,6 +199,7 @@ cc_defaults {
         "libgsi",
         "libpayload_consumer",
         "libsnapshot",
+        "libsnapshot_cow",
         "update_metadata-protos",
     ],
     shared_libs: [
