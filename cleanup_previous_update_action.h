@@ -75,6 +75,7 @@ class CleanupPreviousUpdateAction : public Action<CleanupPreviousUpdateAction> {
   unsigned int last_percentage_{0};
   android::snapshot::ISnapshotMergeStats* merge_stats_;
 
+  void StopActionInternal();
   void StartActionInternal();
   void ScheduleWaitBootCompleted();
   void WaitBootCompletedOrSchedule();
