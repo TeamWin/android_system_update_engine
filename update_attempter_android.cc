@@ -507,7 +507,7 @@ bool UpdateAttempterAndroid::VerifyPayloadApplicable(
         return LogAndSetError(
             error, FROM_HERE, "Failed to hash " + partition_path);
       }
-      if (!DeltaPerformer::ValidateSourceHash(
+      if (!PartitionWriter::ValidateSourceHash(
               source_hash, operation, fd, &errorcode)) {
         return false;
       }
