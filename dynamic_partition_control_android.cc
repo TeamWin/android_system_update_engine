@@ -131,8 +131,7 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
   if (DeviceMapper::Instance().GetState(target_partition_name) !=
       DmDeviceState::INVALID) {
     if (!DestroyLogicalPartition(
-            target_partition_name,
-            std::chrono::milliseconds(wait ? kMapTimeoutMillis : 0))) {
+            target_partition_name)) {
       LOG(ERROR) << "Cannot unmap " << target_partition_name
                  << " from device mapper.";
       return false;
