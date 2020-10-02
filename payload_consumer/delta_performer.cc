@@ -282,6 +282,15 @@ int DeltaPerformer::Close() {
 }
 
 int DeltaPerformer::CloseCurrentPartition() {
+  if (!partition_writer_) {
+    return 0;
+  }
+  int err = partition_writer_->Close();
+  partition_writer_ = nullptr;
+  return err;
+}
+
+int PartitionWriter::Close() {
   int err = 0;
   if (source_fd_ && !source_fd_->Close()) {
     err = errno;
@@ -290,14 +299,6 @@ int DeltaPerformer::CloseCurrentPartition() {
       err = 1;
   }
   source_fd_.reset();
-  if (source_ecc_fd_ && !source_ecc_fd_->Close()) {
-    err = errno;
-    PLOG(ERROR) << "Error closing ECC source partition";
-    if (!err)
-      err = 1;
-  }
-  source_ecc_fd_.reset();
-  source_ecc_open_failure_ = false;
   source_path_.clear();
 
   if (target_fd_ && !target_fd_->Close()) {
@@ -308,6 +309,15 @@ int DeltaPerformer::CloseCurrentPartition() {
   }
   target_fd_.reset();
   target_path_.clear();
+
+  if (source_ecc_fd_ && !source_ecc_fd_->Close()) {
+    err = errno;
+    PLOG(ERROR) << "Error closing ECC source partition";
+    if (!err)
+      err = 1;
+  }
+  source_ecc_fd_.reset();
+  source_ecc_open_failure_ = false;
   return -err;
 }
 
@@ -320,27 +330,43 @@ bool DeltaPerformer::OpenCurrentPartition() {
       install_plan_->partitions.size() - partitions_.size();
   const InstallPlan::Partition& install_part =
       install_plan_->partitions[num_previous_partitions + current_partition_];
+  partition_writer_ = std::make_unique<PartitionWriter>(
+      partition,
+      install_part,
+      boot_control_->GetDynamicPartitionControl(),
+      block_size_,
+      interactive_);
+
   // Open source fds if we have a delta payload, or for partitions in the
   // partial update.
   bool source_may_exist = manifest_.partial_update() ||
                           payload_->type == InstallPayloadType::kDelta;
+  return partition_writer_->Init(install_plan_, source_may_exist);
+}
+
+bool PartitionWriter::Init(const InstallPlan* install_plan,
+                           bool source_may_exist) {
+  const PartitionUpdate& partition = partition_update_;
+  uint32_t source_slot = install_plan->source_slot;
+  uint32_t target_slot = install_plan->target_slot;
+
   // We shouldn't open the source partition in certain cases, e.g. some dynamic
   // partitions in delta payload, partitions included in the full payload for
   // partial updates. Use the source size as the indicator.
-  if (source_may_exist && install_part.source_size > 0) {
-    source_path_ = install_part.source_path;
+  if (source_may_exist && install_part_.source_size > 0) {
+    source_path_ = install_part_.source_path;
     int err;
     source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
     if (!source_fd_) {
       LOG(ERROR) << "Unable to open source partition "
                  << partition.partition_name() << " on slot "
-                 << BootControlInterface::SlotName(install_plan_->source_slot)
-                 << ", file " << source_path_;
+                 << BootControlInterface::SlotName(source_slot) << ", file "
+                 << source_path_;
       return false;
     }
   }
 
-  target_path_ = install_part.target_path;
+  target_path_ = install_part_.target_path;
   int err;
 
   int flags = O_RDWR;
@@ -354,8 +380,8 @@ bool DeltaPerformer::OpenCurrentPartition() {
   if (!target_fd_) {
     LOG(ERROR) << "Unable to open target partition "
                << partition.partition_name() << " on slot "
-               << BootControlInterface::SlotName(install_plan_->target_slot)
-               << ", file " << target_path_;
+               << BootControlInterface::SlotName(target_slot) << ", file "
+               << target_path_;
     return false;
   }
 
@@ -364,38 +390,28 @@ bool DeltaPerformer::OpenCurrentPartition() {
             << "\"";
 
   // Discard the end of the partition, but ignore failures.
-  DiscardPartitionTail(target_fd_, install_part.target_size);
+  DiscardPartitionTail(target_fd_, install_part_.target_size);
 
   return true;
 }
 
-bool DeltaPerformer::OpenCurrentECCPartition() {
+bool PartitionWriter::OpenCurrentECCPartition() {
+  // No support for ECC for full payloads.
+  // Full Paylods should not have any operation that requires ECCPartition.
   if (source_ecc_fd_)
     return true;
 
   if (source_ecc_open_failure_)
     return false;
 
-  if (current_partition_ >= partitions_.size())
-    return false;
-
-  // No support for ECC for full payloads.
-  if (payload_->type == InstallPayloadType::kFull)
-    return false;
-
 #if USE_FEC
-  const PartitionUpdate& partition = partitions_[current_partition_];
-  size_t num_previous_partitions =
-      install_plan_->partitions.size() - partitions_.size();
-  const InstallPlan::Partition& install_part =
-      install_plan_->partitions[num_previous_partitions + current_partition_];
-  string path = install_part.source_path;
+  const PartitionUpdate& partition = partition_update_;
+  const InstallPlan::Partition& install_part = install_part_;
+  std::string path = install_part.source_path;
   FileDescriptorPtr fd(new FecFileDescriptor());
   if (!fd->Open(path.c_str(), O_RDONLY, 0)) {
     PLOG(ERROR) << "Unable to open ECC source partition "
-                << partition.partition_name() << " on slot "
-                << BootControlInterface::SlotName(install_plan_->source_slot)
-                << ", file " << path;
+                << partition.partition_name() << ", file " << path;
     source_ecc_open_failure_ = true;
     return false;
   }
@@ -730,10 +746,6 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
     if (!HandleOpResult(op_result, InstallOperationTypeName(op.type()), error))
       return false;
 
-    if (!target_fd_->Flush()) {
-      return false;
-    }
-
     next_operation_num_++;
     UpdateOverallProgress(false, "Completed ");
     CheckpointUpdateProgress(false);
@@ -1000,9 +1012,18 @@ bool DeltaPerformer::PerformReplaceOperation(
 
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
-  TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
   TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
 
+  TEST_AND_RETURN_FALSE(partition_writer_->PerformReplaceOperation(
+      operation, buffer_.data(), buffer_.size()));
+  // Update buffer
+  DiscardBuffer(true, buffer_.size());
+  return true;
+}
+
+bool PartitionWriter::PerformReplaceOperation(const InstallOperation& operation,
+                                              const void* data,
+                                              size_t count) {
   // Setup the ExtentWriter stack based on the operation type.
   std::unique_ptr<ExtentWriter> writer = std::make_unique<DirectExtentWriter>();
 
@@ -1014,11 +1035,9 @@ bool DeltaPerformer::PerformReplaceOperation(
 
   TEST_AND_RETURN_FALSE(
       writer->Init(target_fd_, operation.dst_extents(), block_size_));
-  TEST_AND_RETURN_FALSE(writer->Write(buffer_.data(), operation.data_length()));
+  TEST_AND_RETURN_FALSE(writer->Write(data, operation.data_length()));
 
-  // Update buffer
-  DiscardBuffer(true, buffer_.size());
-  return true;
+  return target_fd_->Flush();
 }
 
 bool DeltaPerformer::PerformZeroOrDiscardOperation(
@@ -1029,7 +1048,11 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
   // These operations have no blob.
   TEST_AND_RETURN_FALSE(!operation.has_data_offset());
   TEST_AND_RETURN_FALSE(!operation.has_data_length());
+  return partition_writer_->PerformZeroOrDiscardOperation(operation);
+}
 
+bool PartitionWriter::PerformZeroOrDiscardOperation(
+    const InstallOperation& operation) {
 #ifdef BLKZEROOUT
   bool attempt_ioctl = true;
   int request =
@@ -1058,13 +1081,13 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
           target_fd_, zeros.data(), chunk_length, start + offset));
     }
   }
-  return true;
+  return target_fd_->Flush();
 }
 
-bool DeltaPerformer::ValidateSourceHash(const brillo::Blob& calculated_hash,
-                                        const InstallOperation& operation,
-                                        const FileDescriptorPtr source_fd,
-                                        ErrorCode* error) {
+bool PartitionWriter::ValidateSourceHash(const brillo::Blob& calculated_hash,
+                                         const InstallOperation& operation,
+                                         const FileDescriptorPtr source_fd,
+                                         ErrorCode* error) {
   brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
                                     operation.src_sha256_hash().end());
   if (calculated_hash != expected_source_hash) {
@@ -1105,14 +1128,18 @@ bool DeltaPerformer::PerformSourceCopyOperation(
     TEST_AND_RETURN_FALSE(operation.src_length() % block_size_ == 0);
   if (operation.has_dst_length())
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
+  return partition_writer_->PerformSourceCopyOperation(operation, error);
+}
 
+bool PartitionWriter::PerformSourceCopyOperation(
+    const InstallOperation& operation, ErrorCode* error) {
   TEST_AND_RETURN_FALSE(source_fd_ != nullptr);
 
   // The device may optimize the SOURCE_COPY operation.
   // Being this a device-specific optimization let DynamicPartitionController
   // decide it the operation should be skipped.
-  const PartitionUpdate& partition = partitions_[current_partition_];
-  const auto& partition_control = boot_control_->GetDynamicPartitionControl();
+  const PartitionUpdate& partition = partition_update_;
+  const auto& partition_control = dynamic_control_;
 
   InstallOperation buf;
   bool should_optimize = partition_control->OptimizeOperation(
@@ -1186,7 +1213,7 @@ bool DeltaPerformer::PerformSourceCopyOperation(
     }
     TEST_AND_RETURN_FALSE(
         ValidateSourceHash(source_hash, operation, source_ecc_fd_, error));
-    // At this point reading from the the error corrected device worked, but
+    // At this point reading from the error corrected device worked, but
     // reading from the raw device failed, so this is considered a recovered
     // failure.
     source_ecc_recovered_failures_++;
@@ -1212,10 +1239,10 @@ bool DeltaPerformer::PerformSourceCopyOperation(
                                                        block_size_,
                                                        nullptr));
   }
-  return true;
+  return target_fd_->Flush();
 }
 
-FileDescriptorPtr DeltaPerformer::ChooseSourceFD(
+FileDescriptorPtr PartitionWriter::ChooseSourceFD(
     const InstallOperation& operation, ErrorCode* error) {
   if (source_fd_ == nullptr) {
     LOG(ERROR) << "ChooseSourceFD fail: source_fd_ == nullptr";
@@ -1261,7 +1288,7 @@ FileDescriptorPtr DeltaPerformer::ChooseSourceFD(
   if (fd_utils::ReadAndHashExtents(
           source_ecc_fd_, operation.src_extents(), block_size_, &source_hash) &&
       ValidateSourceHash(source_hash, operation, source_ecc_fd_, error)) {
-    // At this point reading from the the error corrected device worked, but
+    // At this point reading from the error corrected device worked, but
     // reading from the raw device failed, so this is considered a recovered
     // failure.
     source_ecc_recovered_failures_++;
@@ -1366,6 +1393,17 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
   if (operation.has_dst_length())
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
+  TEST_AND_RETURN_FALSE(partition_writer_->PerformSourceBsdiffOperation(
+      operation, error, buffer_.data(), buffer_.size()));
+  DiscardBuffer(true, buffer_.size());
+  return true;
+}
+
+bool PartitionWriter::PerformSourceBsdiffOperation(
+    const InstallOperation& operation,
+    ErrorCode* error,
+    const void* data,
+    size_t count) {
   FileDescriptorPtr source_fd = ChooseSourceFD(operation, error);
   TEST_AND_RETURN_FALSE(source_fd != nullptr);
 
@@ -1385,10 +1423,9 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
 
   TEST_AND_RETURN_FALSE(bsdiff::bspatch(std::move(src_file),
                                         std::move(dst_file),
-                                        buffer_.data(),
-                                        buffer_.size()) == 0);
-  DiscardBuffer(true, buffer_.size());
-  return true;
+                                        static_cast<const uint8_t*>(data),
+                                        count) == 0);
+  return target_fd_->Flush();
 }
 
 namespace {
@@ -1472,7 +1509,17 @@ bool DeltaPerformer::PerformPuffDiffOperation(const InstallOperation& operation,
   // the data we need should be exactly at the beginning of the buffer.
   TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
   TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
+  TEST_AND_RETURN_FALSE(partition_writer_->PerformPuffDiffOperation(
+      operation, error, buffer_.data(), buffer_.size()));
+  DiscardBuffer(true, buffer_.size());
+  return true;
+}
 
+bool PartitionWriter::PerformPuffDiffOperation(
+    const InstallOperation& operation,
+    ErrorCode* error,
+    const void* data,
+    size_t count) {
   FileDescriptorPtr source_fd = ChooseSourceFD(operation, error);
   TEST_AND_RETURN_FALSE(source_fd != nullptr);
 
@@ -1493,11 +1540,10 @@ bool DeltaPerformer::PerformPuffDiffOperation(const InstallOperation& operation,
   const size_t kMaxCacheSize = 5 * 1024 * 1024;  // Total 5MB cache.
   TEST_AND_RETURN_FALSE(puffin::PuffPatch(std::move(src_stream),
                                           std::move(dst_stream),
-                                          buffer_.data(),
-                                          buffer_.size(),
+                                          static_cast<const uint8_t*>(data),
+                                          count,
                                           kMaxCacheSize));
-  DiscardBuffer(true, buffer_.size());
-  return true;
+  return target_fd_->Flush();
 }
 
 bool DeltaPerformer::ExtractSignatureMessage() {
@@ -2035,6 +2081,22 @@ bool DeltaPerformer::PrimeUpdateState() {
   }
   prefs_->SetInt64(kPrefsResumedUpdateFailures, resumed_update_failures);
   return true;
+}
+
+PartitionWriter::PartitionWriter(
+    const PartitionUpdate& partition_update,
+    const InstallPlan::Partition& install_part,
+    DynamicPartitionControlInterface* dynamic_control,
+    size_t block_size,
+    bool is_interactive)
+    : partition_update_(partition_update),
+      install_part_(install_part),
+      dynamic_control_(dynamic_control),
+      interactive_(is_interactive),
+      block_size_(block_size) {}
+
+PartitionWriter::~PartitionWriter() {
+  Close();
 }
 
 }  // namespace chromeos_update_engine
