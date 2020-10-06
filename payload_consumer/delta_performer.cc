@@ -1802,6 +1802,13 @@ ErrorCode DeltaPerformer::VerifyPayload(
     return ErrorCode::kPayloadSizeMismatchError;
   }
 
+  // Verifies the payload hash.
+  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
+                      !payload_hash_calculator_.raw_hash().empty());
+  TEST_AND_RETURN_VAL(
+      ErrorCode::kPayloadHashMismatchError,
+      payload_hash_calculator_.raw_hash() == update_check_response_hash);
+
   auto [payload_verifier, perform_verification] = CreatePayloadVerifier();
   if (!perform_verification) {
     LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";
@@ -1811,13 +1818,6 @@ ErrorCode DeltaPerformer::VerifyPayload(
     LOG(ERROR) << "Failed to create the payload verifier.";
     return ErrorCode::kDownloadPayloadPubKeyVerificationError;
   }
-
-  // Verifies the payload hash.
-  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
-                      !payload_hash_calculator_.raw_hash().empty());
-  TEST_AND_RETURN_VAL(
-      ErrorCode::kPayloadHashMismatchError,
-      payload_hash_calculator_.raw_hash() == update_check_response_hash);
 
   TEST_AND_RETURN_VAL(ErrorCode::kSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());
