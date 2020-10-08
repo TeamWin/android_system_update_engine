@@ -753,6 +753,13 @@ sh_binary {
 // update_engine header library
 cc_library_headers {
     name: "libupdate_engine_headers",
+
+    // This header library is available to core and product modules.
+    // Right now, vendor_available is the only way to specify this.
+    // vendor modules should NOT use this library.
+    // TODO(b/150902910): change this to product_available.
+    vendor_available: true,
+
     export_include_dirs: ["."],
     apex_available: [
         "com.android.gki.*",
