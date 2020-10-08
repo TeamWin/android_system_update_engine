@@ -18,6 +18,13 @@
 // ========================================================
 aidl_interface {
     name: "libupdate_engine_stable",
+
+    // This header library is available to core and product modules.
+    // Right now, vendor_available is the only way to specify this.
+    // vendor modules should NOT use this library.
+    // TODO(b/150902910): change this to product_available.
+    vendor_available: true,
+
     srcs: [
         "android/os/IUpdateEngineStable.aidl",
         "android/os/IUpdateEngineStableCallback.aidl",
@@ -40,10 +47,10 @@ aidl_interface {
 
 // update_engine_stable_client (type: executable)
 // ========================================================
-// update_engine console client installed to APEXes
+// update_engine console client installed to APEXes.
 cc_binary {
     name: "update_engine_stable_client",
-
+    product_specific: true,
     header_libs: [
         "libupdate_engine_headers",
     ],
