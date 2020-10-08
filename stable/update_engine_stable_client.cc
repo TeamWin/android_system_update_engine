@@ -32,7 +32,6 @@
 #include <android/binder_ibinder.h>
 #include <common/error_code.h>
 #include <gflags/gflags.h>
-#include <utils/StrongPointer.h>
 
 namespace chromeos_update_engine::internal {
 
