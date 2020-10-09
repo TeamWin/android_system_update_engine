@@ -74,7 +74,6 @@ void ParseSignatureSizes(const string& signature_sizes_flag,
   }
 }
 
-
 void CalculateHashForSigning(const vector<size_t>& sizes,
                              const string& out_hash_file,
                              const string& out_metadata_hash_file,

@@ -59,8 +59,8 @@ struct InstallPlan {
 
   struct Payload {
     std::vector<std::string> payload_urls;  // URLs to download the payload
-    uint64_t size = 0;               // size of the payload
-    uint64_t metadata_size = 0;      // size of the metadata
+    uint64_t size = 0;                      // size of the payload
+    uint64_t metadata_size = 0;             // size of the metadata
     std::string metadata_signature;  // signature of the metadata in base64
     brillo::Blob hash;               // SHA256 hash of the payload
     InstallPayloadType type{InstallPayloadType::kUnknown};

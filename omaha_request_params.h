@@ -384,8 +384,8 @@ class OmahaRequestParams {
   // TODO(b:133324571) tracks removal of this field once it is no longer
   // needed in AU requests. Remove by October 1st 2019.
   std::string device_requisition_;  // Chrome OS Requisition type.
-  bool delta_okay_;         // If this client can accept a delta
-  bool interactive_;        // Whether this is a user-initiated update check
+  bool delta_okay_;                 // If this client can accept a delta
+  bool interactive_;  // Whether this is a user-initiated update check
 
   // The URL to send the Omaha request to.
   std::string update_url_;

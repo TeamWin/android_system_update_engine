@@ -190,7 +190,7 @@ ssize_t WriteHeaders(int fd,
                     string("HTTP/1.1 ") + Itoa(return_code) + " " +
                         GetHttpResponseDescription(return_code) +
                         EOL "Content-Type: application/octet-stream" EOL
-                        "Connection: close" EOL);
+                            "Connection: close" EOL);
   if (ret < 0)
     return -1;
   written += ret;
