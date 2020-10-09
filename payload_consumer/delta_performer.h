@@ -299,6 +299,8 @@ class DeltaPerformer : public FileWriter {
   //   a generic error on the device.
   ErrorCode CheckTimestampError() const;
 
+  // Check if partition `part_name` is a dynamic partition.
+  bool IsDynamicPartition(const std::string& part_name);
   // Update Engine preference store.
   PrefsInterface* prefs_;
 
@@ -336,22 +338,22 @@ class DeltaPerformer : public FileWriter {
   // otherwise 0.
   size_t num_total_operations_{0};
 
-  // The list of partitions to update as found in the manifest major version 2.
-  // When parsing an older manifest format, the information is converted over to
-  // this format instead.
+  // The list of partitions to update as found in the manifest major
+  // version 2. When parsing an older manifest format, the information is
+  // converted over to this format instead.
   std::vector<PartitionUpdate> partitions_;
 
   // Index in the list of partitions (|partitions_| member) of the current
   // partition being processed.
   size_t current_partition_{0};
 
-  // Index of the next operation to perform in the manifest. The index is linear
-  // on the total number of operation on the manifest.
+  // Index of the next operation to perform in the manifest. The index is
+  // linear on the total number of operation on the manifest.
   size_t next_operation_num_{0};
 
   // A buffer used for accumulating downloaded data. Initially, it stores the
-  // payload metadata; once that's downloaded and parsed, it stores data for the
-  // next update operation.
+  // payload metadata; once that's downloaded and parsed, it stores data for
+  // the next update operation.
   brillo::Blob buffer_;
   // Offset of buffer_ in the binary blobs section of the update.
   uint64_t buffer_offset_{0};
@@ -393,8 +395,9 @@ class DeltaPerformer : public FileWriter {
   // If |true|, the update is user initiated (vs. periodic update checks).
   bool interactive_{false};
 
-  // The timeout after which we should force emitting a progress log (constant),
-  // and the actual point in time for the next forced log to be emitted.
+  // The timeout after which we should force emitting a progress log
+  // (constant), and the actual point in time for the next forced log to be
+  // emitted.
   const base::TimeDelta forced_progress_log_wait_{
       base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)};
   base::TimeTicks forced_progress_log_time_;
@@ -407,6 +410,8 @@ class DeltaPerformer : public FileWriter {
 
   std::unique_ptr<PartitionWriter> partition_writer_;
 
+  // List of dynamic partitions on device.
+  std::vector<std::string> dynamic_partitions_;
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };
 

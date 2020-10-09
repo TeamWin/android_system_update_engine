@@ -160,6 +160,8 @@ static_library("libpayload_consumer") {
     "payload_consumer/install_plan.cc",
     "payload_consumer/mount_history.cc",
     "payload_consumer/partition_update_generator_stub.cc",
+    "payload_consumer/partition_writer_factory_chromeos.cc",
+    "payload_consumer/partition_writer.cc",
     "payload_consumer/payload_constants.cc",
     "payload_consumer/payload_metadata.cc",
     "payload_consumer/payload_verifier.cc",
