@@ -18,12 +18,14 @@
 #define UPDATE_ENGINE_PARTITION_WRITER_H_
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include <brillo/secure_blob.h>
 #include <gtest/gtest_prod.h>
 
 #include "update_engine/common/dynamic_partition_control_interface.h"
+#include "update_engine/payload_consumer/extent_writer.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/update_metadata.pb.h"
@@ -35,7 +37,7 @@ class PartitionWriter {
                   DynamicPartitionControlInterface* dynamic_control,
                   size_t block_size,
                   bool is_interactive);
-  ~PartitionWriter();
+  virtual ~PartitionWriter();
   static bool ValidateSourceHash(const brillo::Blob& calculated_hash,
                                  const InstallOperation& operation,
                                  const FileDescriptorPtr source_fd,
@@ -43,33 +45,34 @@ class PartitionWriter {
 
   // Perform necessary initialization work before InstallOperation can be
   // applied to this partition
-  [[nodiscard]] bool Init(const InstallPlan* install_plan,
-                          bool source_may_exist);
+  [[nodiscard]] virtual bool Init(const InstallPlan* install_plan,
+                                  bool source_may_exist);
 
   int Close();
 
   // These perform a specific type of operation and return true on success.
   // |error| will be set if source hash mismatch, otherwise |error| might not be
   // set even if it fails.
-  [[nodiscard]] bool PerformReplaceOperation(const InstallOperation& operation,
-                                             const void* data,
-                                             size_t count);
-  [[nodiscard]] bool PerformZeroOrDiscardOperation(
+  [[nodiscard]] virtual bool PerformReplaceOperation(
+      const InstallOperation& operation, const void* data, size_t count);
+  [[nodiscard]] virtual bool PerformZeroOrDiscardOperation(
       const InstallOperation& operation);
 
-  [[nodiscard]] bool PerformSourceCopyOperation(
+  [[nodiscard]] virtual bool PerformSourceCopyOperation(
       const InstallOperation& operation, ErrorCode* error);
-  [[nodiscard]] bool PerformSourceBsdiffOperation(
+  [[nodiscard]] virtual bool PerformSourceBsdiffOperation(
       const InstallOperation& operation,
       ErrorCode* error,
       const void* data,
       size_t count);
-  [[nodiscard]] bool PerformPuffDiffOperation(const InstallOperation& operation,
-                                              ErrorCode* error,
-                                              const void* data,
-                                              size_t count);
+  [[nodiscard]] virtual bool PerformPuffDiffOperation(
+      const InstallOperation& operation,
+      ErrorCode* error,
+      const void* data,
+      size_t count);
+  [[nodiscard]] virtual bool Flush();
 
- private:
+ protected:
   friend class PartitionWriterTest;
   FRIEND_TEST(PartitionWriterTest, ChooseSourceFDTest);
 
@@ -80,6 +83,7 @@ class PartitionWriter {
   // the |error| accordingly.
   FileDescriptorPtr ChooseSourceFD(const InstallOperation& operation,
                                    ErrorCode* error);
+  [[nodiscard]] virtual std::unique_ptr<ExtentWriter> CreateBaseExtentWriter();
 
   const PartitionUpdate& partition_update_;
   const InstallPlan::Partition& install_part_;
@@ -108,6 +112,18 @@ class PartitionWriter {
   // error corrected.
   bool source_ecc_open_failure_{false};
 };
+
+namespace partition_writer {
+// Return a PartitionWriter instance for perform InstallOps on this partition.
+// Uses VABCPartitionWriter for Virtual AB Compression
+std::unique_ptr<PartitionWriter> CreatePartitionWriter(
+    const PartitionUpdate& partition_update,
+    const InstallPlan::Partition& install_part,
+    DynamicPartitionControlInterface* dynamic_control,
+    size_t block_size,
+    bool is_interactive,
+    bool is_dynamic_partition);
+}  // namespace partition_writer
 }  // namespace chromeos_update_engine
 
 #endif
