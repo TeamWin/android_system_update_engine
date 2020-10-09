@@ -308,7 +308,7 @@ bool PartitionWriter::PerformReplaceOperation(const InstallOperation& operation,
                                               const void* data,
                                               size_t count) {
   // Setup the ExtentWriter stack based on the operation type.
-  std::unique_ptr<ExtentWriter> writer = std::make_unique<DirectExtentWriter>();
+  std::unique_ptr<ExtentWriter> writer = CreateBaseExtentWriter();
 
   if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));
@@ -320,7 +320,7 @@ bool PartitionWriter::PerformReplaceOperation(const InstallOperation& operation,
       writer->Init(target_fd_, operation.dst_extents(), block_size_));
   TEST_AND_RETURN_FALSE(writer->Write(data, operation.data_length()));
 
-  return target_fd_->Flush();
+  return Flush();
 }
 
 bool PartitionWriter::PerformZeroOrDiscardOperation(
@@ -353,7 +353,7 @@ bool PartitionWriter::PerformZeroOrDiscardOperation(
           target_fd_, zeros.data(), chunk_length, start + offset));
     }
   }
-  return target_fd_->Flush();
+  return Flush();
 }
 
 bool PartitionWriter::PerformSourceCopyOperation(
@@ -464,8 +464,9 @@ bool PartitionWriter::PerformSourceCopyOperation(
                                                        block_size_,
                                                        nullptr));
   }
-  return target_fd_->Flush();
+  return Flush();
 }
+
 bool PartitionWriter::PerformSourceBsdiffOperation(
     const InstallOperation& operation,
     ErrorCode* error,
@@ -481,7 +482,7 @@ bool PartitionWriter::PerformSourceBsdiffOperation(
       std::move(reader),
       utils::BlocksInExtents(operation.src_extents()) * block_size_);
 
-  auto writer = std::make_unique<DirectExtentWriter>();
+  auto writer = CreateBaseExtentWriter();
   TEST_AND_RETURN_FALSE(
       writer->Init(target_fd_, operation.dst_extents(), block_size_));
   auto dst_file = std::make_unique<BsdiffExtentFile>(
@@ -492,7 +493,7 @@ bool PartitionWriter::PerformSourceBsdiffOperation(
                                         std::move(dst_file),
                                         reinterpret_cast<const uint8_t*>(data),
                                         count) == 0);
-  return target_fd_->Flush();
+  return Flush();
 }
 
 bool PartitionWriter::PerformPuffDiffOperation(
@@ -510,7 +511,7 @@ bool PartitionWriter::PerformPuffDiffOperation(
       std::move(reader),
       utils::BlocksInExtents(operation.src_extents()) * block_size_));
 
-  auto writer = std::make_unique<DirectExtentWriter>();
+  auto writer = CreateBaseExtentWriter();
   TEST_AND_RETURN_FALSE(
       writer->Init(target_fd_, operation.dst_extents(), block_size_));
   puffin::UniqueStreamPtr dst_stream(new PuffinExtentStream(
@@ -524,7 +525,7 @@ bool PartitionWriter::PerformPuffDiffOperation(
                         reinterpret_cast<const uint8_t*>(data),
                         count,
                         kMaxCacheSize));
-  return target_fd_->Flush();
+  return Flush();
 }
 
 FileDescriptorPtr PartitionWriter::ChooseSourceFD(
@@ -641,4 +642,13 @@ int PartitionWriter::Close() {
   source_ecc_open_failure_ = false;
   return -err;
 }
+
+std::unique_ptr<ExtentWriter> PartitionWriter::CreateBaseExtentWriter() {
+  return std::make_unique<DirectExtentWriter>();
+}
+
+bool PartitionWriter::Flush() {
+  return target_fd_->Flush();
+}
+
 }  // namespace chromeos_update_engine
