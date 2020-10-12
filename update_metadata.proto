@@ -314,6 +314,11 @@ message PartitionUpdate {
   // skip writing the raw bytes for these extents. During snapshot merge, the
   // bytes will read from the source partitions instead.
   repeated CowMergeOperation merge_operations = 18;
+
+  // Estimated size for COW image. This is used by libsnapshot
+  // as a hint. If set to 0, libsnapshot should use alternative
+  // methods for estimating size.
+  optional uint64 estimate_cow_size = 19;
 }
 
 message DynamicPartitionGroup {
