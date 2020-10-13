@@ -241,9 +241,11 @@ bool HardwareAndroid::SetFirstActiveOmahaPingSent() {
 }
 
 void HardwareAndroid::SetWarmReset(bool warm_reset) {
-  constexpr char warm_reset_prop[] = "ota.warm_reset";
-  if (!android::base::SetProperty(warm_reset_prop, warm_reset ? "1" : "0")) {
-    LOG(WARNING) << "Failed to set prop " << warm_reset_prop;
+  if constexpr (!constants::kIsRecovery) {
+    constexpr char warm_reset_prop[] = "ota.warm_reset";
+    if (!android::base::SetProperty(warm_reset_prop, warm_reset ? "1" : "0")) {
+      LOG(WARNING) << "Failed to set prop " << warm_reset_prop;
+    }
   }
 }
 
