@@ -86,12 +86,6 @@ constexpr std::chrono::milliseconds kMapTimeout{1000};
 // needs to be mapped, this timeout is longer than |kMapTimeout|.
 constexpr std::chrono::milliseconds kMapSnapshotTimeout{5000};
 
-#ifdef __ANDROID_RECOVERY__
-constexpr bool kIsRecovery = true;
-#else
-constexpr bool kIsRecovery = false;
-#endif
-
 DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
   Cleanup();
 }
@@ -1085,7 +1079,7 @@ void DynamicPartitionControlAndroid::set_fake_mapped_devices(
 }
 
 bool DynamicPartitionControlAndroid::IsRecovery() {
-  return kIsRecovery;
+  return constants::kIsRecovery;
 }
 
 static bool IsIncrementalUpdate(const DeltaArchiveManifest& manifest) {

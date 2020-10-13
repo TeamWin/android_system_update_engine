@@ -58,6 +58,12 @@ extern const char kNonVolatileDirectory[];
 // postinstall.
 extern const char kPostinstallMountOptions[];
 
+#ifdef __ANDROID_RECOVERY__
+constexpr bool kIsRecovery = true;
+#else
+constexpr bool kIsRecovery = false;
+#endif
+
 }  // namespace constants
 }  // namespace chromeos_update_engine
 
