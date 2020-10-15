@@ -26,7 +26,7 @@
 
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
-#include <base/message_loop/message_loop.h>
+#include <base/task/single_thread_task_executor.h>
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
@@ -337,8 +337,8 @@ class UpdateAttempterTest : public ::testing::Test {
   // |ProcessingDone()| related member functions.
   void TestProcessingDone();
 
-  base::MessageLoopForIO base_loop_;
-  brillo::BaseMessageLoop loop_{&base_loop_};
+  base::SingleThreadTaskExecutor base_loop_{base::MessagePumpType::IO};
+  brillo::BaseMessageLoop loop_{base_loop_.task_runner()};
 
   FakeSystemState fake_system_state_;
   UpdateAttempterUnderTest attempter_{&fake_system_state_};
