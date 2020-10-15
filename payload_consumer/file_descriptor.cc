@@ -21,6 +21,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <base/posix/eintr_wrapper.h>
 
@@ -125,11 +126,16 @@ bool EintrSafeFileDescriptor::BlkIoctl(int request,
 
 bool EintrSafeFileDescriptor::Flush() {
   CHECK_GE(fd_, 0);
+  // Implemented as a No-Op, as delta_performer typically uses |O_DSYNC|, except
+  // in interactive settings.
   return true;
 }
 
 bool EintrSafeFileDescriptor::Close() {
   CHECK_GE(fd_, 0);
+  // https://stackoverflow.com/questions/705454/does-linux-guarantee-the-contents-of-a-file-is-flushed-to-disc-after-close
+  // |close()| doesn't imply |fsync()|, we need to do it manually.
+  fsync(fd_);
   if (IGNORE_EINTR(close(fd_)))
     return false;
   fd_ = -1;
