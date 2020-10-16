@@ -89,12 +89,14 @@ die() {
   exit 1
 }
 
-# Loads shflags. We first look at the default install location; then look for
-# crosutils (chroot); finally check our own directory.
+# Loads shflags. We first look at the default install location; then our own
+# directory; finally the parent directory.
 load_shflags() {
   local my_dir="$(dirname "$(readlink -f "$0")")"
   local path
-  for path in /usr/share/misc "${my_dir}"/lib/shflags; do
+  for path in /usr/share/misc \
+    "${my_dir}"/lib/shflags \
+    "${my_dir}"/../lib/shflags; do
     if [[ -r "${path}/shflags" ]]; then
       . "${path}/shflags" || die "Could not load ${path}/shflags."
       return
