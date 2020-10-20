@@ -1129,28 +1129,35 @@ ErrorCode DeltaPerformer::CheckTimestampError() const {
   auto&& timestamp_valid = [this](const PartitionUpdate& partition,
                                   bool allow_empty_version,
                                   bool* downgrade_detected) -> ErrorCode {
+    const auto& partition_name = partition.partition_name();
     if (!partition.has_version()) {
+      if (hardware_->GetVersionForLogging(partition_name).empty()) {
+        LOG(INFO) << partition_name << " does't have version, skipping "
+                  << "downgrade check.";
+        return ErrorCode::kSuccess;
+      }
+
       if (allow_empty_version) {
         return ErrorCode::kSuccess;
       }
       LOG(ERROR)
-          << "PartitionUpdate " << partition.partition_name()
-          << " does ot have a version field. Not allowed in partial updates.";
+          << "PartitionUpdate " << partition_name
+          << " doesn't have a version field. Not allowed in partial updates.";
       return ErrorCode::kDownloadManifestParseError;
     }
 
-    auto error_code = hardware_->IsPartitionUpdateValid(
-        partition.partition_name(), partition.version());
+    auto error_code =
+        hardware_->IsPartitionUpdateValid(partition_name, partition.version());
     switch (error_code) {
       case ErrorCode::kSuccess:
         break;
       case ErrorCode::kPayloadTimestampError:
         *downgrade_detected = true;
-        LOG(WARNING) << "PartitionUpdate " << partition.partition_name()
+        LOG(WARNING) << "PartitionUpdate " << partition_name
                      << " has an older version than partition on device.";
         break;
       default:
-        LOG(ERROR) << "IsPartitionUpdateValid(" << partition.partition_name()
+        LOG(ERROR) << "IsPartitionUpdateValid(" << partition_name
                    << ") returned" << utils::ErrorCodeToString(error_code);
         break;
     }
