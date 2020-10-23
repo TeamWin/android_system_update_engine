@@ -26,7 +26,7 @@ filegroup {
 
 cc_defaults {
     name: "ue_defaults",
-
+    defaults: ["enforce_ab_ota_partition_list_defaults"],
     cflags: [
         "-DBASE_VER=576279",
         "-DUSE_BINDER=1",
