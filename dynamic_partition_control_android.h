@@ -25,6 +25,7 @@
 #include <base/files/file_util.h>
 #include <libsnapshot/auto_device.h>
 #include <libsnapshot/snapshot.h>
+#include <libsnapshot/snapshot_writer.h>
 
 #include "update_engine/common/dynamic_partition_control_interface.h"
 
@@ -81,6 +82,13 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                           uint32_t slot,
                           uint32_t current_slot,
                           std::string* device);
+
+  // Partition name is expected to be unsuffixed. e.g. system, vendor
+  // Return an interface to write to a snapshoted partition.
+  std::unique_ptr<android::snapshot::ISnapshotWriter> OpenCowWriter(
+      const std::string& unsuffixed_partition_name,
+      const std::optional<std::string>& source_path,
+      bool is_append) override;
 
  protected:
   // These functions are exposed for testing.

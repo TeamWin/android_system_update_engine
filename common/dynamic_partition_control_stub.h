@@ -57,8 +57,12 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
       uint32_t source_slot,
       uint32_t target_slot,
       const std::vector<std::string>& partitions) override;
-};
 
+  std::unique_ptr<android::snapshot::ISnapshotWriter> OpenCowWriter(
+      const std::string& unsuffixed_partition_name,
+      const std::optional<std::string>&,
+      bool is_append) override;
+};
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_COMMON_DYNAMIC_PARTITION_CONTROL_STUB_H_

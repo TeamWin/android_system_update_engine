@@ -20,6 +20,7 @@
 #include <string>
 
 #include <base/logging.h>
+#include <libsnapshot/cow_writer.h>
 
 #include "update_engine/common/dynamic_partition_control_stub.h"
 
@@ -85,6 +86,14 @@ bool DynamicPartitionControlStub::VerifyExtentsForUntouchedPartitions(
     uint32_t target_slot,
     const std::vector<std::string>& partitions) {
   return true;
+}
+
+std::unique_ptr<android::snapshot::ISnapshotWriter>
+DynamicPartitionControlStub::OpenCowWriter(
+    const std::string& /*unsuffixed_partition_name*/,
+    const std::optional<std::string>& /*source_path*/,
+    bool /*is_append*/) {
+  return nullptr;
 }
 
 }  // namespace chromeos_update_engine

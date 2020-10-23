@@ -17,6 +17,7 @@
 #include "update_engine/dynamic_partition_control_android.h"
 
 #include <chrono>  // NOLINT(build/c++11) - using libsnapshot / liblp API
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <set>
@@ -36,6 +37,8 @@
 #include <fs_mgr_overlayfs.h>
 #include <libavb/libavb.h>
 #include <libdm/dm.h>
+#include <liblp/liblp.h>
+#include <libsnapshot/cow_writer.h>
 #include <libsnapshot/snapshot.h>
 #include <libsnapshot/snapshot_stub.h>
 
@@ -1228,6 +1231,32 @@ bool DynamicPartitionControlAndroid::EnsureMetadataMounted() {
     metadata_device_ = snapshot_->EnsureMetadataMounted();
   }
   return metadata_device_ != nullptr;
+}
+
+std::unique_ptr<android::snapshot::ISnapshotWriter>
+DynamicPartitionControlAndroid::OpenCowWriter(
+    const std::string& partition_name,
+    const std::optional<std::string>& source_path,
+    bool is_append) {
+  auto suffix = SlotSuffixForSlotNumber(target_slot_);
+
+  std::string device_dir_str;
+  if (!GetDeviceDir(&device_dir_str)) {
+    LOG(ERROR) << "Failed to get device dir!";
+    return nullptr;
+  }
+  base::FilePath device_dir(device_dir_str);
+  auto super_device =
+      device_dir.Append(GetSuperPartitionName(target_slot_)).value();
+  CreateLogicalPartitionParams params = {
+      .block_device = super_device,
+      .metadata_slot = target_slot_,
+      .partition_name = partition_name + suffix,
+      .force_writable = true,
+  };
+  // TODO(zhangkelvin) Open an APPEND mode CowWriter once there's an API to do
+  // it.
+  return snapshot_->OpenSnapshotWriter(params, std::move(source_path));
 }
 
 }  // namespace chromeos_update_engine
