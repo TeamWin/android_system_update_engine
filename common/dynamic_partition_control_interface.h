@@ -26,7 +26,13 @@
 #include "update_engine/common/action.h"
 #include "update_engine/common/cleanup_previous_update_action_delegate.h"
 #include "update_engine/common/error_code.h"
+#include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/update_metadata.pb.h"
+
+// Forware declare for libsnapshot/snapshot_writer.h
+namespace android::snapshot {
+class ISnapshotWriter;
+}
 
 namespace chromeos_update_engine {
 
@@ -139,6 +145,15 @@ class DynamicPartitionControlInterface {
       uint32_t source_slot,
       uint32_t target_slot,
       const std::vector<std::string>& partitions) = 0;
+  // Partition name is expected to be unsuffixed. e.g. system, vendor
+  // Return an interface to write to a snapshoted partition.
+  // If `is_append` is false, then existing COW data will be overwritten.
+  // Otherwise the cow writer will be opened on APPEND mode, existing COW data
+  // is preserved.
+  virtual std::unique_ptr<android::snapshot::ISnapshotWriter> OpenCowWriter(
+      const std::string& unsuffixed_partition_name,
+      const std::optional<std::string>&,
+      bool is_append = false) = 0;
 };
 
 }  // namespace chromeos_update_engine
