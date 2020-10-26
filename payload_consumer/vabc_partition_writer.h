@@ -19,7 +19,7 @@
 
 #include <memory>
 
-#include <libsnapshot/cow_writer.h>
+#include <libsnapshot/snapshot_writer.h>
 
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/partition_writer.h"
@@ -41,9 +41,10 @@ class VABCPartitionWriter final : public PartitionWriter {
       const InstallOperation& operation) override;
   [[nodiscard]] bool PerformSourceCopyOperation(
       const InstallOperation& operation, ErrorCode* error) override;
+  [[nodiscard]] bool Flush() override;
 
  private:
-  std::unique_ptr<android::snapshot::ICowWriter> cow_writer_;
+  std::unique_ptr<android::snapshot::ISnapshotWriter> cow_writer_;
 };
 
 }  // namespace chromeos_update_engine
