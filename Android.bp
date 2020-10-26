@@ -82,6 +82,28 @@ cc_defaults {
     },
 }
 
+// libcow_operation_convert (type: library)
+// ========================================================
+cc_library {
+    name: "libcow_operation_convert",
+    host_supported: true,
+    recovery_available: true,
+    defaults: [
+        "ue_defaults",
+        "update_metadata-protos_exports",
+    ],
+    srcs: [
+        "common/cow_operation_convert.cc",
+    ],
+    static_libs: [
+        "libsnapshot_cow",
+        "update_metadata-protos",
+        "libpayload_extent_ranges",
+        "libbrotli",
+        "libz",
+    ],
+}
+
 // update_metadata-protos (type: static_library)
 // ========================================================
 // Protobufs.
@@ -125,6 +147,10 @@ cc_defaults {
         "libpuffpatch",
         "libverity_tree",
         "libsnapshot_cow",
+        "libbrotli",
+        "libz",
+        "libpayload_extent_ranges",
+        "libcow_operation_convert",
     ],
     shared_libs: [
         "libbase",
@@ -182,6 +208,7 @@ cc_library_static {
         "payload_consumer/partition_writer.cc",
         "payload_consumer/partition_writer_factory_android.cc",
         "payload_consumer/vabc_partition_writer.cc",
+        "payload_consumer/snapshot_extent_writer.cc",
         "payload_consumer/postinstall_runner_action.cc",
         "payload_consumer/verity_writer_android.cc",
         "payload_consumer/xz_extent_writer.cc",
@@ -482,6 +509,7 @@ cc_library_static {
         "ue_defaults",
     ],
     host_supported: true,
+    recovery_available: true,
     srcs: [
         "payload_generator/extent_ranges.cc",
     ],
