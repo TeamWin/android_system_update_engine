@@ -95,7 +95,7 @@ pkg_config("target_defaults") {
   # NOSORT
   pkg_deps = [
     "libbrillo",
-    "libchrome-${libbase_ver}",
+    "libchrome",
 
     # system_api depends on protobuf (or protobuf-lite). It must appear
     # before protobuf here or the linker flags won't be in the right
@@ -562,7 +562,7 @@ if (use.test) {
     ]
     pkg_deps = [
       "libbrillo-test",
-      "libchrome-test-${libbase_ver}",
+      "libchrome-test",
       "libdebugd-client-test",
       "libpower_manager-client-test",
       "libsession_manager-client-test",
@@ -586,7 +586,7 @@ if (use.fuzzer) {
     ]
     pkg_deps = [
       "libbrillo-test",
-      "libchrome-test-${libbase_ver}",
+      "libchrome-test",
     ]
     deps = [
       ":libupdate_engine",
@@ -601,7 +601,7 @@ if (use.fuzzer) {
     ]
     pkg_deps = [
       "libbrillo-test",
-      "libchrome-test-${libbase_ver}",
+      "libchrome-test",
     ]
     deps = [
       ":libupdate_engine",
