@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include <base/logging.h>
+
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -82,6 +84,43 @@ std::vector<Extent> ExtentsSublist(const std::vector<Extent>& extents,
                                    uint64_t block_count);
 
 bool operator==(const Extent& a, const Extent& b);
+
+// TODO(zhangkelvin) This is ugly. Rewrite using C++20's coroutine once
+// that's available. Unfortunately with C++17 this is the best I could do.
+
+// An iterator that takes a sequence of extents, and iterate over blocks
+// inside this sequence of extents.
+// Example usage:
+
+// BlockIterator it1{src_extents};
+// while(!it1.is_end()) {
+//    auto block = *it1;
+//    Do stuff with |block|
+// }
+struct BlockIterator {
+  explicit BlockIterator(
+      const google::protobuf::RepeatedPtrField<Extent>& src_extents)
+      : src_extents_(src_extents) {}
+
+  BlockIterator& operator++() {
+    CHECK_LT(cur_extent_, src_extents_.size());
+    block_offset_++;
+    if (block_offset_ >= src_extents_[cur_extent_].num_blocks()) {
+      cur_extent_++;
+      block_offset_ = 0;
+    }
+    return *this;
+  }
+
+  [[nodiscard]] bool is_end() { return cur_extent_ >= src_extents_.size(); }
+  [[nodiscard]] uint64_t operator*() {
+    return src_extents_[cur_extent_].start_block() + block_offset_;
+  }
+
+  const google::protobuf::RepeatedPtrField<Extent>& src_extents_;
+  int cur_extent_ = 0;
+  size_t block_offset_ = 0;
+};
 
 }  // namespace chromeos_update_engine
 
