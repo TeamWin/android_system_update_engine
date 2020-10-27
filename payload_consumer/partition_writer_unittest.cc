@@ -96,8 +96,9 @@ class PartitionWriterTest : public testing::Test {
     install_part_.target_size = blob_data.size();
 
     ErrorCode error;
-    EXPECT_TRUE(writer_.Init(&install_plan_, true));
+    EXPECT_TRUE(writer_.Init(&install_plan_, true, 0));
     EXPECT_TRUE(writer_.PerformSourceCopyOperation(op, &error));
+    writer_.CheckpointUpdateProgress(1);
 
     brillo::Blob output_data;
     EXPECT_TRUE(utils::ReadFile(target_partition.path(), &output_data));

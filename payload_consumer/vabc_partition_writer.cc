@@ -31,8 +31,33 @@
 #include "update_engine/payload_consumer/snapshot_extent_writer.h"
 
 namespace chromeos_update_engine {
+// Expected layout of COW file:
+// === Beginning of Cow Image ===
+// All Source Copy Operations
+// ========== Label 0 ==========
+// Operation 0 in PartitionUpdate
+// ========== Label 1 ==========
+// Operation 1 in PartitionUpdate
+// ========== label 2 ==========
+// Operation 2 in PartitionUpdate
+// ========== label 3 ==========
+// .
+// .
+// .
+
+// When resuming, pass |next_op_index_| as label to
+// |InitializeWithAppend|.
+// For example, suppose we finished writing SOURCE_COPY, and we finished writing
+// operation 2 completely. Update is suspended when we are half way through
+// operation 3.
+// |cnext_op_index_| would be 3, so we pass 3 as
+// label to |InitializeWithAppend|. The CowWriter will retain all data before
+// label 3, Which contains all operation 2's data, but none of operation 3's
+// data.
+
 bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
-                               bool source_may_exist) {
+                               bool source_may_exist,
+                               size_t next_op_index) {
   TEST_AND_RETURN_FALSE(install_plan != nullptr);
   TEST_AND_RETURN_FALSE(
       OpenSourcePartition(install_plan->source_slot, source_may_exist));
@@ -45,11 +70,19 @@ bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
       install_part_.name, source_path, install_plan->is_resume);
   TEST_AND_RETURN_FALSE(cow_writer_ != nullptr);
 
-  // TODO(zhangkelvin) Emit a label before writing SOURCE_COPY. When resuming,
-  // use pref or CowWriter::GetLastLabel to determine if the SOURCE_COPY ops are
-  // written. No need to handle SOURCE_COPY operations when resuming.
-
   // ===== Resume case handling code goes here ====
+  // It is possible that the SOURCE_COPY are already written but
+  // |next_op_index_| is still 0. In this case we discard previously written
+  // SOURCE_COPY, and start over.
+  if (install_plan->is_resume && next_op_index > 0) {
+    LOG(INFO) << "Resuming update on partition `"
+              << partition_update_.partition_name() << "` op index "
+              << next_op_index;
+    TEST_AND_RETURN_FALSE(cow_writer_->InitializeAppend(next_op_index));
+    return true;
+  } else {
+    TEST_AND_RETURN_FALSE(cow_writer_->Initialize());
+  }
 
   // ==============================================
 
@@ -90,6 +123,7 @@ bool VABCPartitionWriter::WriteAllCowOps(
         break;
     }
   }
+
   return true;
 }
 
@@ -113,9 +147,10 @@ std::unique_ptr<ExtentWriter> VABCPartitionWriter::CreateBaseExtentWriter() {
   return true;
 }
 
-bool VABCPartitionWriter::Flush() {
-  // No need to do anything, as CowWriter automatically flushes every OP added.
-  return true;
+void VABCPartitionWriter::CheckpointUpdateProgress(size_t next_op_index) {
+  // No need to call fsync/sync, as CowWriter flushes after a label is added
+  // added.
+  cow_writer_->AddLabel(next_op_index);
 }
 
 [[nodiscard]] bool VABCPartitionWriter::FinishedInstallOps() {
