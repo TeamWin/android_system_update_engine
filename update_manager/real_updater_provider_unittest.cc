@@ -327,7 +327,7 @@ TEST_F(UmRealUpdaterProviderTest, GetPayloadSizeFailNoValue) {
 TEST_F(UmRealUpdaterProviderTest, GetCurrChannelOkay) {
   const string kChannelName("foo-channel");
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_current_channel(kChannelName);
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableHasValue(kChannelName,
@@ -336,7 +336,7 @@ TEST_F(UmRealUpdaterProviderTest, GetCurrChannelOkay) {
 
 TEST_F(UmRealUpdaterProviderTest, GetCurrChannelFailEmpty) {
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_current_channel("");
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableNotSet(provider_->var_curr_channel());
@@ -345,7 +345,7 @@ TEST_F(UmRealUpdaterProviderTest, GetCurrChannelFailEmpty) {
 TEST_F(UmRealUpdaterProviderTest, GetNewChannelOkay) {
   const string kChannelName("foo-channel");
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_target_channel(kChannelName);
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableHasValue(kChannelName,
@@ -354,7 +354,7 @@ TEST_F(UmRealUpdaterProviderTest, GetNewChannelOkay) {
 
 TEST_F(UmRealUpdaterProviderTest, GetNewChannelFailEmpty) {
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_target_channel("");
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableNotSet(provider_->var_new_channel());

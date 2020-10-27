@@ -30,6 +30,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/image_properties.h"
+#include "update_engine/update_manager/policy.h"
 
 // This gathers local system information and prepares info used by the
 // Omaha request action.
@@ -249,7 +250,7 @@ class OmahaRequestParams {
   // of the parameter. Returns true on success, false otherwise.
   bool Init(const std::string& in_app_version,
             const std::string& in_update_url,
-            bool in_interactive);
+            const chromeos_update_manager::UpdateCheckParams& params);
 
   // Permanently changes the release channel to |channel|. Performs a
   // powerwash, if required and allowed.

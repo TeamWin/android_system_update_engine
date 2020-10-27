@@ -630,7 +630,7 @@ TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", true);  // interactive = True.
+  params.Init("", "", {.interactive = true});
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -653,7 +653,7 @@ TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", false);  // interactive = False.
+  params.Init("", "", {});
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -1019,7 +1019,7 @@ TEST(PayloadStateTest, RollbackVersion) {
   // Mock out the os version and make sure it's excluded correctly.
   string rollback_version = "2345.0.0";
   OmahaRequestParams params(&fake_system_state);
-  params.Init(rollback_version, "", false);
+  params.Init(rollback_version, "", {});
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
