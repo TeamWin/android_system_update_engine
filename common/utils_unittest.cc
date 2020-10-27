@@ -46,7 +46,7 @@ TEST(UtilsTest, WriteFileOpenFailure) {
 }
 
 TEST(UtilsTest, WriteFileReadFile) {
-  test_utils::ScopedTempFile file;
+  ScopedTempFile file;
   EXPECT_TRUE(utils::WriteFile(file.path().c_str(), "hello", 5));
 
   brillo::Blob readback;
@@ -60,7 +60,7 @@ TEST(UtilsTest, ReadFileFailure) {
 }
 
 TEST(UtilsTest, ReadFileChunk) {
-  test_utils::ScopedTempFile file;
+  ScopedTempFile file;
   brillo::Blob data;
   const size_t kSize = 1024 * 1024;
   for (size_t i = 0; i < kSize; i++) {
@@ -149,7 +149,7 @@ TEST(UtilsTest, FuzzIntTest) {
 namespace {
 void GetFileFormatTester(const string& expected,
                          const vector<uint8_t>& contents) {
-  test_utils::ScopedTempFile file;
+  ScopedTempFile file;
   ASSERT_TRUE(utils::WriteFile(file.path().c_str(),
                                reinterpret_cast<const char*>(contents.data()),
                                contents.size()));
@@ -378,7 +378,7 @@ TEST(UtilsTest, RunAsRootUnmountFilesystemFailureTest) {
 }
 
 TEST(UtilsTest, RunAsRootUnmountFilesystemBusyFailureTest) {
-  test_utils::ScopedTempFile tmp_image("img.XXXXXX");
+  ScopedTempFile tmp_image("img.XXXXXX");
 
   EXPECT_TRUE(base::CopyFile(
       test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
@@ -418,7 +418,7 @@ TEST(UtilsTest, IsMountpointTest) {
   EXPECT_TRUE(mnt_dir.CreateUniqueTempDir());
   EXPECT_FALSE(utils::IsMountpoint(mnt_dir.GetPath().value()));
 
-  test_utils::ScopedTempFile file;
+  ScopedTempFile file;
   EXPECT_FALSE(utils::IsMountpoint(file.path()));
 }
 
@@ -460,7 +460,7 @@ TEST(UtilsTest, ParseDottedVersion) {
 }
 
 TEST(UtilsTest, GetFilePathTest) {
-  test_utils::ScopedTempFile file;
+  ScopedTempFile file;
   int fd = HANDLE_EINTR(open(file.path().c_str(), O_RDONLY));
   EXPECT_GE(fd, 0);
   EXPECT_EQ(file.path(), utils::GetFilePath(fd));

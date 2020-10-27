@@ -369,7 +369,7 @@ class FileFetcherTest : public AnyHttpFetcherTest {
   HttpServer* CreateServer() override { return new NullHttpServer; }
 
  private:
-  test_utils::ScopedTempFile temp_file_{"ue_file_fetcher.XXXXXX"};
+  ScopedTempFile temp_file_{"ue_file_fetcher.XXXXXX"};
 };
 
 class MultiRangeHttpFetcherOverFileFetcherTest : public FileFetcherTest {

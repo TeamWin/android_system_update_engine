@@ -176,7 +176,7 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
-  test_utils::ScopedTempFile test_deadline_file(
+  ScopedTempFile test_deadline_file(
       "omaha_response_handler_action_unittest-XXXXXX");
   {
     OmahaResponse in;

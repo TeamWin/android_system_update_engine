@@ -370,6 +370,42 @@ class ScopedPathUnlinker {
   DISALLOW_COPY_AND_ASSIGN(ScopedPathUnlinker);
 };
 
+class ScopedTempFile {
+ public:
+  ScopedTempFile() : ScopedTempFile("update_engine_temp.XXXXXX") {}
+
+  // If |open_fd| is true, a writable file descriptor will be opened for this
+  // file.
+  explicit ScopedTempFile(const std::string& pattern, bool open_fd = false) {
+    CHECK(utils::MakeTempFile(pattern, &path_, open_fd ? &fd_ : nullptr));
+    unlinker_.reset(new ScopedPathUnlinker(path_));
+    if (open_fd) {
+      CHECK_GE(fd_, 0);
+      fd_closer_.reset(new ScopedFdCloser(&fd_));
+    }
+  }
+  virtual ~ScopedTempFile() = default;
+
+  const std::string& path() const { return path_; }
+  int fd() const {
+    CHECK(fd_closer_);
+    return fd_;
+  }
+  void CloseFd() {
+    CHECK(fd_closer_);
+    fd_closer_.reset();
+  }
+
+ private:
+  std::string path_;
+  std::unique_ptr<ScopedPathUnlinker> unlinker_;
+
+  int fd_{-1};
+  std::unique_ptr<ScopedFdCloser> fd_closer_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedTempFile);
+};
+
 // A little object to call ActionComplete on the ActionProcessor when
 // it's destructed.
 class ScopedActionCompleter {

@@ -31,24 +31,21 @@ namespace chromeos_update_engine {
 class BlobFileWriterTest : public ::testing::Test {};
 
 TEST(BlobFileWriterTest, SimpleTest) {
-  string blob_path;
-  int blob_fd;
-  EXPECT_TRUE(
-      utils::MakeTempFile("BlobFileWriterTest.XXXXXX", &blob_path, &blob_fd));
+  ScopedTempFile blob_file("BlobFileWriterTest.XXXXXX", true);
   off_t blob_file_size = 0;
-  BlobFileWriter blob_file(blob_fd, &blob_file_size);
+  BlobFileWriter blob_file_writer(blob_file.fd(), &blob_file_size);
 
-  off_t blob_size = 1024;
-  brillo::Blob blob(blob_size);
+  const off_t kBlobSize = 1024;
+  brillo::Blob blob(kBlobSize);
   FillWithData(&blob);
-  EXPECT_EQ(0, blob_file.StoreBlob(blob));
-  EXPECT_EQ(blob_size, blob_file.StoreBlob(blob));
+  EXPECT_EQ(0, blob_file_writer.StoreBlob(blob));
+  EXPECT_EQ(kBlobSize, blob_file_writer.StoreBlob(blob));
 
-  brillo::Blob stored_blob(blob_size);
+  brillo::Blob stored_blob(kBlobSize);
   ssize_t bytes_read;
-  ASSERT_TRUE(
-      utils::PReadAll(blob_fd, stored_blob.data(), blob_size, 0, &bytes_read));
-  EXPECT_EQ(bytes_read, blob_size);
+  ASSERT_TRUE(utils::PReadAll(
+      blob_file.fd(), stored_blob.data(), kBlobSize, 0, &bytes_read));
+  EXPECT_EQ(bytes_read, kBlobSize);
   EXPECT_EQ(blob, stored_blob);
 }
 

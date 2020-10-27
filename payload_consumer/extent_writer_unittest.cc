@@ -59,7 +59,7 @@ class ExtentWriterTest : public ::testing::Test {
   void WriteAlignedExtents(size_t chunk_size, size_t first_chunk_size);
 
   FileDescriptorPtr fd_;
-  test_utils::ScopedTempFile temp_file_{"ExtentWriterTest-file.XXXXXX"};
+  ScopedTempFile temp_file_{"ExtentWriterTest-file.XXXXXX"};
 };
 
 TEST_F(ExtentWriterTest, SimpleTest) {

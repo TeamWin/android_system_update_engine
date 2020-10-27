@@ -40,7 +40,6 @@
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 
-using chromeos_update_engine::test_utils::ScopedTempFile;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -60,14 +59,6 @@ class PayloadPropertiesTest : public ::testing::Test {
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
 
-    const string kTempFileTemplate = "temp_data.XXXXXX";
-    int data_file_fd;
-    string temp_file_path;
-    EXPECT_TRUE(
-        utils::MakeTempFile(kTempFileTemplate, &temp_file_path, &data_file_fd));
-    ScopedPathUnlinker temp_file_unlinker(temp_file_path);
-    EXPECT_LE(0, data_file_fd);
-
     const auto SetupPartitionConfig =
         [](PartitionConfig* config, const string& path, size_t size) {
           config->path = path;
@@ -77,8 +68,8 @@ class PayloadPropertiesTest : public ::testing::Test {
       string zeros(size, '\0');
       EXPECT_TRUE(utils::WriteFile(path, zeros.c_str(), zeros.size()));
     };
-    ScopedTempFile old_part_file;
-    ScopedTempFile new_part_file;
+    ScopedTempFile old_part_file("old_part.XXXXXX");
+    ScopedTempFile new_part_file("new_part.XXXXXX");
     PartitionConfig old_part(kPartitionNameRoot);
     PartitionConfig new_part(kPartitionNameRoot);
     SetupPartitionConfig(&old_part, old_part_file.path(), 0);
@@ -91,7 +82,8 @@ class PayloadPropertiesTest : public ::testing::Test {
 
     vector<AnnotatedOperation> aops;
     off_t data_file_size = 0;
-    BlobFileWriter blob_file_writer(data_file_fd, &data_file_size);
+    ScopedTempFile data_file("temp_data.XXXXXX", true);
+    BlobFileWriter blob_file_writer(data_file.fd(), &data_file_size);
     // Generate the operations using the strategy we selected above.
     EXPECT_TRUE(strategy->GenerateOperations(
         config, old_part, new_part, &blob_file_writer, &aops));
@@ -100,10 +92,10 @@ class PayloadPropertiesTest : public ::testing::Test {
 
     uint64_t metadata_size;
     EXPECT_TRUE(payload.WritePayload(
-        payload_file.path(), temp_file_path, "", &metadata_size));
+        payload_file_.path(), data_file.path(), "", &metadata_size));
   }
 
-  ScopedTempFile payload_file;
+  ScopedTempFile payload_file_{"payload_file.XXXXXX"};
 };
 
 // Validate the hash of file exists within the output.
@@ -119,7 +111,7 @@ TEST_F(PayloadPropertiesTest, GetPropertiesAsJsonTestHash) {
       "}";
   string json;
   EXPECT_TRUE(
-      PayloadProperties(payload_file.path()).GetPropertiesAsJson(&json));
+      PayloadProperties(payload_file_.path()).GetPropertiesAsJson(&json));
   EXPECT_EQ(kJsonProperties, json) << "JSON contents:\n" << json;
 }
 
@@ -131,7 +123,7 @@ TEST_F(PayloadPropertiesTest, GetPropertiesAsKeyValueTestHash) {
       "METADATA_HASH=aEKYyzJt2E8Gz8fzB+gmekN5mriotZCSq6R+kDfdeV4=\n"
       "METADATA_SIZE=165\n";
   string key_value;
-  EXPECT_TRUE(PayloadProperties{payload_file.path()}.GetPropertiesAsKeyValue(
+  EXPECT_TRUE(PayloadProperties{payload_file_.path()}.GetPropertiesAsKeyValue(
       &key_value));
   EXPECT_EQ(kKeyValueProperties, key_value) << "Key Value contents:\n"
                                             << key_value;

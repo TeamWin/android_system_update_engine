@@ -103,11 +103,9 @@ bool PayloadFile::WritePayload(const string& payload_file,
                                const string& private_key_path,
                                uint64_t* metadata_size_out) {
   // Reorder the data blobs with the manifest_.
-  string ordered_blobs_path;
-  TEST_AND_RETURN_FALSE(utils::MakeTempFile(
-      "CrAU_temp_data.ordered.XXXXXX", &ordered_blobs_path, nullptr));
-  ScopedPathUnlinker ordered_blobs_unlinker(ordered_blobs_path);
-  TEST_AND_RETURN_FALSE(ReorderDataBlobs(data_blobs_path, ordered_blobs_path));
+  ScopedTempFile ordered_blobs_file("CrAU_temp_data.ordered.XXXXXX");
+  TEST_AND_RETURN_FALSE(
+      ReorderDataBlobs(data_blobs_path, ordered_blobs_file.path()));
 
   // Check that install op blobs are in order.
   uint64_t next_blob_offset = 0;
@@ -231,7 +229,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
 
   // Append the data blobs.
   LOG(INFO) << "Writing final delta file data blobs...";
-  int blobs_fd = open(ordered_blobs_path.c_str(), O_RDONLY, 0);
+  int blobs_fd = open(ordered_blobs_file.path().c_str(), O_RDONLY, 0);
   ScopedFdCloser blobs_fd_closer(&blobs_fd);
   TEST_AND_RETURN_FALSE(blobs_fd >= 0);
   for (;;) {
