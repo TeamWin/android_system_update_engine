@@ -17,6 +17,7 @@
 #include "update_engine/common/fake_prefs.h"
 
 #include <algorithm>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -66,8 +67,8 @@ bool FakePrefs::GetString(const string& key, string* value) const {
   return GetValue(key, value);
 }
 
-bool FakePrefs::SetString(const string& key, const string& value) {
-  SetValue(key, value);
+bool FakePrefs::SetString(const string& key, std::string_view value) {
+  SetValue(key, std::string(value));
   return true;
 }
 
@@ -149,10 +150,10 @@ void FakePrefs::CheckKeyType(const string& key, PrefType type) const {
 }
 
 template <typename T>
-void FakePrefs::SetValue(const string& key, const T& value) {
+void FakePrefs::SetValue(const string& key, T value) {
   CheckKeyType(key, PrefConsts<T>::type);
   values_[key].type = PrefConsts<T>::type;
-  values_[key].value.*(PrefConsts<T>::member) = value;
+  values_[key].value.*(PrefConsts<T>::member) = std::move(value);
   const auto observers_for_key = observers_.find(key);
   if (observers_for_key != observers_.end()) {
     std::vector<ObserverInterface*> copy_observers(observers_for_key->second);
