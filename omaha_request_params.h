@@ -104,8 +104,6 @@ class OmahaRequestParams {
   }
   inline std::string app_lang() const { return app_lang_; }
   inline std::string hwid() const { return hwid_; }
-  inline std::string fw_version() const { return fw_version_; }
-  inline std::string ec_version() const { return ec_version_; }
   inline std::string device_requisition() const { return device_requisition_; }
 
   inline void set_app_version(const std::string& version) {
@@ -294,12 +292,6 @@ class OmahaRequestParams {
   }
   void set_app_lang(const std::string& app_lang) { app_lang_ = app_lang; }
   void set_hwid(const std::string& hwid) { hwid_ = hwid; }
-  void set_fw_version(const std::string& fw_version) {
-    fw_version_ = fw_version;
-  }
-  void set_ec_version(const std::string& ec_version) {
-    ec_version_ = ec_version;
-  }
   void set_is_powerwash_allowed(bool powerwash_allowed) {
     mutable_image_props_.is_powerwash_allowed = powerwash_allowed;
   }
@@ -313,7 +305,6 @@ class OmahaRequestParams {
 
  private:
   FRIEND_TEST(OmahaRequestParamsTest, ChannelIndexTest);
-  FRIEND_TEST(OmahaRequestParamsTest, CollectECFWVersionsTest);
   FRIEND_TEST(OmahaRequestParamsTest, IsValidChannelTest);
   FRIEND_TEST(OmahaRequestParamsTest, SetIsPowerwashAllowedTest);
   FRIEND_TEST(OmahaRequestParamsTest, SetTargetChannelInvalidTest);
@@ -335,10 +326,6 @@ class OmahaRequestParams {
   // True if we're trying to update to a more stable channel.
   // i.e. index(target_channel) > index(current_channel).
   bool ToMoreStableChannel() const;
-
-  // Returns True if we should store the fw/ec versions based on our hwid_.
-  // Compares hwid to a set of prefixes in the allowlist.
-  bool CollectECFWVersions() const;
 
   // Gets the machine type (e.g. "i686").
   std::string GetMachineType() const;
@@ -380,8 +367,6 @@ class OmahaRequestParams {
   std::string lts_tag_;
 
   std::string hwid_;        // Hardware Qualification ID of the client
-  std::string fw_version_;  // Chrome OS Firmware Version.
-  std::string ec_version_;  // Chrome OS EC Version.
   // TODO(b:133324571) tracks removal of this field once it is no longer
   // needed in AU requests. Remove by October 1st 2019.
   std::string device_requisition_;  // Chrome OS Requisition type.

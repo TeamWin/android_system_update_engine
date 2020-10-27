@@ -53,10 +53,6 @@ std::string StringVectorToString(const std::vector<std::string>& vec_str);
 std::string CalculateP2PFileId(const brillo::Blob& payload_hash,
                                size_t payload_size);
 
-// Parse the firmware version from one line of output from the
-// "mosys" command.
-std::string ParseECVersion(std::string input_line);
-
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
 bool WriteFile(const char* path, const void* data, size_t data_len);

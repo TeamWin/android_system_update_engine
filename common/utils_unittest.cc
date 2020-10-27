@@ -41,19 +41,6 @@ namespace chromeos_update_engine {
 
 class UtilsTest : public ::testing::Test {};
 
-TEST(UtilsTest, CanParseECVersion) {
-  // Should be able to parse and valid key value line.
-  EXPECT_EQ("12345", utils::ParseECVersion("fw_version=12345"));
-  EXPECT_EQ("123456",
-            utils::ParseECVersion("b=1231a fw_version=123456 a=fasd2"));
-  EXPECT_EQ("12345", utils::ParseECVersion("fw_version=12345"));
-  EXPECT_EQ("00VFA616",
-            utils::ParseECVersion("vendor=\"sam\" fw_version=\"00VFA616\""));
-
-  // For invalid entries, should return the empty string.
-  EXPECT_EQ("", utils::ParseECVersion("b=1231a fw_version a=fasd2"));
-}
-
 TEST(UtilsTest, WriteFileOpenFailure) {
   EXPECT_FALSE(utils::WriteFile("/this/doesn't/exist", "hello", 5));
 }

@@ -175,25 +175,6 @@ string HardwareChromeOS::GetHardwareClass() const {
   return ReadValueFromCrosSystem("hwid");
 }
 
-string HardwareChromeOS::GetFirmwareVersion() const {
-  return ReadValueFromCrosSystem("fwid");
-}
-
-string HardwareChromeOS::GetECVersion() const {
-  string input_line, error;
-  int exit_code = 0;
-  vector<string> cmd = {"/usr/sbin/mosys", "-k", "ec", "info"};
-
-  if (!Subprocess::SynchronousExec(cmd, &exit_code, &input_line, &error) ||
-      exit_code != 0) {
-    LOG(ERROR) << "Unable to read EC info from mosys with exit code: "
-               << exit_code << " and error: " << error;
-    return "";
-  }
-
-  return utils::ParseECVersion(input_line);
-}
-
 string HardwareChromeOS::GetDeviceRequisition() const {
 #if USE_CFM
   const char* kLocalStatePath = "/home/chronos/Local State";

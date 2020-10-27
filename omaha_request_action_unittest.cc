@@ -365,8 +365,6 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_current_channel("unittest");
     request_params_.set_target_channel("unittest");
     request_params_.set_hwid("OEM MODEL 09235 7471");
-    request_params_.set_fw_version("ChromeOSFirmware.1.0");
-    request_params_.set_ec_version("0X0A1");
     request_params_.set_delta_okay(true);
     request_params_.set_interactive(false);
     request_params_.set_update_url("http://url");
@@ -1604,8 +1602,6 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
       string::npos);
   EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
             string::npos);
-  EXPECT_NE(post_str.find("fw_version=\"ChromeOSFirmware.1.0\""), string::npos);
-  EXPECT_NE(post_str.find("ec_version=\"0X0A1\""), string::npos);
   // No <event> tag should be sent if we didn't reboot to an update.
   EXPECT_EQ(post_str.find("<event"), string::npos);
 }

@@ -368,8 +368,6 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
       // DLC excluded for installs and updates.
       (app_data.is_dlc ? "" :
       "lang=\"" + XmlEncodeWithDefault(params_->app_lang(), "en-US") + "\" " +
-      "fw_version=\"" + XmlEncodeWithDefault(params_->fw_version()) + "\" " +
-      "ec_version=\"" + XmlEncodeWithDefault(params_->ec_version()) + "\" " +
       requisition_arg) +
 
       ">\n" +

@@ -112,27 +112,6 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
 
 namespace utils {
 
-string ParseECVersion(string input_line) {
-  base::TrimWhitespaceASCII(input_line, base::TRIM_ALL, &input_line);
-
-  // At this point we want to convert the format key=value pair from mosys to
-  // a vector of key value pairs.
-  vector<pair<string, string>> kv_pairs;
-  if (base::SplitStringIntoKeyValuePairs(input_line, '=', ' ', &kv_pairs)) {
-    for (const pair<string, string>& kv_pair : kv_pairs) {
-      // Finally match against the fw_verion which may have quotes.
-      if (kv_pair.first == "fw_version") {
-        string output;
-        // Trim any quotes.
-        base::TrimString(kv_pair.second, "\"", &output);
-        return output;
-      }
-    }
-  }
-  LOG(ERROR) << "Unable to parse fwid from ec info.";
-  return "";
-}
-
 bool WriteFile(const char* path, const void* data, size_t data_len) {
   int fd = HANDLE_EINTR(open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600));
   TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);

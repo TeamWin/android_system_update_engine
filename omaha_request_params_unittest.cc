@@ -257,14 +257,6 @@ TEST_F(OmahaRequestParamsTest, ShouldPowerwashTest) {
   EXPECT_TRUE(params_.ShouldPowerwash());
 }
 
-TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
-  params_.hwid_ = string("STUMPY ALEX 12345");
-  EXPECT_FALSE(params_.CollectECFWVersions());
-
-  params_.hwid_ = string("SNOW 12345");
-  EXPECT_TRUE(params_.CollectECFWVersions());
-}
-
 TEST_F(OmahaRequestParamsTest, RequisitionIsSetTest) {
   EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ("fake_requisition", params_.device_requisition());

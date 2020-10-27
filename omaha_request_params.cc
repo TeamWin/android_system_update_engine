@@ -92,10 +92,6 @@ bool OmahaRequestParams::Init(const string& app_version,
   os_sp_ = image_props_.version + "_" + GetMachineType();
   app_lang_ = "en-US";
   hwid_ = system_state_->hardware()->GetHardwareClass();
-  if (CollectECFWVersions()) {
-    fw_version_ = system_state_->hardware()->GetFirmwareVersion();
-    ec_version_ = system_state_->hardware()->GetECVersion();
-  }
   device_requisition_ = system_state_->hardware()->GetDeviceRequisition();
 
   if (image_props_.current_channel == mutable_image_props_.target_channel) {
@@ -168,14 +164,6 @@ bool OmahaRequestParams::Init(const string& app_version,
 bool OmahaRequestParams::IsUpdateUrlOfficial() const {
   return (update_url_ == constants::kOmahaDefaultAUTestURL ||
           update_url_ == image_props_.omaha_url);
-}
-
-bool OmahaRequestParams::CollectECFWVersions() const {
-  return base::StartsWith(
-             hwid_, string("PARROT"), base::CompareCase::SENSITIVE) ||
-         base::StartsWith(
-             hwid_, string("SPRING"), base::CompareCase::SENSITIVE) ||
-         base::StartsWith(hwid_, string("SNOW"), base::CompareCase::SENSITIVE);
 }
 
 bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,

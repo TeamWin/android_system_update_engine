@@ -108,8 +108,6 @@ TEST_F(OmahaRequestBuilderXmlTest, PlatformGetAppTest) {
   // in fact present in the <app ...></app>.
   const string app = omaha_request.GetApp(dlc_app_data);
   EXPECT_NE(string::npos, app.find("lang="));
-  EXPECT_NE(string::npos, app.find("fw_version="));
-  EXPECT_NE(string::npos, app.find("ec_version="));
   EXPECT_NE(string::npos, app.find("requisition="));
 }
 
@@ -132,8 +130,6 @@ TEST_F(OmahaRequestBuilderXmlTest, DlcGetAppTest) {
   // fact not present in the <app ...></app>.
   const string app = omaha_request.GetApp(dlc_app_data);
   EXPECT_EQ(string::npos, app.find("lang="));
-  EXPECT_EQ(string::npos, app.find("fw_version="));
-  EXPECT_EQ(string::npos, app.find("ec_version="));
   EXPECT_EQ(string::npos, app.find("requisition="));
 }
 
