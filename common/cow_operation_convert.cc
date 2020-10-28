@@ -16,15 +16,58 @@
 
 #include "update_engine/common/cow_operation_convert.h"
 
+#include <base/logging.h>
+
 #include "update_engine/payload_generator/extent_ranges.h"
+#include "update_engine/payload_generator/extent_utils.h"
 
 namespace chromeos_update_engine {
+
 std::vector<CowOperation> ConvertToCowOperations(
     const ::google::protobuf::RepeatedPtrField<
         ::chromeos_update_engine::InstallOperation>& operations,
     const ::google::protobuf::RepeatedPtrField<CowMergeOperation>&
         merge_operations) {
-  // TODO(zhangkelvin) Implement this.
-  return {};
+  ExtentRanges merge_extents;
+  std::vector<CowOperation> converted;
+
+  // We want all CowCopy ops to be done first, before any COW_REPLACE happen.
+  // Therefore we add these ops in 2 separate loops. This is because during
+  // merge, a CowReplace might modify a block needed by CowCopy, so we always
+  // perform CowCopy first.
+
+  // This loop handles CowCopy blocks within SOURCE_COPY, and the next loop
+  // converts the leftover blocks to CowReplace?
+  for (const auto& merge_op : merge_operations) {
+    merge_extents.AddExtent(merge_op.dst_extent());
+    const auto& src_extent = merge_op.src_extent();
+    const auto& dst_extent = merge_op.dst_extent();
+    for (uint64_t i = 0; i < src_extent.num_blocks(); i++) {
+      converted.push_back({CowOperation::CowCopy,
+                           src_extent.start_block() + i,
+                           dst_extent.start_block() + i});
+    }
+  }
+  // COW_REPLACE are added after COW_COPY, because replace might modify blocks
+  // needed by COW_COPY. Please don't merge this loop with the previous one.
+  for (const auto& operation : operations) {
+    if (operation.type() != InstallOperation::SOURCE_COPY) {
+      continue;
+    }
+    const auto& src_extents = operation.src_extents();
+    const auto& dst_extents = operation.dst_extents();
+    BlockIterator it1{src_extents};
+    BlockIterator it2{dst_extents};
+    while (!it1.is_end() && !it2.is_end()) {
+      auto src_block = *it1;
+      auto dst_block = *it2;
+      if (!merge_extents.ContainsBlock(dst_block)) {
+        converted.push_back({CowOperation::CowReplace, src_block, dst_block});
+      }
+      ++it1;
+      ++it2;
+    }
+  }
+  return converted;
 }
 }  // namespace chromeos_update_engine

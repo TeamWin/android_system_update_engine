@@ -703,6 +703,7 @@ cc_test {
         "common/action_pipe_unittest.cc",
         "common/action_processor_unittest.cc",
         "common/action_unittest.cc",
+        "common/cow_operation_convert_unittest.cc",
         "common/cpu_limiter_unittest.cc",
         "common/fake_prefs.cc",
         "common/file_fetcher_unittest.cc",
