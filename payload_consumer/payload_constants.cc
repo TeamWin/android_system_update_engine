@@ -66,6 +66,10 @@ const char* InstallOperationTypeName(InstallOperation::Type op_type) {
       return "PUFFDIFF";
     case InstallOperation::BROTLI_BSDIFF:
       return "BROTLI_BSDIFF";
+
+    case InstallOperation::BSDIFF:
+    case InstallOperation::MOVE:
+      NOTREACHED();
   }
   return "<unknown_op>";
 }
