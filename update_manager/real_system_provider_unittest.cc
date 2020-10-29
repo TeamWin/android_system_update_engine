@@ -24,7 +24,7 @@
 
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
-#include "update_engine/fake_system_state.h"
+#include "update_engine/cros/fake_system_state.h"
 #include "update_engine/update_manager/umtest_utils.h"
 #if USE_CHROME_KIOSK_APP
 #include "kiosk-app/dbus-proxies.h"
