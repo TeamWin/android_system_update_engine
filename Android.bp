@@ -728,6 +728,7 @@ cc_test {
         "payload_consumer/download_action_android_unittest.cc",
         "payload_consumer/extent_reader_unittest.cc",
         "payload_consumer/extent_writer_unittest.cc",
+        "payload_consumer/snapshot_extent_writer_unittest.cc",
         "payload_consumer/fake_file_descriptor.cc",
         "payload_consumer/file_descriptor_utils_unittest.cc",
         "payload_consumer/file_writer_unittest.cc",
