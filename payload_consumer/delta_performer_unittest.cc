@@ -202,7 +202,7 @@ class DeltaPerformerTest : public ::testing::Test {
                                uint64_t major_version,
                                uint32_t minor_version,
                                PartitionConfig* old_part = nullptr) {
-    test_utils::ScopedTempFile blob_file("Blob-XXXXXX");
+    ScopedTempFile blob_file("Blob-XXXXXX");
     EXPECT_TRUE(test_utils::WriteFileVector(blob_file.path(), blob_data));
 
     PayloadGenerationConfig config;
@@ -236,7 +236,7 @@ class DeltaPerformerTest : public ::testing::Test {
     new_part.size = 0;
     payload.AddPartition(*old_part, new_part, {}, {});
 
-    test_utils::ScopedTempFile payload_file("Payload-XXXXXX");
+    ScopedTempFile payload_file("Payload-XXXXXX");
     string private_key =
         sign_payload ? GetBuildArtifactsPath(kUnittestPrivateKeyPath) : "";
     EXPECT_TRUE(payload.WritePayload(payload_file.path(),
@@ -287,7 +287,7 @@ class DeltaPerformerTest : public ::testing::Test {
                                   const string& source_path,
                                   const brillo::Blob& target_data,
                                   bool expect_success) {
-    test_utils::ScopedTempFile new_part("Partition-XXXXXX");
+    ScopedTempFile new_part("Partition-XXXXXX");
     EXPECT_TRUE(test_utils::WriteFileVector(new_part.path(), target_data));
 
     payload_.size = payload_data.size();
@@ -576,7 +576,7 @@ TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  test_utils::ScopedTempFile source("Source-XXXXXX");
+  ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), expected_data));
 
   PartitionConfig old_part(kPartitionNameRoot);
@@ -604,7 +604,7 @@ TEST_F(DeltaPerformerTest, PuffdiffOperationTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(src, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  test_utils::ScopedTempFile source("Source-XXXXXX");
+  ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), src));
 
   PartitionConfig old_part(kPartitionNameRoot);
@@ -632,7 +632,7 @@ TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  test_utils::ScopedTempFile source("Source-XXXXXX");
+  ScopedTempFile source("Source-XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), actual_data));
 
   PartitionConfig old_part(kPartitionNameRoot);
@@ -644,9 +644,6 @@ TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
 
   EXPECT_EQ(actual_data, ApplyPayload(payload_data, source.path(), false));
 }
-
-
-
 
 TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
   uint64_t test[] = {1, 1, 4, 2, 0, 1};

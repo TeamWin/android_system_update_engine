@@ -39,7 +39,7 @@ const T* EvaluationContext::GetValue(Variable<T>* var) {
   std::string errmsg;
   const T* result =
       var->GetValue(RemainingTime(evaluation_monotonic_deadline_), &errmsg);
-  if (result == nullptr) {
+  if (result == nullptr && !var->IsMissingOk()) {
     LOG(WARNING) << "Error reading Variable " << var->GetName() << ": \""
                  << errmsg << "\"";
   }

@@ -321,7 +321,6 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
                                                  signature.data(),
                                                  rsa,
                                                  RSA_NO_PADDING);
-
     if (signature_size < 0) {
       LOG(ERROR) << "Signing hash failed: "
                  << ERR_error_string(ERR_get_error(), nullptr);

@@ -375,6 +375,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kUnresolvedHostRecovered:
     case ErrorCode::kNotEnoughSpace:
     case ErrorCode::kDeviceCorrupted:
+    case ErrorCode::kPackageExcludedFromUpdate:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 
@@ -463,6 +464,7 @@ void PayloadState::IncrementPayloadAttemptNumber() {
 }
 
 void PayloadState::IncrementFullPayloadAttemptNumber() {
+  DCHECK(payload_index_ < response_.packages.size());
   // Update the payload attempt number for full payloads and the backoff time.
   if (response_.packages[payload_index_].is_delta) {
     LOG(INFO) << "Not incrementing payload attempt number for delta payloads";
@@ -475,6 +477,7 @@ void PayloadState::IncrementFullPayloadAttemptNumber() {
 }
 
 void PayloadState::IncrementUrlIndex() {
+  DCHECK(payload_index_ < candidate_urls_.size());
   size_t next_url_index = url_index_ + 1;
   size_t max_url_size = candidate_urls_[payload_index_].size();
   if (next_url_index < max_url_size) {
@@ -511,6 +514,10 @@ void PayloadState::IncrementFailureCount() {
 }
 
 void PayloadState::ExcludeCurrentPayload() {
+  if (payload_index_ >= response_.packages.size()) {
+    LOG(INFO) << "Skipping exclusion of the current payload.";
+    return;
+  }
   const auto& package = response_.packages[payload_index_];
   if (!package.can_exclude) {
     LOG(INFO) << "Not excluding as marked non-excludable for package hash="
@@ -613,10 +620,6 @@ PayloadType PayloadState::CalculatePayloadType() {
   return kPayloadTypeForcedFull;
 }
 
-// TODO(zeuthen): Currently we don't report the UpdateEngine.Attempt.*
-// metrics if the attempt ends abnormally, e.g. if the update_engine
-// process crashes or the device is rebooted. See
-// http://crbug.com/357676
 void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
   int attempt_number = GetPayloadAttemptNumber();
 
@@ -671,6 +674,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
     case metrics::AttemptResult::kAbnormalTermination:
     case metrics::AttemptResult::kUpdateCanceled:
     case metrics::AttemptResult::kUpdateSucceededNotActive:
+    case metrics::AttemptResult::kUpdateSkipped:
     case metrics::AttemptResult::kNumConstants:
     case metrics::AttemptResult::kUnset:
       break;
@@ -924,10 +928,12 @@ void PayloadState::SetPayloadIndex(size_t payload_index) {
 }
 
 bool PayloadState::NextPayload() {
-  if (payload_index_ + 1 >= candidate_urls_.size())
+  if (payload_index_ >= candidate_urls_.size())
+    return false;
+  SetPayloadIndex(payload_index_ + 1);
+  if (payload_index_ >= candidate_urls_.size())
     return false;
   SetUrlIndex(0);
-  SetPayloadIndex(payload_index_ + 1);
   return true;
 }
 

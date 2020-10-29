@@ -55,8 +55,8 @@ void ExpectBlocksInRange(const vector<Extent>& extents, uint64_t total_blocks) {
 
 class MapfileFilesystemTest : public ::testing::Test {
  protected:
-  test_utils::ScopedTempFile temp_file_{"mapfile_file.XXXXXX"};
-  test_utils::ScopedTempFile temp_mapfile_{"mapfile_mapfile.XXXXXX"};
+  ScopedTempFile temp_file_{"mapfile_file.XXXXXX"};
+  ScopedTempFile temp_mapfile_{"mapfile_mapfile.XXXXXX"};
 };
 
 TEST_F(MapfileFilesystemTest, EmptyFilesystem) {

@@ -55,7 +55,6 @@ EvalStatus ConsultPolicies(const std::vector<Policy const*> policies,
     EvalStatus status =
         (policy->*policy_method)(ec, state, error, result, args...);
     if (status != EvalStatus::kContinue) {
-      LOG(INFO) << "decision by " << policy->PolicyRequestName(policy_method);
       return status;
     }
   }

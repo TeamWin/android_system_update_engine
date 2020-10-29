@@ -37,7 +37,7 @@
 #include <brillo/process.h>
 #include <brillo/process_reaper.h>
 #endif  // __CHROMEOS__
-#include <gtest/gtest_prod.h>  // for FRIEND_TEST
+#include <gtest/gtest_prod.h>
 
 // The Subprocess class is a singleton. It's used to spawn off a subprocess
 // and get notified when the subprocess exits. The result of Exec() can

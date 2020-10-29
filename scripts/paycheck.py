@@ -27,6 +27,7 @@ import os
 import sys
 import tempfile
 
+# pylint: disable=redefined-builtin
 from six.moves import zip
 from update_payload import error
 
@@ -92,9 +93,6 @@ def ParseArguments(argv):
   check_args.add_argument('-c', '--check', action='store_true', default=False,
                           help=('force payload integrity check (e.g. before '
                                 'applying)'))
-  check_args.add_argument('-D', '--describe', action='store_true',
-                          default=False,
-                          help='Print a friendly description of the payload.')
   check_args.add_argument('-r', '--report', metavar='FILE',
                           help="dump payload report (`-' for stdout)")
   check_args.add_argument('-t', '--type', dest='assert_type',
@@ -208,9 +206,6 @@ def main(argv):
     try:
       # Initialize payload.
       payload.Init()
-
-      if args.describe:
-        payload.Describe()
 
       # Perform payload integrity checks.
       if args.check:

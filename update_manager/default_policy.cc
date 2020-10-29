@@ -40,9 +40,11 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
                                              UpdateCheckParams* result) const {
   result->updates_enabled = true;
   result->target_channel.clear();
+  result->lts_tag.clear();
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
   result->rollback_allowed_milestones = -1;  // No version rolls should happen.
+  result->rollback_on_channel_downgrade = false;
   result->interactive = false;
 
   // Ensure that the minimum interval is set. If there's no clock, this defaults

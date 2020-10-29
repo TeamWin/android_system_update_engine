@@ -76,21 +76,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   virtual bool ScheduleUpdates();
 
   // Checks for update and, if a newer version is available, attempts to update
-  // the system. Non-empty |in_app_version| or |in_update_url| prevents
-  // automatic detection of the parameter.  |target_channel| denotes a
-  // policy-mandated channel we are updating to, if not empty. If |obey_proxies|
-  // is true, the update will likely respect Chrome's proxy setting. For
-  // security reasons, we may still not honor them. |interactive| should be true
-  // if this was called from the user (ie dbus).
-  virtual void Update(const std::string& app_version,
-                      const std::string& omaha_url,
-                      const std::string& target_channel,
-                      const std::string& target_version_prefix,
-                      bool rollback_allowed,
-                      bool rollback_data_save_requested,
-                      int rollback_allowed_milestones,
-                      bool obey_proxies,
-                      bool interactive);
+  // the system.
+  virtual void Update(const chromeos_update_manager::UpdateCheckParams& params);
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
@@ -283,6 +270,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, RollbackAfterInstall);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowed);
   FRIEND_TEST(UpdateAttempterTest, RollbackAllowedSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, ChannelDowngradeNoRollback);
+  FRIEND_TEST(UpdateAttempterTest, ChannelDowngradeRollback);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackFailure);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess);
   FRIEND_TEST(UpdateAttempterTest, RollbackMetricsRollbackFailure);
@@ -293,6 +282,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, SessionIdTestOnOmahaRequestActions);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedNotRollback);
   FRIEND_TEST(UpdateAttempterTest, SetRollbackHappenedRollback);
+  FRIEND_TEST(UpdateAttempterTest, TargetChannelHintSetAndReset);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
   FRIEND_TEST(UpdateAttempterTest, UpdateAfterInstall);
   FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
@@ -366,15 +356,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Helper method of Update() to calculate the update-related parameters
   // from various sources and set the appropriate state. Please refer to
   // Update() method for the meaning of the parameters.
-  bool CalculateUpdateParams(const std::string& app_version,
-                             const std::string& omaha_url,
-                             const std::string& target_channel,
-                             const std::string& target_version_prefix,
-                             bool rollback_allowed,
-                             bool rollback_data_save_requested,
-                             int rollback_allowed_milestones,
-                             bool obey_proxies,
-                             bool interactive);
+  bool CalculateUpdateParams(
+      const chromeos_update_manager::UpdateCheckParams& params);
 
   // Calculates all the scattering related parameters (such as waiting period,
   // which type of scattering is enabled, etc.) and also updates/deletes
