@@ -53,10 +53,6 @@ std::string StringVectorToString(const std::vector<std::string>& vec_str);
 std::string CalculateP2PFileId(const brillo::Blob& payload_hash,
                                size_t payload_size);
 
-// Parse the firmware version from one line of output from the
-// "mosys" command.
-std::string ParseECVersion(std::string input_line);
-
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
 bool WriteFile(const char* path, const void* data, size_t data_len);
@@ -292,6 +288,10 @@ bool ReadExtents(const std::string& path,
 // reboot. Returns whether it succeeded getting the boot_id.
 bool GetBootId(std::string* boot_id);
 
+// Gets a string value from the vpd for a given key using the `vpd_get_value`
+// shell command. Returns true on success.
+bool GetVpdValue(std::string key, std::string* result);
+
 // This function gets the file path of the file pointed to by FileDiscriptor.
 std::string GetFilePath(int fd);
 
@@ -368,6 +368,42 @@ class ScopedPathUnlinker {
   const std::string path_;
   bool should_remove_;
   DISALLOW_COPY_AND_ASSIGN(ScopedPathUnlinker);
+};
+
+class ScopedTempFile {
+ public:
+  ScopedTempFile() : ScopedTempFile("update_engine_temp.XXXXXX") {}
+
+  // If |open_fd| is true, a writable file descriptor will be opened for this
+  // file.
+  explicit ScopedTempFile(const std::string& pattern, bool open_fd = false) {
+    CHECK(utils::MakeTempFile(pattern, &path_, open_fd ? &fd_ : nullptr));
+    unlinker_.reset(new ScopedPathUnlinker(path_));
+    if (open_fd) {
+      CHECK_GE(fd_, 0);
+      fd_closer_.reset(new ScopedFdCloser(&fd_));
+    }
+  }
+  virtual ~ScopedTempFile() = default;
+
+  const std::string& path() const { return path_; }
+  int fd() const {
+    CHECK(fd_closer_);
+    return fd_;
+  }
+  void CloseFd() {
+    CHECK(fd_closer_);
+    fd_closer_.reset();
+  }
+
+ private:
+  std::string path_;
+  std::unique_ptr<ScopedPathUnlinker> unlinker_;
+
+  int fd_{-1};
+  std::unique_ptr<ScopedFdCloser> fd_closer_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedTempFile);
 };
 
 // A little object to call ActionComplete on the ActionProcessor when

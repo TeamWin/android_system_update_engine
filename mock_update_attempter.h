@@ -30,16 +30,10 @@ class MockUpdateAttempter : public UpdateAttempter {
  public:
   using UpdateAttempter::UpdateAttempter;
 
-  MOCK_METHOD9(Update,
-               void(const std::string& app_version,
-                    const std::string& omaha_url,
-                    const std::string& target_channel,
-                    const std::string& target_version_prefix,
-                    bool rollback_allowed,
-                    bool rollback_data_save_requested,
-                    int rollback_allowed_milestones,
-                    bool obey_proxies,
-                    bool interactive));
+  MOCK_METHOD(void,
+              Update,
+              (const chromeos_update_manager::UpdateCheckParams& params),
+              (override));
 
   MOCK_METHOD1(GetStatus, bool(update_engine::UpdateEngineStatus* out_status));
 

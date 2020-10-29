@@ -62,7 +62,7 @@ void ExpectBlocksInRange(const vector<Extent>& extents, uint64_t total_blocks) {
 class Ext2FilesystemTest : public ::testing::Test {};
 
 TEST_F(Ext2FilesystemTest, InvalidFilesystem) {
-  test_utils::ScopedTempFile fs_filename_{"Ext2FilesystemTest-XXXXXX"};
+  ScopedTempFile fs_filename_{"Ext2FilesystemTest-XXXXXX"};
   ASSERT_EQ(0, truncate(fs_filename_.path().c_str(), kDefaultFilesystemSize));
   unique_ptr<Ext2Filesystem> fs =
       Ext2Filesystem::CreateFromFile(fs_filename_.path());

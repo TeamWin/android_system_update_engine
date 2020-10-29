@@ -154,6 +154,11 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
             app_body += " rollback_allowed=\"true\"";
           }
         }
+        if (!params_->lts_tag().empty()) {
+          app_body += base::StringPrintf(
+              " ltstag=\"%s\"",
+              XmlEncodeWithDefault(params_->lts_tag()).c_str());
+        }
         app_body += "></updatecheck>\n";
       }
 
@@ -184,17 +189,26 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
       }
     }
   } else {
+    int event_result = event_->result;
     // The error code is an optional attribute so append it only if the result
     // is not success.
     string error_code;
-    if (event_->result != OmahaEvent::kResultSuccess) {
+    if (event_result != OmahaEvent::kResultSuccess) {
       error_code = base::StringPrintf(" errorcode=\"%d\"",
                                       static_cast<int>(event_->error_code));
+    } else if (app_data.is_dlc && !app_data.app_params.updated) {
+      // On a |OmahaEvent::kResultSuccess|, if the event is for an update
+      // completion and the App is a DLC, send error for excluded DLCs as they
+      // did not update.
+      event_result = OmahaEvent::Result::kResultError;
+      error_code = base::StringPrintf(
+          " errorcode=\"%d\"",
+          static_cast<int>(ErrorCode::kPackageExcludedFromUpdate));
     }
     app_body = base::StringPrintf(
         "        <event eventtype=\"%d\" eventresult=\"%d\"%s></event>\n",
         event_->type,
-        event_->result,
+        event_result,
         error_code.c_str());
   }
 
@@ -354,8 +368,6 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
       // DLC excluded for installs and updates.
       (app_data.is_dlc ? "" :
       "lang=\"" + XmlEncodeWithDefault(params_->app_lang(), "en-US") + "\" " +
-      "fw_version=\"" + XmlEncodeWithDefault(params_->fw_version()) + "\" " +
-      "ec_version=\"" + XmlEncodeWithDefault(params_->ec_version()) + "\" " +
       requisition_arg) +
 
       ">\n" +

@@ -64,14 +64,6 @@ class HardwareInterface {
   // Returns the HWID or an empty string on error.
   virtual std::string GetHardwareClass() const = 0;
 
-  // Returns the firmware version or an empty string if the system is
-  // not running chrome os firmware.
-  virtual std::string GetFirmwareVersion() const = 0;
-
-  // Returns the ec version or an empty string if the system is not
-  // running a custom chrome os ec.
-  virtual std::string GetECVersion() const = 0;
-
   // Returns the OEM device requisition or an empty string if the system does
   // not have a requisition, or if not running Chrome OS.
   virtual std::string GetDeviceRequisition() const = 0;

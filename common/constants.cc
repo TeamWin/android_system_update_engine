@@ -64,6 +64,8 @@ const char kPrefsP2PEnabled[] = "p2p-enabled";
 const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
 const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
+const char kPrefsTestUpdateCheckIntervalTimeout[] =
+    "test-update-check-interval-timeout";
 // Keep |kPrefsPingActive| in sync with |kDlcMetadataFilePingActive| in
 // dlcservice.
 const char kPrefsPingActive[] = "active";

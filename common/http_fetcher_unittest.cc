@@ -28,11 +28,16 @@
 #include <base/bind.h>
 #include <base/location.h>
 #include <base/logging.h>
+#if BASE_VER < 780000  // Android
 #include <base/message_loop/message_loop.h>
+#endif  // BASE_VER < 780000
 #include <base/stl_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#if BASE_VER >= 780000  // CrOS
+#include <base/task/single_thread_task_executor.h>
+#endif  // BASE_VER >= 780000
 #include <base/time/time.h>
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
@@ -364,7 +369,7 @@ class FileFetcherTest : public AnyHttpFetcherTest {
   HttpServer* CreateServer() override { return new NullHttpServer; }
 
  private:
-  test_utils::ScopedTempFile temp_file_{"ue_file_fetcher.XXXXXX"};
+  ScopedTempFile temp_file_{"ue_file_fetcher.XXXXXX"};
 };
 
 class MultiRangeHttpFetcherOverFileFetcherTest : public FileFetcherTest {
@@ -403,8 +408,13 @@ class MultiRangeHttpFetcherOverFileFetcherTest : public FileFetcherTest {
 template <typename T>
 class HttpFetcherTest : public ::testing::Test {
  public:
+#if BASE_VER < 780000  // Android
   base::MessageLoopForIO base_loop_;
   brillo::BaseMessageLoop loop_{&base_loop_};
+#else   // Chrome OS
+  base::SingleThreadTaskExecutor base_loop_{base::MessagePumpType::IO};
+  brillo::BaseMessageLoop loop_{base_loop_.task_runner()};
+#endif  // BASE_VER < 780000
 
   T test_;
 

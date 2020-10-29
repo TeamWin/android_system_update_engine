@@ -365,8 +365,6 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_current_channel("unittest");
     request_params_.set_target_channel("unittest");
     request_params_.set_hwid("OEM MODEL 09235 7471");
-    request_params_.set_fw_version("ChromeOSFirmware.1.0");
-    request_params_.set_ec_version("0X0A1");
     request_params_.set_delta_okay(true);
     request_params_.set_interactive(false);
     request_params_.set_update_url("http://url");
@@ -1528,6 +1526,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   request_params_.set_os_board("x86 generic<id");
   request_params_.set_current_channel("unittest_track&lt;");
   request_params_.set_target_channel("unittest_track&lt;");
+  request_params_.set_lts_tag("unittest_hint&lt;");
   request_params_.set_hwid("<OEM MODEL>");
   fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
@@ -1547,6 +1546,8 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   EXPECT_EQ(string::npos, post_str.find("x86 generic<id"));
   EXPECT_NE(string::npos, post_str.find("unittest_track&amp;lt;"));
   EXPECT_EQ(string::npos, post_str.find("unittest_track&lt;"));
+  EXPECT_NE(string::npos, post_str.find("unittest_hint&amp;lt;"));
+  EXPECT_EQ(string::npos, post_str.find("unittest_hint&lt;"));
   EXPECT_NE(string::npos, post_str.find("&lt;OEM MODEL&gt;"));
   EXPECT_EQ(string::npos, post_str.find("<OEM MODEL>"));
   EXPECT_NE(string::npos, post_str.find("cohort=\"evil\nstring\""));
@@ -1601,8 +1602,6 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
       string::npos);
   EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
             string::npos);
-  EXPECT_NE(post_str.find("fw_version=\"ChromeOSFirmware.1.0\""), string::npos);
-  EXPECT_NE(post_str.find("ec_version=\"0X0A1\""), string::npos);
   // No <event> tag should be sent if we didn't reboot to an update.
   EXPECT_EQ(post_str.find("<event"), string::npos);
 }
@@ -1799,6 +1798,17 @@ TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsNotSetTest) {
       string::npos,
       post_str.find("cohorthint=\"" + string(xml_encoded_cohort_hint) + "\""));
   EXPECT_EQ(string::npos, post_str.find(omaha_cohort_hint));
+}
+
+TEST_F(OmahaRequestActionTest, TargetChannelHintTest) {
+  tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
+  tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+  request_params_.set_lts_tag("hint>");
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_NE(string::npos, post_str.find("ltstag=\"hint&gt;\""));
 }
 
 void OmahaRequestActionTest::PingTest(bool ping_only) {
@@ -2776,8 +2786,8 @@ TEST_F(OmahaRequestActionTest, UpdateWithDlcTest) {
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithPartiallyExcludedDlcTest) {
-  request_params_.set_dlc_apps_params(
-      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  const string kDlcAppId = request_params_.GetDlcAppId(kDlcId1);
+  request_params_.set_dlc_apps_params({{kDlcAppId, {.name = kDlcId1}}});
   fake_update_response_.dlc_app_update = true;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   // The first DLC candidate URL is excluded.
@@ -2790,11 +2800,12 @@ TEST_F(OmahaRequestActionTest, UpdateWithPartiallyExcludedDlcTest) {
   // One candidate URL.
   EXPECT_EQ(response.packages[1].payload_urls.size(), 1u);
   EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(request_params_.dlc_apps_params().at(kDlcAppId).updated);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithExcludedDlcTest) {
-  request_params_.set_dlc_apps_params(
-      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  const string kDlcAppId = request_params_.GetDlcAppId(kDlcId1);
+  request_params_.set_dlc_apps_params({{kDlcAppId, {.name = kDlcId1}}});
   fake_update_response_.dlc_app_update = true;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   // Both DLC candidate URLs are excluded.
@@ -2805,6 +2816,7 @@ TEST_F(OmahaRequestActionTest, UpdateWithExcludedDlcTest) {
 
   EXPECT_EQ(response.packages.size(), 1u);
   EXPECT_TRUE(response.update_exists);
+  EXPECT_FALSE(request_params_.dlc_apps_params().at(kDlcAppId).updated);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithDeprecatedDlcTest) {

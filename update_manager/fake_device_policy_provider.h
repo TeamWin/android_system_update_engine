@@ -42,6 +42,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_release_channel_delegated_;
   }
 
+  FakeVariable<std::string>* var_release_lts_tag() override {
+    return &var_release_lts_tag_;
+  }
+
   FakeVariable<bool>* var_update_disabled() override {
     return &var_update_disabled_;
   }
@@ -91,6 +95,15 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_disallowed_time_intervals_;
   }
 
+  FakeVariable<ChannelDowngradeBehavior>* var_channel_downgrade_behavior()
+      override {
+    return &var_channel_downgrade_behavior_;
+  }
+
+  FakeVariable<base::Version>* var_device_minimum_version() override {
+    return &var_device_minimum_version_;
+  }
+
  private:
   FakeVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",
                                                   kVariableModePoll};
@@ -98,6 +111,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
                                                  kVariableModePoll};
   FakeVariable<bool> var_release_channel_delegated_{"release_channel_delegated",
                                                     kVariableModePoll};
+  FakeVariable<std::string> var_release_lts_tag_{"release_lts_tag",
+                                                 kVariableModePoll};
   FakeVariable<bool> var_update_disabled_{"update_disabled", kVariableModePoll};
   FakeVariable<std::string> var_target_version_prefix_{"target_version_prefix",
                                                        kVariableModePoll};
@@ -120,6 +135,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
       "auto_launched_kiosk_app_id", kVariableModePoll};
   FakeVariable<WeeklyTimeIntervalVector> var_disallowed_time_intervals_{
       "disallowed_time_intervals", kVariableModePoll};
+  FakeVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
+      "channel_downgrade_behavior", kVariableModePoll};
+  FakeVariable<base::Version> var_device_minimum_version_{
+      "device_minimum_version", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeDevicePolicyProvider);
 };

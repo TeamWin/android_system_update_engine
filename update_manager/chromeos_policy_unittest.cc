@@ -262,6 +262,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
       new bool(false));
   fake_state_.device_policy_provider()->var_release_channel()->reset(
       new string("foo-channel"));
+  fake_state_.device_policy_provider()->var_release_lts_tag()->reset(
+      new string("foo-hint"));
 
   UpdateCheckParams result;
   ExpectPolicyStatus(
@@ -270,6 +272,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   EXPECT_EQ("1.2", result.target_version_prefix);
   EXPECT_EQ(5, result.rollback_allowed_milestones);
   EXPECT_EQ("foo-channel", result.target_channel);
+  EXPECT_EQ("foo-hint", result.lts_tag);
   EXPECT_FALSE(result.interactive);
 }
 
@@ -336,6 +339,26 @@ TEST_F(UmChromeOSPolicyTest,
   UpdateCheckParams result;
   ExpectPolicyStatus(
       EvalStatus::kAskMeAgainLater, &Policy::UpdateCheckAllowed, &result);
+}
+
+TEST_F(UmChromeOSPolicyTest, TestUpdateCheckIntervalTimeout) {
+  fake_state_.updater_provider()
+      ->var_test_update_check_interval_timeout()
+      ->reset(new int64_t(10));
+  fake_state_.system_provider()->var_is_official_build()->reset(
+      new bool(false));
+
+  // The first time, update should not be allowed.
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kAskMeAgainLater, &Policy::UpdateCheckAllowed, &result);
+
+  // After moving the time forward more than the update check interval, it
+  // should now allow for update.
+  fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
+                               TimeDelta::FromSeconds(11));
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
 }
 
 TEST_F(UmChromeOSPolicyTest,

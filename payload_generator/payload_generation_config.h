@@ -149,13 +149,6 @@ struct ImageConfig {
   // Validate |dynamic_partition_metadata| against |partitions|.
   bool ValidateDynamicPartitionMetadata() const;
 
-  // Returns whether the |image_info| field is empty.
-  bool ImageInfoIsEmpty() const;
-
-  // The ImageInfo message defined in the update_metadata.proto file describes
-  // the metadata of the image.
-  ImageInfo image_info;
-
   // The updated partitions.
   std::vector<PartitionConfig> partitions;
 

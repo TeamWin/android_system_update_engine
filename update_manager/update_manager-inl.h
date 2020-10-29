@@ -49,7 +49,6 @@ EvalStatus UpdateManager::EvaluatePolicy(
   ec->ResetEvaluation();
 
   const std::string policy_name = policy_->PolicyRequestName(policy_method);
-  LOG(INFO) << policy_name << ": START";
 
   // First try calling the actual policy.
   std::string error;
@@ -70,8 +69,6 @@ EvalStatus UpdateManager::EvaluatePolicy(
       status = EvalStatus::kFailed;
     }
   }
-
-  LOG(INFO) << policy_name << ": END";
 
   return status;
 }

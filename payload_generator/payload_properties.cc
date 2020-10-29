@@ -47,8 +47,6 @@ const char kPayloadPropertyJsonMetadataSignature[] = "metadata_signature";
 // These are needed by the Nebraska and devserver.
 const char kPayloadPropertyJsonPayloadSize[] = "size";
 const char kPayloadPropertyJsonIsDelta[] = "is_delta";
-const char kPayloadPropertyJsonTargetVersion[] = "target_version";
-const char kPayloadPropertyJsonSourceVersion[] = "source_version";
 }  // namespace
 
 PayloadProperties::PayloadProperties(const string& payload_path)
@@ -65,10 +63,6 @@ bool PayloadProperties::GetPropertiesAsJson(string* json_str) {
   properties.SetInteger(kPayloadPropertyJsonPayloadSize, payload_size_);
   properties.SetString(kPayloadPropertyJsonPayloadHash, payload_hash_);
   properties.SetBoolean(kPayloadPropertyJsonIsDelta, is_delta_);
-  properties.SetString(kPayloadPropertyJsonTargetVersion, target_version_);
-  if (is_delta_) {
-    properties.SetString(kPayloadPropertyJsonSourceVersion, source_version_);
-  }
 
   return base::JSONWriter::Write(properties, json_str);
 }
@@ -119,23 +113,11 @@ bool PayloadProperties::LoadFromPayload() {
     metadata_signatures_ = base::JoinString(base64_signatures, ":");
   }
 
-  is_delta_ = manifest.has_old_image_info() ||
-              std::any_of(manifest.partitions().begin(),
+  is_delta_ = std::any_of(manifest.partitions().begin(),
                           manifest.partitions().end(),
                           [](const PartitionUpdate& part) {
                             return part.has_old_partition_info();
                           });
-
-  if (manifest.has_new_image_info()) {
-    target_version_ = manifest.new_image_info().version();
-  } else {
-    target_version_ = "99999.0.0";
-  }
-
-  // No need to set the source version if it was not a delta payload.
-  if (is_delta_ && manifest.has_old_image_info()) {
-    source_version_ = manifest.old_image_info().version();
-  }
   return true;
 }
 

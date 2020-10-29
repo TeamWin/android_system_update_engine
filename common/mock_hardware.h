@@ -45,11 +45,6 @@ class MockHardware : public HardwareInterface {
     ON_CALL(*this, GetHardwareClass())
         .WillByDefault(
             testing::Invoke(&fake_, &FakeHardware::GetHardwareClass));
-    ON_CALL(*this, GetFirmwareVersion())
-        .WillByDefault(
-            testing::Invoke(&fake_, &FakeHardware::GetFirmwareVersion));
-    ON_CALL(*this, GetECVersion())
-        .WillByDefault(testing::Invoke(&fake_, &FakeHardware::GetECVersion));
     ON_CALL(*this, GetMinKernelKeyVersion())
         .WillByDefault(
             testing::Invoke(&fake_, &FakeHardware::GetMinKernelKeyVersion));
@@ -90,8 +85,6 @@ class MockHardware : public HardwareInterface {
   MOCK_CONST_METHOD0(IsOOBEEnabled, bool());
   MOCK_CONST_METHOD1(IsOOBEComplete, bool(base::Time* out_time_of_oobe));
   MOCK_CONST_METHOD0(GetHardwareClass, std::string());
-  MOCK_CONST_METHOD0(GetFirmwareVersion, std::string());
-  MOCK_CONST_METHOD0(GetECVersion, std::string());
   MOCK_CONST_METHOD0(GetMinKernelKeyVersion, int());
   MOCK_CONST_METHOD0(GetMinFirmwareKeyVersion, int());
   MOCK_CONST_METHOD0(GetMaxFirmwareKeyRollforward, int());
