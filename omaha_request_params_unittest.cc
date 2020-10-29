@@ -75,36 +75,36 @@ string GetMachineType() {
 }  // namespace
 
 TEST_F(OmahaRequestParamsTest, MissingChannelTest) {
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   // By default, if no channel is set, we should track the stable-channel.
   EXPECT_EQ("stable-channel", params_.target_channel());
 }
 
 TEST_F(OmahaRequestParamsTest, ForceVersionTest) {
-  EXPECT_TRUE(params_.Init("ForcedVersion", "", false));
+  EXPECT_TRUE(params_.Init("ForcedVersion", "", {}));
   EXPECT_EQ(string("ForcedVersion_") + GetMachineType(), params_.os_sp());
   EXPECT_EQ("ForcedVersion", params_.app_version());
 }
 
 TEST_F(OmahaRequestParamsTest, ForcedURLTest) {
-  EXPECT_TRUE(params_.Init("", "http://forced.google.com", false));
+  EXPECT_TRUE(params_.Init("", "http://forced.google.com", {}));
   EXPECT_EQ("http://forced.google.com", params_.update_url());
 }
 
 TEST_F(OmahaRequestParamsTest, MissingURLTest) {
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ(constants::kOmahaDefaultProductionURL, params_.update_url());
 }
 
 TEST_F(OmahaRequestParamsTest, DeltaOKTest) {
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_TRUE(params_.delta_okay());
 }
 
 TEST_F(OmahaRequestParamsTest, NoDeltasTest) {
   ASSERT_TRUE(
       WriteFileString(tempdir_.GetPath().Append(".nodelta").value(), ""));
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_FALSE(params_.delta_okay());
 }
 
@@ -112,12 +112,12 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   {
     OmahaRequestParams params(&fake_system_state_);
     params.set_root(tempdir_.GetPath().value());
-    EXPECT_TRUE(params.Init("", "", false));
+    EXPECT_TRUE(params.Init("", "", {}));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
     EXPECT_FALSE(params.mutable_image_props_.is_powerwash_allowed);
   }
   params_.set_root(tempdir_.GetPath().value());
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ("canary-channel", params_.target_channel());
   EXPECT_FALSE(params_.mutable_image_props_.is_powerwash_allowed);
 }
@@ -126,12 +126,12 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   {
     OmahaRequestParams params(&fake_system_state_);
     params.set_root(tempdir_.GetPath().value());
-    EXPECT_TRUE(params.Init("", "", false));
+    EXPECT_TRUE(params.Init("", "", {}));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", true, nullptr));
     EXPECT_TRUE(params.mutable_image_props_.is_powerwash_allowed);
   }
   params_.set_root(tempdir_.GetPath().value());
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ("canary-channel", params_.target_channel());
   EXPECT_TRUE(params_.mutable_image_props_.is_powerwash_allowed);
 }
@@ -141,7 +141,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
     OmahaRequestParams params(&fake_system_state_);
     params.set_root(tempdir_.GetPath().value());
     SetLockDown(true);
-    EXPECT_TRUE(params.Init("", "", false));
+    EXPECT_TRUE(params.Init("", "", {}));
     params.image_props_.allow_arbitrary_channels = false;
     string error_message;
     EXPECT_FALSE(
@@ -151,7 +151,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
     EXPECT_FALSE(params.mutable_image_props_.is_powerwash_allowed);
   }
   params_.set_root(tempdir_.GetPath().value());
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ("stable-channel", params_.target_channel());
   EXPECT_FALSE(params_.mutable_image_props_.is_powerwash_allowed);
 }
@@ -197,7 +197,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
 
   // When set to a valid value while a change is already pending, it should
   // succeed.
-  params_.Init("", "", false);
+  params_.Init("", "", {});
   EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true, nullptr));
   // The target channel should reflect the change, but the download channel
   // should continue to retain the old value ...
@@ -236,6 +236,13 @@ TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
   EXPECT_FALSE(params_.ToMoreStableChannel());
 }
 
+TEST_F(OmahaRequestParamsTest, TargetChannelHintTest) {
+  EXPECT_TRUE(params_.Init("", "", {}));
+  const string kHint("foo-hint");
+  params_.set_lts_tag(kHint);
+  EXPECT_EQ(kHint, params_.lts_tag());
+}
+
 TEST_F(OmahaRequestParamsTest, ShouldPowerwashTest) {
   params_.mutable_image_props_.is_powerwash_allowed = false;
   EXPECT_FALSE(params_.ShouldPowerwash());
@@ -250,16 +257,8 @@ TEST_F(OmahaRequestParamsTest, ShouldPowerwashTest) {
   EXPECT_TRUE(params_.ShouldPowerwash());
 }
 
-TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
-  params_.hwid_ = string("STUMPY ALEX 12345");
-  EXPECT_FALSE(params_.CollectECFWVersions());
-
-  params_.hwid_ = string("SNOW 12345");
-  EXPECT_TRUE(params_.CollectECFWVersions());
-}
-
 TEST_F(OmahaRequestParamsTest, RequisitionIsSetTest) {
-  EXPECT_TRUE(params_.Init("", "", false));
+  EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ("fake_requisition", params_.device_requisition());
 }
 }  // namespace chromeos_update_engine

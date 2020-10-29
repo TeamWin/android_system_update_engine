@@ -106,7 +106,7 @@ enum class AttemptResult {
   kUpdateCanceled,              // Update canceled by the user.
   kUpdateSucceededNotActive,    // Update succeeded but the new slot is not
                                 // active.
-
+  kUpdateSkipped,               // Current update skipped.
   kNumConstants,
 
   kUnset = -1

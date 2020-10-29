@@ -62,9 +62,6 @@ class PayloadProperties {
   // Whether the payload is a delta (true) or full (false).
   bool is_delta_;
 
-  std::string target_version_;
-  std::string source_version_;
-
   DISALLOW_COPY_AND_ASSIGN(PayloadProperties);
 };
 

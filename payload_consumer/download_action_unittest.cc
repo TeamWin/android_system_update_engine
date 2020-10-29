@@ -51,7 +51,6 @@ using base::ReadFileToString;
 using base::WriteFile;
 using std::string;
 using std::unique_ptr;
-using test_utils::ScopedTempFile;
 using testing::_;
 using testing::AtLeast;
 using testing::InSequence;
@@ -133,7 +132,6 @@ void TestWithData(const brillo::Blob& data,
   loop.SetAsCurrent();
   FakeSystemState fake_system_state;
 
-  // TODO(adlr): see if we need a different file for build bots
   ScopedTempFile output_temp_file;
   TestDirectFileWriter writer;
   EXPECT_EQ(

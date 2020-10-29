@@ -327,7 +327,7 @@ TEST_F(UmRealUpdaterProviderTest, GetPayloadSizeFailNoValue) {
 TEST_F(UmRealUpdaterProviderTest, GetCurrChannelOkay) {
   const string kChannelName("foo-channel");
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_current_channel(kChannelName);
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableHasValue(kChannelName,
@@ -336,7 +336,7 @@ TEST_F(UmRealUpdaterProviderTest, GetCurrChannelOkay) {
 
 TEST_F(UmRealUpdaterProviderTest, GetCurrChannelFailEmpty) {
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_current_channel("");
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableNotSet(provider_->var_curr_channel());
@@ -345,7 +345,7 @@ TEST_F(UmRealUpdaterProviderTest, GetCurrChannelFailEmpty) {
 TEST_F(UmRealUpdaterProviderTest, GetNewChannelOkay) {
   const string kChannelName("foo-channel");
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_target_channel(kChannelName);
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableHasValue(kChannelName,
@@ -354,7 +354,7 @@ TEST_F(UmRealUpdaterProviderTest, GetNewChannelOkay) {
 
 TEST_F(UmRealUpdaterProviderTest, GetNewChannelFailEmpty) {
   OmahaRequestParams request_params(&fake_sys_state_);
-  request_params.Init("", "", false);
+  request_params.Init("", "", {});
   request_params.set_target_channel("");
   fake_sys_state_.set_request_params(&request_params);
   UmTestUtils::ExpectVariableNotSet(provider_->var_new_channel());
@@ -445,4 +445,29 @@ TEST_F(UmRealUpdaterProviderTest, GetUpdateRestrictionsNone) {
   UmTestUtils::ExpectVariableHasValue(UpdateRestrictions::kNone,
                                       provider_->var_update_restrictions());
 }
+
+TEST_F(UmRealUpdaterProviderTest, TestUpdateCheckIntervalTimeout) {
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_test_update_check_interval_timeout());
+  fake_prefs_.SetInt64(
+      chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout, 1);
+  UmTestUtils::ExpectVariableHasValue(
+      static_cast<int64_t>(1),
+      provider_->var_test_update_check_interval_timeout());
+
+  // Make sure the value does not exceed a threshold of 10 minutes.
+  fake_prefs_.SetInt64(
+      chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout, 11 * 60);
+  // The next 5 reads should return valid values.
+  for (int i = 0; i < 5; ++i)
+    UmTestUtils::ExpectVariableHasValue(
+        static_cast<int64_t>(10 * 60),
+        provider_->var_test_update_check_interval_timeout());
+
+  // Just to make sure it is not cached anywhere and deleted. The variable is
+  // allowd to be read 6 times.
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_test_update_check_interval_timeout());
+}
+
 }  // namespace chromeos_update_manager

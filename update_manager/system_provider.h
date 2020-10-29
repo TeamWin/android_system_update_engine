@@ -17,6 +17,10 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_SYSTEM_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_SYSTEM_PROVIDER_H_
 
+#include <string>
+
+#include <base/version.h>
+
 #include "update_engine/update_manager/provider.h"
 #include "update_engine/update_manager/variable.h"
 
@@ -45,6 +49,9 @@ class SystemProvider : public Provider {
   // Returns the required platform version of the configured auto launch
   // with zero delay kiosk app if any.
   virtual Variable<std::string>* var_kiosk_required_platform_version() = 0;
+
+  // Chrome OS version number as provided by |ImagePropeties|.
+  virtual Variable<base::Version>* var_chromeos_version() = 0;
 
  protected:
   SystemProvider() {}

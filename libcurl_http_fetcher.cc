@@ -458,10 +458,10 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     // There's either more work to do or we are paused, so we just keep the
     // file descriptors to watch up to date and exit, until we are done with the
     // work and we are not paused.
-#ifdef __ANDROID__
-    // When there's no base::SingleThreadTaskRunner on current thread, it's not
-    // possible to watch file descriptors. Just poll it later. This usually
-    // happens if brillo::FakeMessageLoop is used.
+    //
+    // When there's no |base::SingleThreadTaskRunner| on current thread, it's
+    // not possible to watch file descriptors. Just poll it later. This usually
+    // happens if |brillo::FakeMessageLoop| is used.
     if (!base::ThreadTaskRunnerHandle::IsSet()) {
       MessageLoop::current()->PostDelayedTask(
           FROM_HERE,
@@ -470,7 +470,6 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
           TimeDelta::FromSeconds(1));
       return;
     }
-#endif
     SetupMessageLoopSources();
     return;
   }

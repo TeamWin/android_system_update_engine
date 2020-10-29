@@ -111,10 +111,6 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kDownloadInvalidMetadataSignature:
     case ErrorCode::kOmahaResponseInvalid:
     case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
-    // TODO(deymo): The next two items belong in their own category; they
-    // should not be counted as internal errors. b/27112092
-    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
-    case ErrorCode::kNonCriticalUpdateInOOBE:
     case ErrorCode::kOmahaErrorInHTTPResponse:
     case ErrorCode::kDownloadMetadataSignatureMissingError:
     case ErrorCode::kOmahaUpdateDeferredForBackoff:
@@ -124,7 +120,12 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     case ErrorCode::kNoUpdate:
     case ErrorCode::kFirstActiveOmahaPingSentPersistenceError:
+    case ErrorCode::kPackageExcludedFromUpdate:
       return metrics::AttemptResult::kInternalError;
+
+    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kNonCriticalUpdateInOOBE:
+      return metrics::AttemptResult::kUpdateSkipped;
 
     // Special flags. These can't happen (we mask them out above) but
     // the compiler doesn't know that. Just break out so we can warn and
@@ -240,6 +241,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kVerityCalculationError:
     case ErrorCode::kNotEnoughSpace:
     case ErrorCode::kDeviceCorrupted:
+    case ErrorCode::kPackageExcludedFromUpdate:
       break;
 
     // Special flags. These can't happen (we mask them out above) but

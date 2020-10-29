@@ -116,7 +116,7 @@ class FakeBootControl : public BootControlInterface {
     is_bootable_[slot] = bootable;
   }
 
-  DynamicPartitionControlInterface* GetDynamicPartitionControl() {
+  DynamicPartitionControlInterface* GetDynamicPartitionControl() override {
     return dynamic_partition_control_.get();
   }
 

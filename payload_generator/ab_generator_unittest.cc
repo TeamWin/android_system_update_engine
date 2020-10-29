@@ -70,8 +70,7 @@ void TestSplitReplaceOrReplaceXzOperation(InstallOperation::Type orig_type,
       part_data.push_back(dis(gen));
   }
   ASSERT_EQ(part_size, part_data.size());
-  test_utils::ScopedTempFile part_file(
-      "SplitReplaceOrReplaceXzTest_part.XXXXXX");
+  ScopedTempFile part_file("SplitReplaceOrReplaceXzTest_part.XXXXXX");
   ASSERT_TRUE(test_utils::WriteFileVector(part_file.path(), part_data));
 
   // Create original operation and blob data.
@@ -107,8 +106,7 @@ void TestSplitReplaceOrReplaceXzOperation(InstallOperation::Type orig_type,
   aop.name = "SplitTestOp";
 
   // Create the data file.
-  test_utils::ScopedTempFile data_file(
-      "SplitReplaceOrReplaceXzTest_data.XXXXXX");
+  ScopedTempFile data_file("SplitReplaceOrReplaceXzTest_data.XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(data_file.path(), op_blob));
   int data_fd = open(data_file.path().c_str(), O_RDWR, 000);
   EXPECT_GE(data_fd, 0);
@@ -220,8 +218,7 @@ void TestMergeReplaceOrReplaceXzOperations(InstallOperation::Type orig_type,
       part_data.push_back(dis(gen));
   }
   ASSERT_EQ(part_size, part_data.size());
-  test_utils::ScopedTempFile part_file(
-      "MergeReplaceOrReplaceXzTest_part.XXXXXX");
+  ScopedTempFile part_file("MergeReplaceOrReplaceXzTest_part.XXXXXX");
   ASSERT_TRUE(test_utils::WriteFileVector(part_file.path(), part_data));
 
   // Create original operations and blob data.
@@ -271,8 +268,7 @@ void TestMergeReplaceOrReplaceXzOperations(InstallOperation::Type orig_type,
   aops.push_back(second_aop);
 
   // Create the data file.
-  test_utils::ScopedTempFile data_file(
-      "MergeReplaceOrReplaceXzTest_data.XXXXXX");
+  ScopedTempFile data_file("MergeReplaceOrReplaceXzTest_data.XXXXXX");
   EXPECT_TRUE(test_utils::WriteFileVector(data_file.path(), blob_data));
   int data_fd = open(data_file.path().c_str(), O_RDWR, 000);
   EXPECT_GE(data_fd, 0);
@@ -561,7 +557,7 @@ TEST_F(ABGeneratorTest, AddSourceHashTest) {
   second_aop.op = second_op;
   aops.push_back(second_aop);
 
-  test_utils::ScopedTempFile src_part_file("AddSourceHashTest_src_part.XXXXXX");
+  ScopedTempFile src_part_file("AddSourceHashTest_src_part.XXXXXX");
   brillo::Blob src_data(kBlockSize);
   test_utils::FillWithData(&src_data);
   ASSERT_TRUE(test_utils::WriteFileVector(src_part_file.path(), src_data));

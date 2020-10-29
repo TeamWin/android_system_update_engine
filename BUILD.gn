@@ -44,6 +44,7 @@ group("all") {
       ":test_subprocess",
       ":update_engine-test_images",
       ":update_engine-testkeys",
+      ":update_engine-testkeys-ec",
       ":update_engine_test_libs",
       ":update_engine_unittests",
     ]
@@ -60,6 +61,7 @@ group("all") {
 pkg_config("target_defaults") {
   cflags_cc = [
     "-fno-strict-aliasing",
+    "-std=gnu++17",
     "-Wnon-virtual-dtor",
   ]
   cflags = [
@@ -75,6 +77,7 @@ pkg_config("target_defaults") {
     "__CHROMEOS__",
     "_FILE_OFFSET_BITS=64",
     "_POSIX_C_SOURCE=199309L",
+    "USE_CFM=${use.cfm}",
     "USE_DBUS=${use.dbus}",
     "USE_FEC=0",
     "USE_HWID_OVERRIDE=${use.hwid_override}",
@@ -92,7 +95,7 @@ pkg_config("target_defaults") {
   # NOSORT
   pkg_deps = [
     "libbrillo",
-    "libchrome-${libbase_ver}",
+    "libchrome",
 
     # system_api depends on protobuf (or protobuf-lite). It must appear
     # before protobuf here or the linker flags won't be in the right
@@ -217,6 +220,7 @@ static_library("libupdate_engine") {
     "payload_state.cc",
     "power_manager_chromeos.cc",
     "real_system_state.cc",
+    "requisition_util.cc",
     "shill_proxy.cc",
     "update_attempter.cc",
     "update_boot_flags_action.cc",
@@ -258,7 +262,7 @@ static_library("libupdate_engine") {
     "expat",
     "libcurl",
     "libdebugd-client",
-    "libmetrics-${libbase_ver}",
+    "libmetrics",
     "libpower_manager-client",
     "libsession_manager-client",
     "libshill-client",
@@ -418,7 +422,17 @@ if (use.test) {
     openssl_pem_out_dir = "include/update_engine"
     sources = [
       "unittest_key.pem",
+      "unittest_key_RSA4096.pem",
       "unittest_key2.pem",
+    ]
+  }
+
+  genopenssl_key("update_engine-testkeys-ec") {
+    openssl_pem_in_dir = "."
+    openssl_pem_out_dir = "include/update_engine"
+    openssl_pem_algorithm = "ec"
+    sources = [
+      "unittest_key_EC.pem",
     ]
   }
 
@@ -515,11 +529,13 @@ if (use.test) {
       "payload_generator/squashfs_filesystem_unittest.cc",
       "payload_generator/zip_unittest.cc",
       "payload_state_unittest.cc",
+      "requisition_util_unittest.cc",
       "testrunner.cc",
       "update_attempter_unittest.cc",
       "update_boot_flags_action_unittest.cc",
       "update_manager/boxed_value_unittest.cc",
       "update_manager/chromeos_policy_unittest.cc",
+      "update_manager/enterprise_device_policy_impl_unittest.cc",
       "update_manager/evaluation_context_unittest.cc",
       "update_manager/generic_variables_unittest.cc",
       "update_manager/prng_unittest.cc",
@@ -548,7 +564,7 @@ if (use.test) {
     ]
     pkg_deps = [
       "libbrillo-test",
-      "libchrome-test-${libbase_ver}",
+      "libchrome-test",
       "libdebugd-client-test",
       "libpower_manager-client-test",
       "libsession_manager-client-test",
@@ -572,7 +588,7 @@ if (use.fuzzer) {
     ]
     pkg_deps = [
       "libbrillo-test",
-      "libchrome-test-${libbase_ver}",
+      "libchrome-test",
     ]
     deps = [
       ":libupdate_engine",
@@ -587,7 +603,7 @@ if (use.fuzzer) {
     ]
     pkg_deps = [
       "libbrillo-test",
-      "libchrome-test-${libbase_ver}",
+      "libchrome-test",
     ]
     deps = [
       ":libupdate_engine",

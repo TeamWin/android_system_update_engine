@@ -104,7 +104,7 @@ TEST_F(HashCalculatorTest, BigTest) {
 }
 
 TEST_F(HashCalculatorTest, UpdateFileSimpleTest) {
-  test_utils::ScopedTempFile data_file("data.XXXXXX");
+  ScopedTempFile data_file("data.XXXXXX");
   ASSERT_TRUE(test_utils::WriteFileString(data_file.path(), "hi"));
 
   for (const int length : {-1, 2, 10}) {
@@ -126,7 +126,7 @@ TEST_F(HashCalculatorTest, UpdateFileSimpleTest) {
 }
 
 TEST_F(HashCalculatorTest, RawHashOfFileSimpleTest) {
-  test_utils::ScopedTempFile data_file("data.XXXXXX");
+  ScopedTempFile data_file("data.XXXXXX");
   ASSERT_TRUE(test_utils::WriteFileString(data_file.path(), "hi"));
 
   for (const int length : {-1, 2, 10}) {

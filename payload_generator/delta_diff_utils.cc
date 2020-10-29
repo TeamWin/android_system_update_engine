@@ -822,17 +822,13 @@ bool ReadExtentsToDiff(const string& old_part,
         // Only Puffdiff if both files have at least one deflate left.
         if (!src_deflates.empty() && !dst_deflates.empty()) {
           brillo::Blob puffdiff_delta;
-          string temp_file_path;
-          TEST_AND_RETURN_FALSE(utils::MakeTempFile(
-              "puffdiff-delta.XXXXXX", &temp_file_path, nullptr));
-          ScopedPathUnlinker temp_file_unlinker(temp_file_path);
-
+          ScopedTempFile temp_file("puffdiff-delta.XXXXXX");
           // Perform PuffDiff operation.
           TEST_AND_RETURN_FALSE(puffin::PuffDiff(old_data,
                                                  new_data,
                                                  src_deflates,
                                                  dst_deflates,
-                                                 temp_file_path,
+                                                 temp_file.path(),
                                                  &puffdiff_delta));
           TEST_AND_RETURN_FALSE(puffdiff_delta.size() > 0);
           if (IsDiffOperationBetter(operation,

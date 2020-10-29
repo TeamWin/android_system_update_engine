@@ -277,15 +277,6 @@ void LogPartitionInfo(const vector<PartitionUpdate>& partitions) {
 
 }  // namespace
 
-uint32_t DeltaPerformer::GetMinorVersion() const {
-  if (manifest_.has_minor_version()) {
-    return manifest_.minor_version();
-  }
-  return payload_->type == InstallPayloadType::kDelta
-             ? kMaxSupportedMinorPayloadVersion
-             : kFullPayloadMinorVersion;
-}
-
 bool DeltaPerformer::IsHeaderParsed() const {
   return metadata_size_ != 0;
 }
@@ -1088,13 +1079,6 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     }
   }
 
-  if (manifest_.has_old_rootfs_info() || manifest_.has_new_rootfs_info() ||
-      manifest_.has_old_kernel_info() || manifest_.has_new_kernel_info() ||
-      manifest_.install_operations_size() != 0 ||
-      manifest_.kernel_install_operations_size() != 0) {
-    LOG(ERROR) << "Manifest contains deprecated fields.";
-    return ErrorCode::kPayloadMismatchedType;
-  }
   ErrorCode error_code = CheckTimestampError();
   if (error_code != ErrorCode::kSuccess) {
     if (error_code == ErrorCode::kPayloadTimestampError) {
@@ -1291,6 +1275,13 @@ ErrorCode DeltaPerformer::VerifyPayload(
     return ErrorCode::kPayloadSizeMismatchError;
   }
 
+  // Verifies the payload hash.
+  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
+                      !payload_hash_calculator_.raw_hash().empty());
+  TEST_AND_RETURN_VAL(
+      ErrorCode::kPayloadHashMismatchError,
+      payload_hash_calculator_.raw_hash() == update_check_response_hash);
+
   auto [payload_verifier, perform_verification] = CreatePayloadVerifier();
   if (!perform_verification) {
     LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";
@@ -1300,13 +1291,6 @@ ErrorCode DeltaPerformer::VerifyPayload(
     LOG(ERROR) << "Failed to create the payload verifier.";
     return ErrorCode::kDownloadPayloadPubKeyVerificationError;
   }
-
-  // Verifies the payload hash.
-  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
-                      !payload_hash_calculator_.raw_hash().empty());
-  TEST_AND_RETURN_VAL(
-      ErrorCode::kPayloadHashMismatchError,
-      payload_hash_calculator_.raw_hash() == update_check_response_hash);
 
   TEST_AND_RETURN_VAL(ErrorCode::kSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());

@@ -54,6 +54,8 @@ struct OmahaResponse {
     // True if the payload can be excluded from updating if consistently faulty.
     // False if the payload is critical to update.
     bool can_exclude = false;
+    // The App ID associated with the package.
+    std::string app_id;
   };
   std::vector<Package> packages;
 

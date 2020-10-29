@@ -62,13 +62,37 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
           ec->GetValue(system_provider->var_kiosk_required_platform_version());
       if (!kiosk_required_platform_version_p) {
         LOG(INFO) << "Kiosk app required platform version is not fetched, "
-                     "blocking update checks";
+                     "blocking update checks.";
         return EvalStatus::kAskMeAgainLater;
+      } else if (kiosk_required_platform_version_p->empty()) {
+        // The platform version could not be fetched several times. Update
+        // based on |DeviceMinimumVersion| instead (crbug.com/1048931).
+        const base::Version* device_minimum_version_p =
+            ec->GetValue(dp_provider->var_device_minimum_version());
+        const base::Version* current_version_p(
+            ec->GetValue(system_provider->var_chromeos_version()));
+        if (device_minimum_version_p && device_minimum_version_p->IsValid() &&
+            current_version_p && current_version_p->IsValid() &&
+            *current_version_p > *device_minimum_version_p) {
+          // Do not update if the current version is newer than the minimum
+          // version.
+          LOG(INFO) << "Reading kiosk app required platform version failed "
+                       "repeatedly but current version is newer than "
+                       "DeviceMinimumVersion. Blocking update checks. "
+                       "Current version: "
+                    << *current_version_p
+                    << " DeviceMinimumVersion: " << *device_minimum_version_p;
+          return EvalStatus::kAskMeAgainLater;
+        }
+        LOG(WARNING) << "Reading kiosk app required platform version failed "
+                        "repeatedly. Attempting an update without it now.";
+        // An empty string for |target_version_prefix| allows arbitrary updates.
+        result->target_version_prefix = "";
+      } else {
+        result->target_version_prefix = *kiosk_required_platform_version_p;
+        LOG(INFO) << "Allow kiosk app to control Chrome version policy is set, "
+                  << "target version is " << result->target_version_prefix;
       }
-
-      result->target_version_prefix = *kiosk_required_platform_version_p;
-      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set, "
-                << "target version is " << result->target_version_prefix;
       // TODO(hunyadym): Add support for allowing rollback using the manifest
       // (if policy doesn't specify otherwise).
     } else {
@@ -117,14 +141,29 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
     if (rollback_allowed_milestones_p)
       result->rollback_allowed_milestones = *rollback_allowed_milestones_p;
 
-    // Determine whether a target channel is dictated by policy.
+    // Determine whether a target channel is dictated by policy and whether we
+    // should rollback in case that channel is more stable.
     const bool* release_channel_delegated_p =
         ec->GetValue(dp_provider->var_release_channel_delegated());
     if (release_channel_delegated_p && !(*release_channel_delegated_p)) {
       const string* release_channel_p =
           ec->GetValue(dp_provider->var_release_channel());
-      if (release_channel_p)
+      if (release_channel_p) {
         result->target_channel = *release_channel_p;
+        const ChannelDowngradeBehavior* channel_downgrade_behavior_p =
+            ec->GetValue(dp_provider->var_channel_downgrade_behavior());
+        if (channel_downgrade_behavior_p &&
+            *channel_downgrade_behavior_p ==
+                ChannelDowngradeBehavior::kRollback) {
+          result->rollback_on_channel_downgrade = true;
+        }
+      }
+    }
+
+    const string* release_lts_tag_p =
+        ec->GetValue(dp_provider->var_release_lts_tag());
+    if (release_lts_tag_p) {
+      result->lts_tag = *release_lts_tag_p;
     }
   }
   return EvalStatus::kContinue;

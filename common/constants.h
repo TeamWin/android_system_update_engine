@@ -67,6 +67,7 @@ extern const char kPrefsP2PEnabled[];
 extern const char kPrefsP2PFirstAttemptTimestamp[];
 extern const char kPrefsP2PNumAttempts[];
 extern const char kPrefsPayloadAttemptNumber[];
+extern const char kPrefsTestUpdateCheckIntervalTimeout[];
 extern const char kPrefsPingActive[];
 extern const char kPrefsPingLastActive[];
 extern const char kPrefsPingLastRollcall[];
