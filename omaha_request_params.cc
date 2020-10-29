@@ -37,9 +37,11 @@
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_manager/policy.h"
 
 #define CALL_MEMBER_FN(object, member) ((object).*(member))
 
+using chromeos_update_manager::UpdateCheckParams;
 using std::string;
 
 namespace chromeos_update_engine {
@@ -59,9 +61,9 @@ OmahaRequestParams::~OmahaRequestParams() {
     test::SetImagePropertiesRootPrefix(nullptr);
 }
 
-bool OmahaRequestParams::Init(const string& in_app_version,
-                              const string& in_update_url,
-                              bool in_interactive) {
+bool OmahaRequestParams::Init(const string& app_version,
+                              const string& update_url,
+                              const UpdateCheckParams& params) {
   LOG(INFO) << "Initializing parameters for this update attempt";
   image_props_ = LoadImageProperties(system_state_);
   mutable_image_props_ = LoadMutableImageProperties(system_state_);
@@ -77,23 +79,19 @@ bool OmahaRequestParams::Init(const string& in_app_version,
 
   os_platform_ = constants::kOmahaPlatformName;
   if (!image_props_.system_version.empty()) {
-    if (in_app_version == "ForcedUpdate") {
-      image_props_.system_version = in_app_version;
+    if (app_version == "ForcedUpdate") {
+      image_props_.system_version = app_version;
     }
     os_version_ = image_props_.system_version;
   } else {
     os_version_ = OmahaRequestParams::kOsVersion;
   }
-  if (!in_app_version.empty())
-    image_props_.version = in_app_version;
+  if (!app_version.empty())
+    image_props_.version = app_version;
 
   os_sp_ = image_props_.version + "_" + GetMachineType();
   app_lang_ = "en-US";
   hwid_ = system_state_->hardware()->GetHardwareClass();
-  if (CollectECFWVersions()) {
-    fw_version_ = system_state_->hardware()->GetFirmwareVersion();
-    ec_version_ = system_state_->hardware()->GetECVersion();
-  }
   device_requisition_ = system_state_->hardware()->GetDeviceRequisition();
 
   if (image_props_.current_channel == mutable_image_props_.target_channel) {
@@ -115,31 +113,57 @@ bool OmahaRequestParams::Init(const string& in_app_version,
     delta_okay_ = false;
   }
 
-  if (in_update_url.empty())
+  if (update_url.empty())
     update_url_ = image_props_.omaha_url;
   else
-    update_url_ = in_update_url;
+    update_url_ = update_url;
 
   // Set the interactive flag accordingly.
-  interactive_ = in_interactive;
+  interactive_ = params.interactive;
 
   dlc_apps_params_.clear();
   // Set false so it will do update by default.
   is_install_ = false;
+
+  target_version_prefix_ = params.target_version_prefix;
+
+  lts_tag_ = params.lts_tag;
+
+  rollback_allowed_ = params.rollback_allowed;
+
+  // Set whether saving data over rollback is requested.
+  rollback_data_save_requested_ = params.rollback_data_save_requested;
+
+  // Set how many milestones of rollback are allowed.
+  rollback_allowed_milestones_ = params.rollback_allowed_milestones;
+
+  // Set the target channel, if one was provided.
+  if (params.target_channel.empty()) {
+    LOG(INFO) << "No target channel mandated by policy.";
+  } else {
+    LOG(INFO) << "Setting target channel as mandated: "
+              << params.target_channel;
+    string error_message;
+    if (!SetTargetChannel(params.target_channel,
+                          params.rollback_on_channel_downgrade,
+                          &error_message)) {
+      LOG(ERROR) << "Setting the channel failed: " << error_message;
+    }
+
+    // Since this is the beginning of a new attempt, update the download
+    // channel. The download channel won't be updated until the next attempt,
+    // even if target channel changes meanwhile, so that how we'll know if we
+    // should cancel the current download attempt if there's such a change in
+    // target channel.
+    UpdateDownloadChannel();
+  }
+
   return true;
 }
 
 bool OmahaRequestParams::IsUpdateUrlOfficial() const {
   return (update_url_ == constants::kOmahaDefaultAUTestURL ||
           update_url_ == image_props_.omaha_url);
-}
-
-bool OmahaRequestParams::CollectECFWVersions() const {
-  return base::StartsWith(
-             hwid_, string("PARROT"), base::CompareCase::SENSITIVE) ||
-         base::StartsWith(
-             hwid_, string("SPRING"), base::CompareCase::SENSITIVE) ||
-         base::StartsWith(hwid_, string("SNOW"), base::CompareCase::SENSITIVE);
 }
 
 bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,

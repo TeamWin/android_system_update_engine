@@ -108,8 +108,6 @@ TEST_F(OmahaRequestBuilderXmlTest, PlatformGetAppTest) {
   // in fact present in the <app ...></app>.
   const string app = omaha_request.GetApp(dlc_app_data);
   EXPECT_NE(string::npos, app.find("lang="));
-  EXPECT_NE(string::npos, app.find("fw_version="));
-  EXPECT_NE(string::npos, app.find("ec_version="));
   EXPECT_NE(string::npos, app.find("requisition="));
 }
 
@@ -132,8 +130,6 @@ TEST_F(OmahaRequestBuilderXmlTest, DlcGetAppTest) {
   // fact not present in the <app ...></app>.
   const string app = omaha_request.GetApp(dlc_app_data);
   EXPECT_EQ(string::npos, app.find("lang="));
-  EXPECT_EQ(string::npos, app.find("fw_version="));
-  EXPECT_EQ(string::npos, app.find("ec_version="));
   EXPECT_EQ(string::npos, app.find("requisition="));
 }
 
@@ -148,10 +144,10 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  const string request_xml = omaha_request.GetRequest();
+  const string kRequestXml = omaha_request.GetRequest();
   const string key = "requestid";
   const string request_id =
-      FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
+      FindAttributeKeyValueInXml(kRequestXml, key, kGuidSize);
   // A valid |request_id| is either a GUID version 4 or empty string.
   if (!request_id.empty())
     EXPECT_TRUE(base::IsValidGUID(request_id));
@@ -169,10 +165,10 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
                                        0,
                                        fake_system_state_.prefs(),
                                        gen_session_id};
-  const string request_xml = omaha_request.GetRequest();
+  const string kRequestXml = omaha_request.GetRequest();
   const string key = "sessionid";
   const string session_id =
-      FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
+      FindAttributeKeyValueInXml(kRequestXml, key, kGuidSize);
   // A valid |session_id| is either a GUID version 4 or empty string.
   if (!session_id.empty()) {
     EXPECT_TRUE(base::IsValidGUID(session_id));
@@ -191,9 +187,9 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateTest) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  const string request_xml = omaha_request.GetRequest();
-  EXPECT_EQ(1, CountSubstringInString(request_xml, "<updatecheck"))
-      << request_xml;
+  const string kRequestXml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(kRequestXml, "<updatecheck"))
+      << kRequestXml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateWithDlcsTest) {
@@ -210,9 +206,9 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateWithDlcsTest) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  const string request_xml = omaha_request.GetRequest();
-  EXPECT_EQ(3, CountSubstringInString(request_xml, "<updatecheck"))
-      << request_xml;
+  const string kRequestXml = omaha_request.GetRequest();
+  EXPECT_EQ(3, CountSubstringInString(kRequestXml, "<updatecheck"))
+      << kRequestXml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcInstallationTest) {
@@ -231,25 +227,25 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcInstallationTest) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  const string request_xml = omaha_request.GetRequest();
-  EXPECT_EQ(2, CountSubstringInString(request_xml, "<updatecheck"))
-      << request_xml;
+  const string kRequestXml = omaha_request.GetRequest();
+  EXPECT_EQ(2, CountSubstringInString(kRequestXml, "<updatecheck"))
+      << kRequestXml;
 
-  auto FindAppId = [request_xml](size_t pos) -> size_t {
-    return request_xml.find("<app appid", pos);
+  auto FindAppId = [kRequestXml](size_t pos) -> size_t {
+    return kRequestXml.find("<app appid", pos);
   };
   // Skip over the Platform AppID, which is always first.
   size_t pos = FindAppId(0);
   for (auto&& _ : dlcs) {
     (void)_;
-    EXPECT_NE(string::npos, (pos = FindAppId(pos + 1))) << request_xml;
+    EXPECT_NE(string::npos, (pos = FindAppId(pos + 1))) << kRequestXml;
     const string dlc_app_id_version = FindAttributeKeyValueInXml(
-        request_xml.substr(pos), "version", string(kNoVersion).size());
+        kRequestXml.substr(pos), "version", string(kNoVersion).size());
     EXPECT_EQ(kNoVersion, dlc_app_id_version);
 
     const string false_str = "false";
     const string dlc_app_id_delta_okay = FindAttributeKeyValueInXml(
-        request_xml.substr(pos), "delta_okay", false_str.length());
+        kRequestXml.substr(pos), "delta_okay", false_str.length());
     EXPECT_EQ(false_str, dlc_app_id_delta_okay);
   }
 }
@@ -267,8 +263,8 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcNoPing) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  const string request_xml = omaha_request.GetRequest();
-  EXPECT_EQ(0, CountSubstringInString(request_xml, "<ping")) << request_xml;
+  const string kRequestXml = omaha_request.GetRequest();
+  EXPECT_EQ(0, CountSubstringInString(kRequestXml, "<ping")) << kRequestXml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallNoActive) {
@@ -289,9 +285,9 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallNoActive) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  const string request_xml = omaha_request.GetRequest();
-  EXPECT_EQ(1, CountSubstringInString(request_xml, "<ping rd=\"36\""))
-      << request_xml;
+  const string kRequestXml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(kRequestXml, "<ping rd=\"36\""))
+      << kRequestXml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallAndActive) {
@@ -313,10 +309,93 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallAndActive) {
                                        0,
                                        fake_system_state_.prefs(),
                                        ""};
-  const string request_xml = omaha_request.GetRequest();
+  const string kRequestXml = omaha_request.GetRequest();
   EXPECT_EQ(1,
-            CountSubstringInString(request_xml,
+            CountSubstringInString(kRequestXml,
                                    "<ping active=\"1\" ad=\"25\" rd=\"36\""))
-      << request_xml;
+      << kRequestXml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlUpdateCompleteEvent) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  OmahaEvent event(OmahaEvent::kTypeUpdateComplete);
+  OmahaRequestBuilderXml omaha_request{&event,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string kRequestXml = omaha_request.GetRequest();
+  LOG(INFO) << kRequestXml;
+  EXPECT_EQ(
+      1,
+      CountSubstringInString(
+          kRequestXml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
+      << kRequestXml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest,
+       GetRequestXmlUpdateCompleteEventSomeDlcsExcluded) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_dlc_apps_params({
+      {omaha_request_params.GetDlcAppId("dlc_1"), {.updated = true}},
+      {omaha_request_params.GetDlcAppId("dlc_2"), {.updated = false}},
+  });
+  OmahaEvent event(OmahaEvent::kTypeUpdateComplete);
+  OmahaRequestBuilderXml omaha_request{&event,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string kRequestXml = omaha_request.GetRequest();
+  EXPECT_EQ(
+      2,
+      CountSubstringInString(
+          kRequestXml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
+      << kRequestXml;
+  EXPECT_EQ(
+      1,
+      CountSubstringInString(
+          kRequestXml,
+          "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"62\"></event>"))
+      << kRequestXml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest,
+       GetRequestXmlUpdateCompleteEventAllDlcsExcluded) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  omaha_request_params.set_dlc_apps_params({
+      {omaha_request_params.GetDlcAppId("dlc_1"), {.updated = false}},
+      {omaha_request_params.GetDlcAppId("dlc_2"), {.updated = false}},
+  });
+  OmahaEvent event(OmahaEvent::kTypeUpdateComplete);
+  OmahaRequestBuilderXml omaha_request{&event,
+                                       &omaha_request_params,
+                                       false,
+                                       false,
+                                       0,
+                                       0,
+                                       0,
+                                       fake_system_state_.prefs(),
+                                       ""};
+  const string kRequestXml = omaha_request.GetRequest();
+  EXPECT_EQ(
+      1,
+      CountSubstringInString(
+          kRequestXml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
+      << kRequestXml;
+  EXPECT_EQ(
+      2,
+      CountSubstringInString(
+          kRequestXml,
+          "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"62\"></event>"))
+      << kRequestXml;
 }
 }  // namespace chromeos_update_engine

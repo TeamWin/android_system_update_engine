@@ -34,7 +34,6 @@
 using android::dm::DmDeviceState;
 using android::snapshot::MockSnapshotManager;
 using chromeos_update_engine::test_utils::ScopedLoopbackDeviceBinder;
-using chromeos_update_engine::test_utils::ScopedTempFile;
 using std::string;
 using testing::_;
 using testing::AnyNumber;

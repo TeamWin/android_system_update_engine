@@ -69,13 +69,12 @@ bool WriteExtents(const string& part_path,
 // Create a fake filesystem of the given |size| and initialize the partition
 // holding it in the PartitionConfig |part|.
 void CreatePartition(PartitionConfig* part,
-                     const string& pattern,
+                     ScopedTempFile* part_file,
                      uint64_t block_size,
                      off_t size) {
-  int fd = -1;
-  ASSERT_TRUE(utils::MakeTempFile(pattern.c_str(), &part->path, &fd));
-  ASSERT_EQ(0, ftruncate(fd, size));
-  ASSERT_EQ(0, close(fd));
+  part->path = part_file->path();
+  ASSERT_EQ(0, ftruncate(part_file->fd(), size));
+  part_file->CloseFd();
   part->fs_interface.reset(new FakeFilesystem(block_size, size / block_size));
   part->size = size;
 }
@@ -112,30 +111,20 @@ class DeltaDiffUtilsTest : public ::testing::Test {
 
   void SetUp() override {
     CreatePartition(&old_part_,
-                    "DeltaDiffUtilsTest-old_part-XXXXXX",
+                    &old_part_file_,
                     block_size_,
                     block_size_ * kDefaultBlockCount);
     CreatePartition(&new_part_,
-                    "DeltaDiffUtilsTest-old_part-XXXXXX",
+                    &new_part_file_,
                     block_size_,
                     block_size_ * kDefaultBlockCount);
-    ASSERT_TRUE(utils::MakeTempFile(
-        "DeltaDiffUtilsTest-blob-XXXXXX", &blob_path_, &blob_fd_));
-  }
-
-  void TearDown() override {
-    unlink(old_part_.path.c_str());
-    unlink(new_part_.path.c_str());
-    if (blob_fd_ != -1)
-      close(blob_fd_);
-    unlink(blob_path_.c_str());
   }
 
   // Helper function to call DeltaMovedAndZeroBlocks() using this class' data
   // members. This simply avoids repeating all the arguments that never change.
   bool RunDeltaMovedAndZeroBlocks(ssize_t chunk_blocks,
                                   uint32_t minor_version) {
-    BlobFileWriter blob_file(blob_fd_, &blob_size_);
+    BlobFileWriter blob_file(tmp_blob_file_.fd(), &blob_size_);
     PayloadVersion version(kBrilloMajorPayloadVersion, minor_version);
     ExtentRanges old_zero_blocks;
     return diff_utils::DeltaMovedAndZeroBlocks(&aops_,
@@ -155,10 +144,11 @@ class DeltaDiffUtilsTest : public ::testing::Test {
   // with
   PartitionConfig old_part_{"part"};
   PartitionConfig new_part_{"part"};
+  ScopedTempFile old_part_file_{"DeltaDiffUtilsTest-old_part-XXXXXX", true};
+  ScopedTempFile new_part_file_{"DeltaDiffUtilsTest-new_part-XXXXXX", true};
 
   // The file holding the output blob from the various diff utils functions.
-  string blob_path_;
-  int blob_fd_{-1};
+  ScopedTempFile tmp_blob_file_{"DeltaDiffUtilsTest-blob-XXXXXX", true};
   off_t blob_size_{0};
 
   size_t block_size_{kBlockSize};
@@ -173,7 +163,7 @@ TEST_F(DeltaDiffUtilsTest, SkipVerityExtentsTest) {
   new_part_.verity.hash_tree_extent = ExtentForRange(20, 30);
   new_part_.verity.fec_extent = ExtentForRange(40, 50);
 
-  BlobFileWriter blob_file(blob_fd_, &blob_size_);
+  BlobFileWriter blob_file(tmp_blob_file_.fd(), &blob_size_);
   EXPECT_TRUE(diff_utils::DeltaReadPartition(
       &aops_,
       old_part_,

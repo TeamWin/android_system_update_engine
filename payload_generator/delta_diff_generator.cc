@@ -119,18 +119,10 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
   PayloadFile payload;
   TEST_AND_RETURN_FALSE(payload.Init(config));
 
-  const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
-  string temp_file_path;
-  int data_file_fd;
-  TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile(kTempFileTemplate, &temp_file_path, &data_file_fd));
-  ScopedPathUnlinker temp_file_unlinker(temp_file_path);
-  TEST_AND_RETURN_FALSE(data_file_fd >= 0);
-
+  ScopedTempFile data_file("CrAU_temp_data.XXXXXX", true);
   {
     off_t data_file_size = 0;
-    ScopedFdCloser data_file_fd_closer(&data_file_fd);
-    BlobFileWriter blob_file(data_file_fd, &data_file_size);
+    BlobFileWriter blob_file(data_file.fd(), &data_file_size);
     if (config.is_delta) {
       TEST_AND_RETURN_FALSE(config.source.partitions.size() ==
                             config.target.partitions.size());
@@ -190,11 +182,12 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
                                std::move(all_merge_sequences[i])));
     }
   }
+  data_file.CloseFd();
 
   LOG(INFO) << "Writing payload file...";
   // Write payload file to disk.
   TEST_AND_RETURN_FALSE(payload.WritePayload(
-      output_path, temp_file_path, private_key_path, metadata_size));
+      output_path, data_file.path(), private_key_path, metadata_size));
 
   LOG(INFO) << "All done. Successfully created delta file with "
             << "metadata size = " << *metadata_size;

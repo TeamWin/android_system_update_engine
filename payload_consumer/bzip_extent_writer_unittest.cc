@@ -49,7 +49,7 @@ class BzipExtentWriterTest : public ::testing::Test {
   void TearDown() override { fd_->Close(); }
 
   FileDescriptorPtr fd_;
-  test_utils::ScopedTempFile temp_file_{"BzipExtentWriterTest-file.XXXXXX"};
+  ScopedTempFile temp_file_{"BzipExtentWriterTest-file.XXXXXX"};
 };
 
 TEST_F(BzipExtentWriterTest, SimpleTest) {

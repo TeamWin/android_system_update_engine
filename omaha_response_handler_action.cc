@@ -188,10 +188,12 @@ void OmahaResponseHandlerAction::PerformAction() {
   }
 
   // Powerwash if either the response requires it or the parameters indicated
-  // powerwash and we are downgrading the version.
+  // powerwash (usually because there was a channel downgrade) and we are
+  // downgrading the version. Enterprise rollback, indicated by
+  // |response.is_rollback| is dealt with separately above.
   if (response.powerwash_required) {
     install_plan_.powerwash_required = true;
-  } else if (params->ShouldPowerwash()) {
+  } else if (params->ShouldPowerwash() && !response.is_rollback) {
     base::Version new_version(response.version);
     base::Version current_version(params->app_version());
 
@@ -205,6 +207,10 @@ void OmahaResponseHandlerAction::PerformAction() {
                    << " Current version number: " << params->app_version();
     } else if (new_version < current_version) {
       install_plan_.powerwash_required = true;
+      // Always try to preserve enrollment and wifi data for enrolled devices.
+      install_plan_.rollback_data_save_requested =
+          system_state_ && system_state_->device_policy() &&
+          system_state_->device_policy()->IsEnterpriseEnrolled();
     }
   }
 

@@ -35,8 +35,7 @@ namespace chromeos_update_engine {
 class FileWriterTest : public ::testing::Test {};
 
 TEST(FileWriterTest, SimpleTest) {
-  // Create a uniquely named file for testing.
-  test_utils::ScopedTempFile file("FileWriterTest-XXXXXX");
+  ScopedTempFile file("FileWriterTest-XXXXXX");
   DirectFileWriter file_writer;
   EXPECT_EQ(0,
             file_writer.Open(file.path().c_str(),
@@ -60,7 +59,7 @@ TEST(FileWriterTest, ErrorTest) {
 
 TEST(FileWriterTest, WriteErrorTest) {
   // Create a uniquely named file for testing.
-  test_utils::ScopedTempFile file("FileWriterTest-XXXXXX");
+  ScopedTempFile file("FileWriterTest-XXXXXX");
   DirectFileWriter file_writer;
   EXPECT_EQ(0,
             file_writer.Open(file.path().c_str(),

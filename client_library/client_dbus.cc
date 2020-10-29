@@ -16,7 +16,7 @@
 
 #include "update_engine/client_library/client_dbus.h"
 
-#include <base/message_loop/message_loop.h>
+#include <base/message_loop/message_loop_current.h>
 
 #include <memory>
 

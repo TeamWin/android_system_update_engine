@@ -40,7 +40,6 @@
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 
-using chromeos_update_engine::test_utils::ScopedTempFile;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -57,18 +56,8 @@ class PayloadPropertiesTest : public ::testing::Test {
     PayloadGenerationConfig config;
     config.version.major = kBrilloMajorPayloadVersion;
     config.version.minor = kSourceMinorPayloadVersion;
-    config.source.image_info.set_version("123.0.0");
-    config.target.image_info.set_version("456.7.8");
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
-
-    const string kTempFileTemplate = "temp_data.XXXXXX";
-    int data_file_fd;
-    string temp_file_path;
-    EXPECT_TRUE(
-        utils::MakeTempFile(kTempFileTemplate, &temp_file_path, &data_file_fd));
-    ScopedPathUnlinker temp_file_unlinker(temp_file_path);
-    EXPECT_LE(0, data_file_fd);
 
     const auto SetupPartitionConfig =
         [](PartitionConfig* config, const string& path, size_t size) {
@@ -79,8 +68,8 @@ class PayloadPropertiesTest : public ::testing::Test {
       string zeros(size, '\0');
       EXPECT_TRUE(utils::WriteFile(path, zeros.c_str(), zeros.size()));
     };
-    ScopedTempFile old_part_file;
-    ScopedTempFile new_part_file;
+    ScopedTempFile old_part_file("old_part.XXXXXX");
+    ScopedTempFile new_part_file("new_part.XXXXXX");
     PartitionConfig old_part(kPartitionNameRoot);
     PartitionConfig new_part(kPartitionNameRoot);
     SetupPartitionConfig(&old_part, old_part_file.path(), 0);
@@ -93,7 +82,8 @@ class PayloadPropertiesTest : public ::testing::Test {
 
     vector<AnnotatedOperation> aops;
     off_t data_file_size = 0;
-    BlobFileWriter blob_file_writer(data_file_fd, &data_file_size);
+    ScopedTempFile data_file("temp_data.XXXXXX", true);
+    BlobFileWriter blob_file_writer(data_file.fd(), &data_file_size);
     // Generate the operations using the strategy we selected above.
     EXPECT_TRUE(strategy->GenerateOperations(
         config, old_part, new_part, &blob_file_writer, &aops));
@@ -102,10 +92,10 @@ class PayloadPropertiesTest : public ::testing::Test {
 
     uint64_t metadata_size;
     EXPECT_TRUE(payload.WritePayload(
-        payload_file.path(), temp_file_path, "", &metadata_size));
+        payload_file_.path(), data_file.path(), "", &metadata_size));
   }
 
-  ScopedTempFile payload_file;
+  ScopedTempFile payload_file_{"payload_file.XXXXXX"};
 };
 
 // Validate the hash of file exists within the output.
@@ -114,28 +104,26 @@ TEST_F(PayloadPropertiesTest, GetPropertiesAsJsonTestHash) {
       "{"
       R"("is_delta":true,)"
       R"("metadata_signature":"",)"
-      R"("metadata_size":187,)"
-      R"("sha256_hex":"Rtrj9v3xXhrAi1741HAojtGxAQEOZ7mDyhzskIF4PJc=",)"
-      R"("size":233,)"
-      R"("source_version":"123.0.0",)"
-      R"("target_version":"456.7.8",)"
+      R"("metadata_size":165,)"
+      R"("sha256_hex":"cV7kfZBH3K0B6QJHxxykDh6b6x0WgVOmc63whPLOy7U=",)"
+      R"("size":211,)"
       R"("version":2)"
       "}";
   string json;
   EXPECT_TRUE(
-      PayloadProperties(payload_file.path()).GetPropertiesAsJson(&json));
+      PayloadProperties(payload_file_.path()).GetPropertiesAsJson(&json));
   EXPECT_EQ(kJsonProperties, json) << "JSON contents:\n" << json;
 }
 
 // Validate the hash of file and metadata are within the output.
 TEST_F(PayloadPropertiesTest, GetPropertiesAsKeyValueTestHash) {
   constexpr char kKeyValueProperties[] =
-      "FILE_HASH=Rtrj9v3xXhrAi1741HAojtGxAQEOZ7mDyhzskIF4PJc=\n"
-      "FILE_SIZE=233\n"
-      "METADATA_HASH=kiXTexy/s2aPttf4+r8KRZWYZ6FYvwhU6rJGcnnI+U0=\n"
-      "METADATA_SIZE=187\n";
+      "FILE_HASH=cV7kfZBH3K0B6QJHxxykDh6b6x0WgVOmc63whPLOy7U=\n"
+      "FILE_SIZE=211\n"
+      "METADATA_HASH=aEKYyzJt2E8Gz8fzB+gmekN5mriotZCSq6R+kDfdeV4=\n"
+      "METADATA_SIZE=165\n";
   string key_value;
-  EXPECT_TRUE(PayloadProperties{payload_file.path()}.GetPropertiesAsKeyValue(
+  EXPECT_TRUE(PayloadProperties{payload_file_.path()}.GetPropertiesAsKeyValue(
       &key_value));
   EXPECT_EQ(kKeyValueProperties, key_value) << "Key Value contents:\n"
                                             << key_value;

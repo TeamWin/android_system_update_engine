@@ -103,7 +103,6 @@ bool PartitionConfig::OpenFilesystem() {
 }
 
 bool ImageConfig::ValidateIsEmpty() const {
-  TEST_AND_RETURN_FALSE(ImageInfoIsEmpty());
   return partitions.empty();
 }
 
@@ -215,13 +214,6 @@ bool ImageConfig::ValidateDynamicPartitionMetadata() const {
   return true;
 }
 
-bool ImageConfig::ImageInfoIsEmpty() const {
-  return image_info.board().empty() && image_info.key().empty() &&
-         image_info.channel().empty() && image_info.version().empty() &&
-         image_info.build_channel().empty() &&
-         image_info.build_version().empty();
-}
-
 PayloadVersion::PayloadVersion(uint64_t major_version, uint32_t minor_version) {
   major = major_version;
   minor = minor_version;
@@ -293,9 +285,6 @@ bool PayloadGenerationConfig::Validate() const {
       TEST_AND_RETURN_FALSE(part.verity.IsEmpty());
     }
 
-    // If new_image_info is present, old_image_info must be present.
-    TEST_AND_RETURN_FALSE(source.ImageInfoIsEmpty() ==
-                          target.ImageInfoIsEmpty());
   } else {
     // All the "source" image fields must be empty for full payloads.
     TEST_AND_RETURN_FALSE(source.ValidateIsEmpty());

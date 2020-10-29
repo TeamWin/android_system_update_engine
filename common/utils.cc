@@ -112,27 +112,6 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
 
 namespace utils {
 
-string ParseECVersion(string input_line) {
-  base::TrimWhitespaceASCII(input_line, base::TRIM_ALL, &input_line);
-
-  // At this point we want to convert the format key=value pair from mosys to
-  // a vector of key value pairs.
-  vector<pair<string, string>> kv_pairs;
-  if (base::SplitStringIntoKeyValuePairs(input_line, '=', ' ', &kv_pairs)) {
-    for (const pair<string, string>& kv_pair : kv_pairs) {
-      // Finally match against the fw_verion which may have quotes.
-      if (kv_pair.first == "fw_version") {
-        string output;
-        // Trim any quotes.
-        base::TrimString(kv_pair.second, "\"", &output);
-        return output;
-      }
-    }
-  }
-  LOG(ERROR) << "Unable to parse fwid from ec info.";
-  return "";
-}
-
 bool WriteFile(const char* path, const void* data, size_t data_len) {
   int fd = HANDLE_EINTR(open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600));
   TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
@@ -908,6 +887,25 @@ bool ReadExtents(const string& path,
   }
   TEST_AND_RETURN_FALSE(out_data_size == bytes_read);
   *out_data = data;
+  return true;
+}
+
+bool GetVpdValue(string key, string* result) {
+  int exit_code = 0;
+  string value, error;
+  vector<string> cmd = {"vpd_get_value", key};
+  if (!chromeos_update_engine::Subprocess::SynchronousExec(
+          cmd, &exit_code, &value, &error) ||
+      exit_code) {
+    LOG(ERROR) << "Failed to get vpd key for " << value
+               << " with exit code: " << exit_code << " and error: " << error;
+    return false;
+  } else if (!error.empty()) {
+    LOG(INFO) << "vpd_get_value succeeded but with following errors: " << error;
+  }
+
+  base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
+  *result = value;
   return true;
 }
 

@@ -98,8 +98,8 @@ void InstallPlan::Dump() const {
             << version_str
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
-            << ", initial url: " << url_str << payloads_str
-            << partitions_str << ", hash_checks_mandatory: "
+            << ", initial url: " << url_str << payloads_str << partitions_str
+            << ", hash_checks_mandatory: "
             << utils::ToString(hash_checks_mandatory)
             << ", powerwash_required: " << utils::ToString(powerwash_required)
             << ", switch_slot_on_reboot: "

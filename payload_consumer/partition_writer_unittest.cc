@@ -81,14 +81,14 @@ class PartitionWriterTest : public testing::Test {
 
   brillo::Blob PerformSourceCopyOp(const InstallOperation& op,
                                    const brillo::Blob blob_data) {
-    test_utils::ScopedTempFile source_partition("Blob-XXXXXX");
+    ScopedTempFile source_partition("Blob-XXXXXX");
     DirectExtentWriter extent_writer;
     FileDescriptorPtr fd(new EintrSafeFileDescriptor());
     EXPECT_TRUE(fd->Open(source_partition.path().c_str(), O_RDWR));
     EXPECT_TRUE(extent_writer.Init(fd, op.src_extents(), kBlockSize));
     EXPECT_TRUE(extent_writer.Write(blob_data.data(), blob_data.size()));
 
-    test_utils::ScopedTempFile target_partition("Blob-XXXXXX");
+    ScopedTempFile target_partition("Blob-XXXXXX");
 
     install_part_.source_path = source_partition.path();
     install_part_.target_path = target_partition.path();
@@ -120,7 +120,7 @@ class PartitionWriterTest : public testing::Test {
 // file descriptor when the size of the error corrected one is too small.
 TEST_F(PartitionWriterTest, ErrorCorrectionSourceCopyWhenNoHashFallbackTest) {
   constexpr size_t kCopyOperationSize = 4 * 4096;
-  test_utils::ScopedTempFile source("Source-XXXXXX");
+  ScopedTempFile source("Source-XXXXXX");
   // Setup the source path with the right expected data.
   brillo::Blob expected_data = FakeFileDescriptorData(kCopyOperationSize);
   EXPECT_TRUE(test_utils::WriteFileVector(source.path(), expected_data));
@@ -172,7 +172,7 @@ TEST_F(PartitionWriterTest, ErrorCorrectionSourceCopyFallbackTest) {
 
 TEST_F(PartitionWriterTest, ChooseSourceFDTest) {
   constexpr size_t kSourceSize = 4 * 4096;
-  test_utils::ScopedTempFile source("Source-XXXXXX");
+  ScopedTempFile source("Source-XXXXXX");
   // Write invalid data to the source image, which doesn't match the expected
   // hash.
   brillo::Blob invalid_data(kSourceSize, 0x55);

@@ -156,6 +156,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kUnresolvedHostRecovered:
     case ErrorCode::kNotEnoughSpace:
     case ErrorCode::kDeviceCorrupted:
+    case ErrorCode::kPackageExcludedFromUpdate:
       LOG(INFO) << "Not changing URL index or failure count due to error "
                 << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
@@ -216,9 +217,11 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
   // Set the default return values.
   result->updates_enabled = true;
   result->target_channel.clear();
+  result->lts_tag.clear();
   result->target_version_prefix.clear();
   result->rollback_allowed = false;
   result->rollback_allowed_milestones = -1;
+  result->rollback_on_channel_downgrade = false;
   result->interactive = false;
 
   EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;

@@ -39,7 +39,7 @@ class VerityWriterAndroidTest : public ::testing::Test {
 
   VerityWriterAndroid verity_writer_;
   InstallPlan::Partition partition_;
-  test_utils::ScopedTempFile temp_file_;
+  ScopedTempFile temp_file_;
 };
 
 TEST_F(VerityWriterAndroidTest, SimpleTest) {

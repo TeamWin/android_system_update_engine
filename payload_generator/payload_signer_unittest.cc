@@ -167,7 +167,7 @@ TEST_F(PayloadSignerTest, VerifySignatureTest) {
 }
 
 TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
-  test_utils::ScopedTempFile payload_file("payload.XXXXXX");
+  ScopedTempFile payload_file("payload.XXXXXX");
   PayloadGenerationConfig config;
   config.version.major = kBrilloMajorPayloadVersion;
   PayloadFile payload;
@@ -194,7 +194,7 @@ TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
 }
 
 TEST_F(PayloadSignerTest, VerifySignedPayloadTest) {
-  test_utils::ScopedTempFile payload_file("payload.XXXXXX");
+  ScopedTempFile payload_file("payload.XXXXXX");
   PayloadGenerationConfig config;
   config.version.major = kBrilloMajorPayloadVersion;
   PayloadFile payload;

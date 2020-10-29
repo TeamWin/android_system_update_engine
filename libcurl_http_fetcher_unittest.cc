@@ -100,7 +100,6 @@ TEST_F(LibcurlHttpFetcherTest, CouldNotResolveHostTest) {
 
   libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
 
-#ifdef __ANDROID__
   // It's slower on Android that libcurl handle may not finish within 1 cycle.
   // Will need to wait for more cycles until it finishes. Original test didn't
   // correctly handle when we need to re-watch libcurl fds.
@@ -108,10 +107,7 @@ TEST_F(LibcurlHttpFetcherTest, CouldNotResolveHostTest) {
          libcurl_fetcher_.GetAuxiliaryErrorCode() == ErrorCode::kSuccess) {
     loop_.RunOnce(true);
   }
-#else
-  // The first time it can't resolve.
-  loop_.RunOnce(true);
-#endif
+
   EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
             ErrorCode::kUnresolvedHostError);
 
@@ -141,7 +137,6 @@ TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
   // easier to mock the part that depends on internet connectivity.
   libcurl_fetcher_.BeginTransfer("https://An-uNres0lvable-uRl.invalid");
 
-#ifdef __ANDROID__
   // It's slower on Android that libcurl handle may not finish within 1 cycle.
   // Will need to wait for more cycles until it finishes. Original test didn't
   // correctly handle when we need to re-watch libcurl fds.
@@ -149,10 +144,7 @@ TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
          libcurl_fetcher_.GetAuxiliaryErrorCode() == ErrorCode::kSuccess) {
     loop_.RunOnce(true);
   }
-#else
-  // The first time it can't resolve.
-  loop_.RunOnce(true);
-#endif
+
   EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
             ErrorCode::kUnresolvedHostError);
 
@@ -165,7 +157,6 @@ TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
           [this]() { libcurl_fetcher_.http_response_code_ = 0; }));
   libcurl_fetcher_.transfer_size_ = 10;
 
-#ifdef __ANDROID__
   // It's slower on Android that libcurl handle may not finish within 1 cycle.
   // Will need to wait for more cycles until it finishes. Original test didn't
   // correctly handle when we need to re-watch libcurl fds.
@@ -173,11 +164,7 @@ TEST_F(LibcurlHttpFetcherTest, HostResolvedTest) {
                                      ErrorCode::kUnresolvedHostError) {
     loop_.RunOnce(true);
   }
-#else
-  // This time the host is resolved. But after that again we can't resolve
-  // anymore (See above).
-  loop_.RunOnce(true);
-#endif
+
   EXPECT_EQ(libcurl_fetcher_.GetAuxiliaryErrorCode(),
             ErrorCode::kUnresolvedHostRecovered);
 

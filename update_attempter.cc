@@ -244,15 +244,7 @@ void UpdateAttempter::ReportOSAge() {
   system_state_->metrics_reporter()->ReportDailyMetrics(age);
 }
 
-void UpdateAttempter::Update(const string& app_version,
-                             const string& omaha_url,
-                             const string& target_channel,
-                             const string& target_version_prefix,
-                             bool rollback_allowed,
-                             bool rollback_data_save_requested,
-                             int rollback_allowed_milestones,
-                             bool obey_proxies,
-                             bool interactive) {
+void UpdateAttempter::Update(const UpdateCheckParams& params) {
   // This is normally called frequently enough so it's appropriate to use as a
   // hook for reporting daily metrics.
   // TODO(garnold) This should be hooked to a separate (reliable and consistent)
@@ -281,19 +273,11 @@ void UpdateAttempter::Update(const string& app_version,
     return;
   }
 
-  if (!CalculateUpdateParams(app_version,
-                             omaha_url,
-                             target_channel,
-                             target_version_prefix,
-                             rollback_allowed,
-                             rollback_data_save_requested,
-                             rollback_allowed_milestones,
-                             obey_proxies,
-                             interactive)) {
+  if (!CalculateUpdateParams(params)) {
     return;
   }
 
-  BuildUpdateActions(interactive);
+  BuildUpdateActions(params.interactive);
 
   SetStatusAndNotify(UpdateStatus::CHECKING_FOR_UPDATE);
 
@@ -356,15 +340,7 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
   payload_state->SetUsingP2PForSharing(use_p2p_for_sharing);
 }
 
-bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
-                                            const string& omaha_url,
-                                            const string& target_channel,
-                                            const string& target_version_prefix,
-                                            bool rollback_allowed,
-                                            bool rollback_data_save_requested,
-                                            int rollback_allowed_milestones,
-                                            bool obey_proxies,
-                                            bool interactive) {
+bool UpdateAttempter::CalculateUpdateParams(const UpdateCheckParams& params) {
   http_response_code_ = 0;
   PayloadStateInterface* const payload_state = system_state_->payload_state();
 
@@ -375,27 +351,13 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   // policy is available again.
   UpdateRollbackHappened();
 
-  // Update the target version prefix.
-  omaha_request_params_->set_target_version_prefix(target_version_prefix);
-
-  // Set whether rollback is allowed.
-  omaha_request_params_->set_rollback_allowed(rollback_allowed);
-
-  // Set whether saving data over rollback is requested.
-  omaha_request_params_->set_rollback_data_save_requested(
-      rollback_data_save_requested);
-
-  CalculateStagingParams(interactive);
+  CalculateStagingParams(params.interactive);
   // If staging_wait_time_ wasn't set, staging is off, use scattering instead.
   if (staging_wait_time_.InSeconds() == 0) {
-    CalculateScatteringParams(interactive);
+    CalculateScatteringParams(params.interactive);
   }
 
-  // Set how many milestones of rollback are allowed.
-  omaha_request_params_->set_rollback_allowed_milestones(
-      rollback_allowed_milestones);
-
-  CalculateP2PParams(interactive);
+  CalculateP2PParams(params.interactive);
   if (payload_state->GetUsingP2PForDownloading() ||
       payload_state->GetUsingP2PForSharing()) {
     // OK, p2p is to be used - start it and perform housekeeping.
@@ -408,30 +370,10 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     }
   }
 
-  if (!omaha_request_params_->Init(app_version, omaha_url, interactive)) {
+  if (!omaha_request_params_->Init(
+          forced_app_version_, forced_omaha_url_, params)) {
     LOG(ERROR) << "Unable to initialize Omaha request params.";
     return false;
-  }
-
-  // Set the target channel, if one was provided.
-  if (target_channel.empty()) {
-    LOG(INFO) << "No target channel mandated by policy.";
-  } else {
-    LOG(INFO) << "Setting target channel as mandated: " << target_channel;
-    // Pass in false for powerwash_allowed until we add it to the policy
-    // protobuf.
-    string error_message;
-    if (!omaha_request_params_->SetTargetChannel(
-            target_channel, false, &error_message)) {
-      LOG(ERROR) << "Setting the channel failed: " << error_message;
-    }
-
-    // Since this is the beginning of a new attempt, update the download
-    // channel. The download channel won't be updated until the next attempt,
-    // even if target channel changes meanwhile, so that how we'll know if we
-    // should cancel the current download attempt if there's such a change in
-    // target channel.
-    omaha_request_params_->UpdateDownloadChannel();
   }
 
   // The function |CalculateDlcParams| makes use of the function |GetAppId| from
@@ -440,8 +382,6 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   // |image_props_.product_id| and |image_props_.canary_product_id| from
   // |omaha_request_params_| shall be made below this line.
   CalculateDlcParams();
-
-  omaha_request_params_->set_is_install(is_install_);
 
   // Set Quick Fix Build token if policy is set and the device is enterprise
   // enrolled.
@@ -473,7 +413,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
             << payload_state->GetUsingP2PForSharing();
 
   obeying_proxies_ = true;
-  if (obey_proxies || proxy_manual_checks_ == 0) {
+  if (proxy_manual_checks_ == 0) {
     LOG(INFO) << "forced to obey proxies";
     // If forced to obey proxies, every 20th request will not use proxies
     proxy_manual_checks_++;
@@ -760,6 +700,7 @@ void UpdateAttempter::CalculateDlcParams() {
     dlc_apps_params[omaha_request_params_->GetDlcAppId(dlc_id)] = dlc_params;
   }
   omaha_request_params_->set_dlc_apps_params(dlc_apps_params);
+  omaha_request_params_->set_is_install(is_install_);
 }
 
 void UpdateAttempter::BuildUpdateActions(bool interactive) {
@@ -874,7 +815,7 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   processor_->set_delegate(this);
 
   // Initialize the default request params.
-  if (!omaha_request_params_->Init("", "", true)) {
+  if (!omaha_request_params_->Init("", "", {.interactive = true})) {
     LOG(ERROR) << "Unable to initialize Omaha request params.";
     return false;
   }
@@ -1100,15 +1041,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
     LOG(INFO) << "Update attempt flags in use = 0x" << std::hex
               << current_update_attempt_flags_;
 
-    Update(forced_app_version_,
-           forced_omaha_url_,
-           params.target_channel,
-           params.target_version_prefix,
-           params.rollback_allowed,
-           params.rollback_data_save_requested,
-           params.rollback_allowed_milestones,
-           /*obey_proxies=*/false,
-           params.interactive);
+    Update(params);
     // Always clear the forced app_version and omaha_url after an update attempt
     // so the next update uses the defaults.
     forced_app_version_.clear();
