@@ -75,7 +75,6 @@ void OmahaResponseHandlerAction::PerformAction() {
   // |OmahaRequestAction| and keep the enforcement of exclusions for updates.
   install_plan_.download_url = current_url;
   install_plan_.version = response.version;
-  install_plan_.system_version = response.system_version;
 
   OmahaRequestParams* const params = system_state_->request_params();
   PayloadStateInterface* const payload_state = system_state_->payload_state();

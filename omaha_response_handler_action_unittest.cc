@@ -919,7 +919,6 @@ TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {
   OmahaResponse in;
   in.update_exists = true;
   in.version = "a.b.c.d";
-  in.system_version = "b.c.d.e";
   in.packages.push_back({.payload_urls = {"http://package/1"},
                          .size = 1,
                          .hash = kPayloadHashHex});
@@ -936,7 +935,6 @@ TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
   EXPECT_EQ(expected_hash_, install_plan.payloads[1].hash);
   EXPECT_EQ(in.version, install_plan.version);
-  EXPECT_EQ(in.system_version, install_plan.system_version);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, TestDeferredByPolicy) {

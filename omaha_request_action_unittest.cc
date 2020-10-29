@@ -648,7 +648,6 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
 
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
-  EXPECT_EQ("", response.system_version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
             response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
@@ -711,32 +710,6 @@ TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
   EXPECT_EQ(false, response.packages[1].is_delta);
 }
 
-TEST_F(OmahaRequestActionTest, MultiAppAndSystemUpdateTest) {
-  fake_update_response_.multi_app = true;
-  // Trigger the lining up of the app and system versions.
-  request_params_.set_system_app_id(fake_update_response_.app_id2);
-  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
-
-  ASSERT_TRUE(TestUpdateCheck());
-
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(fake_update_response_.version, response.version);
-  EXPECT_EQ(fake_update_response_.version2, response.system_version);
-  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
-            response.packages[0].payload_urls[0]);
-  EXPECT_EQ(fake_update_response_.codebase2 + "package3",
-            response.packages[1].payload_urls[0]);
-  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
-  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
-  EXPECT_EQ(11u, response.packages[0].metadata_size);
-  EXPECT_EQ(true, response.packages[0].is_delta);
-  ASSERT_EQ(2u, response.packages.size());
-  EXPECT_EQ(string("hash3"), response.packages[1].hash);
-  EXPECT_EQ(333u, response.packages[1].size);
-  EXPECT_EQ(33u, response.packages[1].metadata_size);
-  EXPECT_EQ(false, response.packages[1].is_delta);
-}
-
 TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
   fake_update_response_.multi_app = true;
   fake_update_response_.multi_app_self_update = true;
@@ -746,7 +719,6 @@ TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
 
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
-  EXPECT_EQ("", response.system_version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
             response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
@@ -768,7 +740,6 @@ TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
 
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
-  EXPECT_EQ("", response.system_version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
             response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.codebase + "package2",

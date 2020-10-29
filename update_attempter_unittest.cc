@@ -1722,7 +1722,6 @@ TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
   // but the update is being deferred by the Policy.
   OmahaResponseHandlerAction response_action(&fake_system_state_);
   response_action.install_plan_.version = "a.b.c.d";
-  response_action.install_plan_.system_version = "b.c.d.e";
   response_action.install_plan_.payloads.push_back(
       {.size = 1234ULL, .type = InstallPayloadType::kFull});
   // Inform the UpdateAttempter that the OmahaResponseHandlerAction has

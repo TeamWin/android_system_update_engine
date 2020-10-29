@@ -865,11 +865,6 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
     if (app.id == params_->GetAppId()) {
       // this is the app (potentially the only app)
       output_object->version = app.manifest_version;
-    } else if (!params_->system_app_id().empty() &&
-               app.id == params_->system_app_id()) {
-      // this is the system app (this check is intentionally skipped if there is
-      // no system_app_id set)
-      output_object->system_version = app.manifest_version;
     } else if (params_->is_install() &&
                app.manifest_version != params_->app_version()) {
       LOG(WARNING) << "An app has a different version (" << app.manifest_version

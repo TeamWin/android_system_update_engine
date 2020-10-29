@@ -422,16 +422,6 @@ string OmahaRequestBuilderXml::GetApps() const {
       .app_params = {.active_counting_type = OmahaRequestParams::kDayBased,
                      .send_ping = include_ping_}};
   app_xml += GetApp(product_app);
-  if (!params_->system_app_id().empty()) {
-    OmahaAppData system_app = {
-        .id = params_->system_app_id(),
-        .version = params_->system_version(),
-        .skip_update = false,
-        .is_dlc = false,
-        .app_params = {.active_counting_type = OmahaRequestParams::kDayBased,
-                       .send_ping = include_ping_}};
-    app_xml += GetApp(system_app);
-  }
   for (const auto& it : params_->dlc_apps_params()) {
     OmahaAppData dlc_app_data = {
         .id = it.first,

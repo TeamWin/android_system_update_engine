@@ -78,14 +78,7 @@ bool OmahaRequestParams::Init(const string& app_version,
   LOG(INFO) << "Running from channel " << image_props_.current_channel;
 
   os_platform_ = constants::kOmahaPlatformName;
-  if (!image_props_.system_version.empty()) {
-    if (app_version == "ForcedUpdate") {
-      image_props_.system_version = app_version;
-    }
-    os_version_ = image_props_.system_version;
-  } else {
-    os_version_ = OmahaRequestParams::kOsVersion;
-  }
+  os_version_ = OmahaRequestParams::kOsVersion;
   if (!app_version.empty())
     image_props_.version = app_version;
 
