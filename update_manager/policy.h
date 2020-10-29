@@ -43,26 +43,32 @@ std::string ToString(EvalStatus status);
 // Parameters of an update check. These parameters are determined by the
 // UpdateCheckAllowed policy.
 struct UpdateCheckParams {
-  bool updates_enabled;  // Whether the auto-updates are enabled on this build.
+  // Whether the auto-updates are enabled on this build.
+  bool updates_enabled{true};
 
   // Attributes pertaining to the case where update checks are allowed.
   //
   // A target version prefix, if imposed by policy; otherwise, an empty string.
   std::string target_version_prefix;
   // Specifies whether rollback images are allowed by device policy.
-  bool rollback_allowed;
+  bool rollback_allowed{false};
   // Specifies if rollbacks should attempt to preserve some system state.
-  bool rollback_data_save_requested;
+  bool rollback_data_save_requested{false};
   // Specifies the number of Chrome milestones rollback should be allowed,
   // starting from the stable version at any time. Value is -1 if unspecified
   // (e.g. no device policy is available yet), in this case no version
   // roll-forward should happen.
-  int rollback_allowed_milestones;
+  int rollback_allowed_milestones{0};
+  // Whether a rollback with data save should be initiated on channel
+  // downgrade (e.g. beta to stable).
+  bool rollback_on_channel_downgrade{false};
   // A target channel, if so imposed by policy; otherwise, an empty string.
   std::string target_channel;
+  // Specifies if the channel hint, e.g. LTS (Long Term Support) updates.
+  std::string lts_tag;
 
   // Whether the allowed update is interactive (user-initiated) or periodic.
-  bool interactive;
+  bool interactive{false};
 };
 
 // Input arguments to UpdateCanStart.

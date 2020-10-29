@@ -30,6 +30,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/image_properties.h"
+#include "update_engine/update_manager/policy.h"
 
 // This gathers local system information and prepares info used by the
 // Omaha request action.
@@ -103,8 +104,6 @@ class OmahaRequestParams {
   }
   inline std::string app_lang() const { return app_lang_; }
   inline std::string hwid() const { return hwid_; }
-  inline std::string fw_version() const { return fw_version_; }
-  inline std::string ec_version() const { return ec_version_; }
   inline std::string device_requisition() const { return device_requisition_; }
 
   inline void set_app_version(const std::string& version) {
@@ -147,6 +146,10 @@ class OmahaRequestParams {
   inline std::string target_version_prefix() const {
     return target_version_prefix_;
   }
+
+  inline std::string lts_tag() const { return lts_tag_; }
+
+  inline void set_lts_tag(const std::string& hint) { lts_tag_ = hint; }
 
   inline void set_rollback_allowed(bool rollback_allowed) {
     rollback_allowed_ = rollback_allowed;
@@ -245,7 +248,7 @@ class OmahaRequestParams {
   // of the parameter. Returns true on success, false otherwise.
   bool Init(const std::string& in_app_version,
             const std::string& in_update_url,
-            bool in_interactive);
+            const chromeos_update_manager::UpdateCheckParams& params);
 
   // Permanently changes the release channel to |channel|. Performs a
   // powerwash, if required and allowed.
@@ -289,22 +292,19 @@ class OmahaRequestParams {
   }
   void set_app_lang(const std::string& app_lang) { app_lang_ = app_lang; }
   void set_hwid(const std::string& hwid) { hwid_ = hwid; }
-  void set_fw_version(const std::string& fw_version) {
-    fw_version_ = fw_version;
-  }
-  void set_ec_version(const std::string& ec_version) {
-    ec_version_ = ec_version;
-  }
   void set_is_powerwash_allowed(bool powerwash_allowed) {
     mutable_image_props_.is_powerwash_allowed = powerwash_allowed;
   }
+  bool is_powerwash_allowed() {
+    return mutable_image_props_.is_powerwash_allowed;
+  }
+
   void set_device_requisition(const std::string& requisition) {
     device_requisition_ = requisition;
   }
 
  private:
   FRIEND_TEST(OmahaRequestParamsTest, ChannelIndexTest);
-  FRIEND_TEST(OmahaRequestParamsTest, CollectECFWVersionsTest);
   FRIEND_TEST(OmahaRequestParamsTest, IsValidChannelTest);
   FRIEND_TEST(OmahaRequestParamsTest, SetIsPowerwashAllowedTest);
   FRIEND_TEST(OmahaRequestParamsTest, SetTargetChannelInvalidTest);
@@ -326,10 +326,6 @@ class OmahaRequestParams {
   // True if we're trying to update to a more stable channel.
   // i.e. index(target_channel) > index(current_channel).
   bool ToMoreStableChannel() const;
-
-  // Returns True if we should store the fw/ec versions based on our hwid_.
-  // Compares hwid to a set of prefixes in the allowlist.
-  bool CollectECFWVersions() const;
 
   // Gets the machine type (e.g. "i686").
   std::string GetMachineType() const;
@@ -367,14 +363,15 @@ class OmahaRequestParams {
   //   changed and cancel the current download attempt.
   std::string download_channel_;
 
+  // The value defining the parameters of the LTS (Long Term Support).
+  std::string lts_tag_;
+
   std::string hwid_;        // Hardware Qualification ID of the client
-  std::string fw_version_;  // Chrome OS Firmware Version.
-  std::string ec_version_;  // Chrome OS EC Version.
   // TODO(b:133324571) tracks removal of this field once it is no longer
   // needed in AU requests. Remove by October 1st 2019.
   std::string device_requisition_;  // Chrome OS Requisition type.
-  bool delta_okay_;         // If this client can accept a delta
-  bool interactive_;        // Whether this is a user-initiated update check
+  bool delta_okay_;                 // If this client can accept a delta
+  bool interactive_;  // Whether this is a user-initiated update check
 
   // The URL to send the Omaha request to.
   std::string update_url_;

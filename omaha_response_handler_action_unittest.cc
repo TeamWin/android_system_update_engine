@@ -176,7 +176,7 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
-  test_utils::ScopedTempFile test_deadline_file(
+  ScopedTempFile test_deadline_file(
       "omaha_response_handler_action_unittest-XXXXXX");
   {
     OmahaResponse in;
@@ -529,6 +529,132 @@ TEST_F(OmahaResponseHandlerActionTest,
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
+}
+
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableChannelButSameVersionTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "12345.0.0.0";
+  in.packages.push_back({.payload_urls = {"https://ChannelDownVersionUp"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("beta-channel");
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("12345.0.0.0");
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.powerwash_required);
+  EXPECT_FALSE(install_plan.rollback_data_save_requested);
+}
+
+// On an enrolled device, the rollback data restore should be attempted when
+// doing a powerwash and channel downgrade.
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableChannelEnrolledDataRestore) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "12345.96.0.0";
+  in.packages.push_back({.payload_urls = {"https://ChannelDownEnrolled"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("beta-channel");
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("12347.48.0.0");
+
+  testing::NiceMock<policy::MockDevicePolicy> mock_device_policy;
+  EXPECT_CALL(mock_device_policy, IsEnterpriseEnrolled())
+      .WillOnce(Return(true));
+  fake_system_state_.set_device_policy(&mock_device_policy);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_TRUE(install_plan.rollback_data_save_requested);
+}
+
+// Never attempt rollback data restore if the device is not enrolled.
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableChannelUnenrolledNoDataRestore) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "12345.96.0.0";
+  in.packages.push_back({.payload_urls = {"https://ChannelDownEnrolled"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("beta-channel");
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("12347.48.0.0");
+
+  testing::NiceMock<policy::MockDevicePolicy> mock_device_policy;
+  EXPECT_CALL(mock_device_policy, IsEnterpriseEnrolled())
+      .WillOnce(Return(false));
+  fake_system_state_.set_device_policy(&mock_device_policy);
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.rollback_data_save_requested);
+}
+
+// Never attempt rollback data restore if powerwash is not allowed.
+TEST_F(OmahaResponseHandlerActionTest,
+       ChangeToMoreStableChannelNoPowerwashNoDataRestore) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "12345.96.0.0";
+  in.packages.push_back(
+      {.payload_urls = {"https://URL"}, .size = 1, .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+
+  // Create a uniquely named test directory.
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+
+  OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  params.set_root(tempdir.GetPath().value());
+  params.set_current_channel("beta-channel");
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
+  params.UpdateDownloadChannel();
+  params.set_app_version("12347.48.0.0");
+
+  fake_system_state_.set_request_params(&params);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_FALSE(install_plan.rollback_data_save_requested);
 }
 
 TEST_F(OmahaResponseHandlerActionTest,

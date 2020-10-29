@@ -32,10 +32,8 @@
 namespace chromeos_update_engine {
 
 PartitionUpdateGeneratorAndroid::PartitionUpdateGeneratorAndroid(
-    BootControlInterface* boot_control,
-    size_t block_size)
-    : boot_control_(boot_control),
-      block_size_(block_size) {}
+    BootControlInterface* boot_control, size_t block_size)
+    : boot_control_(boot_control), block_size_(block_size) {}
 
 bool PartitionUpdateGeneratorAndroid::
     GenerateOperationsForPartitionsNotInPayload(

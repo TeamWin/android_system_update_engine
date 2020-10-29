@@ -36,8 +36,8 @@ namespace chromeos_update_engine {
 class BlockMappingTest : public ::testing::Test {
  protected:
   // Old new partition files used in testing.
-  test_utils::ScopedTempFile old_part_{"BlockMappingTest_old.XXXXXX"};
-  test_utils::ScopedTempFile new_part_{"BlockMappingTest_new.XXXXXX"};
+  ScopedTempFile old_part_{"BlockMappingTest_old.XXXXXX"};
+  ScopedTempFile new_part_{"BlockMappingTest_new.XXXXXX"};
 
   size_t block_size_{1024};
   BlockMapping bm_{block_size_};  // BlockMapping under test.

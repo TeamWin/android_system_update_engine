@@ -45,8 +45,6 @@ namespace {
 // Android properties that identify the hardware and potentially non-updatable
 // parts of the bootloader (such as the bootloader version and the baseband
 // version).
-const char kPropBootBootloader[] = "ro.boot.bootloader";
-const char kPropBootBaseband[] = "ro.boot.baseband";
 const char kPropProductManufacturer[] = "ro.product.manufacturer";
 const char kPropBootHardwareSKU[] = "ro.boot.hardware.sku";
 const char kPropBootRevision[] = "ro.boot.revision";
@@ -135,14 +133,6 @@ string HardwareAndroid::GetHardwareClass() const {
   auto revision = GetProperty(kPropBootRevision, "");
 
   return manufacturer + ":" + sku + ":" + revision;
-}
-
-string HardwareAndroid::GetFirmwareVersion() const {
-  return GetProperty(kPropBootBootloader, "");
-}
-
-string HardwareAndroid::GetECVersion() const {
-  return GetProperty(kPropBootBaseband, "");
 }
 
 string HardwareAndroid::GetDeviceRequisition() const {

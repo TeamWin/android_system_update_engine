@@ -23,6 +23,7 @@
 
 #include <base/strings/string_number_conversions.h>
 #include <base/time/time.h>
+#include <base/version.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_utils.h"
@@ -232,6 +233,32 @@ string BoxedValue::ValuePrinter<WeeklyTimeIntervalVector>(const void* value) {
     retval += interval.ToString() + "\n";
   }
   return retval;
+}
+
+template <>
+string BoxedValue::ValuePrinter<ChannelDowngradeBehavior>(const void* value) {
+  const ChannelDowngradeBehavior* val =
+      reinterpret_cast<const ChannelDowngradeBehavior*>(value);
+  switch (*val) {
+    case ChannelDowngradeBehavior::kUnspecified:
+      return "Unspecified";
+    case ChannelDowngradeBehavior::kWaitForVersionToCatchUp:
+      return "Wait for the target channel to catch up";
+    case ChannelDowngradeBehavior::kRollback:
+      return "Roll back and powerwash on channel downgrade";
+    case ChannelDowngradeBehavior::kAllowUserToConfigure:
+      return "User decides on channel downgrade behavior";
+  }
+  NOTREACHED();
+  return "Unknown";
+}
+
+template <>
+string BoxedValue::ValuePrinter<base::Version>(const void* value) {
+  const base::Version* val = reinterpret_cast<const base::Version*>(value);
+  if (val->IsValid())
+    return val->GetString();
+  return "Unknown";
 }
 
 }  // namespace chromeos_update_manager

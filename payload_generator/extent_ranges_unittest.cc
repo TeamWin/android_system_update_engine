@@ -52,8 +52,8 @@ void ExpectRangeEq(const ExtentRanges& ranges,
   }
 }
 
-#define EXPECT_RANGE_EQ(ranges, var)                      \
-  do {                                                    \
+#define EXPECT_RANGE_EQ(ranges, var)                       \
+  do {                                                     \
     ExpectRangeEq(ranges, var, base::size(var), __LINE__); \
   } while (0)
 
