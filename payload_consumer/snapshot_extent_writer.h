@@ -13,14 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+
 #include <cstdint>
 #include <vector>
 
 #include <libsnapshot/cow_writer.h>
 
 #include "update_engine/payload_consumer/extent_writer.h"
+#include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
+
 class SnapshotExtentWriter : public chromeos_update_engine::ExtentWriter {
  public:
   explicit SnapshotExtentWriter(android::snapshot::ICowWriter* cow_writer);
@@ -37,11 +40,16 @@ class SnapshotExtentWriter : public chromeos_update_engine::ExtentWriter {
   bool Write(const void* bytes, size_t count) override;
 
  private:
+  bool next_extent();
+  size_t ConsumeWithBuffer(const uint8_t* bytes, size_t count);
   // It's a non-owning pointer, because PartitionWriter owns the CowWruter. This
   // allows us to use a single instance of CowWriter for all operations applied
   // to the same partition.
-  [[maybe_unused]] android::snapshot::ICowWriter* cow_writer_;
-  [[maybe_unused]] google::protobuf::RepeatedPtrField<Extent> extents_;
-  [[maybe_unused]] std::vector<uint8_t> buffer_;
+  android::snapshot::ICowWriter* cow_writer_;
+  google::protobuf::RepeatedPtrField<Extent> extents_;
+  size_t cur_extent_idx_;
+  std::vector<uint8_t> buffer_;
+  size_t block_size_;
 };
+
 }  // namespace chromeos_update_engine
