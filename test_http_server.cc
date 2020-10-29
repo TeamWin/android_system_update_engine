@@ -190,7 +190,7 @@ ssize_t WriteHeaders(int fd,
                     string("HTTP/1.1 ") + Itoa(return_code) + " " +
                         GetHttpResponseDescription(return_code) +
                         EOL "Content-Type: application/octet-stream" EOL
-                        "Connection: close" EOL);
+                            "Connection: close" EOL);
   if (ret < 0)
     return -1;
   written += ret;
@@ -409,7 +409,6 @@ void HandleRedirect(int fd, const HttpRequest& request) {
     return;
   WriteString(fd, "Connection: close" EOL);
   WriteString(fd, "Location: " + url + EOL);
-
 }
 
 // Generate a page not found error response with actual text payload. Return

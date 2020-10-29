@@ -79,7 +79,11 @@ void SetupLogging(bool log_to_system, bool log_to_file) {
   if (log_to_file) {
     log_file = SetupLogFile(kSystemLogsRoot);
     log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
+#if BASE_VER < 780000
     log_settings.log_file = log_file.c_str();
+#else
+    log_settings.log_file_path = log_file.c_str();
+#endif
   }
   logging::InitLogging(log_settings);
 }

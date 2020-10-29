@@ -104,9 +104,10 @@ void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
 }
 
 template <typename T>
-void RealDevicePolicyProvider::UpdateVariable(AsyncCopyVariable<T>* var,
-                                              bool (DevicePolicy::*getter)(T*)
-                                                  const) {
+void RealDevicePolicyProvider::UpdateVariable(
+    AsyncCopyVariable<T>* var,
+    // NOLINTNEXTLINE(readability/casting)
+    bool (DevicePolicy::*getter)(T*) const) {
   T new_value;
   if (policy_provider_->device_policy_is_loaded() &&
       (policy_provider_->GetDevicePolicy().*getter)(&new_value)) {
@@ -208,6 +209,21 @@ bool RealDevicePolicyProvider::ConvertHasOwner(bool* has_owner) const {
   return true;
 }
 
+bool RealDevicePolicyProvider::ConvertChannelDowngradeBehavior(
+    ChannelDowngradeBehavior* channel_downgrade_behavior) const {
+  int behavior;
+  if (!policy_provider_->GetDevicePolicy().GetChannelDowngradeBehavior(
+          &behavior)) {
+    return false;
+  }
+  if (behavior < static_cast<int>(ChannelDowngradeBehavior::kFirstValue) ||
+      behavior > static_cast<int>(ChannelDowngradeBehavior::kLastValue)) {
+    return false;
+  }
+  *channel_downgrade_behavior = static_cast<ChannelDowngradeBehavior>(behavior);
+  return true;
+}
+
 void RealDevicePolicyProvider::RefreshDevicePolicy() {
   if (!policy_provider_->Reload()) {
     LOG(INFO) << "No device policies/settings present.";
@@ -219,6 +235,7 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(&var_release_channel_, &DevicePolicy::GetReleaseChannel);
   UpdateVariable(&var_release_channel_delegated_,
                  &DevicePolicy::GetReleaseChannelDelegated);
+  UpdateVariable(&var_release_lts_tag_, &DevicePolicy::GetReleaseLtsTag);
   UpdateVariable(&var_update_disabled_, &DevicePolicy::GetUpdateDisabled);
   UpdateVariable(&var_target_version_prefix_,
                  &DevicePolicy::GetTargetVersionPrefix);
@@ -245,6 +262,10 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
                  &DevicePolicy::GetAutoLaunchedKioskAppId);
   UpdateVariable(&var_disallowed_time_intervals_,
                  &RealDevicePolicyProvider::ConvertDisallowedTimeIntervals);
+  UpdateVariable(&var_channel_downgrade_behavior_,
+                 &RealDevicePolicyProvider::ConvertChannelDowngradeBehavior);
+  UpdateVariable(&var_device_minimum_version_,
+                 &DevicePolicy::GetHighestDeviceMinimumVersion);
 }
 
 }  // namespace chromeos_update_manager

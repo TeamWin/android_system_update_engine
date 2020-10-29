@@ -20,8 +20,9 @@
 #include <memory>
 #include <string>
 
-#include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/hardware_interface.h"
+#include <base/version.h>
+
+#include "update_engine/system_state.h"
 #include "update_engine/update_manager/system_provider.h"
 
 namespace org {
@@ -36,16 +37,13 @@ namespace chromeos_update_manager {
 class RealSystemProvider : public SystemProvider {
  public:
   RealSystemProvider(
-      chromeos_update_engine::HardwareInterface* hardware,
-      chromeos_update_engine::BootControlInterface* boot_control,
+      chromeos_update_engine::SystemState* system_state,
       org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy)
-      : hardware_(hardware),
 #if USE_CHROME_KIOSK_APP
-        boot_control_(boot_control),
-        kiosk_app_proxy_(kiosk_app_proxy) {
+      : system_state_(system_state), kiosk_app_proxy_(kiosk_app_proxy) {
   }
 #else
-        boot_control_(boot_control) {
+      system_state_(system_state) {
   }
 #endif  // USE_CHROME_KIOSK_APP
 
@@ -72,6 +70,10 @@ class RealSystemProvider : public SystemProvider {
     return var_kiosk_required_platform_version_.get();
   }
 
+  Variable<base::Version>* var_chromeos_version() override {
+    return var_chromeos_version_.get();
+  }
+
  private:
   bool GetKioskAppRequiredPlatformVersion(
       std::string* required_platform_version);
@@ -81,9 +83,9 @@ class RealSystemProvider : public SystemProvider {
   std::unique_ptr<Variable<bool>> var_is_oobe_complete_;
   std::unique_ptr<Variable<unsigned int>> var_num_slots_;
   std::unique_ptr<Variable<std::string>> var_kiosk_required_platform_version_;
+  std::unique_ptr<Variable<base::Version>> var_chromeos_version_;
 
-  chromeos_update_engine::HardwareInterface* const hardware_;
-  chromeos_update_engine::BootControlInterface* const boot_control_;
+  chromeos_update_engine::SystemState* const system_state_;
 #if USE_CHROME_KIOSK_APP
   org::chromium::KioskAppServiceInterfaceProxyInterface* const kiosk_app_proxy_;
 #endif  // USE_CHROME_KIOSK_APP

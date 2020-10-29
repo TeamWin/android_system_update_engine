@@ -128,8 +128,9 @@ bool BootControlChromeOS::Init() {
   }
   if (current_slot_ >= num_slots_) {
     LOG(ERROR) << "Couldn't find the slot number corresponding to the "
-               << "partition " << boot_device << ", number of slots: "
-               << num_slots_ << ". This device is not updateable.";
+               << "partition " << boot_device
+               << ", number of slots: " << num_slots_
+               << ". This device is not updateable.";
     num_slots_ = 1;
     current_slot_ = BootControlInterface::kInvalidSlot;
     return false;

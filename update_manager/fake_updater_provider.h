@@ -83,6 +83,10 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_update_restrictions_;
   }
 
+  FakeVariable<int64_t>* var_test_update_check_interval_timeout() override {
+    return &var_test_update_check_interval_timeout_;
+  }
+
  private:
   FakeVariable<base::Time> var_updater_started_time_{"updater_started_time",
                                                      kVariableModePoll};
@@ -108,6 +112,8 @@ class FakeUpdaterProvider : public UpdaterProvider {
       "forced_update_requested", kVariableModeAsync};
   FakeVariable<UpdateRestrictions> var_update_restrictions_{
       "update_restrictions", kVariableModePoll};
+  FakeVariable<int64_t> var_test_update_check_interval_timeout_{
+      "test_update_check_interval_timeout", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeUpdaterProvider);
 };

@@ -21,6 +21,7 @@
 #include <string>
 
 #include <base/time/time.h>
+#include <base/version.h>
 #include <policy/libpolicy.h>
 
 #include "update_engine/update_manager/provider.h"
@@ -43,6 +44,8 @@ class DevicePolicyProvider : public Provider {
   virtual Variable<std::string>* var_release_channel() = 0;
 
   virtual Variable<bool>* var_release_channel_delegated() = 0;
+
+  virtual Variable<std::string>* var_release_lts_tag() = 0;
 
   virtual Variable<bool>* var_update_disabled() = 0;
 
@@ -84,6 +87,15 @@ class DevicePolicyProvider : public Provider {
   // checks are disallowed.
   virtual Variable<WeeklyTimeIntervalVector>*
   var_disallowed_time_intervals() = 0;
+
+  // Variable that determins whether we should powerwash and rollback on channel
+  // downgrade for enrolled devices.
+  virtual Variable<ChannelDowngradeBehavior>*
+  var_channel_downgrade_behavior() = 0;
+
+  // Variable that contains Chrome OS minimum required version. It contains a
+  // Chrome OS version number.
+  virtual Variable<base::Version>* var_device_minimum_version() = 0;
 
  protected:
   DevicePolicyProvider() {}

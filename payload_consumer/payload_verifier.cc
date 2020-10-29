@@ -203,7 +203,7 @@ bool PayloadVerifier::GetRawHashFromSignature(
   //
   // openssl rsautl -verify -pubin -inkey <(echo pem_public_key)
   //   -in |sig_data| -out |out_hash_data|
-  RSA* rsa = EVP_PKEY_get0_RSA(public_key);
+  RSA* rsa = EVP_PKEY_get0_RSA(const_cast<EVP_PKEY*>(public_key));
 
   TEST_AND_RETURN_FALSE(rsa != nullptr);
   unsigned int keysize = RSA_size(rsa);

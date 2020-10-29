@@ -72,15 +72,10 @@ bool CheckHeader(const SquashfsFilesystem::SquashfsHeader& header) {
 }
 
 bool GetFileMapContent(const string& sqfs_path, string* map) {
-  // Create a tmp file
-  string map_file;
-  TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile("squashfs_file_map.XXXXXX", &map_file, nullptr));
-  ScopedPathUnlinker map_unlinker(map_file);
-
+  ScopedTempFile map_file("squashfs_file_map.XXXXXX");
   // Run unsquashfs to get the system file map.
   // unsquashfs -m <map-file> <squashfs-file>
-  vector<string> cmd = {"unsquashfs", "-m", map_file, sqfs_path};
+  vector<string> cmd = {"unsquashfs", "-m", map_file.path(), sqfs_path};
   string stdout, stderr;
   int exit_code;
   if (!Subprocess::SynchronousExec(cmd, &exit_code, &stdout, &stderr) ||
@@ -89,7 +84,7 @@ bool GetFileMapContent(const string& sqfs_path, string* map) {
                << stdout << " and stderr content: " << stderr;
     return false;
   }
-  TEST_AND_RETURN_FALSE(utils::ReadFile(map_file, map));
+  TEST_AND_RETURN_FALSE(utils::ReadFile(map_file.path(), map));
   return true;
 }
 

@@ -52,14 +52,13 @@ RepeatedPtrField<Extent> CreateExtentList(
 class FileDescriptorUtilsTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    EXPECT_TRUE(utils::MakeTempFile("fd_tgt.XXXXXX", &tgt_path_, nullptr));
-    EXPECT_TRUE(target_->Open(tgt_path_.c_str(), O_RDWR));
+    EXPECT_TRUE(target_->Open(tgt_file_.path().c_str(), O_RDWR));
   }
 
   // Check that the |target_| file contains |expected_contents|.
   void ExpectTarget(const std::string& expected_contents) {
     std::string target_contents;
-    EXPECT_TRUE(utils::ReadFile(tgt_path_, &target_contents));
+    EXPECT_TRUE(utils::ReadFile(tgt_file_.path(), &target_contents));
     EXPECT_EQ(expected_contents.size(), target_contents.size());
     if (target_contents != expected_contents) {
       ADD_FAILURE() << "Contents don't match.";
@@ -70,8 +69,7 @@ class FileDescriptorUtilsTest : public ::testing::Test {
     }
   }
 
-  // Path to the target temporary file.
-  std::string tgt_path_;
+  ScopedTempFile tgt_file_{"fd_tgt.XXXXXX"};
 
   // Source and target file descriptor used for testing the tools.
   FakeFileDescriptor* fake_source_{new FakeFileDescriptor()};

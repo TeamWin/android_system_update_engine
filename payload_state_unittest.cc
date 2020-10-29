@@ -630,7 +630,7 @@ TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", true);  // interactive = True.
+  params.Init("", "", {.interactive = true});
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -653,7 +653,7 @@ TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", false);  // interactive = False.
+  params.Init("", "", {});
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -1019,7 +1019,7 @@ TEST(PayloadStateTest, RollbackVersion) {
   // Mock out the os version and make sure it's excluded correctly.
   string rollback_version = "2345.0.0";
   OmahaRequestParams params(&fake_system_state);
-  params.Init(rollback_version, "", false);
+  params.Init(rollback_version, "", {});
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -1776,6 +1776,51 @@ TEST(PayloadStateTest, IncrementFailureExclusionTest) {
   EXPECT_CALL(mock_excluder, Exclude(utils::GetExclusionName("http://test1a")))
       .WillOnce(Return(true));
   payload_state.IncrementFailureCount();
+}
+
+TEST(PayloadStateTest, HaltExclusionPostPayloadExhaustion) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  StrictMock<MockExcluder> mock_excluder;
+  EXPECT_CALL(*fake_system_state.mock_update_attempter(), GetExcluder())
+      .WillOnce(Return(&mock_excluder));
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  OmahaResponse response;
+  // Non-critical package.
+  response.packages.push_back(
+      {.payload_urls = {"http://test1a", "http://test2a"},
+       .size = 123456789,
+       .metadata_size = 58123,
+       .metadata_signature = "msign",
+       .hash = "hash",
+       .can_exclude = true});
+  payload_state.SetResponse(response);
+
+  // Exclusion should be called when excluded.
+  EXPECT_CALL(mock_excluder, Exclude(utils::GetExclusionName("http://test1a")))
+      .WillOnce(Return(true));
+  payload_state.ExcludeCurrentPayload();
+
+  // No more paylods to go through.
+  EXPECT_FALSE(payload_state.NextPayload());
+
+  // Exclusion should not be called as all |Payload|s are exhausted.
+  payload_state.ExcludeCurrentPayload();
+}
+
+TEST(PayloadStateTest, NonInfinitePayloadIndexIncrement) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  payload_state.SetResponse({});
+
+  EXPECT_FALSE(payload_state.NextPayload());
+  int payload_index = payload_state.payload_index_;
+
+  EXPECT_FALSE(payload_state.NextPayload());
+  EXPECT_EQ(payload_index, payload_state.payload_index_);
 }
 
 }  // namespace chromeos_update_engine

@@ -138,22 +138,6 @@ class ScopedLoopbackDeviceBinder {
   DISALLOW_COPY_AND_ASSIGN(ScopedLoopbackDeviceBinder);
 };
 
-class ScopedTempFile {
- public:
-  ScopedTempFile() : ScopedTempFile("update_engine_test_temp_file.XXXXXX") {}
-
-  explicit ScopedTempFile(const std::string& pattern) {
-    EXPECT_TRUE(utils::MakeTempFile(pattern, &path_, nullptr));
-    unlinker_.reset(new ScopedPathUnlinker(path_));
-  }
-
-  const std::string& path() const { return path_; }
-
- private:
-  std::string path_;
-  std::unique_ptr<ScopedPathUnlinker> unlinker_;
-};
-
 class ScopedLoopMounter {
  public:
   explicit ScopedLoopMounter(const std::string& file_path,

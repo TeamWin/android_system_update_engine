@@ -18,6 +18,7 @@
 
 #include <inttypes.h>
 
+#include <algorithm>
 #include <string>
 
 #include <base/bind.h>
@@ -441,6 +442,46 @@ class UpdateRestrictionsVariable
   DISALLOW_COPY_AND_ASSIGN(UpdateRestrictionsVariable);
 };
 
+// A variable class for reading timeout interval prefs value.
+class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
+ public:
+  TestUpdateCheckIntervalTimeoutVariable(
+      const string& name, chromeos_update_engine::PrefsInterface* prefs)
+      : Variable<int64_t>(name, kVariableModePoll),
+        prefs_(prefs),
+        read_count_(0) {
+    SetMissingOk();
+  }
+  ~TestUpdateCheckIntervalTimeoutVariable() = default;
+
+ private:
+  const int64_t* GetValue(TimeDelta /* timeout */,
+                          string* /* errmsg */) override {
+    auto key = chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout;
+    int64_t result;
+    if (prefs_ && prefs_->Exists(key) && prefs_->GetInt64(key, &result)) {
+      // This specific value is used for testing only. So it should not be kept
+      // around and should be deleted after a few reads.
+      if (++read_count_ > 5)
+        prefs_->Delete(key);
+
+      // Limit the timeout interval to 10 minutes so it is not abused if it is
+      // seen on official images.
+      return new int64_t(std::min(result, static_cast<int64_t>(10 * 60)));
+    }
+    return nullptr;
+  }
+
+  chromeos_update_engine::PrefsInterface* prefs_;
+
+  // Counts how many times this variable is read. This is used to delete the
+  // underlying file defining the variable after a certain number of reads in
+  // order to prevent any abuse of this variable.
+  int read_count_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestUpdateCheckIntervalTimeoutVariable);
+};
+
 // RealUpdaterProvider methods.
 
 RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
@@ -474,6 +515,9 @@ RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
           "server_dictated_poll_interval", system_state_)),
       var_forced_update_requested_(new ForcedUpdateRequestedVariable(
           "forced_update_requested", system_state_)),
-      var_update_restrictions_(new UpdateRestrictionsVariable(
-          "update_restrictions", system_state_)) {}
+      var_update_restrictions_(
+          new UpdateRestrictionsVariable("update_restrictions", system_state_)),
+      var_test_update_check_interval_timeout_(
+          new TestUpdateCheckIntervalTimeoutVariable(
+              "test_update_check_interval_timeout", system_state_->prefs())) {}
 }  // namespace chromeos_update_manager

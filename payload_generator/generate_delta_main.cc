@@ -74,38 +74,6 @@ void ParseSignatureSizes(const string& signature_sizes_flag,
   }
 }
 
-bool ParseImageInfo(const string& channel,
-                    const string& board,
-                    const string& version,
-                    const string& key,
-                    const string& build_channel,
-                    const string& build_version,
-                    ImageInfo* image_info) {
-  // All of these arguments should be present or missing.
-  bool empty = channel.empty();
-
-  CHECK_EQ(channel.empty(), empty);
-  CHECK_EQ(board.empty(), empty);
-  CHECK_EQ(version.empty(), empty);
-  CHECK_EQ(key.empty(), empty);
-
-  if (empty)
-    return false;
-
-  image_info->set_channel(channel);
-  image_info->set_board(board);
-  image_info->set_version(version);
-  image_info->set_key(key);
-
-  image_info->set_build_channel(build_channel.empty() ? channel
-                                                      : build_channel);
-
-  image_info->set_build_version(build_version.empty() ? version
-                                                      : build_version);
-
-  return true;
-}
-
 void CalculateHashForSigning(const vector<size_t>& sizes,
                              const string& out_hash_file,
                              const string& out_metadata_hash_file,
@@ -426,51 +394,6 @@ int Main(int argc, char** argv) {
       "The per-partition maximum timestamps which the OS allowed to apply this "
       "payload. Passed in comma separated pairs, e.x. system:1234,vendor:5678");
 
-  DEFINE_string(old_channel,
-                "",
-                "The channel for the old image. 'dev-channel', 'npo-channel', "
-                "etc. Ignored, except during delta generation.");
-  DEFINE_string(old_board,
-                "",
-                "The board for the old image. 'x86-mario', 'lumpy', "
-                "etc. Ignored, except during delta generation.");
-  DEFINE_string(
-      old_version, "", "The build version of the old image. 1.2.3, etc.");
-  DEFINE_string(old_key,
-                "",
-                "The key used to sign the old image. 'premp', 'mp', 'mp-v3',"
-                " etc");
-  DEFINE_string(old_build_channel,
-                "",
-                "The channel for the build of the old image. 'dev-channel', "
-                "etc, but will never contain special channels such as "
-                "'npo-channel'. Ignored, except during delta generation.");
-  DEFINE_string(old_build_version,
-                "",
-                "The version of the build containing the old image.");
-
-  DEFINE_string(new_channel,
-                "",
-                "The channel for the new image. 'dev-channel', 'npo-channel', "
-                "etc. Ignored, except during delta generation.");
-  DEFINE_string(new_board,
-                "",
-                "The board for the new image. 'x86-mario', 'lumpy', "
-                "etc. Ignored, except during delta generation.");
-  DEFINE_string(
-      new_version, "", "The build version of the new image. 1.2.3, etc.");
-  DEFINE_string(new_key,
-                "",
-                "The key used to sign the new image. 'premp', 'mp', 'mp-v3',"
-                " etc");
-  DEFINE_string(new_build_channel,
-                "",
-                "The channel for the build of the new image. 'dev-channel', "
-                "etc, but will never contain special channels such as "
-                "'npo-channel'. Ignored, except during delta generation.");
-  DEFINE_string(new_build_version,
-                "",
-                "The version of the build containing the new image.");
   DEFINE_string(new_postinstall_config_file,
                 "",
                 "A config file specifying postinstall related metadata. "
@@ -501,7 +424,11 @@ int Main(int argc, char** argv) {
   Terminator::Init();
 
   logging::LoggingSettings log_settings;
+#if BASE_VER < 780000
   log_settings.log_file = "delta_generator.log";
+#else
+  log_settings.log_file_path = "delta_generator.log";
+#endif
   log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
   log_settings.lock_log = logging::LOCK_LOG_FILE;
   log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
@@ -679,24 +606,6 @@ int Main(int argc, char** argv) {
   }
 
   CHECK(!FLAGS_out_file.empty());
-
-  // Ignore failures. These are optional arguments.
-  ParseImageInfo(FLAGS_new_channel,
-                 FLAGS_new_board,
-                 FLAGS_new_version,
-                 FLAGS_new_key,
-                 FLAGS_new_build_channel,
-                 FLAGS_new_build_version,
-                 &payload_config.target.image_info);
-
-  // Ignore failures. These are optional arguments.
-  ParseImageInfo(FLAGS_old_channel,
-                 FLAGS_old_board,
-                 FLAGS_old_version,
-                 FLAGS_old_key,
-                 FLAGS_old_build_channel,
-                 FLAGS_old_build_version,
-                 &payload_config.source.image_info);
 
   payload_config.rootfs_partition_size = FLAGS_rootfs_partition_size;
 

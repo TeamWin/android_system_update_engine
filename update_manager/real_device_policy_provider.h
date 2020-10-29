@@ -64,6 +64,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_release_channel_delegated_;
   }
 
+  Variable<std::string>* var_release_lts_tag() override {
+    return &var_release_lts_tag_;
+  }
+
   Variable<bool>* var_update_disabled() override {
     return &var_update_disabled_;
   }
@@ -107,6 +111,15 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
 
   Variable<WeeklyTimeIntervalVector>* var_disallowed_time_intervals() override {
     return &var_disallowed_time_intervals_;
+  }
+
+  Variable<ChannelDowngradeBehavior>* var_channel_downgrade_behavior()
+      override {
+    return &var_channel_downgrade_behavior_;
+  }
+
+  Variable<base::Version>* var_device_minimum_version() override {
+    return &var_device_minimum_version_;
   }
 
  private:
@@ -170,6 +183,11 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   // devices do not have an owner).
   bool ConvertHasOwner(bool* has_owner) const;
 
+  // Wrapper for |DevicePolicy::GetChannelDowngradeBehavior| that converts the
+  // result to |ChannelDowngradeBehavior|.
+  bool ConvertChannelDowngradeBehavior(
+      ChannelDowngradeBehavior* channel_downgrade_behavior) const;
+
   // Used for fetching information about the device policy.
   policy::PolicyProvider* policy_provider_;
 
@@ -191,6 +209,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::string> var_release_channel_{"release_channel"};
   AsyncCopyVariable<bool> var_release_channel_delegated_{
       "release_channel_delegated"};
+  AsyncCopyVariable<std::string> var_release_lts_tag_{"release_lts_tag"};
   AsyncCopyVariable<bool> var_update_disabled_{"update_disabled"};
   AsyncCopyVariable<std::string> var_target_version_prefix_{
       "target_version_prefix"};
@@ -211,6 +230,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
       "update_time_restrictions"};
   AsyncCopyVariable<std::string> var_auto_launched_kiosk_app_id_{
       "auto_launched_kiosk_app_id"};
+  AsyncCopyVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
+      "channel_downgrade_behavior"};
+  AsyncCopyVariable<base::Version> var_device_minimum_version_{
+      "device_minimum_version"};
 
   DISALLOW_COPY_AND_ASSIGN(RealDevicePolicyProvider);
 };
