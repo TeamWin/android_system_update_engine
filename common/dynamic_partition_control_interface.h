@@ -154,6 +154,11 @@ class DynamicPartitionControlInterface {
       const std::string& unsuffixed_partition_name,
       const std::optional<std::string>&,
       bool is_append = false) = 0;
+
+  // Create virtual block devices for all partitions.
+  virtual bool MapAllPartitions() = 0;
+  // Unmap virtual block devices for all partitions.
+  virtual bool UnmapAllPartitions() = 0;
 };
 
 }  // namespace chromeos_update_engine
