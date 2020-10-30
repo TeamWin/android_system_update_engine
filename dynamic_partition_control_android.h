@@ -90,6 +90,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
       const std::optional<std::string>& source_path,
       bool is_append) override;
 
+  bool UnmapAllPartitions() override;
+
  protected:
   // These functions are exposed for testing.
 
@@ -201,11 +203,14 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
       const DeltaArchiveManifest& manifest,
       bool delete_source);
 
+  bool MapAllPartitions() override;
+
  private:
   friend class DynamicPartitionControlAndroidTest;
   friend class SnapshotPartitionTestP;
 
-  void UnmapAllPartitions();
+  std::optional<base::FilePath> GetSuperDevice();
+
   bool MapPartitionInternal(const std::string& super_device,
                             const std::string& target_partition_name,
                             uint32_t slot,
