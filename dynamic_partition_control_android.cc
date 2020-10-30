@@ -273,9 +273,9 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
   return true;
 }
 
-void DynamicPartitionControlAndroid::UnmapAllPartitions() {
+bool DynamicPartitionControlAndroid::UnmapAllPartitions() {
   if (mapped_devices_.empty()) {
-    return;
+    return false;
   }
   // UnmapPartitionOnDeviceMapper removes objects from mapped_devices_, hence
   // a copy is needed for the loop.
@@ -284,6 +284,7 @@ void DynamicPartitionControlAndroid::UnmapAllPartitions() {
   for (const auto& partition_name : mapped) {
     ignore_result(UnmapPartitionOnDeviceMapper(partition_name));
   }
+  return true;
 }
 
 void DynamicPartitionControlAndroid::Cleanup() {
@@ -1240,16 +1241,12 @@ DynamicPartitionControlAndroid::OpenCowWriter(
     bool is_append) {
   auto suffix = SlotSuffixForSlotNumber(target_slot_);
 
-  std::string device_dir_str;
-  if (!GetDeviceDir(&device_dir_str)) {
-    LOG(ERROR) << "Failed to get device dir!";
+  auto super_device = GetSuperDevice();
+  if (!super_device.has_value()) {
     return nullptr;
   }
-  base::FilePath device_dir(device_dir_str);
-  auto super_device =
-      device_dir.Append(GetSuperPartitionName(target_slot_)).value();
   CreateLogicalPartitionParams params = {
-      .block_device = super_device,
+      .block_device = super_device->value(),
       .metadata_slot = target_slot_,
       .partition_name = partition_name + suffix,
       .force_writable = true,
@@ -1257,6 +1254,21 @@ DynamicPartitionControlAndroid::OpenCowWriter(
   // TODO(zhangkelvin) Open an APPEND mode CowWriter once there's an API to do
   // it.
   return snapshot_->OpenSnapshotWriter(params, std::move(source_path));
+}
+
+std::optional<base::FilePath> DynamicPartitionControlAndroid::GetSuperDevice() {
+  std::string device_dir_str;
+  if (!GetDeviceDir(&device_dir_str)) {
+    LOG(ERROR) << "Failed to get device dir!";
+    return {};
+  }
+  base::FilePath device_dir(device_dir_str);
+  auto super_device = device_dir.Append(GetSuperPartitionName(target_slot_));
+  return super_device;
+}
+
+bool DynamicPartitionControlAndroid::MapAllPartitions() {
+  return snapshot_->MapAllSnapshots();
 }
 
 }  // namespace chromeos_update_engine

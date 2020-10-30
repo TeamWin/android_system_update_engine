@@ -96,4 +96,12 @@ DynamicPartitionControlStub::OpenCowWriter(
   return nullptr;
 }
 
+bool DynamicPartitionControlStub::MapAllPartitions() {
+  return false;
+}
+
+bool DynamicPartitionControlStub::UnmapAllPartitions() {
+  return false;
+}
+
 }  // namespace chromeos_update_engine
