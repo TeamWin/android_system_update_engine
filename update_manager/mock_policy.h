@@ -46,11 +46,6 @@ class MockPolicy : public Policy {
                 testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillByDefault(
             testing::Invoke(&default_policy_, &DefaultPolicy::UpdateCanStart));
-    ON_CALL(
-        *this,
-        UpdateDownloadAllowed(testing::_, testing::_, testing::_, testing::_))
-        .WillByDefault(testing::Invoke(&default_policy_,
-                                       &DefaultPolicy::UpdateDownloadAllowed));
     ON_CALL(*this, P2PEnabled(testing::_, testing::_, testing::_, testing::_))
         .WillByDefault(
             testing::Invoke(&default_policy_, &DefaultPolicy::P2PEnabled));

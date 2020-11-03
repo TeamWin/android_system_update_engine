@@ -53,12 +53,6 @@ class AndroidThingsPolicy : public Policy {
                             UpdateDownloadParams* result,
                             UpdateState update_state) const override;
 
-  // Always returns |EvalStatus::kSucceeded|
-  EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
-                                   State* state,
-                                   std::string* error,
-                                   bool* result) const override;
-
   // P2P is always disabled.  Returns |result|==|false| and
   // |EvalStatus::kSucceeded|
   EvalStatus P2PEnabled(EvaluationContext* ec,

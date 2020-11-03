@@ -83,11 +83,6 @@ class DefaultPolicy : public Policy {
                             UpdateDownloadParams* result,
                             UpdateState update_state) const override;
 
-  EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
-                                   State* state,
-                                   std::string* error,
-                                   bool* result) const override;
-
   EvalStatus P2PEnabled(EvaluationContext* ec,
                         State* state,
                         std::string* error,

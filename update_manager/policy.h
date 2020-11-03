@@ -227,9 +227,6 @@ class Policy {
     if (reinterpret_cast<typeof(&Policy::UpdateCanStart)>(policy_method) ==
         &Policy::UpdateCanStart)
       return class_name + "UpdateCanStart";
-    if (reinterpret_cast<typeof(&Policy::UpdateDownloadAllowed)>(
-            policy_method) == &Policy::UpdateDownloadAllowed)
-      return class_name + "UpdateDownloadAllowed";
     if (reinterpret_cast<typeof(&Policy::P2PEnabled)>(policy_method) ==
         &Policy::P2PEnabled)
       return class_name + "P2PEnabled";
@@ -277,17 +274,6 @@ class Policy {
                                     std::string* error,
                                     UpdateDownloadParams* result,
                                     UpdateState update_state) const = 0;
-
-  // Checks whether downloading of an update is allowed; currently, this checks
-  // whether the network connection type is suitable for updating over.  May
-  // consult the shill provider as well as the device policy (if available).
-  // Returns |EvalStatus::kSucceeded|, setting |result| according to whether or
-  // not the current connection can be used; on error, returns
-  // |EvalStatus::kFailed| and sets |error| accordingly.
-  virtual EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
-                                           State* state,
-                                           std::string* error,
-                                           bool* result) const = 0;
 
   // Checks whether P2P is enabled. This may consult device policy and other
   // global settings.

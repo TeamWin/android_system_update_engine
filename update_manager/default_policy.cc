@@ -89,14 +89,6 @@ EvalStatus DefaultPolicy::UpdateCanStart(EvaluationContext* ec,
   return EvalStatus::kSucceeded;
 }
 
-EvalStatus DefaultPolicy::UpdateDownloadAllowed(EvaluationContext* ec,
-                                                State* state,
-                                                std::string* error,
-                                                bool* result) const {
-  *result = true;
-  return EvalStatus::kSucceeded;
-}
-
 EvalStatus DefaultPolicy::P2PEnabled(EvaluationContext* ec,
                                      State* state,
                                      std::string* error,

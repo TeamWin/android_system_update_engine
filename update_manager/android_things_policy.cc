@@ -157,16 +157,6 @@ EvalStatus AndroidThingsPolicy::UpdateCanStart(EvaluationContext* ec,
   return EvalStatus::kSucceeded;
 }
 
-// Always returns |EvalStatus::kSucceeded|
-EvalStatus AndroidThingsPolicy::UpdateDownloadAllowed(EvaluationContext* ec,
-                                                      State* state,
-                                                      string* error,
-                                                      bool* result) const {
-  // By default, we allow updates.
-  *result = true;
-  return EvalStatus::kSucceeded;
-}
-
 // P2P is always disabled.  Returns |result|==|false| and
 // |EvalStatus::kSucceeded|
 EvalStatus AndroidThingsPolicy::P2PEnabled(EvaluationContext* ec,
