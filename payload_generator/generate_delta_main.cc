@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
@@ -234,7 +235,9 @@ bool ApplyPayload(const string& payload_file,
   processor.EnqueueAction(std::move(install_plan_action));
   processor.EnqueueAction(std::move(download_action));
   processor.EnqueueAction(std::move(filesystem_verifier_action));
-  processor.StartProcessing();
+  loop.PostTask(FROM_HERE,
+                base::Bind(&ActionProcessor::StartProcessing,
+                           base::Unretained(&processor)));
   loop.Run();
   CHECK_EQ(delegate.code_, ErrorCode::kSuccess);
   LOG(INFO) << "Completed applying " << (config.is_delta ? "delta" : "full")
