@@ -170,6 +170,7 @@ cc_library_static {
     recovery_available: true,
 
     srcs: [
+        "aosp/platform_constants_android.cc",
         "common/action_processor.cc",
         "common/boot_control_stub.cc",
         "common/clock.cc",
@@ -183,17 +184,16 @@ cc_library_static {
         "common/http_fetcher.cc",
         "common/hwid_override.cc",
         "common/multi_range_http_fetcher.cc",
-        "common/platform_constants_android.cc",
         "common/prefs.cc",
         "common/proxy_resolver.cc",
         "common/subprocess.cc",
         "common/terminator.cc",
         "common/utils.cc",
+        "download_action.cc",
         "payload_consumer/bzip_extent_writer.cc",
         "payload_consumer/cached_file_descriptor.cc",
         "payload_consumer/certificate_parser_android.cc",
         "payload_consumer/delta_performer.cc",
-        "payload_consumer/download_action.cc",
         "payload_consumer/extent_reader.cc",
         "payload_consumer/extent_writer.cc",
         "payload_consumer/file_descriptor.cc",
@@ -273,10 +273,10 @@ cc_library_static {
     recovery_available: true,
 
     srcs: [
-        "boot_control_android.cc",
-        "cleanup_previous_update_action.cc",
-        "dynamic_partition_control_android.cc",
-        "dynamic_partition_utils.cc",
+        "aosp/boot_control_android.cc",
+        "aosp/cleanup_previous_update_action.cc",
+        "aosp/dynamic_partition_control_android.cc",
+        "aosp/dynamic_partition_utils.cc",
     ],
 }
 
@@ -332,17 +332,17 @@ cc_library_static {
 
     srcs: [
         ":libupdate_engine_aidl",
-        "binder_service_android.cc",
-        "binder_service_stable_android.cc",
+        "aosp/binder_service_android.cc",
+        "aosp/binder_service_stable_android.cc",
+        "aosp/daemon_android.cc",
+        "aosp/daemon_state_android.cc",
+        "aosp/hardware_android.cc",
+        "aosp/logging_android.cc",
+        "aosp/network_selector_android.cc",
+        "aosp/update_attempter_android.cc",
         "certificate_checker.cc",
-        "daemon_android.cc",
-        "daemon_state_android.cc",
-        "hardware_android.cc",
         "libcurl_http_fetcher.cc",
-        "logging_android.cc",
         "metrics_utils.cc",
-        "network_selector_android.cc",
-        "update_attempter_android.cc",
         "update_boot_flags_action.cc",
         "update_status_utils.cc",
     ],
@@ -364,7 +364,7 @@ cc_binary {
         "otacerts",
     ],
 
-    srcs: ["main.cc", "metrics_reporter_android.cc"],
+    srcs: ["main.cc", "aosp/metrics_reporter_android.cc"],
     init_rc: ["update_engine.rc"],
 }
 
@@ -389,13 +389,13 @@ cc_binary {
     include_dirs: ["external/cros/system_api/dbus"],
 
     srcs: [
-        "hardware_android.cc",
-        "logging_android.cc",
-        "metrics_reporter_stub.cc",
+        "aosp/hardware_android.cc",
+        "aosp/logging_android.cc",
+        "aosp/sideload_main.cc",
+        "aosp/update_attempter_android.cc",
+        "common/metrics_reporter_stub.cc",
+        "common/network_selector_stub.cc",
         "metrics_utils.cc",
-        "network_selector_stub.cc",
-        "sideload_main.cc",
-        "update_attempter_android.cc",
         "update_boot_flags_action.cc",
         "update_status_utils.cc",
     ],
@@ -465,8 +465,8 @@ cc_binary {
 
     srcs: [
         ":libupdate_engine_aidl",
+        "aosp/update_engine_client_android.cc",
         "common/error_code_utils.cc",
-        "update_engine_client_android.cc",
         "update_status_utils.cc",
     ],
 }
@@ -699,6 +699,8 @@ cc_test {
     test_suites: ["device-tests"],
 
     srcs: [
+        "aosp/dynamic_partition_control_android_unittest.cc",
+        "aosp/update_attempter_android_unittest.cc",
         "certificate_checker_unittest.cc",
         "common/action_pipe_unittest.cc",
         "common/action_processor_unittest.cc",
@@ -710,6 +712,7 @@ cc_test {
         "common/hash_calculator_unittest.cc",
         "common/http_fetcher_unittest.cc",
         "common/hwid_override_unittest.cc",
+        "common/metrics_reporter_stub.cc",
         "common/mock_http_fetcher.cc",
         "common/prefs_unittest.cc",
         "common/proxy_resolver_unittest.cc",
@@ -717,7 +720,7 @@ cc_test {
         "common/terminator_unittest.cc",
         "common/test_utils.cc",
         "common/utils_unittest.cc",
-        "dynamic_partition_control_android_unittest.cc",
+        "download_action_android_unittest.cc",
         "libcurl_http_fetcher_unittest.cc",
         "payload_consumer/bzip_extent_writer_unittest.cc",
         "payload_consumer/cached_file_descriptor_unittest.cc",
@@ -725,7 +728,6 @@ cc_test {
         "payload_consumer/delta_performer_integration_test.cc",
         "payload_consumer/delta_performer_unittest.cc",
         "payload_consumer/partition_writer_unittest.cc",
-        "payload_consumer/download_action_android_unittest.cc",
         "payload_consumer/extent_reader_unittest.cc",
         "payload_consumer/extent_writer_unittest.cc",
         "payload_consumer/snapshot_extent_writer_unittest.cc",
@@ -758,9 +760,7 @@ cc_test {
         "payload_generator/squashfs_filesystem_unittest.cc",
         "payload_generator/zip_unittest.cc",
         "testrunner.cc",
-        "update_attempter_android_unittest.cc",
         "update_status_utils_unittest.cc",
-        "metrics_reporter_stub.cc",
     ],
 }
 

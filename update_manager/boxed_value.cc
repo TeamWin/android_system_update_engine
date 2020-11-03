@@ -25,8 +25,8 @@
 #include <base/time/time.h>
 #include <base/version.h>
 
+#include "update_engine/common/connection_utils.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/connection_utils.h"
 #include "update_engine/update_manager/rollback_prefs.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/updater_provider.h"

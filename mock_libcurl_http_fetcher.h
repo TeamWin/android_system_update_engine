@@ -19,7 +19,7 @@
 
 #include <gmock/gmock.h>
 
-#include "update_engine/connection_manager_interface.h"
+#include "update_engine/libcurl_http_fetcher.h"
 
 namespace chromeos_update_engine {
 

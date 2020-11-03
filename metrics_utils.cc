@@ -23,7 +23,6 @@
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/system_state.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -295,48 +294,6 @@ metrics::ConnectionType GetConnectionType(ConnectionType type,
   return metrics::ConnectionType::kUnknown;
 }
 
-bool WallclockDurationHelper(SystemState* system_state,
-                             const std::string& state_variable_key,
-                             TimeDelta* out_duration) {
-  bool ret = false;
-
-  Time now = system_state->clock()->GetWallclockTime();
-  int64_t stored_value;
-  if (system_state->prefs()->GetInt64(state_variable_key, &stored_value)) {
-    Time stored_time = Time::FromInternalValue(stored_value);
-    if (stored_time > now) {
-      LOG(ERROR) << "Stored time-stamp used for " << state_variable_key
-                 << " is in the future.";
-    } else {
-      *out_duration = now - stored_time;
-      ret = true;
-    }
-  }
-
-  if (!system_state->prefs()->SetInt64(state_variable_key,
-                                       now.ToInternalValue())) {
-    LOG(ERROR) << "Error storing time-stamp in " << state_variable_key;
-  }
-
-  return ret;
-}
-
-bool MonotonicDurationHelper(SystemState* system_state,
-                             int64_t* storage,
-                             TimeDelta* out_duration) {
-  bool ret = false;
-
-  Time now = system_state->clock()->GetMonotonicTime();
-  if (*storage != 0) {
-    Time stored_time = Time::FromInternalValue(*storage);
-    *out_duration = now - stored_time;
-    ret = true;
-  }
-  *storage = now.ToInternalValue();
-
-  return ret;
-}
-
 int64_t GetPersistedValue(const std::string& key, PrefsInterface* prefs) {
   CHECK(prefs);
   if (!prefs->Exists(key))
@@ -406,8 +363,7 @@ bool LoadAndReportTimeToReboot(MetricsReporterInterface* metrics_reporter,
     return false;
 
   Time system_updated_at = Time::FromInternalValue(stored_value);
-  base::TimeDelta time_to_reboot =
-      clock->GetMonotonicTime() - system_updated_at;
+  TimeDelta time_to_reboot = clock->GetMonotonicTime() - system_updated_at;
   if (time_to_reboot.ToInternalValue() < 0) {
     LOG(ERROR) << "time_to_reboot is negative - system_updated_at: "
                << utils::ToString(system_updated_at);
