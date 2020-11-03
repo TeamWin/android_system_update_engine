@@ -763,17 +763,7 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   }
 
   // We persist the cohorts sent by omaha even if the status is "noupdate".
-  for (const auto& app : parser_data->apps) {
-    if (app.id == params_->GetAppId()) {
-      if (app.cohort)
-        PersistCohortData(kPrefsOmahaCohort, app.cohort.value());
-      if (app.cohorthint)
-        PersistCohortData(kPrefsOmahaCohortHint, app.cohorthint.value());
-      if (app.cohortname)
-        PersistCohortData(kPrefsOmahaCohortName, app.cohortname.value());
-      break;
-    }
-  }
+  PersistCohorts(*parser_data);
 
   PersistEolInfo(parser_data->updatecheck_attrs);
 
@@ -1398,16 +1388,53 @@ bool OmahaRequestAction::PersistInstallDate(
   return true;
 }
 
-bool OmahaRequestAction::PersistCohortData(const string& prefs_key,
-                                           const string& new_value) {
-  if (new_value.empty() && system_state_->prefs()->Exists(prefs_key)) {
-    LOG(INFO) << "Removing stored " << prefs_key << " value.";
-    return system_state_->prefs()->Delete(prefs_key);
-  } else if (!new_value.empty()) {
-    LOG(INFO) << "Storing new setting " << prefs_key << " as " << new_value;
-    return system_state_->prefs()->SetString(prefs_key, new_value);
+void OmahaRequestAction::PersistCohortData(const string& prefs_key,
+                                           const Optional<string>& new_value) {
+  if (!new_value)
+    return;
+  const string& value = new_value.value();
+  if (value.empty() && system_state_->prefs()->Exists(prefs_key)) {
+    if (!system_state_->prefs()->Delete(prefs_key))
+      LOG(ERROR) << "Failed to remove stored " << prefs_key << "value.";
+    else
+      LOG(INFO) << "Removed stored " << prefs_key << " value.";
+  } else if (!value.empty()) {
+    if (!system_state_->prefs()->SetString(prefs_key, value))
+      LOG(INFO) << "Failed to store new setting " << prefs_key << " as "
+                << value;
+    else
+      LOG(INFO) << "Stored cohort setting " << prefs_key << " as " << value;
   }
-  return true;
+}
+
+void OmahaRequestAction::PersistCohorts(const OmahaParserData& parser_data) {
+  for (const auto& app : parser_data.apps) {
+    // For platform App ID.
+    if (app.id == params_->GetAppId()) {
+      PersistCohortData(kPrefsOmahaCohort, app.cohort);
+      PersistCohortData(kPrefsOmahaCohortName, app.cohortname);
+      PersistCohortData(kPrefsOmahaCohortHint, app.cohorthint);
+    } else if (params_->IsDlcAppId(app.id)) {
+      string dlc_id;
+      if (!params_->GetDlcId(app.id, &dlc_id)) {
+        LOG(WARNING) << "Skip persisting cohorts for DLC App ID=" << app.id
+                     << " as it is not in the request params.";
+        continue;
+      }
+      PrefsInterface* prefs = system_state_->prefs();
+      PersistCohortData(
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohort}),
+          app.cohort);
+      PersistCohortData(
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohortName}),
+          app.cohortname);
+      PersistCohortData(
+          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohortHint}),
+          app.cohorthint);
+    } else {
+      LOG(WARNING) << "Skip persisting cohorts for unknown App ID=" << app.id;
+    }
+  }
 }
 
 bool OmahaRequestAction::PersistEolInfo(const map<string, string>& attrs) {

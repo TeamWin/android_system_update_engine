@@ -274,6 +274,14 @@ bool OmahaRequestParams::IsDlcAppId(const std::string& app_id) const {
   return dlc_apps_params().find(app_id) != dlc_apps_params().end();
 }
 
+bool OmahaRequestParams::GetDlcId(const string& app_id, string* dlc_id) const {
+  auto itr = dlc_apps_params_.find(app_id);
+  if (itr == dlc_apps_params_.end())
+    return false;
+  *dlc_id = itr->second.name;
+  return true;
+}
+
 void OmahaRequestParams::SetDlcNoUpdate(const string& app_id) {
   auto itr = dlc_apps_params_.find(app_id);
   if (itr == dlc_apps_params_.end())

@@ -21,13 +21,19 @@
 #include <vector>
 
 #include <base/guid.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 
 using std::pair;
 using std::string;
 using std::vector;
+using testing::_;
+using testing::DoAll;
+using testing::Return;
+using testing::SetArgPointee;
 
 namespace chromeos_update_engine {
 
@@ -398,4 +404,74 @@ TEST_F(OmahaRequestBuilderXmlTest,
           "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"62\"></event>"))
       << request_xml;
 }
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcCohortMissingCheck) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  constexpr char kDlcId[] = "test-dlc-id";
+  omaha_request_params.set_dlc_apps_params(
+      {{omaha_request_params.GetDlcAppId(kDlcId), {.name = kDlcId}}});
+  auto* mock_prefs = fake_system_state_.mock_prefs();
+  OmahaEvent event(OmahaEvent::kTypeUpdateDownloadStarted);
+  OmahaRequestBuilderXml omaha_request{
+      &event, &omaha_request_params, false, false, 0, 0, 0, mock_prefs, ""};
+  // OS App ID Expectations.
+  EXPECT_CALL(*mock_prefs, Exists(kPrefsOmahaCohort));
+  EXPECT_CALL(*mock_prefs, Exists(kPrefsOmahaCohortName));
+  EXPECT_CALL(*mock_prefs, Exists(kPrefsOmahaCohortHint));
+  // DLC App ID Expectations.
+  EXPECT_CALL(*mock_prefs,
+              Exists(PrefsInterface::CreateSubKey(
+                  {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohort})));
+  EXPECT_CALL(*mock_prefs,
+              Exists(PrefsInterface::CreateSubKey(
+                  {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortName})));
+  EXPECT_CALL(*mock_prefs,
+              Exists(PrefsInterface::CreateSubKey(
+                  {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortHint})));
+  const string request_xml = omaha_request.GetRequest();
+
+  // Check that no cohorts are in the request.
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "cohort=")) << request_xml;
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "cohortname="))
+      << request_xml;
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "cohorthint="))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcCohortCheck) {
+  OmahaRequestParams omaha_request_params{&fake_system_state_};
+  const string kDlcId = "test-dlc-id";
+  omaha_request_params.set_dlc_apps_params(
+      {{omaha_request_params.GetDlcAppId(kDlcId), {.name = kDlcId}}});
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  OmahaEvent event(OmahaEvent::kTypeUpdateDownloadStarted);
+  OmahaRequestBuilderXml omaha_request{
+      &event, &omaha_request_params, false, false, 0, 0, 0, &fake_prefs, ""};
+  // DLC App ID Expectations.
+  const string dlc_cohort_key = PrefsInterface::CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohort});
+  const string kDlcCohortVal = "test-cohort";
+  EXPECT_TRUE(fake_prefs.SetString(dlc_cohort_key, kDlcCohortVal));
+  const string dlc_cohort_name_key = PrefsInterface::CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortName});
+  const string kDlcCohortNameVal = "test-cohortname";
+  EXPECT_TRUE(fake_prefs.SetString(dlc_cohort_name_key, kDlcCohortNameVal));
+  const string dlc_cohort_hint_key = PrefsInterface::CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortHint});
+  const string kDlcCohortHintVal = "test-cohortval";
+  EXPECT_TRUE(fake_prefs.SetString(dlc_cohort_hint_key, kDlcCohortHintVal));
+  const string request_xml = omaha_request.GetRequest();
+
+  EXPECT_EQ(1,
+            CountSubstringInString(
+                request_xml,
+                base::StringPrintf(
+                    "cohort=\"%s\" cohortname=\"%s\" cohorthint=\"%s\"",
+                    kDlcCohortVal.c_str(),
+                    kDlcCohortNameVal.c_str(),
+                    kDlcCohortHintVal.c_str())))
+      << request_xml;
+}
+
 }  // namespace chromeos_update_engine

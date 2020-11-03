@@ -228,6 +228,10 @@ class OmahaRequestParams {
   // request parameters.
   virtual bool IsDlcAppId(const std::string& app_id) const;
 
+  // Returns the DLC App ID if the given App ID is a DLC that is currently part
+  // of the request parameters.
+  virtual bool GetDlcId(const std::string& app_id, std::string* dlc_id) const;
+
   // If the App ID is a DLC App ID will set to no update.
   void SetDlcNoUpdate(const std::string& app_id);
 

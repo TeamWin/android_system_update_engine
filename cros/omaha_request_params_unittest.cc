@@ -261,4 +261,33 @@ TEST_F(OmahaRequestParamsTest, RequisitionIsSetTest) {
   EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ("fake_requisition", params_.device_requisition());
 }
+
+TEST_F(OmahaRequestParamsTest, GetMissingDlcId) {
+  EXPECT_TRUE(params_.Init("", "", {}));
+
+  string dlc_id;
+  EXPECT_FALSE(params_.GetDlcId("some-dlc-app-id", &dlc_id));
+}
+
+TEST_F(OmahaRequestParamsTest, GetDlcId) {
+  EXPECT_TRUE(params_.Init("", "", {}));
+  const string kExpectedDlcId = "test-dlc";
+  const string dlc_app_id = params_.GetDlcAppId(kExpectedDlcId);
+  params_.set_dlc_apps_params({{dlc_app_id, {.name = kExpectedDlcId}}});
+
+  string dlc_id;
+  EXPECT_TRUE(params_.GetDlcId(dlc_app_id, &dlc_id));
+  EXPECT_EQ(kExpectedDlcId, dlc_id);
+}
+
+TEST_F(OmahaRequestParamsTest, GetDlcAppId) {
+  EXPECT_TRUE(params_.Init("", "", {}));
+  const string kAppId = "test-app-id";
+  params_.set_app_id(kAppId);
+  const string kDlcId = "test-dlc";
+  const string expected_dlc_app_id = kAppId + "_" + kDlcId;
+
+  EXPECT_EQ(expected_dlc_app_id, params_.GetDlcAppId(kDlcId));
+}
+
 }  // namespace chromeos_update_engine

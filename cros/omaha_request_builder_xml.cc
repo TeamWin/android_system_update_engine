@@ -215,9 +215,10 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
   return app_body;
 }
 
-string OmahaRequestBuilderXml::GetCohortArg(const string arg_name,
-                                            const string prefs_key,
-                                            const string override_value) const {
+string OmahaRequestBuilderXml::GetCohortArg(
+    const string& arg_name,
+    const string& prefs_key,
+    const string& override_value) const {
   string cohort_value;
   if (!override_value.empty()) {
     // |override_value| take precedence over pref value.
@@ -296,14 +297,30 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
   }
 
   string app_cohort_args;
-  app_cohort_args += GetCohortArg("cohort", kPrefsOmahaCohort);
-  app_cohort_args += GetCohortArg("cohortname", kPrefsOmahaCohortName);
+  string cohort_key = kPrefsOmahaCohort;
+  string cohortname_key = kPrefsOmahaCohortName;
+  string cohorthint_key = kPrefsOmahaCohortHint;
 
+  // Override the cohort keys for DLC App IDs.
+  const auto& dlc_apps_params = params_->dlc_apps_params();
+  auto itr = dlc_apps_params.find(app_data.id);
+  if (itr != dlc_apps_params.end()) {
+    auto dlc_id = itr->second.name;
+    cohort_key =
+        prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohort});
+    cohortname_key =
+        prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohortName});
+    cohorthint_key =
+        prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohortHint});
+  }
+
+  app_cohort_args += GetCohortArg("cohort", cohort_key);
+  app_cohort_args += GetCohortArg("cohortname", cohortname_key);
   // Policy provided value overrides pref.
-  string autoupdate_token = params_->autoupdate_token();
-  app_cohort_args += GetCohortArg("cohorthint",
-                                  kPrefsOmahaCohortHint,
-                                  autoupdate_token /* override_value */);
+  app_cohort_args +=
+      GetCohortArg("cohorthint",
+                   cohorthint_key,
+                   params_->autoupdate_token() /* override_value */);
 
   string fingerprint_arg;
   if (!params_->os_build_fingerprint().empty()) {

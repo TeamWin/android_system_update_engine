@@ -204,7 +204,13 @@ struct FakeUpdateResponse {
                 : "") +
            (dlc_app_update
                 ? "<app appid=\"" + request_params.GetDlcAppId(kDlcId1) +
-                      "\" status=\"ok\">"
+                      "\" " +
+                      (include_dlc_cohorts
+                           ? "cohort=\"" + dlc_cohort + "\" cohorthint=\"" +
+                                 dlc_cohorthint + "\" cohortname=\"" +
+                                 dlc_cohortname + "\" "
+                           : "") +
+                      "status=\"ok\">"
                       "<updatecheck status=\"ok\"><urls><url codebase=\"" +
                       codebase + "\"/><url codebase=\"" + codebase2 +
                       "\"/></urls><manifest version=\"" + version +
@@ -216,7 +222,13 @@ struct FakeUpdateResponse {
                 : "") +
            (dlc_app_no_update
                 ? "<app appid=\"" + request_params.GetDlcAppId(kDlcId2) +
-                      "\"><updatecheck status=\"noupdate\"/></app>"
+                      +"\" " +
+                      (include_dlc_cohorts
+                           ? "cohort=\"" + dlc_cohort + "\" cohorthint=\"" +
+                                 dlc_cohorthint + "\" cohortname=\"" +
+                                 dlc_cohortname + "\" "
+                           : "") +
+                      "><updatecheck status=\"noupdate\"/></app>"
                 : "") +
            "</response>";
   }
@@ -252,6 +264,11 @@ struct FakeUpdateResponse {
   string cohort = "";
   string cohorthint = "";
   string cohortname = "";
+  // Whether to include Omaha cohorts for DLC apps.
+  bool include_dlc_cohorts = false;
+  string dlc_cohort = "";
+  string dlc_cohorthint = "";
+  string dlc_cohortname = "";
 
   // Whether to include the CrOS <!ENTITY> in the XML response.
   bool include_entity = false;
@@ -1240,8 +1257,16 @@ TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
   fake_update_response_.cohort = "s/154454/8479665";
   fake_update_response_.cohorthint = "please-put-me-on-beta";
   fake_update_response_.cohortname = "stable";
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  fake_update_response_.dlc_app_update = true;
+  fake_update_response_.include_dlc_cohorts = true;
+  fake_update_response_.dlc_cohort = "s/154454/8479665/dlc";
+  fake_update_response_.dlc_cohorthint = "please-put-me-on-beta-dlc";
+  fake_update_response_.dlc_cohortname = "stable-dlc";
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
@@ -1253,18 +1278,52 @@ TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
 
   EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
   EXPECT_EQ(fake_update_response_.cohortname, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohortname, value);
 }
 
 TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortHint, "old_hint"));
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortName, "old_name"));
+  const string dlc_cohort_key =
+      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort});
+  const string dlc_cohort_hint_key = fake_prefs_.CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint});
+  const string dlc_cohort_name_key = fake_prefs_.CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName});
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
+  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_key, "old_value_dlc"));
+  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_hint_key, "old_hint_dlc"));
+  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_name_key, "old_name_dlc"));
   fake_update_response_.include_cohorts = true;
   fake_update_response_.cohort = "s/154454/8479665";
   fake_update_response_.cohorthint = "please-put-me-on-beta";
   fake_update_response_.cohortname = "";
+  fake_update_response_.dlc_app_update = true;
+  fake_update_response_.include_dlc_cohorts = true;
+  fake_update_response_.dlc_cohort = "s/154454/8479665/dlc";
+  fake_update_response_.dlc_cohorthint = "please-put-me-on-beta-dlc";
+  fake_update_response_.dlc_cohortname = "";
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
@@ -1275,12 +1334,23 @@ TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
   EXPECT_EQ(fake_update_response_.cohorthint, value);
 
   EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+
+  EXPECT_TRUE(fake_prefs_.GetString(dlc_cohort_key, &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(dlc_cohort_hint_key, &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
+
+  EXPECT_FALSE(fake_prefs_.GetString(dlc_cohort_name_key, &value));
 }
 
 TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
+  const string dlc_cohort_key =
+      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort});
+  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_key, "old_value_dlc"));
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
@@ -1289,6 +1359,18 @@ TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
 
   EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
   EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+
+  EXPECT_TRUE(fake_prefs_.GetString(dlc_cohort_key, &value));
+  EXPECT_EQ("old_value_dlc", value);
+
+  EXPECT_FALSE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint}),
+      &value));
+  EXPECT_FALSE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName}),
+      &value));
 }
 
 TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
@@ -1319,8 +1401,18 @@ TEST_F(OmahaRequestActionTest, MultiAppCohortTest) {
   fake_update_response_.cohort = "s/154454/8479665";
   fake_update_response_.cohorthint = "please-put-me-on-beta";
   fake_update_response_.cohortname = "stable";
+  request_params_.set_dlc_apps_params(
+      {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}},
+       {request_params_.GetDlcAppId(kDlcId2), {.name = kDlcId2}}});
+  fake_update_response_.dlc_app_update = true;
+  fake_update_response_.dlc_app_no_update = true;
+  fake_update_response_.include_dlc_cohorts = true;
+  fake_update_response_.dlc_cohort = "s/154454/8479665/dlc";
+  fake_update_response_.dlc_cohorthint = "please-put-me-on-beta-dlc";
+  fake_update_response_.dlc_cohortname = "stable-dlc";
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
+  EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
@@ -1332,6 +1424,37 @@ TEST_F(OmahaRequestActionTest, MultiAppCohortTest) {
 
   EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
   EXPECT_EQ(fake_update_response_.cohortname, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohort, value);
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId2, kPrefsOmahaCohort}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId2, kPrefsOmahaCohortHint}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohortname, value);
+  EXPECT_TRUE(fake_prefs_.GetString(
+      fake_prefs_.CreateSubKey(
+          {kDlcPrefsSubDir, kDlcId2, kPrefsOmahaCohortName}),
+      &value));
+  EXPECT_EQ(fake_update_response_.dlc_cohortname, value);
 }
 
 TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {

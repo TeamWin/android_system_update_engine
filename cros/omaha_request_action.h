@@ -28,6 +28,7 @@
 
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include <base/optional.h>
 #include <brillo/secure_blob.h>
 #include <curl/curl.h>
 
@@ -176,12 +177,17 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                                  int install_date_days,
                                  InstallDateProvisioningSource source);
 
-  // Persist the new cohort* value received in the XML file in the |prefs_key|
-  // preference file. If the |new_value| is empty, the currently stored value
-  // will be deleted. Don't call this function with an empty |new_value| if the
-  // value was not set in the XML, since that would delete the stored value.
-  bool PersistCohortData(const std::string& prefs_key,
-                         const std::string& new_value);
+  // Persist the new cohort value received in the XML file in the |prefs_key|
+  // preference file. If the |new_value| is empty, do nothing. If the
+  // |new_value| stores and empty value, the currently stored value will be
+  // deleted. Don't call this function with an empty |new_value| if the value
+  // was not set in the XML, since that would delete the stored value.
+  void PersistCohortData(const std::string& prefs_key,
+                         const base::Optional<std::string>& new_value);
+
+  // Parses and persists the cohorts sent back in the updatecheck tag
+  // attributes.
+  void PersistCohorts(const OmahaParserData& parser_data);
 
   // Parses and persists the end-of-life date flag sent back in the updatecheck
   // tag attributes. The flags will be validated and stored in the Prefs.
