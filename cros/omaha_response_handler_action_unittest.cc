@@ -448,11 +448,6 @@ TEST_F(OmahaResponseHandlerActionTest,
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("canary-channel");
-  // The ImageProperties in Android uses prefs to store MutableImageProperties.
-#ifdef __ANDROID__
-  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
-      .WillOnce(Return(true));
-#endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("2.0.0.0");
@@ -481,12 +476,6 @@ TEST_F(OmahaResponseHandlerActionTest,
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("canary-channel");
-  // The |ImageProperties| in Android uses prefs to store
-  // |MutableImageProperties|.
-#ifdef __ANDROID__
-  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
-      .WillOnce(Return(true));
-#endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("2.0.0.0");
@@ -515,12 +504,6 @@ TEST_F(OmahaResponseHandlerActionTest,
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("beta-channel");
-  // The |ImageProperties| in Android uses prefs to store
-  // |MutableImageProperties|.
-#ifdef __ANDROID__
-  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
-      .WillOnce(Return(true));
-#endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12345.48.0.0");
@@ -675,11 +658,6 @@ TEST_F(OmahaResponseHandlerActionTest,
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("stable-channel");
-  // The ImageProperties in Android uses prefs to store MutableImageProperties.
-#ifdef __ANDROID__
-  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, false))
-      .WillOnce(Return(true));
-#endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("1.0.0.0");
