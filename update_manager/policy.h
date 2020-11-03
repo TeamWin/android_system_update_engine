@@ -303,9 +303,7 @@ class Policy {
   DISALLOW_COPY_AND_ASSIGN(Policy);
 };
 
-// Get system dependent (Chrome OS vs. Android) policy
-// implementation. Implementations can be found in chromeos_policy.cc and
-// android_things_policy.cc.
+// Get system dependent policy implementation.
 std::unique_ptr<Policy> GetSystemPolicy();
 
 }  // namespace chromeos_update_manager
