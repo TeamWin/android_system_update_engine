@@ -95,6 +95,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kPostinstallRunnerError:
     case ErrorCode::kPostinstallBootedFromFirmwareB:
     case ErrorCode::kPostinstallFirmwareRONotUpdatable:
+    case ErrorCode::kPostInstallMountError:
       return metrics::AttemptResult::kPostInstallFailed;
 
     case ErrorCode::kUserCanceled:
@@ -189,6 +190,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaResponseHandlerError:
     case ErrorCode::kFilesystemCopierError:
     case ErrorCode::kPostinstallRunnerError:
+    case ErrorCode::kPostInstallMountError:
     case ErrorCode::kPayloadMismatchedType:
     case ErrorCode::kInstallDeviceOpenError:
     case ErrorCode::kKernelDeviceOpenError:
