@@ -68,7 +68,6 @@ class CowOperationConvertTest : public testing::Test {
         EXPECT_FALSE(modified_extents.ContainsBlock(cow_op.src_block))
             << "SOURCE_COPY operation " << cow_op
             << " read from a modified block";
-        src_extent_set.SubtractExtent(ExtentForRange(cow_op.src_block, 1));
       }
       EXPECT_TRUE(dst_extent_set.ContainsBlock(cow_op.dst_block));
       dst_extent_set.SubtractExtent(ExtentForRange(cow_op.dst_block, 1));
@@ -217,4 +216,21 @@ TEST_F(CowOperationConvertTest, InterleavingSrcExtent) {
   }));
   VerifyCowMergeOp(cow_ops);
 }
+
+TEST_F(CowOperationConvertTest, SelfOverlappingOperation) {
+  AddOperation(
+      &operations_, InstallOperation::SOURCE_COPY, {{20, 10}}, {{25, 10}});
+
+  AddMergeOperation(
+      &merge_operations_, CowMergeOperation::COW_COPY, {20, 10}, {25, 10});
+
+  auto cow_ops = ConvertToCowOperations(operations_, merge_operations_);
+  // Expect 10 COW_COPY
+  ASSERT_EQ(cow_ops.size(), 10UL);
+  ASSERT_TRUE(std::all_of(cow_ops.begin(), cow_ops.end(), [](auto&& cow_op) {
+    return cow_op.op == CowOperation::CowCopy;
+  }));
+  VerifyCowMergeOp(cow_ops);
+}
+
 }  // namespace chromeos_update_engine
