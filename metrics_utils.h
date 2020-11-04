@@ -22,11 +22,11 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/clock_interface.h"
+#include "update_engine/common/connection_utils.h"
 #include "update_engine/common/error_code.h"
+#include "update_engine/common/metrics_constants.h"
+#include "update_engine/common/metrics_reporter_interface.h"
 #include "update_engine/common/prefs_interface.h"
-#include "update_engine/connection_utils.h"
-#include "update_engine/metrics_constants.h"
-#include "update_engine/metrics_reporter_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -49,29 +49,6 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code);
 // Calculates the internet connection type given |type| and |tethering|.
 metrics::ConnectionType GetConnectionType(ConnectionType type,
                                           ConnectionTethering tethering);
-
-// This function returns the duration on the wallclock since the last
-// time it was called for the same |state_variable_key| value.
-//
-// If the function returns |true|, the duration (always non-negative)
-// is returned in |out_duration|. If the function returns |false|
-// something went wrong or there was no previous measurement.
-bool WallclockDurationHelper(SystemState* system_state,
-                             const std::string& state_variable_key,
-                             base::TimeDelta* out_duration);
-
-// This function returns the duration on the monotonic clock since the
-// last time it was called for the same |storage| pointer.
-//
-// You should pass a pointer to a 64-bit integer in |storage| which
-// should be initialized to 0.
-//
-// If the function returns |true|, the duration (always non-negative)
-// is returned in |out_duration|. If the function returns |false|
-// something went wrong or there was no previous measurement.
-bool MonotonicDurationHelper(SystemState* system_state,
-                             int64_t* storage,
-                             base::TimeDelta* out_duration);
 
 // Returns the persisted value from prefs for the given key. It also
 // validates that the value returned is non-negative.

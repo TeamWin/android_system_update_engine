@@ -34,7 +34,7 @@
 
 #include "update_engine/common/test_utils.h"
 #if USE_DBUS
-#include "update_engine/dbus_test_utils.h"
+#include "update_engine/cros/dbus_test_utils.h"
 #endif  // USE_DBUS
 #include "update_engine/update_manager/umtest_utils.h"
 

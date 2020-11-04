@@ -18,11 +18,11 @@
 #include <base/logging.h>
 #include <fuzzer/FuzzedDataProvider.h>
 
+#include "update_engine/common/download_action.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/payload_consumer/delta_performer.h"
-#include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/install_plan.h"
 
 namespace chromeos_update_engine {

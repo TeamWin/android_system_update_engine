@@ -25,7 +25,7 @@
 
 #include "update_engine/common/clock_interface.h"
 #if USE_DBUS
-#include "update_engine/dbus_connection.h"
+#include "update_engine/cros/dbus_connection.h"
 #endif  // USE_DBUS
 #include "update_engine/update_manager/fake_shill_provider.h"
 #include "update_engine/update_manager/real_config_provider.h"
@@ -36,7 +36,7 @@
 #include "update_engine/update_manager/real_time_provider.h"
 #include "update_engine/update_manager/real_updater_provider.h"
 #if USE_SHILL
-#include "update_engine/shill_proxy.h"
+#include "update_engine/cros/shill_proxy.h"
 #include "update_engine/update_manager/real_shill_provider.h"
 #endif  // USE_SHILL
 

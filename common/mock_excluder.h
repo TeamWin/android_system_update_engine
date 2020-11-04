@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_MOCK_APP_EXCLUDER_H_
-#define UPDATE_ENGINE_MOCK_APP_EXCLUDER_H_
+#ifndef UPDATE_ENGINE_COMMON_MOCK_APP_EXCLUDER_H_
+#define UPDATE_ENGINE_COMMON_MOCK_APP_EXCLUDER_H_
 
 #include "update_engine/common/excluder_interface.h"
 
@@ -34,4 +34,4 @@ class MockExcluder : public ExcluderInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_MOCK_APP_EXCLUDER_H_
+#endif  // UPDATE_ENGINE_COMMON_MOCK_APP_EXCLUDER_H_
