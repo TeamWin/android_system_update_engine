@@ -45,7 +45,7 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/mock_payload_state.h"
+#include "update_engine/cros/mock_payload_state.h"
 
 using brillo::MessageLoop;
 using chromeos_update_engine::test_utils::ScopedLoopbackDeviceBinder;
