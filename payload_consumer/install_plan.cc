@@ -82,11 +82,6 @@ void InstallPlan::Dump() const {
   }
 
   string version_str = base::StringPrintf(", version: %s", version.c_str());
-  if (!system_version.empty()) {
-    version_str +=
-        base::StringPrintf(", system_version: %s", system_version.c_str());
-  }
-
   string url_str = download_url;
   if (base::StartsWith(
           url_str, "fd://", base::CompareCase::INSENSITIVE_ASCII)) {

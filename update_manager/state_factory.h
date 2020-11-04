@@ -17,7 +17,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 
-#include "update_engine/system_state.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/state.h"
 
 namespace org {
