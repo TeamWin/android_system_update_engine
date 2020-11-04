@@ -41,6 +41,11 @@ bool PartitionUpdateGeneratorAndroid::
         BootControlInterface::Slot target_slot,
         const std::set<std::string>& partitions_in_payload,
         std::vector<PartitionUpdate>* update_list) {
+#ifndef __ANDROID__
+  // Skip copying partitions for host verification.
+  return true;
+#endif
+
   auto ab_partitions = GetAbPartitionsOnDevice();
   if (ab_partitions.empty()) {
     LOG(ERROR) << "Failed to load static a/b partitions";
