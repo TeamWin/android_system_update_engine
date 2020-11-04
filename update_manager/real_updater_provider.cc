@@ -29,8 +29,8 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/prefs.h"
-#include "update_engine/omaha_request_params.h"
-#include "update_engine/update_attempter.h"
+#include "update_engine/cros/omaha_request_params.h"
+#include "update_engine/cros/update_attempter.h"
 #include "update_engine/update_status_utils.h"
 
 using base::StringPrintf;

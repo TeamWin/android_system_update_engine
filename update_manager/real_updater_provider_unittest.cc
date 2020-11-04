@@ -25,9 +25,9 @@
 
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
-#include "update_engine/fake_system_state.h"
-#include "update_engine/mock_update_attempter.h"
-#include "update_engine/omaha_request_params.h"
+#include "update_engine/cros/fake_system_state.h"
+#include "update_engine/cros/mock_update_attempter.h"
+#include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;

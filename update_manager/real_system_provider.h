@@ -22,7 +22,7 @@
 
 #include <base/version.h>
 
-#include "update_engine/system_state.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/system_provider.h"
 
 namespace org {

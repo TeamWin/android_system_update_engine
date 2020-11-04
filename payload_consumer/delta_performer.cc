@@ -41,6 +41,7 @@
 #include <puffin/puffpatch.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/download_action.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/hardware_interface.h"
@@ -50,7 +51,6 @@
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 #include "update_engine/payload_consumer/cached_file_descriptor.h"
 #include "update_engine/payload_consumer/certificate_parser_interface.h"
-#include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 #include "update_engine/payload_consumer/partition_update_generator_interface.h"
@@ -345,6 +345,7 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
                  << "Trusting metadata size in payload = " << metadata_size_;
   }
 
+  // NOLINTNEXTLINE(whitespace/braces)
   auto [payload_verifier, perform_verification] = CreatePayloadVerifier();
   if (!payload_verifier) {
     LOG(ERROR) << "Failed to create payload verifier.";
@@ -1282,6 +1283,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
       ErrorCode::kPayloadHashMismatchError,
       payload_hash_calculator_.raw_hash() == update_check_response_hash);
 
+  // NOLINTNEXTLINE(whitespace/braces)
   auto [payload_verifier, perform_verification] = CreatePayloadVerifier();
   if (!perform_verification) {
     LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";

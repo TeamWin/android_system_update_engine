@@ -27,7 +27,7 @@
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/omaha_request_params.h"
+#include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/variable.h"
 

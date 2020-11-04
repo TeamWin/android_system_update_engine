@@ -23,11 +23,11 @@
 #include <base/logging.h>
 #include <brillo/flag_helper.h>
 
+#include "update_engine/common/daemon_base.h"
+#include "update_engine/common/logging.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/daemon_base.h"
-#include "update_engine/logging.h"
 
 using std::string;
 
