@@ -20,7 +20,7 @@
 #include <memory>
 #include <string>
 
-#include "update_engine/system_state.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/updater_provider.h"
 

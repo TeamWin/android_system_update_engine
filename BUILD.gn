@@ -143,17 +143,17 @@ static_library("libpayload_consumer") {
     "common/http_fetcher.cc",
     "common/hwid_override.cc",
     "common/multi_range_http_fetcher.cc",
-    "common/platform_constants_chromeos.cc",
     "common/prefs.cc",
     "common/proxy_resolver.cc",
     "common/subprocess.cc",
     "common/terminator.cc",
     "common/utils.cc",
+    "cros/platform_constants_chromeos.cc",
+    "download_action.cc",
     "payload_consumer/bzip_extent_writer.cc",
     "payload_consumer/cached_file_descriptor.cc",
     "payload_consumer/certificate_parser_stub.cc",
     "payload_consumer/delta_performer.cc",
-    "payload_consumer/download_action.cc",
     "payload_consumer/extent_reader.cc",
     "payload_consumer/extent_writer.cc",
     "payload_consumer/file_descriptor.cc",
@@ -197,32 +197,32 @@ static_library("libpayload_consumer") {
 # with Omaha and expose a DBus daemon.
 static_library("libupdate_engine") {
   sources = [
-    "boot_control_chromeos.cc",
     "certificate_checker.cc",
-    "common_service.cc",
-    "connection_manager.cc",
-    "connection_utils.cc",
-    "daemon_chromeos.cc",
-    "dbus_connection.cc",
-    "dbus_service.cc",
-    "hardware_chromeos.cc",
-    "image_properties_chromeos.cc",
+    "common/connection_utils.cc",
+    "cros/boot_control_chromeos.cc",
+    "cros/common_service.cc",
+    "cros/connection_manager.cc",
+    "cros/daemon_chromeos.cc",
+    "cros/dbus_connection.cc",
+    "cros/dbus_service.cc",
+    "cros/hardware_chromeos.cc",
+    "cros/image_properties_chromeos.cc",
+    "cros/logging.cc",
+    "cros/metrics_reporter_omaha.cc",
+    "cros/omaha_request_action.cc",
+    "cros/omaha_request_builder_xml.cc",
+    "cros/omaha_request_params.cc",
+    "cros/omaha_response_handler_action.cc",
+    "cros/omaha_utils.cc",
+    "cros/p2p_manager.cc",
+    "cros/payload_state.cc",
+    "cros/power_manager_chromeos.cc",
+    "cros/real_system_state.cc",
+    "cros/requisition_util.cc",
+    "cros/shill_proxy.cc",
+    "cros/update_attempter.cc",
     "libcurl_http_fetcher.cc",
-    "logging.cc",
-    "metrics_reporter_omaha.cc",
     "metrics_utils.cc",
-    "omaha_request_action.cc",
-    "omaha_request_builder_xml.cc",
-    "omaha_request_params.cc",
-    "omaha_response_handler_action.cc",
-    "omaha_utils.cc",
-    "p2p_manager.cc",
-    "payload_state.cc",
-    "power_manager_chromeos.cc",
-    "real_system_state.cc",
-    "requisition_util.cc",
-    "shill_proxy.cc",
-    "update_attempter.cc",
     "update_boot_flags_action.cc",
     "update_manager/boxed_value.cc",
     "update_manager/chromeos_policy.cc",
@@ -281,7 +281,7 @@ static_library("libupdate_engine") {
   }
 
   if (use.chrome_network_proxy) {
-    sources += [ "chrome_browser_proxy_resolver.cc" ]
+    sources += [ "cros/chrome_browser_proxy_resolver.cc" ]
   }
 
   if (use.chrome_kiosk_app) {
@@ -290,8 +290,8 @@ static_library("libupdate_engine") {
 
   if (use.dlc) {
     sources += [
-      "dlcservice_chromeos.cc",
-      "excluder_chromeos.cc",
+      "cros/dlcservice_chromeos.cc",
+      "cros/excluder_chromeos.cc",
     ]
   } else {
     sources += [
@@ -326,8 +326,8 @@ static_library("libupdate_engine_client") {
 executable("update_engine_client") {
   sources = [
     "common/error_code_utils.cc",
-    "omaha_utils.cc",
-    "update_engine_client.cc",
+    "cros/omaha_utils.cc",
+    "cros/update_engine_client.cc",
   ]
   configs += [ ":target_defaults" ]
   deps = [ ":libupdate_engine_client" ]
@@ -396,8 +396,8 @@ if (use.test || use.fuzzer) {
       "common/fake_prefs.cc",
       "common/mock_http_fetcher.cc",
       "common/test_utils.cc",
-      "fake_shill_proxy.cc",
-      "fake_system_state.cc",
+      "cros/fake_shill_proxy.cc",
+      "cros/fake_system_state.cc",
       "payload_consumer/fake_file_descriptor.cc",
       "payload_generator/fake_filesystem.cc",
       "update_manager/umtest_utils.cc",
@@ -422,8 +422,8 @@ if (use.test) {
     openssl_pem_out_dir = "include/update_engine"
     sources = [
       "unittest_key.pem",
-      "unittest_key_RSA4096.pem",
       "unittest_key2.pem",
+      "unittest_key_RSA4096.pem",
     ]
   }
 
@@ -431,9 +431,7 @@ if (use.test) {
     openssl_pem_in_dir = "."
     openssl_pem_out_dir = "include/update_engine"
     openssl_pem_algorithm = "ec"
-    sources = [
-      "unittest_key_EC.pem",
-    ]
+    sources = [ "unittest_key_EC.pem" ]
   }
 
   # Unpacks sample images used for testing.
@@ -472,7 +470,6 @@ if (use.test) {
   # Main unittest file.
   executable("update_engine_unittests") {
     sources = [
-      "boot_control_chromeos_unittest.cc",
       "certificate_checker_unittest.cc",
       "common/action_pipe_unittest.cc",
       "common/action_processor_unittest.cc",
@@ -486,24 +483,28 @@ if (use.test) {
       "common/subprocess_unittest.cc",
       "common/terminator_unittest.cc",
       "common/utils_unittest.cc",
-      "common_service_unittest.cc",
-      "connection_manager_unittest.cc",
-      "hardware_chromeos_unittest.cc",
-      "image_properties_chromeos_unittest.cc",
+      "cros/boot_control_chromeos_unittest.cc",
+      "cros/common_service_unittest.cc",
+      "cros/connection_manager_unittest.cc",
+      "cros/hardware_chromeos_unittest.cc",
+      "cros/image_properties_chromeos_unittest.cc",
+      "cros/metrics_reporter_omaha_unittest.cc",
+      "cros/omaha_request_action_unittest.cc",
+      "cros/omaha_request_builder_xml_unittest.cc",
+      "cros/omaha_request_params_unittest.cc",
+      "cros/omaha_response_handler_action_unittest.cc",
+      "cros/omaha_utils_unittest.cc",
+      "cros/p2p_manager_unittest.cc",
+      "cros/payload_state_unittest.cc",
+      "cros/requisition_util_unittest.cc",
+      "cros/update_attempter_unittest.cc",
+      "download_action_unittest.cc",
       "libcurl_http_fetcher_unittest.cc",
-      "metrics_reporter_omaha_unittest.cc",
       "metrics_utils_unittest.cc",
-      "omaha_request_action_unittest.cc",
-      "omaha_request_builder_xml_unittest.cc",
-      "omaha_request_params_unittest.cc",
-      "omaha_response_handler_action_unittest.cc",
-      "omaha_utils_unittest.cc",
-      "p2p_manager_unittest.cc",
       "payload_consumer/bzip_extent_writer_unittest.cc",
       "payload_consumer/cached_file_descriptor_unittest.cc",
       "payload_consumer/delta_performer_integration_test.cc",
       "payload_consumer/delta_performer_unittest.cc",
-      "payload_consumer/download_action_unittest.cc",
       "payload_consumer/extent_reader_unittest.cc",
       "payload_consumer/extent_writer_unittest.cc",
       "payload_consumer/file_descriptor_utils_unittest.cc",
@@ -528,10 +529,7 @@ if (use.test) {
       "payload_generator/payload_signer_unittest.cc",
       "payload_generator/squashfs_filesystem_unittest.cc",
       "payload_generator/zip_unittest.cc",
-      "payload_state_unittest.cc",
-      "requisition_util_unittest.cc",
       "testrunner.cc",
-      "update_attempter_unittest.cc",
       "update_boot_flags_action_unittest.cc",
       "update_manager/boxed_value_unittest.cc",
       "update_manager/chromeos_policy_unittest.cc",
@@ -553,7 +551,7 @@ if (use.test) {
       "update_status_utils_unittest.cc",
     ]
     if (use.dlc) {
-      sources += [ "excluder_chromeos_unittest.cc" ]
+      sources += [ "cros/excluder_chromeos_unittest.cc" ]
     }
 
     # //common-mk:test should be on the top.
@@ -596,7 +594,7 @@ if (use.fuzzer) {
     ]
   }
   executable("update_engine_omaha_request_action_fuzzer") {
-    sources = [ "omaha_request_action_fuzzer.cc" ]
+    sources = [ "cros/omaha_request_action_fuzzer.cc" ]
     configs += [
       "//common-mk/common_fuzzer",
       ":target_defaults",
