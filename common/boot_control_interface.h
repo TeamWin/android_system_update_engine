@@ -75,6 +75,11 @@ class BootControlInterface {
                                   Slot slot,
                                   std::string* device) const = 0;
 
+  virtual std::optional<PartitionDevice> GetPartitionDevice(
+      const std::string& partition_name,
+      uint32_t slot,
+      uint32_t current_slot,
+      bool not_in_payload = false) const = 0;
   // Returns whether the passed |slot| is marked as bootable. Returns false if
   // the slot is invalid.
   virtual bool IsSlotBootable(Slot slot) const = 0;

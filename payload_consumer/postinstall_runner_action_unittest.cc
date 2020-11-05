@@ -195,6 +195,7 @@ void PostinstallRunnerActionTest::RunPostinstallAction(
   InstallPlan::Partition part;
   part.name = "part";
   part.target_path = device_path;
+  part.postinstall_mount_device = device_path;
   part.run_postinstall = true;
   part.postinstall_path = postinstall_program;
   InstallPlan install_plan;
@@ -356,6 +357,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSkipOptionalPostinstallTest) {
   InstallPlan::Partition part;
   part.name = "part";
   part.target_path = "/dev/null";
+  part.postinstall_mount_device = "/dev/null";
   part.run_postinstall = true;
   part.postinstall_path = kPostinstallDefaultScript;
   part.postinstall_optional = true;

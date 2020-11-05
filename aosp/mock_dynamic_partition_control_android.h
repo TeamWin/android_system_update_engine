@@ -70,6 +70,7 @@ class MockDynamicPartitionControlAndroid
   MOCK_METHOD(FeatureFlag, GetDynamicPartitionsFeatureFlag, (), (override));
   MOCK_METHOD(std::string, GetSuperPartitionName, (uint32_t), (override));
   MOCK_METHOD(FeatureFlag, GetVirtualAbFeatureFlag, (), (override));
+  MOCK_METHOD(FeatureFlag, GetVirtualAbCompressionFeatureFlag, (), (override));
   MOCK_METHOD(bool, FinishUpdate, (bool), (override));
   MOCK_METHOD(bool,
               GetSystemOtherPath,
@@ -132,6 +133,8 @@ class MockDynamicPartitionControlAndroid
     return DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
         source_slot, target_slot, manifest, delete_source);
   }
+  using DynamicPartitionControlAndroid::SetSourceSlot;
+  using DynamicPartitionControlAndroid::SetTargetSlot;
 };
 
 }  // namespace chromeos_update_engine
