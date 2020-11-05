@@ -134,6 +134,10 @@ UpdateAttempter::UpdateAttempter(SystemState* system_state,
       is_install_(false) {}
 
 UpdateAttempter::~UpdateAttempter() {
+  // Prevent any DBus communication from UpdateAttempter when shutting down the
+  // daemon.
+  ClearObservers();
+
   // CertificateChecker might not be initialized in unittests.
   if (cert_checker_)
     cert_checker_->SetObserver(nullptr);
@@ -174,6 +178,33 @@ bool UpdateAttempter::ScheduleUpdates() {
   update_manager->AsyncPolicyRequestUpdateCheckAllowed(
       callback, &Policy::UpdateCheckAllowed);
   waiting_for_scheduled_check_ = true;
+  return true;
+}
+
+bool UpdateAttempter::StartUpdater() {
+  // Initiate update checks.
+  ScheduleUpdates();
+
+  auto update_boot_flags_action =
+      std::make_unique<UpdateBootFlagsAction>(system_state_->boot_control());
+  processor_->EnqueueAction(std::move(update_boot_flags_action));
+  // Update boot flags after 45 seconds.
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&ActionProcessor::StartProcessing,
+                 base::Unretained(processor_.get())),
+      base::TimeDelta::FromSeconds(45));
+
+  // Broadcast the update engine status on startup to ensure consistent system
+  // state on crashes.
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempter::BroadcastStatus, base::Unretained(this)));
+
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempter::UpdateEngineStarted,
+                 base::Unretained(this)));
   return true;
 }
 

@@ -39,19 +39,9 @@
 #if USE_DBUS
 #include "update_engine/cros/dbus_connection.h"
 #endif  // USE_DBUS
-#include "update_engine/update_boot_flags_action.h"
 #include "update_engine/update_manager/state_factory.h"
 
-using brillo::MessageLoop;
-
 namespace chromeos_update_engine {
-
-RealSystemState::~RealSystemState() {
-  // Prevent any DBus communication from UpdateAttempter when shutting down the
-  // daemon.
-  if (update_attempter_)
-    update_attempter_->ClearObservers();
-}
 
 bool RealSystemState::Initialize() {
   boot_control_ = boot_control::CreateBootControl();
@@ -199,45 +189,6 @@ bool RealSystemState::Initialize() {
 
   // All is well. Initialization successful.
   return true;
-}
-
-bool RealSystemState::StartUpdater() {
-  // Initiate update checks.
-  update_attempter_->ScheduleUpdates();
-
-  auto update_boot_flags_action =
-      std::make_unique<UpdateBootFlagsAction>(boot_control_.get());
-  processor_.EnqueueAction(std::move(update_boot_flags_action));
-  // Update boot flags after 45 seconds.
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&ActionProcessor::StartProcessing,
-                 base::Unretained(&processor_)),
-      base::TimeDelta::FromSeconds(45));
-
-  // Broadcast the update engine status on startup to ensure consistent system
-  // state on crashes.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&UpdateAttempter::BroadcastStatus,
-                 base::Unretained(update_attempter_.get())));
-
-  // Run the UpdateEngineStarted() method on |update_attempter|.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&UpdateAttempter::UpdateEngineStarted,
-                 base::Unretained(update_attempter_.get())));
-  return true;
-}
-
-void RealSystemState::AddObserver(ServiceObserverInterface* observer) {
-  CHECK(update_attempter_.get());
-  update_attempter_->AddObserver(observer);
-}
-
-void RealSystemState::RemoveObserver(ServiceObserverInterface* observer) {
-  CHECK(update_attempter_.get());
-  update_attempter_->RemoveObserver(observer);
 }
 
 }  // namespace chromeos_update_engine

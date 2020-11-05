@@ -48,28 +48,16 @@ namespace chromeos_update_engine {
 
 // A real implementation of the SystemStateInterface which is
 // used by the actual product code.
-class RealSystemState : public SystemState, public DaemonStateInterface {
+class RealSystemState : public SystemState {
  public:
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
   RealSystemState() = default;
-  ~RealSystemState() override;
+  ~RealSystemState() = default;
 
   // Initializes and sets systems objects that require an initialization
   // separately from construction. Returns |true| on success.
   bool Initialize();
-
-  // DaemonStateInterface overrides.
-  // Start the periodic update attempts. Must be called at the beginning of the
-  // program to start the periodic update check process.
-  bool StartUpdater() override;
-
-  void AddObserver(ServiceObserverInterface* observer) override;
-  void RemoveObserver(ServiceObserverInterface* observer) override;
-  const std::set<ServiceObserverInterface*>& service_observers() override {
-    CHECK(update_attempter_.get());
-    return update_attempter_->service_observers();
-  }
 
   // SystemState overrides.
   inline void set_device_policy(
@@ -193,8 +181,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   // rebooted. Important for tracking whether you are running instance of the
   // update engine on first boot or due to a crash/restart.
   bool system_rebooted_{false};
-
-  ActionProcessor processor_;
 };
 
 }  // namespace chromeos_update_engine

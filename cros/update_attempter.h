@@ -34,6 +34,7 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/cpu_limiter.h"
+#include "update_engine/common/daemon_state_interface.h"
 #include "update_engine/common/download_action.h"
 #include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/proxy_resolver.h"
@@ -59,7 +60,8 @@ namespace chromeos_update_engine {
 class UpdateAttempter : public ActionProcessorDelegate,
                         public DownloadActionDelegate,
                         public CertificateChecker::Observer,
-                        public PostinstallRunnerAction::DelegateInterface {
+                        public PostinstallRunnerAction::DelegateInterface,
+                        public DaemonStateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
   using UpdateAttemptFlags = update_engine::UpdateAttemptFlags;
@@ -219,15 +221,15 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // 'cros flash' to function properly).
   bool IsAnyUpdateSourceAllowed() const;
 
-  // Add and remove a service observer.
-  void AddObserver(ServiceObserverInterface* observer) {
+  // |DaemonStateInterface| overrides.
+  bool StartUpdater() override;
+  void AddObserver(ServiceObserverInterface* observer) override {
     service_observers_.insert(observer);
   }
-  void RemoveObserver(ServiceObserverInterface* observer) {
+  void RemoveObserver(ServiceObserverInterface* observer) override {
     service_observers_.erase(observer);
   }
-
-  const std::set<ServiceObserverInterface*>& service_observers() {
+  const std::set<ServiceObserverInterface*>& service_observers() override {
     return service_observers_;
   }
 

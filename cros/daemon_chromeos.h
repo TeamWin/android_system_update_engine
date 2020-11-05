@@ -47,9 +47,8 @@ class DaemonChromeOS : public DaemonBase {
   // the main() function.
   Subprocess subprocess_;
 
-  // The daemon state with all the required daemon classes for the configured
-  // platform.
-  std::unique_ptr<DaemonStateInterface> daemon_state_;
+  // The global context sysetm state.
+  std::unique_ptr<SystemState> system_state_;
 
   DISALLOW_COPY_AND_ASSIGN(DaemonChromeOS);
 };
