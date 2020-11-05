@@ -25,18 +25,11 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/metrics_constants.h"
-#include "update_engine/common/system_state.h"
 
 namespace chromeos_update_engine {
 
 enum class ServerToCheck;
 enum class CertificateCheckResult;
-
-namespace metrics {
-
-std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter();
-
-}  // namespace metrics
 
 class MetricsReporterInterface {
  public:
@@ -92,7 +85,6 @@ class MetricsReporterInterface {
   // if it's set, |kMetricCheckRollbackTargetVersion| reports the same, but only
   // if rollback is also allowed using enterprise policy.
   virtual void ReportUpdateCheckMetrics(
-      SystemState* system_state,
       metrics::CheckResult result,
       metrics::CheckReaction reaction,
       metrics::DownloadErrorCode download_error_code) = 0;
@@ -120,8 +112,7 @@ class MetricsReporterInterface {
   // |kMetricAttemptTimeSinceLastAttemptUptimeMinutes| metrics are
   // automatically calculated and reported by maintaining persistent and
   // process-local state variables.
-  virtual void ReportUpdateAttemptMetrics(SystemState* system_state,
-                                          int attempt_number,
+  virtual void ReportUpdateAttemptMetrics(int attempt_number,
                                           PayloadType payload_type,
                                           base::TimeDelta duration,
                                           base::TimeDelta duration_uptime,
@@ -241,6 +232,12 @@ class MetricsReporterInterface {
   virtual void ReportEnterpriseUpdateSeenToDownloadDays(
       bool has_time_restriction_policy, int time_to_update_days) = 0;
 };
+
+namespace metrics {
+
+std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter();
+
+}  // namespace metrics
 
 }  // namespace chromeos_update_engine
 

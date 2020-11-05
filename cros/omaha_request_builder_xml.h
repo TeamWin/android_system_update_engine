@@ -33,7 +33,6 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
-#include "update_engine/common/system_state.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/omaha_response.h"
 

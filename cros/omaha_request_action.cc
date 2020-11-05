@@ -48,6 +48,7 @@
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/connection_manager_interface.h"
 #include "update_engine/cros/omaha_request_builder_xml.h"
@@ -275,13 +276,11 @@ void ParserHandlerEntityDecl(void* user_data,
 }  // namespace
 
 OmahaRequestAction::OmahaRequestAction(
-    SystemState* system_state,
     OmahaEvent* event,
     std::unique_ptr<HttpFetcher> http_fetcher,
     bool ping_only,
     const string& session_id)
-    : system_state_(system_state),
-      params_(system_state->request_params()),
+    : params_(SystemState::Get()->request_params()),
       event_(event),
       http_fetcher_(std::move(http_fetcher)),
       policy_provider_(std::make_unique<policy::PolicyProvider>()),
@@ -298,7 +297,8 @@ OmahaRequestAction::~OmahaRequestAction() {}
 int OmahaRequestAction::CalculatePingDays(const string& key) {
   int days = kPingNeverPinged;
   int64_t last_ping = 0;
-  if (system_state_->prefs()->GetInt64(key, &last_ping) && last_ping >= 0) {
+  if (SystemState::Get()->prefs()->GetInt64(key, &last_ping) &&
+      last_ping >= 0) {
     days = (Time::Now() - Time::FromInternalValue(last_ping)).InDays();
     if (days < 0) {
       // If |days| is negative, then the system clock must have jumped
@@ -329,13 +329,13 @@ void OmahaRequestAction::InitPingDays() {
 bool OmahaRequestAction::ShouldPing() const {
   if (ping_active_days_ == kPingNeverPinged &&
       ping_roll_call_days_ == kPingNeverPinged) {
-    int powerwash_count = system_state_->hardware()->GetPowerwashCount();
+    int powerwash_count = SystemState::Get()->hardware()->GetPowerwashCount();
     if (powerwash_count > 0) {
       LOG(INFO) << "Not sending ping with a=-1 r=-1 to omaha because "
                 << "powerwash_count is " << powerwash_count;
       return false;
     }
-    if (system_state_->hardware()->GetFirstActiveOmahaPingSent()) {
+    if (SystemState::Get()->hardware()->GetFirstActiveOmahaPingSent()) {
       LOG(INFO) << "Not sending ping with a=-1 r=-1 to omaha because "
                 << "the first_active_omaha_ping_sent is true.";
       return false;
@@ -346,8 +346,8 @@ bool OmahaRequestAction::ShouldPing() const {
 }
 
 // static
-int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
-  PrefsInterface* prefs = system_state->prefs();
+int OmahaRequestAction::GetInstallDate() {
+  PrefsInterface* prefs = SystemState::Get()->prefs();
   if (prefs == nullptr)
     return -1;
 
@@ -383,8 +383,8 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   // inspecting the timestamp of when OOBE happened.
 
   Time time_of_oobe;
-  if (!system_state->hardware()->IsOOBEEnabled() ||
-      !system_state->hardware()->IsOOBEComplete(&time_of_oobe)) {
+  if (!SystemState::Get()->hardware()->IsOOBEEnabled() ||
+      !SystemState::Get()->hardware()->IsOOBEComplete(&time_of_oobe)) {
     LOG(INFO) << "Not generating Omaha InstallData as we have "
               << "no prefs file and OOBE is not complete or not enabled.";
     return -1;
@@ -399,8 +399,8 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   }
 
   // Persist this to disk, for future use.
-  if (!OmahaRequestAction::PersistInstallDate(
-          system_state, num_days, kProvisionedFromOOBEMarker))
+  if (!OmahaRequestAction::PersistInstallDate(num_days,
+                                              kProvisionedFromOOBEMarker))
     return -1;
 
   LOG(INFO) << "Set the Omaha InstallDate from OOBE time-stamp to " << num_days
@@ -422,7 +422,7 @@ void OmahaRequestAction::StorePingReply(
     if (!dlc_params.send_ping)
       continue;
 
-    PrefsInterface* prefs = system_state_->prefs();
+    PrefsInterface* prefs = SystemState::Get()->prefs();
     // Reset the active metadata value to |kPingInactiveValue|.
     auto active_key =
         prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
@@ -462,8 +462,8 @@ void OmahaRequestAction::PerformAction() {
                                        ShouldPing(),  // include_ping
                                        ping_active_days_,
                                        ping_roll_call_days_,
-                                       GetInstallDate(system_state_),
-                                       system_state_->prefs(),
+                                       GetInstallDate(),
+                                       SystemState::Get()->prefs(),
                                        session_id_);
   string request_post = omaha_request.GetRequest();
 
@@ -742,16 +742,14 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   // element. This is the number of days since Jan 1 2007, 0:00
   // PST. If we don't have a persisted value of the Omaha InstallDate,
   // we'll use it to calculate it and then persist it.
-  if (ParseInstallDate(parser_data, output_object) &&
-      !HasInstallDate(system_state_)) {
+  if (ParseInstallDate(parser_data, output_object) && !HasInstallDate()) {
     // Since output_object->install_date_days is never negative, the
     // elapsed_days -> install-date calculation is reduced to simply
     // rounding down to the nearest number divisible by 7.
     int remainder = output_object->install_date_days % 7;
     int install_date_days_rounded =
         output_object->install_date_days - remainder;
-    if (PersistInstallDate(system_state_,
-                           install_date_days_rounded,
+    if (PersistInstallDate(install_date_days_rounded,
                            kProvisionedFromOmahaResponse)) {
       LOG(INFO) << "Set the Omaha InstallDate from Omaha Response to "
                 << install_date_days_rounded << " days.";
@@ -908,7 +906,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   string current_response(response_buffer_.begin(), response_buffer_.end());
   LOG(INFO) << "Omaha request response: " << current_response;
 
-  PayloadStateInterface* const payload_state = system_state_->payload_state();
+  PayloadStateInterface* const payload_state =
+      SystemState::Get()->payload_state();
 
   // Set the max kernel key version based on whether rollback is allowed.
   SetMaxKernelKeyVersionForRollback();
@@ -924,8 +923,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   if (aux_error_code != ErrorCode::kSuccess) {
     metrics::DownloadErrorCode download_error_code =
         metrics_utils::GetDownloadErrorCode(aux_error_code);
-    system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
-        system_state_,
+    SystemState::Get()->metrics_reporter()->ReportUpdateCheckMetrics(
         metrics::CheckResult::kUnset,
         metrics::CheckReaction::kUnset,
         download_error_code);
@@ -976,7 +974,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   // Update the last ping day preferences based on the server daystart response
   // even if we didn't send a ping. Omaha always includes the daystart in the
   // response, but log the error if it didn't.
-  LOG_IF(ERROR, !UpdateLastPingDays(&parser_data, system_state_->prefs()))
+  LOG_IF(ERROR, !UpdateLastPingDays(&parser_data, SystemState::Get()->prefs()))
       << "Failed to update the last ping day preferences!";
 
   // Sets first_active_omaha_ping_sent to true (vpd in CrOS). We only do this if
@@ -985,9 +983,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   // need to check if a=-1 has been sent because older devices have already sent
   // their a=-1 in the past and we have to set first_active_omaha_ping_sent for
   // future checks.
-  if (!system_state_->hardware()->GetFirstActiveOmahaPingSent()) {
-    if (!system_state_->hardware()->SetFirstActiveOmahaPingSent()) {
-      system_state_->metrics_reporter()->ReportInternalErrorCode(
+  if (!SystemState::Get()->hardware()->GetFirstActiveOmahaPingSent()) {
+    if (!SystemState::Get()->hardware()->SetFirstActiveOmahaPingSent()) {
+      SystemState::Get()->metrics_reporter()->ReportInternalErrorCode(
           ErrorCode::kFirstActiveOmahaPingSentPersistenceError);
     }
   }
@@ -1006,8 +1004,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   if (!ParseResponse(&parser_data, &output_object, &completer))
     return;
   ProcessExclusions(&output_object,
-                    system_state_->request_params(),
-                    system_state_->update_attempter()->GetExcluder());
+                    SystemState::Get()->request_params(),
+                    SystemState::Get()->update_attempter()->GetExcluder());
   output_object.update_exists = true;
   SetOutputObject(output_object);
 
@@ -1071,7 +1069,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
 void OmahaRequestAction::CompleteProcessing() {
   ScopedActionCompleter completer(processor_, this);
   OmahaResponse& output_object = const_cast<OmahaResponse&>(GetOutputObject());
-  PayloadStateInterface* payload_state = system_state_->payload_state();
+  PayloadStateInterface* payload_state = SystemState::Get()->payload_state();
 
   if (ShouldDeferDownload(&output_object)) {
     output_object.update_exists = false;
@@ -1093,11 +1091,11 @@ void OmahaRequestAction::CompleteProcessing() {
 void OmahaRequestAction::OnLookupPayloadViaP2PCompleted(const string& url) {
   LOG(INFO) << "Lookup complete, p2p-client returned URL '" << url << "'";
   if (!url.empty()) {
-    system_state_->payload_state()->SetP2PUrl(url);
+    SystemState::Get()->payload_state()->SetP2PUrl(url);
   } else {
     LOG(INFO) << "Forcibly disabling use of p2p for downloading "
               << "because no suitable peer could be found.";
-    system_state_->payload_state()->SetUsingP2PForDownloading(false);
+    SystemState::Get()->payload_state()->SetUsingP2PForDownloading(false);
   }
   CompleteProcessing();
 }
@@ -1121,18 +1119,17 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
   int64_t manifest_signature_size = 0;
   int64_t next_data_offset = 0;
   int64_t next_data_length = 0;
-  if (system_state_ &&
-      system_state_->prefs()->GetInt64(kPrefsManifestMetadataSize,
-                                       &manifest_metadata_size) &&
+  if (SystemState::Get()->prefs()->GetInt64(kPrefsManifestMetadataSize,
+                                            &manifest_metadata_size) &&
       manifest_metadata_size != -1 &&
-      system_state_->prefs()->GetInt64(kPrefsManifestSignatureSize,
-                                       &manifest_signature_size) &&
+      SystemState::Get()->prefs()->GetInt64(kPrefsManifestSignatureSize,
+                                            &manifest_signature_size) &&
       manifest_signature_size != -1 &&
-      system_state_->prefs()->GetInt64(kPrefsUpdateStateNextDataOffset,
-                                       &next_data_offset) &&
+      SystemState::Get()->prefs()->GetInt64(kPrefsUpdateStateNextDataOffset,
+                                            &next_data_offset) &&
       next_data_offset != -1 &&
-      system_state_->prefs()->GetInt64(kPrefsUpdateStateNextDataLength,
-                                       &next_data_length)) {
+      SystemState::Get()->prefs()->GetInt64(kPrefsUpdateStateNextDataLength,
+                                            &next_data_length)) {
     minimum_size = manifest_metadata_size + manifest_signature_size +
                    next_data_offset + next_data_length;
   }
@@ -1143,10 +1140,10 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
     return;
   string file_id =
       utils::CalculateP2PFileId(raw_hash, response.packages[0].size);
-  if (system_state_->p2p_manager()) {
+  if (SystemState::Get()->p2p_manager()) {
     LOG(INFO) << "Checking if payload is available via p2p, file_id=" << file_id
               << " minimum_size=" << minimum_size;
-    system_state_->p2p_manager()->LookupUrlForFile(
+    SystemState::Get()->p2p_manager()->LookupUrlForFile(
         file_id,
         minimum_size,
         TimeDelta::FromSeconds(kMaxP2PNetworkWaitTimeSeconds),
@@ -1165,7 +1162,8 @@ bool OmahaRequestAction::ShouldDeferDownload(OmahaResponse* output_object) {
   // defer the download. This is because the download will always
   // happen from a peer on the LAN and we've been waiting in line for
   // our turn.
-  const PayloadStateInterface* payload_state = system_state_->payload_state();
+  const PayloadStateInterface* payload_state =
+      SystemState::Get()->payload_state();
   if (payload_state->GetUsingP2PForDownloading() &&
       !payload_state->GetP2PUrl().empty()) {
     LOG(INFO) << "Download not deferred because download "
@@ -1222,13 +1220,13 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
   }
 
   TimeDelta elapsed_time =
-      system_state_->clock()->GetWallclockTime() - update_first_seen_at;
+      SystemState::Get()->clock()->GetWallclockTime() - update_first_seen_at;
   TimeDelta max_scatter_period =
       TimeDelta::FromDays(output_object->max_days_to_scatter);
   int64_t staging_wait_time_in_days = 0;
   // Use staging and its default max value if staging is on.
-  if (system_state_->prefs()->GetInt64(kPrefsWallClockStagingWaitPeriod,
-                                       &staging_wait_time_in_days) &&
+  if (SystemState::Get()->prefs()->GetInt64(kPrefsWallClockStagingWaitPeriod,
+                                            &staging_wait_time_in_days) &&
       staging_wait_time_in_days > 0)
     max_scatter_period = TimeDelta::FromDays(kMaxWaitTimeStagingInDays);
 
@@ -1287,9 +1285,9 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
 bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
   int64_t update_check_count_value;
 
-  if (system_state_->prefs()->Exists(kPrefsUpdateCheckCount)) {
-    if (!system_state_->prefs()->GetInt64(kPrefsUpdateCheckCount,
-                                          &update_check_count_value)) {
+  if (SystemState::Get()->prefs()->Exists(kPrefsUpdateCheckCount)) {
+    if (!SystemState::Get()->prefs()->GetInt64(kPrefsUpdateCheckCount,
+                                               &update_check_count_value)) {
       // We are unable to read the update check count from file for some reason.
       // So let's proceed anyway so as to not stall the update.
       LOG(ERROR) << "Unable to read update check count. "
@@ -1307,8 +1305,8 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
               << update_check_count_value;
 
     // Write out the initial value of update_check_count_value.
-    if (!system_state_->prefs()->SetInt64(kPrefsUpdateCheckCount,
-                                          update_check_count_value)) {
+    if (!SystemState::Get()->prefs()->SetInt64(kPrefsUpdateCheckCount,
+                                               update_check_count_value)) {
       // We weren't able to write the update check count file for some reason.
       // So let's proceed anyway so as to not stall the update.
       LOG(ERROR) << "Unable to write update check count. "
@@ -1353,8 +1351,8 @@ bool OmahaRequestAction::ParseInstallDate(OmahaParserData* parser_data,
 }
 
 // static
-bool OmahaRequestAction::HasInstallDate(SystemState* system_state) {
-  PrefsInterface* prefs = system_state->prefs();
+bool OmahaRequestAction::HasInstallDate() {
+  PrefsInterface* prefs = SystemState::Get()->prefs();
   if (prefs == nullptr)
     return false;
 
@@ -1363,19 +1361,18 @@ bool OmahaRequestAction::HasInstallDate(SystemState* system_state) {
 
 // static
 bool OmahaRequestAction::PersistInstallDate(
-    SystemState* system_state,
     int install_date_days,
     InstallDateProvisioningSource source) {
   TEST_AND_RETURN_FALSE(install_date_days >= 0);
 
-  PrefsInterface* prefs = system_state->prefs();
+  PrefsInterface* prefs = SystemState::Get()->prefs();
   if (prefs == nullptr)
     return false;
 
   if (!prefs->SetInt64(kPrefsInstallDateDays, install_date_days))
     return false;
 
-  system_state->metrics_reporter()->ReportInstallDateProvisioningSource(
+  SystemState::Get()->metrics_reporter()->ReportInstallDateProvisioningSource(
       static_cast<int>(source),  // Sample.
       kProvisionedMax);          // Maximum.
   return true;
@@ -1386,13 +1383,13 @@ void OmahaRequestAction::PersistCohortData(const string& prefs_key,
   if (!new_value)
     return;
   const string& value = new_value.value();
-  if (value.empty() && system_state_->prefs()->Exists(prefs_key)) {
-    if (!system_state_->prefs()->Delete(prefs_key))
+  if (value.empty() && SystemState::Get()->prefs()->Exists(prefs_key)) {
+    if (!SystemState::Get()->prefs()->Delete(prefs_key))
       LOG(ERROR) << "Failed to remove stored " << prefs_key << "value.";
     else
       LOG(INFO) << "Removed stored " << prefs_key << " value.";
   } else if (!value.empty()) {
-    if (!system_state_->prefs()->SetString(prefs_key, value))
+    if (!SystemState::Get()->prefs()->SetString(prefs_key, value))
       LOG(INFO) << "Failed to store new setting " << prefs_key << " as "
                 << value;
     else
@@ -1414,7 +1411,7 @@ void OmahaRequestAction::PersistCohorts(const OmahaParserData& parser_data) {
                      << " as it is not in the request params.";
         continue;
       }
-      PrefsInterface* prefs = system_state_->prefs();
+      PrefsInterface* prefs = SystemState::Get()->prefs();
       PersistCohortData(
           prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohort}),
           app.cohort);
@@ -1436,7 +1433,7 @@ bool OmahaRequestAction::PersistEolInfo(const map<string, string>& attrs) {
   auto eol_date_attr = attrs.find(kAttrEolDate);
   if (eol_date_attr != attrs.end()) {
     const auto& eol_date = eol_date_attr->second;
-    if (!system_state_->prefs()->SetString(kPrefsOmahaEolDate, eol_date)) {
+    if (!SystemState::Get()->prefs()->SetString(kPrefsOmahaEolDate, eol_date)) {
       LOG(ERROR) << "Setting EOL date failed.";
       return false;
     }
@@ -1504,15 +1501,15 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
       break;
   }
 
-  system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
-      system_state_, result, reaction, download_error_code);
+  SystemState::Get()->metrics_reporter()->ReportUpdateCheckMetrics(
+      result, reaction, download_error_code);
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
                                             ErrorCode* error) const {
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
-      system_state_->payload_state()->GetRollbackVersion();
+      SystemState::Get()->payload_state()->GetRollbackVersion();
   if (!rollback_version.empty()) {
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
     if (rollback_version == response.version) {
@@ -1522,10 +1519,10 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
     }
   }
 
-  if (system_state_->hardware()->IsOOBEEnabled() &&
-      !system_state_->hardware()->IsOOBEComplete(nullptr) &&
+  if (SystemState::Get()->hardware()->IsOOBEEnabled() &&
+      !SystemState::Get()->hardware()->IsOOBEComplete(nullptr) &&
       (response.deadline.empty() ||
-       system_state_->payload_state()->GetRollbackHappened()) &&
+       SystemState::Get()->payload_state()->GetRollbackHappened()) &&
       params_->app_version() != "ForcedUpdate") {
     LOG(INFO) << "Ignoring a non-critical Omaha update before OOBE completion.";
     *error = ErrorCode::kNonCriticalUpdateInOOBE;
@@ -1557,7 +1554,7 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
 
 bool OmahaRequestAction::IsUpdateAllowedOverCellularByPrefs(
     const OmahaResponse& response) const {
-  PrefsInterface* prefs = system_state_->prefs();
+  PrefsInterface* prefs = SystemState::Get()->prefs();
 
   if (!prefs) {
     LOG(INFO) << "Disabling updates over cellular as the preferences are "
@@ -1614,7 +1611,7 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
   ConnectionType type;
   ConnectionTethering tethering;
   ConnectionManagerInterface* connection_manager =
-      system_state_->connection_manager();
+      SystemState::Get()->connection_manager();
   if (!connection_manager->GetConnectionProperties(&type, &tethering)) {
     LOG(INFO) << "We could not determine our connection type. "
               << "Defaulting to allow updates.";
@@ -1677,7 +1674,8 @@ bool OmahaRequestAction::IsRollbackEnabled() const {
 
 void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
   int max_kernel_rollforward;
-  int min_kernel_version = system_state_->hardware()->GetMinKernelKeyVersion();
+  int min_kernel_version =
+      SystemState::Get()->hardware()->GetMinKernelKeyVersion();
   if (IsRollbackEnabled()) {
     // If rollback is enabled, set the max kernel key version to the current
     // kernel key version. This has the effect of freezing kernel key roll
@@ -1703,22 +1701,22 @@ void OmahaRequestAction::SetMaxKernelKeyVersionForRollback() const {
   }
 
   bool max_rollforward_set =
-      system_state_->hardware()->SetMaxKernelKeyRollforward(
+      SystemState::Get()->hardware()->SetMaxKernelKeyRollforward(
           max_kernel_rollforward);
   if (!max_rollforward_set) {
     LOG(ERROR) << "Failed to set kernel_max_rollforward";
   }
   // Report metrics
-  system_state_->metrics_reporter()->ReportKeyVersionMetrics(
+  SystemState::Get()->metrics_reporter()->ReportKeyVersionMetrics(
       min_kernel_version, max_kernel_rollforward, max_rollforward_set);
 }
 
 base::Time OmahaRequestAction::LoadOrPersistUpdateFirstSeenAtPref() const {
   Time update_first_seen_at;
   int64_t update_first_seen_at_int;
-  if (system_state_->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
-    if (system_state_->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
-                                         &update_first_seen_at_int)) {
+  if (SystemState::Get()->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
+    if (SystemState::Get()->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
+                                              &update_first_seen_at_int)) {
       // Note: This timestamp could be that of ANY update we saw in the past
       // (not necessarily this particular update we're considering to apply)
       // but never got to apply because of some reason (e.g. stop AU policy,
@@ -1738,10 +1736,10 @@ base::Time OmahaRequestAction::LoadOrPersistUpdateFirstSeenAtPref() const {
       return base::Time();
     }
   } else {
-    update_first_seen_at = system_state_->clock()->GetWallclockTime();
+    update_first_seen_at = SystemState::Get()->clock()->GetWallclockTime();
     update_first_seen_at_int = update_first_seen_at.ToInternalValue();
-    if (system_state_->prefs()->SetInt64(kPrefsUpdateFirstSeenAt,
-                                         update_first_seen_at_int)) {
+    if (SystemState::Get()->prefs()->SetInt64(kPrefsUpdateFirstSeenAt,
+                                              update_first_seen_at_int)) {
       LOG(INFO) << "Persisted the new value for UpdateFirstSeenAt: "
                 << utils::ToString(update_first_seen_at);
     } else {

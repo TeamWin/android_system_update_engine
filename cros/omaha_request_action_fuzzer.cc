@@ -31,10 +31,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
-  chromeos_update_engine::FakeSystemState fake_system_state;
+  chromeos_update_engine::FakeSystemState::CreateInstance();
   auto omaha_request_action =
       std::make_unique<chromeos_update_engine::OmahaRequestAction>(
-          &fake_system_state,
           nullptr,
           std::make_unique<chromeos_update_engine::MockHttpFetcher>(
               data, size, nullptr),

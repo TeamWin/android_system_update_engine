@@ -17,6 +17,10 @@
 #ifndef UPDATE_ENGINE_COMMON_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_COMMON_SYSTEM_STATE_H_
 
+#include <memory>
+
+#include <base/logging.h>
+
 namespace chromeos_update_manager {
 
 class UpdateManager;
@@ -51,13 +55,14 @@ class UpdateAttempter;
 // the current state of the system, high-level objects whose lifetime is same
 // as main, system interfaces, etc.
 // Carved out separately so it can be mocked for unit tests.
-// Currently it has only one method, but we should start migrating other
-// methods to use this as and when needed to unit test them.
-// TODO(jaysri): Consider renaming this to something like GlobalContext.
 class SystemState {
  public:
-  // Destructs this object.
-  virtual ~SystemState() {}
+  virtual ~SystemState() = default;
+
+  static SystemState* Get() {
+    CHECK(g_instance_);
+    return g_instance_.get();
+  }
 
   // Sets or gets the latest device policy.
   virtual void set_device_policy(const policy::DevicePolicy* device_policy) = 0;
@@ -113,6 +118,9 @@ class SystemState {
 
   // Returns a pointer to the DlcServiceInterface singleton.
   virtual DlcServiceInterface* dlcservice() = 0;
+
+ protected:
+  static std::unique_ptr<SystemState> g_instance_;
 };
 
 }  // namespace chromeos_update_engine

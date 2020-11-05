@@ -80,7 +80,9 @@ class OmahaResponseHandlerActionProcessorDelegate
 class OmahaResponseHandlerActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    FakeBootControl* fake_boot_control = fake_system_state_.fake_boot_control();
+    FakeSystemState::CreateInstance();
+    FakeBootControl* fake_boot_control =
+        FakeSystemState::Get()->fake_boot_control();
     fake_boot_control->SetPartitionDevice(kPartitionNameKernel, 0, "/dev/sdz2");
     fake_boot_control->SetPartitionDevice(kPartitionNameRoot, 0, "/dev/sdz3");
     fake_boot_control->SetPartitionDevice(kPartitionNameKernel, 1, "/dev/sdz4");
@@ -100,7 +102,6 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
   // it in non-success cases.
   ErrorCode action_result_code_;
 
-  FakeSystemState fake_system_state_;
   // "Hash+"
   const brillo::Blob expected_hash_ = {0x48, 0x61, 0x73, 0x68, 0x2b};
 };
@@ -136,25 +137,25 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
     string expected_hash;
     for (const auto& package : in.packages)
       expected_hash += package.hash + ":";
-    EXPECT_CALL(*(fake_system_state_.mock_prefs()),
+    EXPECT_CALL(*(FakeSystemState::Get()->mock_prefs()),
                 SetString(kPrefsUpdateCheckResponseHash, expected_hash))
         .WillOnce(Return(true));
 
     int slot =
-        fake_system_state_.request_params()->is_install()
-            ? fake_system_state_.fake_boot_control()->GetCurrentSlot()
-            : 1 - fake_system_state_.fake_boot_control()->GetCurrentSlot();
+        FakeSystemState::Get()->request_params()->is_install()
+            ? FakeSystemState::Get()->fake_boot_control()->GetCurrentSlot()
+            : 1 - FakeSystemState::Get()->fake_boot_control()->GetCurrentSlot();
     string key = kPrefsChannelOnSlotPrefix + std::to_string(slot);
-    EXPECT_CALL(*(fake_system_state_.mock_prefs()), SetString(key, testing::_))
+    EXPECT_CALL(*(FakeSystemState::Get()->mock_prefs()),
+                SetString(key, testing::_))
         .WillOnce(Return(true));
   }
 
   string current_url = in.packages.size() ? in.packages[0].payload_urls[0] : "";
-  EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetCurrentUrl())
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(current_url));
 
-  auto response_handler_action =
-      std::make_unique<OmahaResponseHandlerAction>(&fake_system_state_);
+  auto response_handler_action = std::make_unique<OmahaResponseHandlerAction>();
   if (!test_deadline_file.empty())
     response_handler_action->deadline_file_ = test_deadline_file;
 
@@ -225,7 +226,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = true;
     InstallPlan install_plan;
     // Set the other slot as current.
-    fake_system_state_.fake_boot_control()->SetCurrentSlot(1);
+    FakeSystemState::Get()->fake_boot_control()->SetCurrentSlot(1);
     EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
@@ -250,10 +251,10 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = true;
     in.deadline = "some-deadline";
     InstallPlan install_plan;
-    fake_system_state_.fake_boot_control()->SetCurrentSlot(0);
+    FakeSystemState::Get()->fake_boot_control()->SetCurrentSlot(0);
     // Because rollback happened, the deadline shouldn't be written into the
     // file.
-    EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
+    EXPECT_CALL(*(FakeSystemState::Get()->mock_payload_state()),
                 GetRollbackHappened())
         .WillOnce(Return(true));
     EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
@@ -280,8 +281,8 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = true;
     in.deadline = "some-deadline";
     InstallPlan install_plan;
-    fake_system_state_.fake_boot_control()->SetCurrentSlot(0);
-    EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
+    FakeSystemState::Get()->fake_boot_control()->SetCurrentSlot(0);
+    EXPECT_CALL(*(FakeSystemState::Get()->mock_payload_state()),
                 GetRollbackHappened())
         .WillOnce(Return(false));
     EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
@@ -315,10 +316,10 @@ TEST_F(OmahaResponseHandlerActionTest, InstallTest) {
       {.payload_urls = {kLongName}, .size = 2, .hash = kPayloadHashHex});
   in.more_info_url = "http://more/info";
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   params.set_is_install(true);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(install_plan.source_slot, UINT_MAX);
@@ -366,7 +367,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
        .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
   // Hash checks are always skipped for non-official update URLs.
-  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
   InstallPlan install_plan;
@@ -390,7 +391,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
        .app_id = kPayloadAppId,
        .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
-  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(false));
   InstallPlan install_plan;
@@ -416,10 +417,10 @@ TEST_F(OmahaResponseHandlerActionTest,
        .app_id = kPayloadAppId,
        .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
-  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
@@ -441,7 +442,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
        .app_id = kPayloadAppId,
        .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
-  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
   InstallPlan install_plan;
@@ -466,7 +467,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
        .app_id = kPayloadAppId,
        .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
-  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
   InstallPlan install_plan;
@@ -493,15 +494,15 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("canary-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("2.0.0.0");
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
@@ -521,15 +522,15 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("canary-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("2.0.0.0");
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
@@ -549,15 +550,15 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("beta-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12345.48.0.0");
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
@@ -577,15 +578,15 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("beta-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12345.0.0.0");
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
@@ -608,8 +609,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("beta-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
@@ -619,9 +620,9 @@ TEST_F(OmahaResponseHandlerActionTest,
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy;
   EXPECT_CALL(mock_device_policy, IsEnterpriseEnrolled())
       .WillOnce(Return(true));
-  fake_system_state_.set_device_policy(&mock_device_policy);
+  FakeSystemState::Get()->set_device_policy(&mock_device_policy);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_TRUE(install_plan.rollback_data_save_requested);
@@ -642,8 +643,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("beta-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
@@ -653,9 +654,9 @@ TEST_F(OmahaResponseHandlerActionTest,
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy;
   EXPECT_CALL(mock_device_policy, IsEnterpriseEnrolled())
       .WillOnce(Return(false));
-  fake_system_state_.set_device_policy(&mock_device_policy);
+  FakeSystemState::Get()->set_device_policy(&mock_device_policy);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.rollback_data_save_requested);
@@ -675,15 +676,15 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("beta-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12347.48.0.0");
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.rollback_data_save_requested);
@@ -703,15 +704,15 @@ TEST_F(OmahaResponseHandlerActionTest,
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  OmahaRequestParams params(&fake_system_state_);
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  OmahaRequestParams params;
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
   params.set_current_channel("stable-channel");
   EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("1.0.0.0");
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
@@ -729,20 +730,20 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
        .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   // We're using a real OmahaRequestParams object here so we can't mock
   // IsUpdateUrlOfficial(), but setting the update URL to the AutoUpdate test
   // server will cause IsUpdateUrlOfficial() to return true.
   params.set_update_url(constants::kOmahaDefaultAUTestURL);
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
 
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
               SetUsingP2PForDownloading(true));
 
   string p2p_url = "http://9.8.7.6/p2p";
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(), GetP2PUrl())
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(), GetP2PUrl())
       .WillRepeatedly(Return(p2p_url));
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
               GetUsingP2PForDownloading())
       .WillRepeatedly(Return(true));
 
@@ -777,17 +778,18 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackTest) {
 
   in.past_rollback_key_version = m4;
 
-  fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
-  fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
+  FakeSystemState::Get()->fake_hardware()->SetMinKernelKeyVersion(0x00010002);
+  FakeSystemState::Get()->fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
 
-  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(0xaaaaaaaa);
+  FakeSystemState::Get()->fake_hardware()->SetMaxKernelKeyRollforward(
+      0xaaaaaaaa);
   // TODO(crbug/783998): Add support for firmware when implemented.
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   params.set_rollback_allowed(true);
   params.set_rollback_allowed_milestones(4);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_TRUE(install_plan.is_rollback);
@@ -797,8 +799,9 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackTest) {
   const uint32_t expected_max_kernel_rollforward =
       static_cast<uint32_t>(m4.kernel_key) << 16 |
       static_cast<uint32_t>(m4.kernel);
-  EXPECT_EQ(expected_max_kernel_rollforward,
-            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  EXPECT_EQ(
+      expected_max_kernel_rollforward,
+      FakeSystemState::Get()->fake_hardware()->GetMaxKernelKeyRollforward());
   // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
@@ -821,23 +824,24 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackKernelVersionErrorTest) {
   m4.kernel = 13;
   in.past_rollback_key_version = m4;
 
-  fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
-  fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
+  FakeSystemState::Get()->fake_hardware()->SetMinKernelKeyVersion(0x00010002);
+  FakeSystemState::Get()->fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
   const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
-  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+  FakeSystemState::Get()->fake_hardware()->SetMaxKernelKeyRollforward(
       current_kernel_max_rollforward);
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   params.set_rollback_allowed(true);
   params.set_rollback_allowed_milestones(4);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_FALSE(DoTest(in, "", &install_plan));
 
   // Max rollforward is not changed in error cases.
-  EXPECT_EQ(current_kernel_max_rollforward,
-            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  EXPECT_EQ(
+      current_kernel_max_rollforward,
+      FakeSystemState::Get()->fake_hardware()->GetMaxKernelKeyRollforward());
   // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
@@ -855,14 +859,14 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackFirmwareVersionErrorTest) {
   in.rollback_key_version.firmware_key = 3;
   in.rollback_key_version.firmware = 3;  // This is lower than the minimum.
 
-  fake_system_state_.fake_hardware()->SetMinKernelKeyVersion(0x00010002);
-  fake_system_state_.fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
+  FakeSystemState::Get()->fake_hardware()->SetMinKernelKeyVersion(0x00010002);
+  FakeSystemState::Get()->fake_hardware()->SetMinFirmwareKeyVersion(0x00030004);
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   params.set_rollback_allowed(true);
   params.set_rollback_allowed_milestones(4);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_FALSE(DoTest(in, "", &install_plan));
 }
@@ -876,21 +880,22 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackNotRollbackTest) {
   in.is_rollback = false;
 
   const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
-  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+  FakeSystemState::Get()->fake_hardware()->SetMaxKernelKeyRollforward(
       current_kernel_max_rollforward);
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   params.set_rollback_allowed(true);
   params.set_rollback_allowed_milestones(4);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.is_rollback);
 
   // Max rollforward is not changed for non-rollback cases.
-  EXPECT_EQ(current_kernel_max_rollforward,
-            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  EXPECT_EQ(
+      current_kernel_max_rollforward,
+      FakeSystemState::Get()->fake_hardware()->GetMaxKernelKeyRollforward());
   // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
@@ -902,21 +907,22 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackNotAllowedTest) {
                          .hash = kPayloadHashHex});
   in.is_rollback = true;
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   params.set_rollback_allowed(false);
   params.set_rollback_allowed_milestones(4);
 
   const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
-  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+  FakeSystemState::Get()->fake_hardware()->SetMaxKernelKeyRollforward(
       current_kernel_max_rollforward);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_FALSE(DoTest(in, "", &install_plan));
 
   // This case generates an error so, do not update max rollforward.
-  EXPECT_EQ(current_kernel_max_rollforward,
-            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  EXPECT_EQ(
+      current_kernel_max_rollforward,
+      FakeSystemState::Get()->fake_hardware()->GetMaxKernelKeyRollforward());
   // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
@@ -928,21 +934,22 @@ TEST_F(OmahaResponseHandlerActionTest, NormalUpdateWithZeroMilestonesAllowed) {
                          .hash = kPayloadHashHex});
   in.is_rollback = false;
 
-  OmahaRequestParams params(&fake_system_state_);
+  OmahaRequestParams params;
   params.set_rollback_allowed(true);
   params.set_rollback_allowed_milestones(0);
 
   const uint32_t current_kernel_max_rollforward = 0xaaaaaaaa;
-  fake_system_state_.fake_hardware()->SetMaxKernelKeyRollforward(
+  FakeSystemState::Get()->fake_hardware()->SetMaxKernelKeyRollforward(
       current_kernel_max_rollforward);
 
-  fake_system_state_.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
 
   // When allowed_milestones is 0, this is set to infinity.
-  EXPECT_EQ(kRollforwardInfinity,
-            fake_system_state_.fake_hardware()->GetMaxKernelKeyRollforward());
+  EXPECT_EQ(
+      kRollforwardInfinity,
+      FakeSystemState::Get()->fake_hardware()->GetMaxKernelKeyRollforward());
   // TODO(crbug/783998): Add support for firmware when implemented.
 }
 
@@ -989,7 +996,7 @@ TEST_F(OmahaResponseHandlerActionTest, TestDeferredByPolicy) {
   FakeClock fake_clock;
   MockPolicy* mock_policy = new MockPolicy(&fake_clock);
   FakeUpdateManager* fake_update_manager =
-      fake_system_state_.fake_update_manager();
+      FakeSystemState::Get()->fake_update_manager();
   fake_update_manager->set_policy(mock_policy);
   EXPECT_CALL(*mock_policy, UpdateCanBeApplied(_, _, _, _, _))
       .WillOnce(

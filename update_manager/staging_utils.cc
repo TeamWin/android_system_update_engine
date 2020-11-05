@@ -27,7 +27,6 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
-#include "update_engine/common/system_state.h"
 
 using base::TimeDelta;
 using chromeos_update_engine::kPrefsWallClockStagingWaitPeriod;

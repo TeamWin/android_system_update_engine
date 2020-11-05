@@ -47,9 +47,6 @@ class DaemonChromeOS : public DaemonBase {
   // the main() function.
   Subprocess subprocess_;
 
-  // The global context sysetm state.
-  std::unique_ptr<SystemState> system_state_;
-
   DISALLOW_COPY_AND_ASSIGN(DaemonChromeOS);
 };
 

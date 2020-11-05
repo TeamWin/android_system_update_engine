@@ -146,7 +146,6 @@ static_library("libpayload_consumer") {
     "common/terminator.cc",
     "common/utils.cc",
     "cros/platform_constants_chromeos.cc",
-    "download_action.cc",
     "payload_consumer/bzip_extent_writer.cc",
     "payload_consumer/cached_file_descriptor.cc",
     "payload_consumer/certificate_parser_stub.cc",
@@ -194,6 +193,7 @@ static_library("libupdate_engine") {
   sources = [
     "certificate_checker.cc",
     "common/connection_utils.cc",
+    "common/system_state.cc",
     "cros/boot_control_chromeos.cc",
     "cros/common_service.cc",
     "cros/connection_manager.cc",
@@ -216,6 +216,7 @@ static_library("libupdate_engine") {
     "cros/requisition_util.cc",
     "cros/shill_proxy.cc",
     "cros/update_attempter.cc",
+    "download_action.cc",
     "libcurl_http_fetcher.cc",
     "metrics_utils.cc",
     "update_boot_flags_action.cc",
@@ -331,6 +332,9 @@ executable("update_engine_client") {
 static_library("libpayload_generator") {
   sources = [
     "common/file_fetcher.cc",
+    "common/system_state.cc",
+    "cros/real_system_state.cc",
+    "download_action.cc",
     "payload_generator/ab_generator.cc",
     "payload_generator/annotated_operation.cc",
     "payload_generator/blob_file_writer.cc",

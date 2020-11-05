@@ -160,7 +160,6 @@ cc_library_static {
         "common/subprocess.cc",
         "common/terminator.cc",
         "common/utils.cc",
-        "download_action.cc",
         "payload_consumer/bzip_extent_writer.cc",
         "payload_consumer/cached_file_descriptor.cc",
         "payload_consumer/certificate_parser_android.cc",
@@ -297,6 +296,7 @@ cc_library_static {
 
     srcs: [
         ":libupdate_engine_aidl",
+        "common/system_state.cc",
         "aosp/binder_service_android.cc",
         "aosp/binder_service_stable_android.cc",
         "aosp/daemon_android.cc",
@@ -306,6 +306,7 @@ cc_library_static {
         "aosp/network_selector_android.cc",
         "aosp/update_attempter_android.cc",
         "certificate_checker.cc",
+        "download_action.cc",
         "libcurl_http_fetcher.cc",
         "metrics_utils.cc",
         "update_boot_flags_action.cc",
@@ -360,6 +361,8 @@ cc_binary {
         "aosp/update_attempter_android.cc",
         "common/metrics_reporter_stub.cc",
         "common/network_selector_stub.cc",
+        "common/system_state.cc",
+        "download_action.cc",
         "metrics_utils.cc",
         "update_boot_flags_action.cc",
         "update_status_utils.cc",
@@ -491,6 +494,8 @@ cc_library_static {
     host_supported: true,
 
     srcs: [
+        "common/system_state.cc",
+        "download_action.cc",
         "payload_generator/ab_generator.cc",
         "payload_generator/annotated_operation.cc",
         "payload_generator/blob_file_writer.cc",

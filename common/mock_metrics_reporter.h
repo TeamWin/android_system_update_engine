@@ -36,15 +36,13 @@ class MockMetricsReporter : public MetricsReporterInterface {
 
   MOCK_METHOD1(ReportDailyMetrics, void(base::TimeDelta os_age));
 
-  MOCK_METHOD4(ReportUpdateCheckMetrics,
-               void(SystemState* system_state,
-                    metrics::CheckResult result,
+  MOCK_METHOD3(ReportUpdateCheckMetrics,
+               void(metrics::CheckResult result,
                     metrics::CheckReaction reaction,
                     metrics::DownloadErrorCode download_error_code));
 
-  MOCK_METHOD8(ReportUpdateAttemptMetrics,
-               void(SystemState* system_state,
-                    int attempt_number,
+  MOCK_METHOD7(ReportUpdateAttemptMetrics,
+               void(int attempt_number,
                     PayloadType payload_type,
                     base::TimeDelta duration,
                     base::TimeDelta duration_uptime,

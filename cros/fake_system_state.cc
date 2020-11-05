@@ -21,8 +21,8 @@ namespace chromeos_update_engine {
 // Mock the SystemStateInterface so that we could lie that
 // OOBE is completed even when there's no such marker file, etc.
 FakeSystemState::FakeSystemState()
-    : mock_update_attempter_(this, nullptr),
-      mock_request_params_(this),
+    : mock_update_attempter_(nullptr),
+      mock_request_params_(),
       fake_update_manager_(&fake_clock_),
       clock_(&fake_clock_),
       connection_manager_(&mock_connection_manager_),
@@ -37,7 +37,7 @@ FakeSystemState::FakeSystemState()
       update_manager_(&fake_update_manager_),
       device_policy_(nullptr),
       fake_system_rebooted_(false) {
-  mock_payload_state_.Initialize(this);
+  mock_payload_state_.Initialize();
 }
 
 }  // namespace chromeos_update_engine

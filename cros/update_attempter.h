@@ -65,7 +65,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   using UpdateAttemptFlags = update_engine::UpdateAttemptFlags;
   static const int kMaxDeltaUpdateFailures;
 
-  UpdateAttempter(SystemState* system_state, CertificateChecker* cert_checker);
+  explicit UpdateAttempter(CertificateChecker* cert_checker);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
@@ -360,7 +360,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Calculates all the scattering related parameters (such as waiting period,
   // which type of scattering is enabled, etc.) and also updates/deletes
   // the corresponding prefs file used in scattering. Should be called
-  // only after the device policy has been loaded and set in the system_state_.
+  // only after the device policy has been loaded and set in the system state.
   void CalculateScatteringParams(bool interactive);
 
   // Sets a random value for the waiting period to wait for before downloading
@@ -460,10 +460,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   std::unique_ptr<ActionProcessor> processor_;
 
-  // External state of the system outside the update_engine process
-  // carved out separately to mock out easily in unit tests.
-  SystemState* system_state_;
-
   // Pointer to the certificate checker instance to use.
   CertificateChecker* cert_checker_;
 
@@ -474,7 +470,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   std::unique_ptr<InstallPlan> install_plan_;
 
   // Pointer to the preferences store interface. This is just a cached
-  // copy of system_state->prefs() because it's used in many methods and
+  // copy of SystemState::Get()->prefs() because it's used in many methods and
   // is convenient this way.
   PrefsInterface* prefs_ = nullptr;
 

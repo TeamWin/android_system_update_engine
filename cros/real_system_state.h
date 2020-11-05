@@ -47,14 +47,14 @@ namespace chromeos_update_engine {
 // used by the actual product code.
 class RealSystemState : public SystemState {
  public:
-  // Constructs all system objects that do not require separate initialization;
-  // see Initialize() below for the remaining ones.
-  RealSystemState() = default;
   ~RealSystemState() = default;
 
-  // Initializes and sets systems objects that require an initialization
-  // separately from construction. Returns |true| on success.
-  bool Initialize();
+  static void CreateInstance() {
+    CHECK(!g_instance_) << "SystemState has been previously created.";
+    RealSystemState* rss = new RealSystemState();
+    g_instance_.reset(rss);
+    LOG_IF(FATAL, !rss->Initialize()) << "Failed to initialize system state.";
+  }
 
   // SystemState overrides.
   void set_device_policy(const policy::DevicePolicy* device_policy) override {
@@ -108,6 +108,14 @@ class RealSystemState : public SystemState {
   DlcServiceInterface* dlcservice() override { return dlcservice_.get(); }
 
  private:
+  // Constructs all system objects that do not require separate initialization;
+  // see Initialize() below for the remaining ones.
+  RealSystemState() = default;
+
+  // Initializes and sets systems objects that require an initialization
+  // separately from construction. Returns |true| on success.
+  bool Initialize();
+
   // Real DBus proxies using the DBus connection.
   std::unique_ptr<org::chromium::KioskAppServiceInterfaceProxy>
       kiosk_app_proxy_;
@@ -155,7 +163,7 @@ class RealSystemState : public SystemState {
   std::unique_ptr<UpdateAttempter> update_attempter_;
 
   // Common parameters for all Omaha requests.
-  OmahaRequestParams request_params_{this};
+  OmahaRequestParams request_params_;
 
   std::unique_ptr<P2PManager> p2p_manager_;
 

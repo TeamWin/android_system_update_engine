@@ -126,10 +126,8 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action, ErrorCode code) {
   return code;
 }
 
-UpdateAttempter::UpdateAttempter(SystemState* system_state,
-                                 CertificateChecker* cert_checker)
+UpdateAttempter::UpdateAttempter(CertificateChecker* cert_checker)
     : processor_(new ActionProcessor()),
-      system_state_(system_state),
       cert_checker_(cert_checker),
       is_install_(false) {}
 
@@ -150,8 +148,8 @@ void UpdateAttempter::Init() {
   // Pulling from the SystemState can only be done after construction, since
   // this is an aggregate of various objects (such as the UpdateAttempter),
   // which requires them all to be constructed prior to it being used.
-  prefs_ = system_state_->prefs();
-  omaha_request_params_ = system_state_->request_params();
+  prefs_ = SystemState::Get()->prefs();
+  omaha_request_params_ = SystemState::Get()->request_params();
 
   if (cert_checker_)
     cert_checker_->SetObserver(this);
@@ -171,7 +169,7 @@ bool UpdateAttempter::ScheduleUpdates() {
     return false;
 
   chromeos_update_manager::UpdateManager* const update_manager =
-      system_state_->update_manager();
+      SystemState::Get()->update_manager();
   CHECK(update_manager);
   Callback<void(EvalStatus, const UpdateCheckParams&)> callback =
       Bind(&UpdateAttempter::OnUpdateScheduled, base::Unretained(this));
@@ -187,8 +185,8 @@ bool UpdateAttempter::StartUpdater() {
   // Initiate update checks.
   ScheduleUpdates();
 
-  auto update_boot_flags_action =
-      std::make_unique<UpdateBootFlagsAction>(system_state_->boot_control());
+  auto update_boot_flags_action = std::make_unique<UpdateBootFlagsAction>(
+      SystemState::Get()->boot_control());
   processor_->EnqueueAction(std::move(update_boot_flags_action));
   // Update boot flags after 45 seconds.
   MessageLoop::current()->PostDelayedTask(
@@ -212,16 +210,16 @@ bool UpdateAttempter::StartUpdater() {
 
 void UpdateAttempter::CertificateChecked(ServerToCheck server_to_check,
                                          CertificateCheckResult result) {
-  system_state_->metrics_reporter()->ReportCertificateCheckMetrics(
+  SystemState::Get()->metrics_reporter()->ReportCertificateCheckMetrics(
       server_to_check, result);
 }
 
 bool UpdateAttempter::CheckAndReportDailyMetrics() {
   int64_t stored_value;
-  Time now = system_state_->clock()->GetWallclockTime();
-  if (system_state_->prefs()->Exists(kPrefsDailyMetricsLastReportedAt) &&
-      system_state_->prefs()->GetInt64(kPrefsDailyMetricsLastReportedAt,
-                                       &stored_value)) {
+  Time now = SystemState::Get()->clock()->GetWallclockTime();
+  if (SystemState::Get()->prefs()->Exists(kPrefsDailyMetricsLastReportedAt) &&
+      SystemState::Get()->prefs()->GetInt64(kPrefsDailyMetricsLastReportedAt,
+                                            &stored_value)) {
     Time last_reported_at = Time::FromInternalValue(stored_value);
     TimeDelta time_reported_since = now - last_reported_at;
     if (time_reported_since.InSeconds() < 0) {
@@ -244,8 +242,8 @@ bool UpdateAttempter::CheckAndReportDailyMetrics() {
   }
 
   LOG(INFO) << "Reporting daily metrics.";
-  system_state_->prefs()->SetInt64(kPrefsDailyMetricsLastReportedAt,
-                                   now.ToInternalValue());
+  SystemState::Get()->prefs()->SetInt64(kPrefsDailyMetricsLastReportedAt,
+                                        now.ToInternalValue());
 
   ReportOSAge();
 
@@ -254,10 +252,6 @@ bool UpdateAttempter::CheckAndReportDailyMetrics() {
 
 void UpdateAttempter::ReportOSAge() {
   struct stat sb;
-
-  if (system_state_ == nullptr)
-    return;
-
   if (stat("/etc/lsb-release", &sb) != 0) {
     PLOG(ERROR) << "Error getting file status for /etc/lsb-release "
                 << "(Note: this may happen in some unit tests)";
@@ -265,7 +259,7 @@ void UpdateAttempter::ReportOSAge() {
   }
 
   Time lsb_release_timestamp = Time::FromTimeSpec(sb.st_ctim);
-  Time now = system_state_->clock()->GetWallclockTime();
+  Time now = SystemState::Get()->clock()->GetWallclockTime();
   TimeDelta age = now - lsb_release_timestamp;
   if (age.InSeconds() < 0) {
     LOG(ERROR) << "The OS age (" << utils::FormatTimeDelta(age)
@@ -274,7 +268,7 @@ void UpdateAttempter::ReportOSAge() {
     return;
   }
 
-  system_state_->metrics_reporter()->ReportDailyMetrics(age);
+  SystemState::Get()->metrics_reporter()->ReportDailyMetrics(age);
 }
 
 void UpdateAttempter::Update(const UpdateCheckParams& params) {
@@ -293,8 +287,7 @@ void UpdateAttempter::Update(const UpdateCheckParams& params) {
     // not performing an update check because of this.
     LOG(INFO) << "Not updating b/c we already updated and we're waiting for "
               << "reboot, we'll ping Omaha instead";
-    system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
-        system_state_,
+    SystemState::Get()->metrics_reporter()->ReportUpdateCheckMetrics(
         metrics::CheckResult::kRebootPending,
         metrics::CheckReaction::kUnset,
         metrics::DownloadErrorCode::kUnset);
@@ -337,8 +330,8 @@ void UpdateAttempter::RefreshDevicePolicy() {
   else
     LOG(INFO) << "No device policies/settings present.";
 
-  system_state_->set_device_policy(device_policy);
-  system_state_->p2p_manager()->SetDevicePolicy(device_policy);
+  SystemState::Get()->set_device_policy(device_policy);
+  SystemState::Get()->p2p_manager()->SetDevicePolicy(device_policy);
 }
 
 void UpdateAttempter::CalculateP2PParams(bool interactive) {
@@ -351,31 +344,31 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
   // (Why would a developer want to opt in? If they are working on the
   // update_engine or p2p codebases so they can actually test their code.)
 
-  if (system_state_ != nullptr) {
-    if (!system_state_->p2p_manager()->IsP2PEnabled()) {
-      LOG(INFO) << "p2p is not enabled - disallowing p2p for both"
-                << " downloading and sharing.";
+  if (!SystemState::Get()->p2p_manager()->IsP2PEnabled()) {
+    LOG(INFO) << "p2p is not enabled - disallowing p2p for both"
+              << " downloading and sharing.";
+  } else {
+    // Allow p2p for sharing, even in interactive checks.
+    use_p2p_for_sharing = true;
+    if (!interactive) {
+      LOG(INFO) << "Non-interactive check - allowing p2p for downloading";
+      use_p2p_for_downloading = true;
     } else {
-      // Allow p2p for sharing, even in interactive checks.
-      use_p2p_for_sharing = true;
-      if (!interactive) {
-        LOG(INFO) << "Non-interactive check - allowing p2p for downloading";
-        use_p2p_for_downloading = true;
-      } else {
-        LOG(INFO) << "Forcibly disabling use of p2p for downloading "
-                  << "since this update attempt is interactive.";
-      }
+      LOG(INFO) << "Forcibly disabling use of p2p for downloading "
+                << "since this update attempt is interactive.";
     }
   }
 
-  PayloadStateInterface* const payload_state = system_state_->payload_state();
+  PayloadStateInterface* const payload_state =
+      SystemState::Get()->payload_state();
   payload_state->SetUsingP2PForDownloading(use_p2p_for_downloading);
   payload_state->SetUsingP2PForSharing(use_p2p_for_sharing);
 }
 
 bool UpdateAttempter::CalculateUpdateParams(const UpdateCheckParams& params) {
   http_response_code_ = 0;
-  PayloadStateInterface* const payload_state = system_state_->payload_state();
+  PayloadStateInterface* const payload_state =
+      SystemState::Get()->payload_state();
 
   // Refresh the policy before computing all the update parameters.
   RefreshDevicePolicy();
@@ -419,8 +412,9 @@ bool UpdateAttempter::CalculateUpdateParams(const UpdateCheckParams& params) {
   // Set Quick Fix Build token if policy is set and the device is enterprise
   // enrolled.
   string token;
-  if (system_state_ && system_state_->device_policy()) {
-    if (!system_state_->device_policy()->GetDeviceQuickFixBuildToken(&token))
+  if (SystemState::Get()->device_policy()) {
+    if (!SystemState::Get()->device_policy()->GetDeviceQuickFixBuildToken(
+            &token))
       token.clear();
   }
   omaha_request_params_->set_autoupdate_token(token);
@@ -470,7 +464,8 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
   // Take a copy of the old scatter value before we update it, as
   // we need to update the waiting period if this value changes.
   TimeDelta old_scatter_factor = scatter_factor_;
-  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  const policy::DevicePolicy* device_policy =
+      SystemState::Get()->device_policy();
   if (device_policy) {
     int64_t new_scatter_factor_in_secs = 0;
     device_policy->GetScatterFactorInSeconds(&new_scatter_factor_in_secs);
@@ -484,8 +479,8 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     LOG(INFO) << "Scattering disabled since scatter factor is set to 0";
   } else if (interactive) {
     LOG(INFO) << "Scattering disabled as this is an interactive update check";
-  } else if (system_state_->hardware()->IsOOBEEnabled() &&
-             !system_state_->hardware()->IsOOBEComplete(nullptr)) {
+  } else if (SystemState::Get()->hardware()->IsOOBEEnabled() &&
+             !SystemState::Get()->hardware()->IsOOBEComplete(nullptr)) {
     LOG(INFO) << "Scattering disabled since OOBE is enabled but not complete "
                  "yet";
   } else {
@@ -587,14 +582,14 @@ void UpdateAttempter::GenerateNewWaitingPeriod() {
   // fails, we'll still be able to scatter based on our in-memory value.
   // The persistence only helps in ensuring a good overall distribution
   // across multiple devices if they tend to reboot too often.
-  system_state_->payload_state()->SetScatteringWaitPeriod(
+  SystemState::Get()->payload_state()->SetScatteringWaitPeriod(
       omaha_request_params_->waiting_period());
 }
 
 void UpdateAttempter::CalculateStagingParams(bool interactive) {
-  bool oobe_complete = system_state_->hardware()->IsOOBEEnabled() &&
-                       system_state_->hardware()->IsOOBEComplete(nullptr);
-  auto device_policy = system_state_->device_policy();
+  bool oobe_complete = SystemState::Get()->hardware()->IsOOBEEnabled() &&
+                       SystemState::Get()->hardware()->IsOOBEComplete(nullptr);
+  auto device_policy = SystemState::Get()->device_policy();
   StagingCase staging_case = StagingCase::kOff;
   if (device_policy && !interactive && oobe_complete) {
     staging_wait_time_ = omaha_request_params_->waiting_period();
@@ -634,7 +629,7 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
 
 bool UpdateAttempter::ResetDlcPrefs(const string& dlc_id) {
   vector<string> failures;
-  PrefsInterface* prefs = system_state_->prefs();
+  PrefsInterface* prefs = SystemState::Get()->prefs();
   for (auto& sub_key :
        {kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall}) {
     auto key = prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
@@ -669,7 +664,7 @@ bool UpdateAttempter::SetDlcActiveValue(bool is_active, const string& dlc_id) {
   }
   LOG(INFO) << "Set DLC (" << dlc_id << ") to "
             << (is_active ? "Active" : "Inactive");
-  PrefsInterface* prefs = system_state_->prefs();
+  PrefsInterface* prefs = SystemState::Get()->prefs();
   if (is_active) {
     auto ping_active_key =
         prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
@@ -688,11 +683,11 @@ int64_t UpdateAttempter::GetPingMetadata(const string& metadata_key) const {
   // The first time a ping is sent, the metadata files containing the values
   // sent back by the server still don't exist. A value of -1 is used to
   // indicate this.
-  if (!system_state_->prefs()->Exists(metadata_key))
+  if (!SystemState::Get()->prefs()->Exists(metadata_key))
     return kPingNeverPinged;
 
   int64_t value;
-  if (system_state_->prefs()->GetInt64(metadata_key, &value))
+  if (SystemState::Get()->prefs()->GetInt64(metadata_key, &value))
     return value;
 
   // Return -2 when the file exists and there is a problem reading from it, or
@@ -704,11 +699,11 @@ void UpdateAttempter::CalculateDlcParams() {
   // Set the |dlc_ids_| only for an update. This is required to get the
   // currently installed DLC(s).
   if (!is_install_ &&
-      !system_state_->dlcservice()->GetDlcsToUpdate(&dlc_ids_)) {
+      !SystemState::Get()->dlcservice()->GetDlcsToUpdate(&dlc_ids_)) {
     LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
                  "state of dlcservice, will not update DLC modules.";
   }
-  PrefsInterface* prefs = system_state_->prefs();
+  PrefsInterface* prefs = SystemState::Get()->prefs();
   map<string, OmahaRequestParams::AppParams> dlc_apps_params;
   for (const auto& dlc_id : dlc_ids_) {
     OmahaRequestParams::AppParams dlc_params{
@@ -760,64 +755,55 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
 
   // Actions:
   auto update_check_fetcher = std::make_unique<LibcurlHttpFetcher>(
-      GetProxyResolver(), system_state_->hardware());
+      GetProxyResolver(), SystemState::Get()->hardware());
   update_check_fetcher->set_server_to_check(ServerToCheck::kUpdate);
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
   update_check_fetcher->set_is_update_check(true);
-  auto update_check_action =
-      std::make_unique<OmahaRequestAction>(system_state_,
-                                           nullptr,
-                                           std::move(update_check_fetcher),
-                                           false,
-                                           session_id_);
-  auto response_handler_action =
-      std::make_unique<OmahaResponseHandlerAction>(system_state_);
-  auto update_boot_flags_action =
-      std::make_unique<UpdateBootFlagsAction>(system_state_->boot_control());
+  auto update_check_action = std::make_unique<OmahaRequestAction>(
+      nullptr, std::move(update_check_fetcher), false, session_id_);
+  auto response_handler_action = std::make_unique<OmahaResponseHandlerAction>();
+  auto update_boot_flags_action = std::make_unique<UpdateBootFlagsAction>(
+      SystemState::Get()->boot_control());
   auto download_started_action = std::make_unique<OmahaRequestAction>(
-      system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
-                                           system_state_->hardware()),
+                                           SystemState::Get()->hardware()),
       false,
       session_id_);
 
-  LibcurlHttpFetcher* download_fetcher =
-      new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
+  LibcurlHttpFetcher* download_fetcher = new LibcurlHttpFetcher(
+      GetProxyResolver(), SystemState::Get()->hardware());
   download_fetcher->set_server_to_check(ServerToCheck::kDownload);
   if (interactive)
     download_fetcher->set_max_retry_count(kDownloadMaxRetryCountInteractive);
   download_fetcher->SetHeader(kXGoogleUpdateSessionId, session_id_);
   auto download_action =
       std::make_unique<DownloadAction>(prefs_,
-                                       system_state_->boot_control(),
-                                       system_state_->hardware(),
-                                       system_state_,
+                                       SystemState::Get()->boot_control(),
+                                       SystemState::Get()->hardware(),
                                        download_fetcher,  // passes ownership
                                        interactive);
   download_action->set_delegate(this);
 
   auto download_finished_action = std::make_unique<OmahaRequestAction>(
-      system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
-                                           system_state_->hardware()),
+                                           SystemState::Get()->hardware()),
       false,
       session_id_);
   auto filesystem_verifier_action = std::make_unique<FilesystemVerifierAction>(
-      system_state_->boot_control()->GetDynamicPartitionControl());
+      SystemState::Get()->boot_control()->GetDynamicPartitionControl());
   auto update_complete_action = std::make_unique<OmahaRequestAction>(
-      system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
-                                           system_state_->hardware()),
+                                           SystemState::Get()->hardware()),
       false,
       session_id_);
 
   auto postinstall_runner_action = std::make_unique<PostinstallRunnerAction>(
-      system_state_->boot_control(), system_state_->hardware());
+      SystemState::Get()->boot_control(), SystemState::Get()->hardware());
   postinstall_runner_action->set_delegate(this);
 
   // Bond them together. We have to use the leaf-types when calling
@@ -851,7 +837,8 @@ bool UpdateAttempter::Rollback(bool powerwash) {
     // Enterprise-enrolled devices have an empty owner in their device policy.
     string owner;
     RefreshDevicePolicy();
-    const policy::DevicePolicy* device_policy = system_state_->device_policy();
+    const policy::DevicePolicy* device_policy =
+        SystemState::Get()->device_policy();
     if (device_policy && (!device_policy->GetOwner(&owner) || owner.empty())) {
       LOG(ERROR) << "Enterprise device detected. "
                  << "Cannot perform a powerwash for enterprise devices.";
@@ -870,10 +857,11 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   LOG(INFO) << "Setting rollback options.";
   install_plan_.reset(new InstallPlan());
   install_plan_->target_slot = GetRollbackSlot();
-  install_plan_->source_slot = system_state_->boot_control()->GetCurrentSlot();
+  install_plan_->source_slot =
+      SystemState::Get()->boot_control()->GetCurrentSlot();
 
-  TEST_AND_RETURN_FALSE(
-      install_plan_->LoadPartitionsFromSlots(system_state_->boot_control()));
+  TEST_AND_RETURN_FALSE(install_plan_->LoadPartitionsFromSlots(
+      SystemState::Get()->boot_control()));
   install_plan_->powerwash_required = powerwash;
 
   LOG(INFO) << "Using this install plan:";
@@ -882,14 +870,14 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   auto install_plan_action =
       std::make_unique<InstallPlanAction>(*install_plan_);
   auto postinstall_runner_action = std::make_unique<PostinstallRunnerAction>(
-      system_state_->boot_control(), system_state_->hardware());
+      SystemState::Get()->boot_control(), SystemState::Get()->hardware());
   postinstall_runner_action->set_delegate(this);
   BondActions(install_plan_action.get(), postinstall_runner_action.get());
   processor_->EnqueueAction(std::move(install_plan_action));
   processor_->EnqueueAction(std::move(postinstall_runner_action));
 
   // Update the payload state for Rollback.
-  system_state_->payload_state()->Rollback();
+  SystemState::Get()->payload_state()->Rollback();
 
   SetStatusAndNotify(UpdateStatus::ATTEMPTING_ROLLBACK);
 
@@ -906,9 +894,10 @@ bool UpdateAttempter::CanRollback() const {
 
 BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
   LOG(INFO) << "UpdateAttempter::GetRollbackSlot";
-  const unsigned int num_slots = system_state_->boot_control()->GetNumSlots();
+  const unsigned int num_slots =
+      SystemState::Get()->boot_control()->GetNumSlots();
   const BootControlInterface::Slot current_slot =
-      system_state_->boot_control()->GetCurrentSlot();
+      SystemState::Get()->boot_control()->GetCurrentSlot();
 
   LOG(INFO) << "  Installed slots: " << num_slots;
   LOG(INFO) << "  Booted from slot: "
@@ -922,7 +911,7 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
   vector<BootControlInterface::Slot> bootable_slots;
   for (BootControlInterface::Slot slot = 0; slot < num_slots; slot++) {
     if (slot != current_slot &&
-        system_state_->boot_control()->IsSlotBootable(slot)) {
+        SystemState::Get()->boot_control()->IsSlotBootable(slot)) {
       LOG(INFO) << "Found bootable slot "
                 << BootControlInterface::SlotName(slot);
       return slot;
@@ -1028,7 +1017,7 @@ bool UpdateAttempter::CheckForInstall(const vector<string>& dlc_ids,
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
-  if (system_state_->power_manager()->RequestReboot())
+  if (SystemState::Get()->power_manager()->RequestReboot())
     return true;
 
   return RebootDirectly();
@@ -1040,7 +1029,7 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
     return;
   prefs_->SetString(kPrefsUpdateCompletedOnBootId, boot_id);
 
-  int64_t value = system_state_->clock()->GetBootTime().ToInternalValue();
+  int64_t value = SystemState::Get()->clock()->GetBootTime().ToInternalValue();
   prefs_->SetInt64(kPrefsUpdateCompletedBootTime, value);
 }
 
@@ -1100,19 +1089,19 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
 }
 
 void UpdateAttempter::UpdateLastCheckedTime() {
-  last_checked_time_ = system_state_->clock()->GetWallclockTime().ToTimeT();
+  last_checked_time_ =
+      SystemState::Get()->clock()->GetWallclockTime().ToTimeT();
 }
 
 void UpdateAttempter::UpdateRollbackHappened() {
-  DCHECK(system_state_);
-  DCHECK(system_state_->payload_state());
+  DCHECK(SystemState::Get()->payload_state());
   DCHECK(policy_provider_);
-  if (system_state_->payload_state()->GetRollbackHappened() &&
+  if (SystemState::Get()->payload_state()->GetRollbackHappened() &&
       (policy_provider_->device_policy_is_loaded() ||
        policy_provider_->IsConsumerDevice())) {
     // Rollback happened, but we already went through OOBE and policy is
     // present or it's a consumer device.
-    system_state_->payload_state()->SetRollbackHappened(false);
+    SystemState::Get()->payload_state()->SetRollbackHappened(false);
   }
 }
 
@@ -1155,7 +1144,7 @@ void UpdateAttempter::ProcessingDoneInternal(const ActionProcessor* processor,
                     omaha_request_params_->app_version());
   DeltaPerformer::ResetUpdateProgress(prefs_, false);
 
-  system_state_->payload_state()->UpdateSucceeded();
+  SystemState::Get()->payload_state()->UpdateSucceeded();
 
   // Since we're done with scattering fully at this point, this is the
   // safest point delete the state files, as we're sure that the status is
@@ -1167,8 +1156,8 @@ void UpdateAttempter::ProcessingDoneInternal(const ActionProcessor* processor,
   // after reboot so that the same device is not favored or punished in any
   // way.
   prefs_->Delete(kPrefsUpdateCheckCount);
-  system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
-  system_state_->payload_state()->SetStagingWaitPeriod(TimeDelta());
+  SystemState::Get()->payload_state()->SetScatteringWaitPeriod(TimeDelta());
+  SystemState::Get()->payload_state()->SetStagingWaitPeriod(TimeDelta());
   prefs_->Delete(kPrefsUpdateFirstSeenAt);
 
   // Note: below this comment should only be on |ErrorCode::kSuccess|.
@@ -1189,7 +1178,8 @@ vector<string> UpdateAttempter::GetSuccessfulDlcIds() {
 
 void UpdateAttempter::ProcessingDoneInstall(const ActionProcessor* processor,
                                             ErrorCode code) {
-  if (!system_state_->dlcservice()->InstallCompleted(GetSuccessfulDlcIds()))
+  if (!SystemState::Get()->dlcservice()->InstallCompleted(
+          GetSuccessfulDlcIds()))
     LOG(WARNING) << "dlcservice didn't successfully handle install completion.";
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
@@ -1200,7 +1190,7 @@ void UpdateAttempter::ProcessingDoneUpdate(const ActionProcessor* processor,
                                            ErrorCode code) {
   WriteUpdateCompletedMarker();
 
-  if (!system_state_->dlcservice()->UpdateCompleted(GetSuccessfulDlcIds()))
+  if (!SystemState::Get()->dlcservice()->UpdateCompleted(GetSuccessfulDlcIds()))
     LOG(WARNING) << "dlcservice didn't successfully handle update completion.";
   SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
   ScheduleUpdates();
@@ -1222,19 +1212,19 @@ void UpdateAttempter::ProcessingDoneUpdate(const ActionProcessor* processor,
     // If we just downloaded a rollback image, we should preserve this fact
     // over the following powerwash.
     if (install_plan_->is_rollback) {
-      system_state_->payload_state()->SetRollbackHappened(true);
-      system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+      SystemState::Get()->payload_state()->SetRollbackHappened(true);
+      SystemState::Get()->metrics_reporter()->ReportEnterpriseRollbackMetrics(
           /*success=*/true, install_plan_->version);
     }
 
     // Expect to reboot into the new version to send the proper metric during
     // next boot.
-    system_state_->payload_state()->ExpectRebootInNewVersion(
+    SystemState::Get()->payload_state()->ExpectRebootInNewVersion(
         target_version_uid);
   } else {
     // If we just finished a rollback, then we expect to have no Omaha
     // response. Otherwise, it's an error.
-    if (system_state_->payload_state()->GetRollbackVersion().empty()) {
+    if (SystemState::Get()->payload_state()->GetRollbackVersion().empty()) {
       LOG(ERROR) << "Can't send metrics because there was no Omaha response";
     }
   }
@@ -1382,7 +1372,7 @@ void UpdateAttempter::BytesReceived(uint64_t bytes_progressed,
                                     uint64_t total) {
   // The PayloadState keeps track of how many bytes were actually downloaded
   // from a given URL for the URL skipping logic.
-  system_state_->payload_state()->DownloadProgress(bytes_progressed);
+  SystemState::Get()->payload_state()->DownloadProgress(bytes_progressed);
 
   double progress = 0;
   if (total)
@@ -1396,7 +1386,7 @@ void UpdateAttempter::BytesReceived(uint64_t bytes_progressed,
 }
 
 void UpdateAttempter::DownloadComplete() {
-  system_state_->payload_state()->DownloadComplete();
+  SystemState::Get()->payload_state()->DownloadComplete();
 }
 
 void UpdateAttempter::ProgressUpdate(double progress) {
@@ -1441,7 +1431,7 @@ bool UpdateAttempter::ResetStatus() {
       ret_value = prefs_->Delete(kPrefsLastFp, {kDlcPrefsSubDir}) && ret_value;
 
       // Update the boot flags so the current slot has higher priority.
-      BootControlInterface* boot_control = system_state_->boot_control();
+      BootControlInterface* boot_control = SystemState::Get()->boot_control();
       if (!boot_control->SetActiveBootSlot(boot_control->GetCurrentSlot()))
         ret_value = false;
 
@@ -1452,7 +1442,7 @@ bool UpdateAttempter::ResetStatus() {
         ret_value = false;
 
       // Notify the PayloadState that the successful payload was canceled.
-      system_state_->payload_state()->ResetUpdateStatus();
+      SystemState::Get()->payload_state()->ResetUpdateStatus();
 
       // The previous version is used to report back to omaha after reboot that
       // we actually rebooted into the new version from this "prev-version". We
@@ -1482,8 +1472,9 @@ bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
   out_status->is_install = is_install_;
 
   string str_eol_date;
-  if (system_state_->prefs()->Exists(kPrefsOmahaEolDate) &&
-      !system_state_->prefs()->GetString(kPrefsOmahaEolDate, &str_eol_date))
+  if (SystemState::Get()->prefs()->Exists(kPrefsOmahaEolDate) &&
+      !SystemState::Get()->prefs()->GetString(kPrefsOmahaEolDate,
+                                              &str_eol_date))
     LOG(ERROR) << "Failed to retrieve kPrefsOmahaEolDate pref.";
   out_status->eol_date = StringToEolDate(str_eol_date);
 
@@ -1510,13 +1501,13 @@ void UpdateAttempter::BroadcastStatus() {
 uint32_t UpdateAttempter::GetErrorCodeFlags() {
   uint32_t flags = 0;
 
-  if (!system_state_->hardware()->IsNormalBootMode())
+  if (!SystemState::Get()->hardware()->IsNormalBootMode())
     flags |= static_cast<uint32_t>(ErrorCode::kDevModeFlag);
 
   if (install_plan_ && install_plan_->is_resume)
     flags |= static_cast<uint32_t>(ErrorCode::kResumedFlag);
 
-  if (!system_state_->hardware()->IsOfficialBuild())
+  if (!SystemState::Get()->hardware()->IsOfficialBuild())
     flags |= static_cast<uint32_t>(ErrorCode::kTestImageFlag);
 
   if (!omaha_request_params_->IsUpdateUrlOfficial()) {
@@ -1529,7 +1520,7 @@ uint32_t UpdateAttempter::GetErrorCodeFlags() {
 bool UpdateAttempter::ShouldCancel(ErrorCode* cancel_reason) {
   // Check if the channel we're attempting to update to is the same as the
   // target channel currently chosen by the user.
-  OmahaRequestParams* params = system_state_->request_params();
+  OmahaRequestParams* params = SystemState::Get()->request_params();
   if (params->download_channel() != params->target_channel()) {
     LOG(ERROR) << "Aborting download as target channel: "
                << params->target_channel()
@@ -1587,21 +1578,20 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
     return false;
 
   LOG(ERROR) << "Update failed.";
-  system_state_->payload_state()->UpdateFailed(error_event_->error_code);
+  SystemState::Get()->payload_state()->UpdateFailed(error_event_->error_code);
 
   // Send metrics if it was a rollback.
   if (install_plan_ && install_plan_->is_rollback) {
-    system_state_->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+    SystemState::Get()->metrics_reporter()->ReportEnterpriseRollbackMetrics(
         /*success=*/false, install_plan_->version);
   }
 
   // Send it to Omaha.
   LOG(INFO) << "Reporting the error event";
   auto error_event_action = std::make_unique<OmahaRequestAction>(
-      system_state_,
       error_event_.release(),  // Pass ownership.
       std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
-                                           system_state_->hardware()),
+                                           SystemState::Get()->hardware()),
       false,
       session_id_);
   processor_->EnqueueAction(std::move(error_event_action));
@@ -1644,10 +1634,9 @@ void UpdateAttempter::PingOmaha() {
     ResetInteractivityFlags();
 
     auto ping_action = std::make_unique<OmahaRequestAction>(
-        system_state_,
         nullptr,
         std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
-                                             system_state_->hardware()),
+                                             SystemState::Get()->hardware()),
         true,
         "" /* session_id */);
     processor_->set_delegate(nullptr);
@@ -1730,9 +1719,9 @@ void UpdateAttempter::UpdateEngineStarted() {
   // in case we rebooted because of a crash of the old version, so we
   // can do a proper crash report with correct information.
   // This must be done before calling
-  // system_state_->payload_state()->UpdateEngineStarted() since it will
+  // SystemState::Get()->payload_state()->UpdateEngineStarted() since it will
   // delete SystemUpdated marker file.
-  if (system_state_->system_rebooted() &&
+  if (SystemState::Get()->system_rebooted() &&
       prefs_->Exists(kPrefsSystemUpdatedMarker)) {
     if (!prefs_->GetString(kPrefsPreviousVersion, &prev_version_)) {
       // If we fail to get the version string, make sure it stays empty.
@@ -1740,20 +1729,19 @@ void UpdateAttempter::UpdateEngineStarted() {
     }
   }
 
-  system_state_->payload_state()->UpdateEngineStarted();
+  SystemState::Get()->payload_state()->UpdateEngineStarted();
   StartP2PAtStartup();
 
-  excluder_ = CreateExcluder(system_state_->prefs());
+  excluder_ = CreateExcluder(SystemState::Get()->prefs());
 }
 
 bool UpdateAttempter::StartP2PAtStartup() {
-  if (system_state_ == nullptr ||
-      !system_state_->p2p_manager()->IsP2PEnabled()) {
+  if (!SystemState::Get()->p2p_manager()->IsP2PEnabled()) {
     LOG(INFO) << "Not starting p2p at startup since it's not enabled.";
     return false;
   }
 
-  if (system_state_->p2p_manager()->CountSharedFiles() < 1) {
+  if (SystemState::Get()->p2p_manager()->CountSharedFiles() < 1) {
     LOG(INFO) << "Not starting p2p at startup since our application "
               << "is not sharing any files.";
     return false;
@@ -1763,22 +1751,19 @@ bool UpdateAttempter::StartP2PAtStartup() {
 }
 
 bool UpdateAttempter::StartP2PAndPerformHousekeeping() {
-  if (system_state_ == nullptr)
-    return false;
-
-  if (!system_state_->p2p_manager()->IsP2PEnabled()) {
+  if (!SystemState::Get()->p2p_manager()->IsP2PEnabled()) {
     LOG(INFO) << "Not starting p2p since it's not enabled.";
     return false;
   }
 
   LOG(INFO) << "Ensuring that p2p is running.";
-  if (!system_state_->p2p_manager()->EnsureP2PRunning()) {
+  if (!SystemState::Get()->p2p_manager()->EnsureP2PRunning()) {
     LOG(ERROR) << "Error starting p2p.";
     return false;
   }
 
   LOG(INFO) << "Performing p2p housekeeping.";
-  if (!system_state_->p2p_manager()->PerformHousekeeping()) {
+  if (!SystemState::Get()->p2p_manager()->PerformHousekeeping()) {
     LOG(ERROR) << "Error performing housekeeping for p2p.";
     return false;
   }
@@ -1825,12 +1810,12 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() const {
   //  * The debugd dev features are accessible (i.e. in devmode with no owner).
   // This protects users running a base image, while still allowing a specific
   // window (gated by the debug dev features) where `cros flash` is usable.
-  if (!system_state_->hardware()->IsOfficialBuild()) {
+  if (!SystemState::Get()->hardware()->IsOfficialBuild()) {
     LOG(INFO) << "Non-official build; allowing any update source.";
     return true;
   }
 
-  if (system_state_->hardware()->AreDevFeaturesEnabled()) {
+  if (SystemState::Get()->hardware()->AreDevFeaturesEnabled()) {
     LOG(INFO) << "Developer features enabled; allowing custom update sources.";
     return true;
   }
@@ -1841,20 +1826,22 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() const {
 }
 
 void UpdateAttempter::ReportTimeToUpdateAppliedMetric() {
-  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  const policy::DevicePolicy* device_policy =
+      SystemState::Get()->device_policy();
   if (device_policy && device_policy->IsEnterpriseEnrolled()) {
     vector<policy::DevicePolicy::WeeklyTimeInterval> parsed_intervals;
     bool has_time_restrictions =
         device_policy->GetDisallowedTimeIntervals(&parsed_intervals);
 
     int64_t update_first_seen_at_int;
-    if (system_state_->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
-      if (system_state_->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
-                                           &update_first_seen_at_int)) {
+    if (SystemState::Get()->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
+      if (SystemState::Get()->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
+                                                &update_first_seen_at_int)) {
         TimeDelta update_delay =
-            system_state_->clock()->GetWallclockTime() -
+            SystemState::Get()->clock()->GetWallclockTime() -
             Time::FromInternalValue(update_first_seen_at_int);
-        system_state_->metrics_reporter()
+        SystemState::Get()
+            ->metrics_reporter()
             ->ReportEnterpriseUpdateSeenToDownloadDays(has_time_restrictions,
                                                        update_delay.InDays());
       }

@@ -42,7 +42,11 @@ namespace chromeos_update_engine {
 // OOBE is completed even when there's no such marker file, etc.
 class FakeSystemState : public SystemState {
  public:
-  FakeSystemState();
+  static void CreateInstance() { g_instance_.reset(new FakeSystemState()); }
+
+  static FakeSystemState* Get() {
+    return reinterpret_cast<FakeSystemState*>(g_instance_.get());
+  }
 
   // Base class overrides. All getters return the current implementation of
   // various members, either the default (fake/mock) or the one set to override
@@ -237,6 +241,9 @@ class FakeSystemState : public SystemState {
   }
 
  private:
+  // Don't allow for direct initialization of this class.
+  FakeSystemState();
+
   // Default mock/fake implementations (owned).
   FakeBootControl fake_boot_control_;
   FakeClock fake_clock_;

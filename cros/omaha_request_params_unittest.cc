@@ -38,24 +38,24 @@ namespace chromeos_update_engine {
 
 class OmahaRequestParamsTest : public ::testing::Test {
  public:
-  OmahaRequestParamsTest() : params_(&fake_system_state_) {}
+  OmahaRequestParamsTest() : params_() {}
 
  protected:
   void SetUp() override {
     // Create a uniquely named test directory.
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
     params_.set_root(tempdir_.GetPath().value());
+    FakeSystemState::CreateInstance();
+    FakeSystemState::Get()->set_prefs(&fake_prefs_);
     SetLockDown(false);
-    fake_system_state_.set_prefs(&fake_prefs_);
   }
 
   void SetLockDown(bool locked_down) {
-    fake_system_state_.fake_hardware()->SetIsOfficialBuild(locked_down);
-    fake_system_state_.fake_hardware()->SetIsNormalBootMode(locked_down);
+    FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(locked_down);
+    FakeSystemState::Get()->fake_hardware()->SetIsNormalBootMode(locked_down);
   }
 
-  FakeSystemState fake_system_state_;
-  OmahaRequestParams params_{&fake_system_state_};
+  OmahaRequestParams params_;
   FakePrefs fake_prefs_;
 
   base::ScopedTempDir tempdir_;
@@ -110,7 +110,7 @@ TEST_F(OmahaRequestParamsTest, NoDeltasTest) {
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   {
-    OmahaRequestParams params(&fake_system_state_);
+    OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
@@ -124,7 +124,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   {
-    OmahaRequestParams params(&fake_system_state_);
+    OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", true, nullptr));
@@ -138,7 +138,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
   {
-    OmahaRequestParams params(&fake_system_state_);
+    OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     SetLockDown(true);
     EXPECT_TRUE(params.Init("", "", {}));

@@ -135,7 +135,7 @@ struct FakeUpdateResponse {
   }
 
   string GetUpdateResponse() const {
-    chromeos_update_engine::OmahaRequestParams request_params{nullptr};
+    chromeos_update_engine::OmahaRequestParams request_params;
     request_params.set_app_id(app_id);
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
            "protocol=\"3.0\">"
@@ -379,6 +379,8 @@ struct TestUpdateCheckParams {
 class OmahaRequestActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    FakeSystemState::CreateInstance();
+
     request_params_.set_os_sp("service_pack");
     request_params_.set_os_board("x86-generic");
     request_params_.set_app_id(kTestAppId);
@@ -396,8 +398,8 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_is_install(false);
     request_params_.set_dlc_apps_params({});
 
-    fake_system_state_.set_request_params(&request_params_);
-    fake_system_state_.set_prefs(&fake_prefs_);
+    FakeSystemState::Get()->set_request_params(&request_params_);
+    FakeSystemState::Get()->set_prefs(&fake_prefs_);
 
     // Setting the default update check params. Lookup |TestUpdateCheck()|.
     tuc_params_ = {
@@ -413,7 +415,7 @@ class OmahaRequestActionTest : public ::testing::Test {
         .expected_download_error_code = metrics::DownloadErrorCode::kUnset,
     };
 
-    ON_CALL(*fake_system_state_.mock_update_attempter(), GetExcluder())
+    ON_CALL(*FakeSystemState::Get()->mock_update_attempter(), GetExcluder())
         .WillByDefault(Return(&mock_excluder_));
   }
 
@@ -456,10 +458,9 @@ class OmahaRequestActionTest : public ::testing::Test {
                const string& expected_p2p_url);
 
   StrictMock<MockExcluder> mock_excluder_;
-  FakeSystemState fake_system_state_;
   FakeUpdateResponse fake_update_response_;
   // Used by all tests.
-  OmahaRequestParams request_params_{&fake_system_state_};
+  OmahaRequestParams request_params_;
 
   FakePrefs fake_prefs_;
 
@@ -514,13 +515,12 @@ bool OmahaRequestActionTest::TestUpdateCheck() {
   if (tuc_params_.fail_http_response_code >= 0) {
     fetcher->FailTransfer(tuc_params_.fail_http_response_code);
   }
-  // This ensures the tests didn't forget to update fake_system_state_ if they
+  // This ensures the tests didn't forget to update |FakeSystemState| if they
   // are not using the default request_params_.
-  EXPECT_EQ(&request_params_, fake_system_state_.request_params());
+  EXPECT_EQ(&request_params_, FakeSystemState::Get()->request_params());
 
   auto omaha_request_action =
-      std::make_unique<OmahaRequestAction>(&fake_system_state_,
-                                           nullptr,
+      std::make_unique<OmahaRequestAction>(nullptr,
                                            std::move(fetcher),
                                            tuc_params_.ping_only,
                                            tuc_params_.session_id);
@@ -557,14 +557,13 @@ bool OmahaRequestActionTest::TestUpdateCheck() {
   processor.EnqueueAction(std::move(omaha_request_action));
   processor.EnqueueAction(std::move(collector_action));
 
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
-              ReportUpdateCheckMetrics(_, _, _, _))
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
+              ReportUpdateCheckMetrics(_, _, _))
       .Times(AnyNumber());
 
   EXPECT_CALL(
-      *fake_system_state_.mock_metrics_reporter(),
-      ReportUpdateCheckMetrics(_,
-                               tuc_params_.expected_check_result,
+      *FakeSystemState::Get()->mock_metrics_reporter(),
+      ReportUpdateCheckMetrics(tuc_params_.expected_check_result,
                                tuc_params_.expected_check_reaction,
                                tuc_params_.expected_download_error_code))
       .Times(tuc_params_.ping_only ? 0 : 1);
@@ -589,7 +588,6 @@ void OmahaRequestActionTest::TestEvent(OmahaEvent* event,
   loop.SetAsCurrent();
 
   auto action = std::make_unique<OmahaRequestAction>(
-      &fake_system_state_,
       event,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
@@ -833,7 +831,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   // Set up a connection manager that doesn't allow a valid update over
   // the current ethernet connection.
   MockConnectionManager mock_cm;
-  fake_system_state_.set_connection_manager(&mock_cm);
+  FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kEthernet),
@@ -855,7 +853,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularAllowedByDevicePolicy) {
   // This test tests that update over cellular is allowed as device policy
   // says yes.
   MockConnectionManager mock_cm;
-  fake_system_state_.set_connection_manager(&mock_cm);
+  FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
@@ -877,7 +875,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularBlockedByDevicePolicy) {
   // This test tests that update over cellular is blocked as device policy
   // says no.
   MockConnectionManager mock_cm;
-  fake_system_state_.set_connection_manager(&mock_cm);
+  FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
@@ -903,7 +901,7 @@ TEST_F(OmahaRequestActionTest,
   // is allowed as permission for update over cellular is set to true.
   MockConnectionManager mock_cm;
   fake_prefs_.SetBoolean(kPrefsUpdateOverCellularPermission, true);
-  fake_system_state_.set_connection_manager(&mock_cm);
+  FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
@@ -935,7 +933,7 @@ TEST_F(OmahaRequestActionTest,
   fake_prefs_.SetString(kPrefsUpdateOverCellularTargetVersion, diff_version);
   fake_prefs_.SetInt64(kPrefsUpdateOverCellularTargetSize, diff_size);
   // This test tests cellular (3G) being the only connection type being allowed.
-  fake_system_state_.set_connection_manager(&mock_cm);
+  FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
@@ -968,7 +966,7 @@ TEST_F(OmahaRequestActionTest,
 
   fake_prefs_.SetString(kPrefsUpdateOverCellularTargetVersion, new_version);
   fake_prefs_.SetInt64(kPrefsUpdateOverCellularTargetSize, new_size);
-  fake_system_state_.set_connection_manager(&mock_cm);
+  FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(DoAll(SetArgPointee<0>(ConnectionType::kCellular),
@@ -989,7 +987,7 @@ TEST_F(OmahaRequestActionTest,
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
   string rollback_version = "1234.0.0";
   MockPayloadState mock_payload_state;
-  fake_system_state_.set_payload_state(&mock_payload_state);
+  FakeSystemState::Get()->set_payload_state(&mock_payload_state);
   fake_update_response_.version = rollback_version;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
@@ -1006,7 +1004,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
 // Verify that update checks called during OOBE will not try to download an
 // update if the response doesn't include the deadline field.
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kNonCriticalUpdateInOOBE;
   tuc_params_.expected_check_result = metrics::CheckResult::kParsingError;
@@ -1022,8 +1020,8 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
 // Verify that the IsOOBEComplete() value is ignored when the OOBE flow is not
 // enabled.
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDisabled) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
-  fake_system_state_.fake_hardware()->SetIsOOBEEnabled(false);
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEEnabled(false);
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(TestUpdateCheck());
@@ -1034,7 +1032,7 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDisabled) {
 // Verify that update checks called during OOBE will still try to download an
 // update if the response includes the deadline field.
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDeadlineSet) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
   fake_update_response_.deadline = "20101020";
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
@@ -1047,14 +1045,15 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDeadlineSet) {
 // update if a rollback happened, even when the response includes the deadline
 // field.
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBERollback) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
   fake_update_response_.deadline = "20101020";
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kNonCriticalUpdateInOOBE;
   tuc_params_.expected_check_result = metrics::CheckResult::kParsingError;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
-  EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetRollbackHappened())
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_payload_state()),
+              GetRollbackHappened())
       .WillOnce(Return(true));
 
   ASSERT_FALSE(TestUpdateCheck());
@@ -1068,10 +1067,10 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBERollback) {
 // kOmahaUpdateIgnoredOverCellular error in this case  might cause undesired UX
 // in OOBE (warning the user about an update that will be skipped).
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesInOOBEOverCellular) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
 
   MockConnectionManager mock_cm;
-  fake_system_state_.set_connection_manager(&mock_cm);
+  FakeSystemState::Get()->set_connection_manager(&mock_cm);
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kNonCriticalUpdateInOOBE;
   tuc_params_.expected_check_result = metrics::CheckResult::kParsingError;
@@ -1093,7 +1092,7 @@ TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   request_params_.set_wall_clock_based_wait_enabled(true);
   request_params_.set_update_check_count_wait_enabled(false);
   request_params_.set_waiting_period(TimeDelta::FromDays(2));
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kOmahaUpdateDeferredPerPolicy;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kDeferring;
@@ -1109,7 +1108,7 @@ TEST_F(OmahaRequestActionTest,
   request_params_.set_update_check_count_wait_enabled(false);
   request_params_.set_waiting_period(TimeDelta::FromDays(2));
   request_params_.set_interactive(true);
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   // Verify if we are interactive check we don't defer.
@@ -1151,7 +1150,7 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   request_params_.set_update_check_count_wait_enabled(true);
   request_params_.set_min_update_checks_needed(0);
   request_params_.set_max_update_checks_allowed(0);
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(TestUpdateCheck());
@@ -1168,7 +1167,7 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(true);
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kOmahaUpdateDeferredPerPolicy;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kDeferring;
@@ -1189,7 +1188,7 @@ TEST_F(OmahaRequestActionTest,
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
   request_params_.set_interactive(true);
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   // Verify if we are interactive check we don't defer.
@@ -1204,7 +1203,7 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(true);
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kOmahaUpdateDeferredPerPolicy;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kDeferring;
@@ -1228,7 +1227,7 @@ TEST_F(OmahaRequestActionTest,
   request_params_.set_min_update_checks_needed(1);
   request_params_.set_max_update_checks_allowed(8);
   request_params_.set_interactive(true);
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsUpdateCheckCount, 5));
@@ -1244,7 +1243,7 @@ TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
   request_params_.set_wall_clock_based_wait_enabled(true);
   request_params_.set_waiting_period(TimeDelta::FromDays(6));
   request_params_.set_update_check_count_wait_enabled(false);
-  fake_system_state_.fake_clock()->SetWallclockTime(Time::Now());
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
 
   ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsWallClockStagingWaitPeriod, 6));
   // This should not prevent scattering due to staging.
@@ -1478,7 +1477,6 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   loop.SetAsCurrent();
 
   auto action = std::make_unique<OmahaRequestAction>(
-      &fake_system_state_,
       nullptr,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
@@ -1614,7 +1612,6 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
 
   string http_response("doesn't matter");
   auto action = std::make_unique<OmahaRequestAction>(
-      &fake_system_state_,
       nullptr,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
@@ -1693,7 +1690,7 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
 
 TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   tuc_params_.http_response = "invalid xml>";
   tuc_params_.expected_code = ErrorCode::kOmahaRequestXMLParseError;
   tuc_params_.expected_check_result = metrics::CheckResult::kParsingError;
@@ -1748,7 +1745,6 @@ TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
 TEST_F(OmahaRequestActionTest, IsEventTest) {
   string http_response("doesn't matter");
   OmahaRequestAction update_check_action(
-      &fake_system_state_,
       nullptr,
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
@@ -1757,7 +1753,6 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   EXPECT_FALSE(update_check_action.IsEvent());
 
   OmahaRequestAction event_action(
-      &fake_system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
       std::make_unique<MockHttpFetcher>(
           http_response.data(), http_response.size(), nullptr),
@@ -1923,7 +1918,7 @@ TEST_F(OmahaRequestActionTest, TargetChannelHintTest) {
 
 void OmahaRequestActionTest::PingTest(bool ping_only) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
       .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -1967,7 +1962,7 @@ TEST_F(OmahaRequestActionTest, PingTestSendAlsoAnUpdateCheck) {
 
 TEST_F(OmahaRequestActionTest, ActivePingTest) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
       .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -1992,7 +1987,7 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
 
 TEST_F(OmahaRequestActionTest, RollCallPingTest) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
       .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -2018,7 +2013,7 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
 
 TEST_F(OmahaRequestActionTest, NoPingTest) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
       .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -2049,7 +2044,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
 TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   // This test ensures that we ignore empty ping only requests.
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
       .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
@@ -2069,7 +2064,7 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
 
 TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
       .Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -2108,7 +2103,7 @@ TEST_F(OmahaRequestActionTest, LastPingDayUpdateTest) {
   int64_t midnight_slack =
       (Time::Now() - TimeDelta::FromSeconds(195)).ToInternalValue();
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs,
@@ -2133,7 +2128,7 @@ TEST_F(OmahaRequestActionTest, LastPingDayUpdateTest) {
 
 TEST_F(OmahaRequestActionTest, NoElapsedSecondsTest) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
@@ -2152,7 +2147,7 @@ TEST_F(OmahaRequestActionTest, NoElapsedSecondsTest) {
 
 TEST_F(OmahaRequestActionTest, BadElapsedSecondsTest) {
   NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
@@ -2218,7 +2213,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
 
   Time arbitrary_date;
   ASSERT_TRUE(Time::FromString("6/4/1989", &arbitrary_date));
-  fake_system_state_.fake_clock()->SetWallclockTime(arbitrary_date);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(arbitrary_date);
 
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   tuc_params_.expected_code = ErrorCode::kOmahaUpdateDeferredPerPolicy;
@@ -2250,7 +2245,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   ASSERT_TRUE(Time::FromString("1/3/2012", &t2));
   ASSERT_TRUE(
       fake_prefs_.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
-  fake_system_state_.fake_clock()->SetWallclockTime(t2);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(t2);
 
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
@@ -2330,7 +2325,7 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   fake_prefs_.SetString(kPrefsPreviousVersion, "");
 
   // Flag that the device was powerwashed in the past.
-  fake_system_state_.fake_hardware()->SetPowerwashCount(1);
+  FakeSystemState::Get()->fake_hardware()->SetPowerwashCount(1);
   tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
@@ -2347,10 +2342,10 @@ TEST_F(OmahaRequestActionTest, PingWhenFirstActiveOmahaPingIsSent) {
   fake_prefs_.SetString(kPrefsPreviousVersion, "");
 
   // Flag that the device was not powerwashed in the past.
-  fake_system_state_.fake_hardware()->SetPowerwashCount(0);
+  FakeSystemState::Get()->fake_hardware()->SetPowerwashCount(0);
 
   // Flag that the device has sent first active ping in the past.
-  fake_system_state_.fake_hardware()->SetFirstActiveOmahaPingSent();
+  FakeSystemState::Get()->fake_hardware()->SetFirstActiveOmahaPingSent();
 
   tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
@@ -2404,7 +2399,7 @@ void OmahaRequestActionTest::P2PTest(bool initial_allow_p2p_for_downloading,
   string actual_p2p_url;
 
   MockPayloadState mock_payload_state;
-  fake_system_state_.set_payload_state(&mock_payload_state);
+  FakeSystemState::Get()->set_payload_state(&mock_payload_state);
   EXPECT_CALL(mock_payload_state, P2PAttemptAllowed())
       .WillRepeatedly(Return(payload_state_allow_p2p_attempt));
   EXPECT_CALL(mock_payload_state, GetUsingP2PForDownloading())
@@ -2419,7 +2414,7 @@ void OmahaRequestActionTest::P2PTest(bool initial_allow_p2p_for_downloading,
       .WillRepeatedly(SaveArg<0>(&actual_p2p_url));
 
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetLookupUrlForFileResult(p2p_client_result_url);
 
   TimeDelta timeout = TimeDelta::FromSeconds(kMaxP2PNetworkWaitTimeSeconds);
@@ -2537,7 +2532,7 @@ TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
   // deadline in the response is needed to force the update attempt to
   // occur; responses without a deadline seen during OOBE will normally
   // return ErrorCode::kNonCriticalUpdateInOOBE.
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
   fake_update_response_.deadline = "20101020";
 
   // Check that we parse elapsed_days in the Omaha Response correctly.
@@ -2577,8 +2572,8 @@ TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
 // If there is no prefs and OOBE is not complete, we should not
 // report anything to Omaha.
 TEST_F(OmahaRequestActionTest, GetInstallDateWhenNoPrefsNorOOBE) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
-  EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), -1);
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
+  EXPECT_EQ(OmahaRequestAction::GetInstallDate(), -1);
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
 }
 
@@ -2588,8 +2583,8 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenNoPrefsNorOOBE) {
 // nothing.
 TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedWithInvalidDate) {
   Time oobe_date = Time::FromTimeT(42);  // Dec 31, 1969 16:00:42 PST.
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(oobe_date);
-  EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), -1);
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(oobe_date);
+  EXPECT_EQ(OmahaRequestAction::GetInstallDate(), -1);
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
 }
 
@@ -2597,8 +2592,8 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedWithInvalidDate) {
 // should yield an InstallDate of 14.
 TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedWithValidDate) {
   Time oobe_date = Time::FromTimeT(1169280000);  // Jan 20, 2007 0:00 PST.
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(oobe_date);
-  EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), 14);
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(oobe_date);
+  EXPECT_EQ(OmahaRequestAction::GetInstallDate(), 14);
   EXPECT_TRUE(fake_prefs_.Exists(kPrefsInstallDateDays));
 
   int64_t prefs_days;
@@ -2615,8 +2610,8 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedDateChanges) {
   EXPECT_TRUE(fake_prefs_.SetInt64(kPrefsInstallDateDays, 14));
 
   Time oobe_date = Time::FromTimeT(1170144000);  // Jan 30, 2007 0:00 PST.
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(oobe_date);
-  EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), 14);
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(oobe_date);
+  EXPECT_EQ(OmahaRequestAction::GetInstallDate(), 14);
 
   int64_t prefs_days;
   EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
@@ -2624,7 +2619,7 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedDateChanges) {
 
   // If we delete the prefs file, we should get 28 days.
   EXPECT_TRUE(fake_prefs_.Delete(kPrefsInstallDateDays));
-  EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), 28);
+  EXPECT_EQ(OmahaRequestAction::GetInstallDate(), 28);
   EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 28);
 }
@@ -2633,7 +2628,7 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedDateChanges) {
 // device sets the max kernel key version to the current version.
 // ie. the same behavior as if rollback is enabled.
 TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
-  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+  FakeHardware* fake_hw = FakeSystemState::Get()->fake_hardware();
 
   // Setup and verify some initial default values for the kernel TPM
   // values that control verified boot and rollback.
@@ -2644,7 +2639,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 
   EXPECT_CALL(
-      *fake_system_state_.mock_metrics_reporter(),
+      *FakeSystemState::Get()->mock_metrics_reporter(),
       ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
       .Times(1);
 
@@ -2669,7 +2664,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
 // max kernel key version to the current version. ie. the same
 // behavior as if rollback is enabled.
 TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
-  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+  FakeHardware* fake_hw = FakeSystemState::Get()->fake_hardware();
 
   // Setup and verify some initial default values for the kernel TPM
   // values that control verified boot and rollback.
@@ -2680,7 +2675,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 
   EXPECT_CALL(
-      *fake_system_state_.mock_metrics_reporter(),
+      *FakeSystemState::Get()->mock_metrics_reporter(),
       ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
       .Times(1);
 
@@ -2703,7 +2698,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
 // Verifies that a device with rollback enabled sets kernel_max_rollforward
 // in the TPM to prevent roll forward.
 TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
-  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+  FakeHardware* fake_hw = FakeSystemState::Get()->fake_hardware();
 
   // Setup and verify some initial default values for the kernel TPM
   // values that control verified boot and rollback.
@@ -2715,7 +2710,7 @@ TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 
   EXPECT_CALL(
-      *fake_system_state_.mock_metrics_reporter(),
+      *FakeSystemState::Get()->mock_metrics_reporter(),
       ReportKeyVersionMetrics(min_kernel_version, min_kernel_version, true))
       .Times(1);
 
@@ -2740,7 +2735,7 @@ TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
 // Verifies that a device with rollback disabled sets kernel_max_rollforward
 // in the TPM to logical infinity, to allow roll forward.
 TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
-  FakeHardware* fake_hw = fake_system_state_.fake_hardware();
+  FakeHardware* fake_hw = FakeSystemState::Get()->fake_hardware();
 
   // Setup and verify some initial default values for the kernel TPM
   // values that control verified boot and rollback.
@@ -2752,7 +2747,7 @@ TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
   EXPECT_EQ(kRollforwardInfinity, fake_hw->GetMaxKernelKeyRollforward());
 
   EXPECT_CALL(
-      *fake_system_state_.mock_metrics_reporter(),
+      *FakeSystemState::Get()->mock_metrics_reporter(),
       ReportKeyVersionMetrics(min_kernel_version, kRollforwardInfinity, true))
       .Times(1);
 
@@ -2808,7 +2803,7 @@ TEST_F(OmahaRequestActionTest,
   FakeClock fake_clock;
   Time now = Time::Now();
   fake_clock.SetWallclockTime(now);
-  fake_system_state_.set_clock(&fake_clock);
+  FakeSystemState::Get()->set_clock(&fake_clock);
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(TestUpdateCheck());
@@ -2827,7 +2822,7 @@ TEST_F(OmahaRequestActionTest,
   FakeClock fake_clock;
   Time now = Time::Now();
   fake_clock.SetWallclockTime(now);
-  fake_system_state_.set_clock(&fake_clock);
+  FakeSystemState::Get()->set_clock(&fake_clock);
 
   tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
@@ -3053,8 +3048,8 @@ TEST_F(OmahaRequestActionTest, PersistEolDateTest) {
   ASSERT_TRUE(TestUpdateCheck());
 
   string eol_date;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->GetString(kPrefsOmahaEolDate,
+                                                         &eol_date));
   EXPECT_EQ("200", eol_date);
 }
 
@@ -3068,13 +3063,13 @@ TEST_F(OmahaRequestActionTest, PersistEolMissingDateTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   const string kDate = "123";
-  fake_system_state_.prefs()->SetString(kPrefsOmahaEolDate, kDate);
+  FakeSystemState::Get()->prefs()->SetString(kPrefsOmahaEolDate, kDate);
 
   ASSERT_TRUE(TestUpdateCheck());
 
   string eol_date;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->GetString(kPrefsOmahaEolDate,
+                                                         &eol_date));
   EXPECT_EQ(kDate, eol_date);
 }
 
@@ -3090,8 +3085,8 @@ TEST_F(OmahaRequestActionTest, PersistEolBadDateTest) {
   ASSERT_TRUE(TestUpdateCheck());
 
   string eol_date;
-  EXPECT_TRUE(
-      fake_system_state_.prefs()->GetString(kPrefsOmahaEolDate, &eol_date));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->GetString(kPrefsOmahaEolDate,
+                                                         &eol_date));
   EXPECT_EQ(kEolDateInvalid, StringToEolDate(eol_date));
 }
 

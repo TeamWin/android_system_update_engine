@@ -61,7 +61,7 @@ bool RealSystemState::Initialize() {
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
   LOG_IF(INFO, !hardware_->IsOfficialBuild()) << "Booted non-official build.";
 
-  connection_manager_ = connection_manager::CreateConnectionManager(this);
+  connection_manager_ = connection_manager::CreateConnectionManager();
   if (!connection_manager_) {
     LOG(ERROR) << "Error initializing the ConnectionManagerInterface.";
     return false;
@@ -133,8 +133,7 @@ bool RealSystemState::Initialize() {
       new CertificateChecker(prefs_.get(), &openssl_wrapper_));
   certificate_checker_->Init();
 
-  update_attempter_.reset(
-      new UpdateAttempter(this, certificate_checker_.get()));
+  update_attempter_.reset(new UpdateAttempter(certificate_checker_.get()));
 
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_->Init();
@@ -142,8 +141,7 @@ bool RealSystemState::Initialize() {
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(&policy_provider_,
-                                                   kiosk_app_proxy_.get(),
-                                                   this);
+                                                   kiosk_app_proxy_.get());
 
   if (!um_state) {
     LOG(ERROR) << "Failed to initialize the Update Manager.";
@@ -164,7 +162,7 @@ bool RealSystemState::Initialize() {
                             kMaxP2PFilesToKeep,
                             base::TimeDelta::FromDays(kMaxP2PFileAgeDays)));
 
-  if (!payload_state_.Initialize(this)) {
+  if (!payload_state_.Initialize()) {
     LOG(ERROR) << "Failed to initialize the payload state object.";
     return false;
   }

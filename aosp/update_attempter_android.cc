@@ -733,7 +733,6 @@ void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
       std::make_unique<DownloadAction>(prefs_,
                                        boot_control_,
                                        hardware_,
-                                       nullptr,  // system_state, not used.
                                        fetcher,  // passes ownership
                                        true /* interactive */);
   download_action->set_delegate(this);
@@ -804,7 +803,6 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
   TimeDelta duration_uptime = clock_->GetMonotonicTime() - monotonic_time_start;
 
   metrics_reporter_->ReportUpdateAttemptMetrics(
-      nullptr,  // system_state
       static_cast<int>(attempt_number),
       payload_type,
       duration,

@@ -28,7 +28,6 @@
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
-#include "update_engine/common/system_state.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/install_plan.h"
 
@@ -71,12 +70,11 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
 
   // Takes ownership of the passed in HttpFetcher. Useful for testing.
   // A good calling pattern is:
-  // DownloadAction(prefs, boot_contol, hardware, system_state,
+  // DownloadAction(prefs, boot_contol, hardware,
   //                new WhateverHttpFetcher, false);
   DownloadAction(PrefsInterface* prefs,
                  BootControlInterface* boot_control,
                  HardwareInterface* hardware,
-                 SystemState* system_state,
                  HttpFetcher* http_fetcher,
                  bool interactive);
   ~DownloadAction() override;
@@ -141,13 +139,10 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   // Pointer to the current payload in install_plan_.payloads.
   InstallPlan::Payload* payload_{nullptr};
 
-  // SystemState required pointers.
+  // Required pointers.
   PrefsInterface* prefs_;
   BootControlInterface* boot_control_;
   HardwareInterface* hardware_;
-
-  // Global context for the system.
-  SystemState* system_state_;
 
   // Pointer to the MultiRangeHttpFetcher that does the http work.
   std::unique_ptr<MultiRangeHttpFetcher> http_fetcher_;

@@ -34,7 +34,6 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
-#include "update_engine/common/system_state.h"
 #include "update_engine/cros/omaha_request_builder_xml.h"
 #include "update_engine/cros/omaha_response.h"
 
@@ -102,8 +101,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // OmahaRequestAction(..., new OmahaEvent(...), new WhateverHttpFetcher);
   // or
   // OmahaRequestAction(..., nullptr, new WhateverHttpFetcher);
-  OmahaRequestAction(SystemState* system_state,
-                     OmahaEvent* event,
+  OmahaRequestAction(OmahaEvent* event,
                      std::unique_ptr<HttpFetcher> http_fetcher,
                      bool ping_only,
                      const std::string& session_id);
@@ -157,7 +155,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // Gets the install date, expressed as the number of PST8PDT
   // calendar weeks since January 1st 2007, times seven. Returns -1 if
   // unknown. See http://crbug.com/336838 for details about this value.
-  static int GetInstallDate(SystemState* system_state);
+  static int GetInstallDate();
 
   // Parses the Omaha Response in |doc| and sets the
   // |install_date_days| field of |output_object| to the value of the
@@ -168,13 +166,12 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
   // Returns True if the kPrefsInstallDateDays state variable is set,
   // False otherwise.
-  static bool HasInstallDate(SystemState* system_state);
+  static bool HasInstallDate();
 
   // Writes |install_date_days| into the kPrefsInstallDateDays state
   // variable and emits an UMA stat for the |source| used. Returns
   // True if the value was written, False if an error occurred.
-  static bool PersistInstallDate(SystemState* system_state,
-                                 int install_date_days,
+  static bool PersistInstallDate(int install_date_days,
                                  InstallDateProvisioningSource source);
 
   // Persist the new cohort value received in the XML file in the |prefs_key|
@@ -288,9 +285,6 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // exists. Otherwise saves the current wallclock time to the
   // kPrefsUpdateFirstSeenAt pref and returns it as a base::Time object.
   base::Time LoadOrPersistUpdateFirstSeenAtPref() const;
-
-  // Global system context.
-  SystemState* system_state_;
 
   // Contains state that is relevant in the processing of the Omaha request.
   OmahaRequestParams* params_;

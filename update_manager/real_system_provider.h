@@ -22,7 +22,6 @@
 
 #include <base/version.h>
 
-#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/system_provider.h"
 
 namespace org {
@@ -37,10 +36,8 @@ namespace chromeos_update_manager {
 class RealSystemProvider : public SystemProvider {
  public:
   RealSystemProvider(
-      chromeos_update_engine::SystemState* system_state,
       org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy)
-      : system_state_(system_state), kiosk_app_proxy_(kiosk_app_proxy) {
-  }
+      : kiosk_app_proxy_(kiosk_app_proxy) {}
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
@@ -79,8 +76,6 @@ class RealSystemProvider : public SystemProvider {
   std::unique_ptr<Variable<unsigned int>> var_num_slots_;
   std::unique_ptr<Variable<std::string>> var_kiosk_required_platform_version_;
   std::unique_ptr<Variable<base::Version>> var_chromeos_version_;
-
-  chromeos_update_engine::SystemState* const system_state_;
 
   org::chromium::KioskAppServiceInterfaceProxyInterface* const kiosk_app_proxy_;
 

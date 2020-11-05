@@ -29,6 +29,7 @@
 #include "update_engine/cros/fake_system_state.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
+using chromeos_update_engine::FakeSystemState;
 using org::chromium::KioskAppServiceInterfaceProxyMock;
 using std::unique_ptr;
 using testing::_;
@@ -45,17 +46,16 @@ namespace chromeos_update_manager {
 class UmRealSystemProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    FakeSystemState::CreateInstance();
     kiosk_app_proxy_mock_.reset(new KioskAppServiceInterfaceProxyMock());
     ON_CALL(*kiosk_app_proxy_mock_, GetRequiredPlatformVersion(_, _, _))
         .WillByDefault(
             DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
 
-    provider_.reset(new RealSystemProvider(&fake_system_state_,
-                                           kiosk_app_proxy_mock_.get()));
+    provider_.reset(new RealSystemProvider(kiosk_app_proxy_mock_.get()));
     EXPECT_TRUE(provider_->Init());
   }
 
-  chromeos_update_engine::FakeSystemState fake_system_state_;
   unique_ptr<RealSystemProvider> provider_;
 
   unique_ptr<KioskAppServiceInterfaceProxyMock> kiosk_app_proxy_mock_;
@@ -70,17 +70,17 @@ TEST_F(UmRealSystemProviderTest, InitTest) {
 }
 
 TEST_F(UmRealSystemProviderTest, IsOOBECompleteTrue) {
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(base::Time());
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(base::Time());
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_is_oobe_complete());
 }
 
 TEST_F(UmRealSystemProviderTest, IsOOBECompleteFalse) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_oobe_complete());
 }
 
 TEST_F(UmRealSystemProviderTest, VersionFromRequestParams) {
-  fake_system_state_.request_params()->set_app_version("1.2.3");
+  FakeSystemState::Get()->request_params()->set_app_version("1.2.3");
   // Call |Init| again to pick up the version.
   EXPECT_TRUE(provider_->Init());
 

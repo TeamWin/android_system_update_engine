@@ -25,8 +25,6 @@
 
 namespace chromeos_update_engine {
 
-class SystemState;
-
 // This class exposes a generic interface to the connection manager
 // (e.g FlimFlam, Shill, etc.) to consolidate all connection-related
 // logic in update_engine.
@@ -59,8 +57,7 @@ class ConnectionManagerInterface {
 
 namespace connection_manager {
 // Factory function which creates a ConnectionManager.
-std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
-    SystemState* system_state);
+std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager();
 }  // namespace connection_manager
 
 }  // namespace chromeos_update_engine

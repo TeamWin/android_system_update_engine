@@ -48,7 +48,7 @@ class PayloadState : public PayloadStateInterface {
   // It performs the initial loading of all persisted state into memory and
   // dumps the initial state for debugging purposes.  Note: the other methods
   // should be called only after calling Initialize on this object.
-  bool Initialize(SystemState* system_state);
+  bool Initialize();
 
   // Implementation of PayloadStateInterface methods.
   void SetResponse(const OmahaResponse& response) override;
@@ -428,9 +428,6 @@ class PayloadState : public PayloadStateInterface {
 
   // Get the total size of all payloads.
   int64_t GetPayloadSize();
-
-  // The global state of the system.
-  SystemState* system_state_;
 
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
