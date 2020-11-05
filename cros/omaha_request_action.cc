@@ -334,7 +334,7 @@ bool OmahaRequestAction::ShouldPing() const {
     }
     if (system_state_->hardware()->GetFirstActiveOmahaPingSent()) {
       LOG(INFO) << "Not sending ping with a=-1 r=-1 to omaha because "
-                << "the first_active_omaha_ping_sent is true";
+                << "the first_active_omaha_ping_sent is true.";
       return false;
     }
     return true;
@@ -401,7 +401,7 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
     return -1;
 
   LOG(INFO) << "Set the Omaha InstallDate from OOBE time-stamp to " << num_days
-            << " days";
+            << " days.";
 
   return num_days;
 }
@@ -547,16 +547,15 @@ bool ParsePackage(OmahaParserData::App* app,
     return true;
   }
   if (app->packages.empty()) {
-    LOG(ERROR) << "Omaha Response has no packages";
+    LOG(ERROR) << "Omaha Response has no packages.";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
   if (app->url_codebase.empty()) {
-    LOG(ERROR) << "No Omaha Response URLs";
+    LOG(ERROR) << "No Omaha Response URLs.";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
-  LOG(INFO) << "Found " << app->url_codebase.size() << " url(s)";
   vector<string> metadata_sizes =
       base::SplitString(app->action_postinstall_attrs[kAttrMetadataSize],
                         ":",
@@ -575,23 +574,23 @@ bool ParsePackage(OmahaParserData::App* app,
   for (size_t i = 0; i < app->packages.size(); i++) {
     const auto& package = app->packages[i];
     if (package.name.empty()) {
-      LOG(ERROR) << "Omaha Response has empty package name";
+      LOG(ERROR) << "Omaha Response has empty package name.";
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
       return false;
     }
-    LOG(INFO) << "Found package " << package.name;
 
     OmahaResponse::Package out_package;
     out_package.app_id = app->id;
     out_package.can_exclude = can_exclude;
     for (const string& codebase : app->url_codebase) {
       if (codebase.empty()) {
-        LOG(ERROR) << "Omaha Response URL has empty codebase";
+        LOG(ERROR) << "Omaha Response URL has empty codebase.";
         completer->set_code(ErrorCode::kOmahaResponseInvalid);
         return false;
       }
       out_package.payload_urls.push_back(codebase + package.name);
     }
+
     // Parse the payload size.
     base::StringToUint64(package.size, &out_package.size);
     if (out_package.size <= 0) {
@@ -599,29 +598,22 @@ bool ParsePackage(OmahaParserData::App* app,
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
       return false;
     }
-    LOG(INFO) << "Payload size = " << out_package.size << " bytes";
 
     if (i < metadata_sizes.size())
       base::StringToUint64(metadata_sizes[i], &out_package.metadata_size);
-    LOG(INFO) << "Payload metadata size = " << out_package.metadata_size
-              << " bytes";
 
     if (i < metadata_signatures.size())
       out_package.metadata_signature = metadata_signatures[i];
-    LOG(INFO) << "Payload metadata signature = "
-              << out_package.metadata_signature;
 
     out_package.hash = package.hash;
     if (out_package.hash.empty()) {
-      LOG(ERROR) << "Omaha Response has empty hash_sha256 value";
+      LOG(ERROR) << "Omaha Response has empty hash_sha256 value.";
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
       return false;
     }
-    LOG(INFO) << "Payload hash = " << out_package.hash;
 
     if (i < is_delta_payloads.size())
       out_package.is_delta = ParseBool(is_delta_payloads[i]);
-    LOG(INFO) << "Payload is delta = " << utils::ToString(out_package.is_delta);
 
     output_object->packages.push_back(std::move(out_package));
   }
@@ -724,7 +716,6 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
-  LOG(INFO) << "Found " << parser_data->apps.size() << " <app>.";
 
   // chromium-os:37289: The PollInterval is not supported by Omaha server
   // currently.  But still keeping this existing code in case we ever decide to
@@ -758,7 +749,7 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
                            install_date_days_rounded,
                            kProvisionedFromOmahaResponse)) {
       LOG(INFO) << "Set the Omaha InstallDate from Omaha Response to "
-                << install_date_days_rounded << " days";
+                << install_date_days_rounded << " days.";
     }
   }
 
@@ -859,7 +850,7 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
                app.manifest_version != params_->app_version()) {
       LOG(WARNING) << "An app has a different version (" << app.manifest_version
                    << ") that is different than platform app version ("
-                   << params_->app_version() << ")";
+                   << params_->app_version() << ").";
     }
     if (!app.action_postinstall_attrs.empty() && attrs.empty()) {
       attrs = app.action_postinstall_attrs;
@@ -875,11 +866,8 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
     return false;
   }
 
-  LOG(INFO) << "Received omaha response to update to version "
-            << output_object->version;
-
   if (attrs.empty()) {
-    LOG(ERROR) << "Omaha Response has no postinstall event action";
+    LOG(ERROR) << "Omaha Response has no postinstall event action.";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
@@ -1090,7 +1078,7 @@ void OmahaRequestAction::CompleteProcessing() {
   if (payload_state->ShouldBackoffDownload()) {
     output_object.update_exists = false;
     LOG(INFO) << "Ignoring Omaha updates in order to backoff our retry "
-              << "attempts";
+              << "attempts.";
     completer.set_code(ErrorCode::kOmahaUpdateDeferredForBackoff);
     return;
   }
@@ -1224,7 +1212,7 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
   Time update_first_seen_at = LoadOrPersistUpdateFirstSeenAtPref();
   if (update_first_seen_at == base::Time()) {
     LOG(INFO) << "Not scattering as UpdateFirstSeenAt value cannot be read or "
-                 "persisted";
+                 "persisted.";
     return kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
   }
 
@@ -1250,7 +1238,7 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
     // previous FSI, which means this update will be applied mostly in OOBE
     // cases. For these cases, we shouldn't scatter so as to finish the OOBE
     // quickly.
-    LOG(INFO) << "Not scattering as deadline flag is set";
+    LOG(INFO) << "Not scattering as deadline flag is set.";
     return kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
   }
 
