@@ -158,10 +158,10 @@ struct FakeUpdateResponse {
            version +
            "\">"
            "<packages><package hash=\"not-used\" name=\"" +
-           filename + "\" size=\"" + base::NumberToString(size) +
-           "\" hash_sha256=\"" + hash + "\"/>" +
-           (multi_package ? "<package name=\"package2\" size=\"222\" "
-                            "hash_sha256=\"hash2\"/>"
+           filename + "\" size=\"" + base::NumberToString(size) + "\" fp=\"" +
+           fp + "\" hash_sha256=\"" + hash + "\"/>" +
+           (multi_package ? "<package name=\"package2\" size=\"222\" fp=\"" +
+                                fp2 + "\" hash_sha256=\"hash2\"/>"
                           : "") +
            "</packages>"
            "<actions><action event=\"postinstall\" MetadataSize=\"11" +
@@ -187,8 +187,9 @@ struct FakeUpdateResponse {
                       "><updatecheck status=\"ok\"><urls><url codebase=\"" +
                       codebase2 + "\"/></urls><manifest version=\"" + version2 +
                       "\"><packages>"
-                      "<package name=\"package3\" size=\"333\" "
-                      "hash_sha256=\"hash3\"/></packages>"
+                      "<package name=\"package3\" size=\"333\" fp=\"" +
+                      fp2 +
+                      "\" hash_sha256=\"hash3\"/></packages>"
                       "<actions><action event=\"postinstall\" " +
                       (multi_app_self_update
                            ? "noupdate=\"true\" IsDeltaPayload=\"true\" "
@@ -215,8 +216,10 @@ struct FakeUpdateResponse {
                       codebase + "\"/><url codebase=\"" + codebase2 +
                       "\"/></urls><manifest version=\"" + version +
                       "\"><packages><package name=\"package3\" size=\"333\" "
-                      "hash_sha256=\"hash3\"/></packages><actions>"
-                      "<action event=\"install\" run=\".signed\"/>"
+                      "fp=\"" +
+                      fp2 +
+                      "\" hash_sha256=\"hash3\"/></packages>"
+                      "<actions><action event=\"install\" run=\".signed\"/>"
                       "<action event=\"postinstall\" MetadataSize=\"33\"/>"
                       "</actions></manifest></updatecheck></app>"
                 : "") +
@@ -248,6 +251,8 @@ struct FakeUpdateResponse {
   string codebase2 = "http://code/base/2/";
   string filename = "file.signed";
   string hash = "4841534831323334";
+  string fp = "3.98ba213e";
+  string fp2 = "3.755aff78e";
   uint64_t size = 123;
   string deadline = "";
   string max_days_to_scatter = "7";
@@ -670,6 +675,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
   EXPECT_EQ(true, response.packages[0].is_delta);
   EXPECT_EQ(fake_update_response_.prompt == "true", response.prompt);
   EXPECT_EQ(fake_update_response_.deadline, response.deadline);
@@ -695,11 +701,13 @@ TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
             response.packages[1].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
   EXPECT_EQ(true, response.packages[0].is_delta);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
   ASSERT_EQ(2u, response.packages.size());
   EXPECT_EQ(string("hash2"), response.packages[1].hash);
   EXPECT_EQ(222u, response.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
   EXPECT_EQ(22u, response.packages[1].metadata_size);
   EXPECT_EQ(false, response.packages[1].is_delta);
 }
@@ -718,11 +726,13 @@ TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
             response.packages[1].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
   EXPECT_EQ(true, response.packages[0].is_delta);
   ASSERT_EQ(2u, response.packages.size());
   EXPECT_EQ(string("hash3"), response.packages[1].hash);
   EXPECT_EQ(333u, response.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
   EXPECT_EQ(33u, response.packages[1].metadata_size);
   EXPECT_EQ(false, response.packages[1].is_delta);
 }
@@ -740,10 +750,12 @@ TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
             response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
   ASSERT_EQ(2u, response.packages.size());
   EXPECT_EQ(string("hash3"), response.packages[1].hash);
   EXPECT_EQ(333u, response.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
   EXPECT_EQ(33u, response.packages[1].metadata_size);
   EXPECT_EQ(true, response.packages[1].is_delta);
 }
@@ -765,15 +777,18 @@ TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
             response.packages[2].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
   EXPECT_EQ(true, response.packages[0].is_delta);
   ASSERT_EQ(3u, response.packages.size());
   EXPECT_EQ(string("hash2"), response.packages[1].hash);
   EXPECT_EQ(222u, response.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
   EXPECT_EQ(22u, response.packages[1].metadata_size);
   EXPECT_EQ(false, response.packages[1].is_delta);
   EXPECT_EQ(string("hash3"), response.packages[2].hash);
   EXPECT_EQ(333u, response.packages[2].size);
+  EXPECT_EQ(fake_update_response_.fp2, response.packages[2].fp);
   EXPECT_EQ(33u, response.packages[2].metadata_size);
   EXPECT_EQ(false, response.packages[2].is_delta);
 }
@@ -1557,7 +1572,7 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
       "<urls><url codebase=\"http://missing/field/test/\"/></urls>"
       "<manifest version=\"10.2.3.4\">"
       "<packages><package hash=\"not-used\" name=\"f\" "
-      "size=\"587\" hash_sha256=\"lkq34j5345\"/></packages>"
+      "size=\"587\" fp=\"3.789\" hash_sha256=\"lkq34j5345\"/></packages>"
       "<actions><action event=\"postinstall\" "
       "Prompt=\"false\" "
       "IsDeltaPayload=\"false\" "
@@ -1572,6 +1587,7 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
             response.packages[0].payload_urls[0]);
   EXPECT_EQ("", response.more_info_url);
   EXPECT_EQ("lkq34j5345", response.packages[0].hash);
+  EXPECT_EQ(string("3.789"), response.packages[0].fp);
   EXPECT_EQ(587u, response.packages[0].size);
   EXPECT_FALSE(response.prompt);
   EXPECT_TRUE(response.deadline.empty());

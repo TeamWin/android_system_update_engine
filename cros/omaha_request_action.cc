@@ -98,6 +98,7 @@ constexpr char kAttrCohortName[] = "cohortname";
 constexpr char kAttrElapsedDays[] = "elapsed_days";
 constexpr char kAttrElapsedSeconds[] = "elapsed_seconds";
 constexpr char kAttrEvent[] = "event";
+constexpr char kAttrFp[] = "fp";
 constexpr char kAttrHashSha256[] = "hash_sha256";
 // Deprecated: "hash"; Although we still need to pass it from the server for
 // backward compatibility.
@@ -150,6 +151,7 @@ struct OmahaParserData {
       string name;
       string size;
       string hash;
+      string fp;
     };
     vector<Package> packages;
   };
@@ -214,7 +216,8 @@ void ParserHandlerStart(void* user_data,
     if (!data->apps.empty())
       data->apps.back().packages.push_back({.name = attrs[kAttrName],
                                             .size = attrs[kAttrSize],
-                                            .hash = attrs[kAttrHashSha256]});
+                                            .hash = attrs[kAttrHashSha256],
+                                            .fp = attrs[kAttrFp]});
   } else if (data->current_path == "/response/app/updatecheck/manifest") {
     // Get the version.
     if (!data->apps.empty())
@@ -611,6 +614,8 @@ bool ParsePackage(OmahaParserData::App* app,
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
       return false;
     }
+
+    out_package.fp = package.fp;
 
     if (i < is_delta_payloads.size())
       out_package.is_delta = ParseBool(is_delta_payloads[i]);

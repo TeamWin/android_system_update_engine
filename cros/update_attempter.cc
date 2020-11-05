@@ -158,10 +158,12 @@ void UpdateAttempter::Init() {
 
   // In case of update_engine restart without a reboot we need to restore the
   // reboot needed state.
-  if (GetBootTimeAtUpdate(nullptr))
+  if (GetBootTimeAtUpdate(nullptr)) {
     status_ = UpdateStatus::UPDATED_NEED_REBOOT;
-  else
+  } else {
     status_ = UpdateStatus::IDLE;
+    prefs_->Delete(kPrefsLastFp, {kDlcPrefsSubDir});
+  }
 }
 
 bool UpdateAttempter::ScheduleUpdates() {
@@ -644,6 +646,20 @@ bool UpdateAttempter::ResetDlcPrefs(const string& dlc_id) {
                 << " for DLC (" << dlc_id << ").";
 
   return failures.size() == 0;
+}
+
+void UpdateAttempter::SetPref(const string& pref_key,
+                              const string& pref_value,
+                              const string& payload_id) {
+  string dlc_id;
+  if (!omaha_request_params_->GetDlcId(payload_id, &dlc_id)) {
+    // Not a DLC ID, set fingerprint in perf for platform ID.
+    prefs_->SetString(pref_key, pref_value);
+  } else {
+    // Set fingerprint in pref for DLC ID.
+    auto key = prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, pref_key});
+    prefs_->SetString(key, pref_value);
+  }
 }
 
 bool UpdateAttempter::SetDlcActiveValue(bool is_active, const string& dlc_id) {
@@ -1198,6 +1214,9 @@ void UpdateAttempter::ProcessingDoneUpdate(const ActionProcessor* processor,
     for (const auto& payload : install_plan_->payloads) {
       target_version_uid += brillo::data_encoding::Base64Encode(payload.hash) +
                             ":" + payload.metadata_signature + ":";
+      // Set fingerprint value for updates only.
+      if (!is_install_)
+        SetPref(kPrefsLastFp, payload.fp, payload.app_id);
     }
 
     // If we just downloaded a rollback image, we should preserve this fact
@@ -1419,6 +1438,7 @@ bool UpdateAttempter::ResetStatus() {
       // UpdateStatus::UPDATED_NEED_REBOOT state.
       ret_value = prefs_->Delete(kPrefsUpdateCompletedOnBootId) && ret_value;
       ret_value = prefs_->Delete(kPrefsUpdateCompletedBootTime) && ret_value;
+      ret_value = prefs_->Delete(kPrefsLastFp, {kDlcPrefsSubDir}) && ret_value;
 
       // Update the boot flags so the current slot has higher priority.
       BootControlInterface* boot_control = system_state_->boot_control();

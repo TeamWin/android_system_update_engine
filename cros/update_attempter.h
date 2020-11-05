@@ -433,6 +433,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Resets all the DLC prefs.
   bool ResetDlcPrefs(const std::string& dlc_id);
 
+  // Sets given pref key for DLC and platform.
+  void SetPref(const std::string& pref_key,
+               const std::string& pref_value,
+               const std::string& payload_id);
+
   // Get the integer values from the DLC metadata for |kPrefsPingLastActive|
   // or |kPrefsPingLastRollcall|.
   // The value is equal to -2 when the value cannot be read or is not numeric.

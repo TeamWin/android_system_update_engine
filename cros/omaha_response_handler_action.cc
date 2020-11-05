@@ -106,7 +106,9 @@ void OmahaResponseHandlerAction::PerformAction() {
          .metadata_signature = package.metadata_signature,
          .hash = raw_hash,
          .type = package.is_delta ? InstallPayloadType::kDelta
-                                  : InstallPayloadType::kFull});
+                                  : InstallPayloadType::kFull,
+         .fp = package.fp,
+         .app_id = package.app_id});
     update_check_response_hash += package.hash + ":";
   }
   install_plan_.public_key_rsa = response.public_key_rsa;

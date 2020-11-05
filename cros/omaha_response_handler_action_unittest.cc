@@ -117,6 +117,9 @@ const char* const kLongName =
     "-the_update_a.b.c.d_DELTA_.tgz";
 const char* const kBadVersion = "don't update me";
 const char* const kPayloadHashHex = "486173682b";
+const char* const kPayloadFp1 = "1.755aff78ec73dfc7f590893ac";
+const char* const kPayloadFp2 = "1.98ba213e0ccec0d0e8cdc74a5";
+const char* const kPayloadAppId = "test_app_id";
 }  // namespace
 
 bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
@@ -185,7 +188,9 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.packages.push_back(
         {.payload_urls = {"http://foo/the_update_a.b.c.d.tgz"},
          .size = 12,
-         .hash = kPayloadHashHex});
+         .hash = kPayloadHashHex,
+         .app_id = kPayloadAppId,
+         .fp = kPayloadFp1});
     in.more_info_url = "http://more/info";
     in.prompt = false;
     in.deadline = "20101020";
@@ -193,6 +198,8 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+    EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+    EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline));
@@ -211,7 +218,9 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.packages.push_back(
         {.payload_urls = {"http://foo/the_update_a.b.c.d.tgz"},
          .size = 12,
-         .hash = kPayloadHashHex});
+         .hash = kPayloadHashHex,
+         .app_id = kPayloadAppId,
+         .fp = kPayloadFp1});
     in.more_info_url = "http://more/info";
     in.prompt = true;
     InstallPlan install_plan;
@@ -220,6 +229,8 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+    EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+    EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
     EXPECT_EQ(0U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline) &&
@@ -230,8 +241,11 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     OmahaResponse in;
     in.update_exists = true;
     in.version = "a.b.c.d";
-    in.packages.push_back(
-        {.payload_urls = {kLongName}, .size = 12, .hash = kPayloadHashHex});
+    in.packages.push_back({.payload_urls = {kLongName},
+                           .size = 12,
+                           .hash = kPayloadHashHex,
+                           .app_id = kPayloadAppId,
+                           .fp = kPayloadFp1});
     in.more_info_url = "http://more/info";
     in.prompt = true;
     in.deadline = "some-deadline";
@@ -245,6 +259,8 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+    EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+    EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline));
@@ -255,8 +271,11 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     OmahaResponse in;
     in.update_exists = true;
     in.version = "a.b.c.d";
-    in.packages.push_back(
-        {.payload_urls = {kLongName}, .size = 12, .hash = kPayloadHashHex});
+    in.packages.push_back({.payload_urls = {kLongName},
+                           .size = 12,
+                           .hash = kPayloadHashHex,
+                           .app_id = kPayloadAppId,
+                           .fp = kPayloadFp1});
     in.more_info_url = "http://more/info";
     in.prompt = true;
     in.deadline = "some-deadline";
@@ -268,6 +287,8 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_TRUE(DoTest(in, test_deadline_file.path(), &install_plan));
     EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
     EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+    EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+    EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file.path(), &deadline));
@@ -309,10 +330,14 @@ TEST_F(OmahaResponseHandlerActionTest, MultiPackageTest) {
   in.version = "a.b.c.d";
   in.packages.push_back({.payload_urls = {"http://package/1"},
                          .size = 1,
-                         .hash = kPayloadHashHex});
+                         .hash = kPayloadHashHex,
+                         .app_id = kPayloadAppId,
+                         .fp = kPayloadFp1});
   in.packages.push_back({.payload_urls = {"http://package/2"},
                          .size = 2,
-                         .hash = kPayloadHashHex});
+                         .hash = kPayloadHashHex,
+                         .app_id = kPayloadAppId,
+                         .fp = kPayloadFp2});
   in.more_info_url = "http://more/info";
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
@@ -322,6 +347,10 @@ TEST_F(OmahaResponseHandlerActionTest, MultiPackageTest) {
   EXPECT_EQ(in.packages[1].size, install_plan.payloads[1].size);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
   EXPECT_EQ(expected_hash_, install_plan.payloads[1].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[1].app_id, install_plan.payloads[1].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
+  EXPECT_EQ(in.packages[1].fp, install_plan.payloads[1].fp);
   EXPECT_EQ(in.version, install_plan.version);
 }
 
@@ -332,7 +361,9 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   in.packages.push_back(
       {.payload_urls = {"http://test.should/need/hash.checks.signed"},
        .size = 12,
-       .hash = kPayloadHashHex});
+       .hash = kPayloadHashHex,
+       .app_id = kPayloadAppId,
+       .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
   // Hash checks are always skipped for non-official update URLs.
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
@@ -342,6 +373,8 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -353,7 +386,9 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
   in.packages.push_back(
       {.payload_urls = {"http://url.normally/needs/hash.checks.signed"},
        .size = 12,
-       .hash = kPayloadHashHex});
+       .hash = kPayloadHashHex,
+       .app_id = kPayloadAppId,
+       .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -362,6 +397,8 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -375,7 +412,9 @@ TEST_F(OmahaResponseHandlerActionTest,
   in.packages.push_back(
       {.payload_urls = {"http://url.normally/needs/hash.checks.signed"},
        .size = 12,
-       .hash = kPayloadHashHex});
+       .hash = kPayloadHashHex,
+       .app_id = kPayloadAppId,
+       .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -385,6 +424,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -396,7 +437,9 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   in.packages.push_back(
       {.payload_urls = {"https://test.should/need/hash.checks.signed"},
        .size = 12,
-       .hash = kPayloadHashHex});
+       .hash = kPayloadHashHex,
+       .app_id = kPayloadAppId,
+       .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -405,6 +448,8 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -417,7 +462,9 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
       {.payload_urls = {"http://test.should.still/need/hash.checks",
                         "https://test.should.still/need/hash.checks"},
        .size = 12,
-       .hash = kPayloadHashHex});
+       .hash = kPayloadHashHex,
+       .app_id = kPayloadAppId,
+       .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -426,6 +473,8 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -675,7 +724,9 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   in.packages.push_back(
       {.payload_urls = {"https://would.not/cause/hash/checks"},
        .size = 12,
-       .hash = kPayloadHashHex});
+       .hash = kPayloadHashHex,
+       .app_id = kPayloadAppId,
+       .fp = kPayloadFp1});
   in.more_info_url = "http://more/info";
 
   OmahaRequestParams params(&fake_system_state_);
@@ -698,6 +749,8 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_EQ(p2p_url, install_plan.download_url);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
 }
@@ -899,10 +952,14 @@ TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {
   in.version = "a.b.c.d";
   in.packages.push_back({.payload_urls = {"http://package/1"},
                          .size = 1,
-                         .hash = kPayloadHashHex});
+                         .hash = kPayloadHashHex,
+                         .app_id = kPayloadAppId,
+                         .fp = kPayloadFp1});
   in.packages.push_back({.payload_urls = {"http://package/2"},
                          .size = 2,
-                         .hash = kPayloadHashHex});
+                         .hash = kPayloadHashHex,
+                         .app_id = kPayloadAppId,
+                         .fp = kPayloadFp2});
   in.more_info_url = "http://more/info";
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
@@ -912,6 +969,10 @@ TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {
   EXPECT_EQ(in.packages[1].size, install_plan.payloads[1].size);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
   EXPECT_EQ(expected_hash_, install_plan.payloads[1].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[1].app_id, install_plan.payloads[1].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
+  EXPECT_EQ(in.packages[1].fp, install_plan.payloads[1].fp);
   EXPECT_EQ(in.version, install_plan.version);
 }
 
@@ -921,7 +982,9 @@ TEST_F(OmahaResponseHandlerActionTest, TestDeferredByPolicy) {
   in.version = "a.b.c.d";
   in.packages.push_back({.payload_urls = {"http://foo/the_update_a.b.c.d.tgz"},
                          .size = 12,
-                         .hash = kPayloadHashHex});
+                         .hash = kPayloadHashHex,
+                         .app_id = kPayloadAppId,
+                         .fp = kPayloadFp1});
   // Setup the UpdateManager to disallow the update.
   FakeClock fake_clock;
   MockPolicy* mock_policy = new MockPolicy(&fake_clock);
@@ -942,6 +1005,8 @@ TEST_F(OmahaResponseHandlerActionTest, TestDeferredByPolicy) {
   install_plan = *delegate_.response_handler_action_install_plan_;
   EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
   EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(in.packages[0].app_id, install_plan.payloads[0].app_id);
+  EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_EQ(1U, install_plan.target_slot);
   EXPECT_EQ(in.version, install_plan.version);
 }

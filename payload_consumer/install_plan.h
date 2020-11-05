@@ -62,6 +62,8 @@ struct InstallPlan {
     std::string metadata_signature;  // signature of the metadata in base64
     brillo::Blob hash;               // SHA256 hash of the payload
     InstallPayloadType type{InstallPayloadType::kUnknown};
+    std::string fp;      // fingerprint value unique to the payload
+    std::string app_id;  // App ID of the payload
     // Only download manifest and fill in partitions in install plan without
     // apply the payload if true. Will be set by DownloadAction when resuming
     // multi-payload.
@@ -72,7 +74,8 @@ struct InstallPlan {
              metadata_size == that.metadata_size &&
              metadata_signature == that.metadata_signature &&
              hash == that.hash && type == that.type &&
-             already_applied == that.already_applied;
+             already_applied == that.already_applied && fp == that.fp &&
+             app_id == that.app_id;
     }
   };
   std::vector<Payload> payloads;

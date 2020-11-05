@@ -72,13 +72,16 @@ void InstallPlan::Dump() const {
   for (const auto& payload : payloads) {
     payloads_str += base::StringPrintf(
         ", payload: (urls: %s, size: %" PRIu64 ", metadata_size: %" PRIu64
-        ", metadata signature: %s, hash: %s, payload type: %s)",
+        ", metadata signature: %s, hash: %s, payload type: %s"
+        ", fingerprint: %s, app id: %s)",
         PayloadUrlsToString(payload.payload_urls).c_str(),
         payload.size,
         payload.metadata_size,
         payload.metadata_signature.c_str(),
         base::HexEncode(payload.hash.data(), payload.hash.size()).c_str(),
-        InstallPayloadTypeToString(payload.type).c_str());
+        InstallPayloadTypeToString(payload.type).c_str(),
+        payload.fp.c_str(),
+        payload.app_id.c_str());
   }
 
   string version_str = base::StringPrintf(", version: %s", version.c_str());

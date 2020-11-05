@@ -34,8 +34,6 @@ namespace chromeos_update_engine {
 
 namespace {
 
-const char kKeySeparator = '/';
-
 void DeleteEmptyDirectories(const base::FilePath& path) {
   base::FileEnumerator path_enum(
       path, false /* recursive */, base::FileEnumerator::DIRECTORIES);
@@ -110,6 +108,24 @@ bool PrefsBase::Delete(const string& key) {
       observer->OnPrefDeleted(key);
   }
   return true;
+}
+
+bool PrefsBase::Delete(const string& pref_key, const vector<string>& nss) {
+  // Delete pref key for platform.
+  bool success = Delete(pref_key);
+  // Delete pref key in each namespace.
+  for (const auto& ns : nss) {
+    vector<string> namespace_keys;
+    success = GetSubKeys(ns, &namespace_keys) && success;
+    for (const auto& key : namespace_keys) {
+      auto last_key_seperator = key.find_last_of(kKeySeparator);
+      if (last_key_seperator != string::npos &&
+          pref_key == key.substr(last_key_seperator + 1)) {
+        success = Delete(key) && success;
+      }
+    }
+  }
+  return success;
 }
 
 bool PrefsBase::GetSubKeys(const string& ns, vector<string>* keys) const {
