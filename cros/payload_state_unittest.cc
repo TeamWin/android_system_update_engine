@@ -108,7 +108,7 @@ static void SetupPayloadStateWith2Urls(string hash,
 
 class PayloadStateTest : public ::testing::Test {};
 
-TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
+TEST_F(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
@@ -146,7 +146,7 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
-TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
+TEST_F(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   OmahaResponse response;
   response.packages.push_back({.payload_urls = {"https://single.url.test"},
                                .size = 123456789,
@@ -197,7 +197,7 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
-TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
+TEST_F(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   OmahaResponse response;
   response.packages.push_back({.payload_urls = {"http://multiple.url.test",
                                                 "https://multiple.url.test"},
@@ -247,7 +247,7 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
-TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
+TEST_F(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
@@ -302,7 +302,7 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   EXPECT_EQ(3U, payload_state.GetUrlSwitchCount());
 }
 
-TEST(PayloadStateTest, NewResponseResetsPayloadState) {
+TEST_F(PayloadStateTest, NewResponseResetsPayloadState) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
   PayloadState payload_state;
@@ -349,7 +349,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 }
 
-TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
+TEST_F(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -495,7 +495,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
 }
 
-TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
+TEST_F(PayloadStateTest,
+       PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -534,7 +535,8 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
   EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
 }
 
-TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
+TEST_F(PayloadStateTest,
+       PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -571,7 +573,7 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
 }
 
-TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
+TEST_F(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -625,7 +627,7 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
 }
 
-TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
+TEST_F(PayloadStateTest, NoBackoffInteractiveChecks) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -648,7 +650,7 @@ TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
 }
 
-TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
+TEST_F(PayloadStateTest, NoBackoffForP2PUpdates) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -679,7 +681,7 @@ TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 }
 
-TEST(PayloadStateTest, NoBackoffForDeltaPayloads) {
+TEST_F(PayloadStateTest, NoBackoffForDeltaPayloads) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -723,7 +725,7 @@ static void CheckPayloadBackoffState(PayloadState* payload_state,
             backoff_expiry_time.ToInternalValue());
 }
 
-TEST(PayloadStateTest, BackoffPeriodsAreInCorrectRange) {
+TEST_F(PayloadStateTest, BackoffPeriodsAreInCorrectRange) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -744,7 +746,7 @@ TEST(PayloadStateTest, BackoffPeriodsAreInCorrectRange) {
   CheckPayloadBackoffState(&payload_state, 10, TimeDelta::FromDays(16));
 }
 
-TEST(PayloadStateTest, BackoffLogicCanBeDisabled) {
+TEST_F(PayloadStateTest, BackoffLogicCanBeDisabled) {
   OmahaResponse response;
   response.disable_payload_backoff = true;
   PayloadState payload_state;
@@ -771,7 +773,7 @@ TEST(PayloadStateTest, BackoffLogicCanBeDisabled) {
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
 }
 
-TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
+TEST_F(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   OmahaResponse response;
   response.disable_payload_backoff = true;
   PayloadState payload_state;
@@ -880,7 +882,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_EQ(0, payload_state.GetNumResponsesSeen());
 }
 
-TEST(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
+TEST_F(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -920,7 +922,7 @@ TEST(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
   payload_state.UpdateSucceeded();
 }
 
-TEST(PayloadStateTest, RestartingUpdateResetsMetrics) {
+TEST_F(PayloadStateTest, RestartingUpdateResetsMetrics) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
   PayloadState payload_state;
@@ -950,7 +952,7 @@ TEST(PayloadStateTest, RestartingUpdateResetsMetrics) {
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
 }
 
-TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
+TEST_F(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;
 
@@ -978,7 +980,7 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   EXPECT_EQ(0U, payload_state.GetNumReboots());
 }
 
-TEST(PayloadStateTest, RollbackHappened) {
+TEST_F(PayloadStateTest, RollbackHappened) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;
 
@@ -1009,7 +1011,7 @@ TEST(PayloadStateTest, RollbackHappened) {
   EXPECT_TRUE(payload_state.GetRollbackHappened());
 }
 
-TEST(PayloadStateTest, RollbackVersion) {
+TEST_F(PayloadStateTest, RollbackVersion) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;
 
@@ -1052,7 +1054,7 @@ TEST(PayloadStateTest, RollbackVersion) {
   payload_state.UpdateSucceeded();
 }
 
-TEST(PayloadStateTest, DurationsAreCorrect) {
+TEST_F(PayloadStateTest, DurationsAreCorrect) {
   OmahaResponse response;
   response.packages.resize(1);
   PayloadState payload_state;
@@ -1115,7 +1117,7 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
             16000000);
 }
 
-TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
+TEST_F(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1158,7 +1160,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   EXPECT_FALSE(fake_prefs.Exists(kPrefsSystemUpdatedMarker));
 }
 
-TEST(PayloadStateTest, RestartAfterCrash) {
+TEST_F(PayloadStateTest, RestartAfterCrash) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   testing::StrictMock<MockMetricsReporter> mock_metrics_reporter;
@@ -1183,7 +1185,7 @@ TEST(PayloadStateTest, RestartAfterCrash) {
   payload_state.UpdateEngineStarted();
 }
 
-TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsNoReporting) {
+TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsNoReporting) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
 
@@ -1195,7 +1197,7 @@ TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsNoReporting) {
   payload_state.UpdateEngineStarted();
 }
 
-TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
+TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakePrefs fake_prefs;
@@ -1215,7 +1217,7 @@ TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
   EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
 }
 
-TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
+TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakePrefs fake_prefs;
@@ -1247,7 +1249,7 @@ TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
   EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
 }
 
-TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
+TEST_F(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
   PayloadState payload_state;
@@ -1320,7 +1322,7 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
 }
 
-TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
+TEST_F(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1352,7 +1354,7 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
   payload_state.UpdateSucceeded();
 }
 
-TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsForcedFull) {
+TEST_F(PayloadStateTest, PayloadTypeMetricWhenTypeIsForcedFull) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1375,7 +1377,7 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsForcedFull) {
   payload_state.UpdateSucceeded();
 }
 
-TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
+TEST_F(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1399,7 +1401,7 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
   payload_state.UpdateSucceeded();
 }
 
-TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
+TEST_F(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   FakeSystemState fake_system_state;
   OmahaResponse response;
   PayloadState payload_state;
@@ -1439,7 +1441,7 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   Mock::VerifyAndClearExpectations(fake_system_state.mock_metrics_reporter());
 }
 
-TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
+TEST_F(PayloadStateTest, RebootAfterUpdateSucceed) {
   FakeSystemState fake_system_state;
   OmahaResponse response;
   PayloadState payload_state;
@@ -1472,7 +1474,7 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   payload_state.ReportFailedBootIfNeeded();
 }
 
-TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
+TEST_F(PayloadStateTest, RebootAfterCanceledUpdate) {
   FakeSystemState fake_system_state;
   OmahaResponse response;
   PayloadState payload_state;
@@ -1499,7 +1501,7 @@ TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
   payload_state.ReportFailedBootIfNeeded();
 }
 
-TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
+TEST_F(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;
   FakePrefs fake_prefs;
@@ -1515,7 +1517,7 @@ TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   payload_state.ReportFailedBootIfNeeded();
 }
 
-TEST(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
+TEST_F(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1536,7 +1538,7 @@ TEST(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
   EXPECT_FALSE(payload_state.P2PAttemptAllowed());
 }
 
-TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
+TEST_F(PayloadStateTest, DisallowP2PAfterDeadline) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1582,7 +1584,7 @@ TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
   EXPECT_FALSE(payload_state.P2PAttemptAllowed());
 }
 
-TEST(PayloadStateTest, P2PStateVarsInitialValue) {
+TEST_F(PayloadStateTest, P2PStateVarsInitialValue) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1598,7 +1600,7 @@ TEST(PayloadStateTest, P2PStateVarsInitialValue) {
   EXPECT_EQ(0, payload_state.GetP2PNumAttempts());
 }
 
-TEST(PayloadStateTest, P2PStateVarsArePersisted) {
+TEST_F(PayloadStateTest, P2PStateVarsArePersisted) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1627,7 +1629,7 @@ TEST(PayloadStateTest, P2PStateVarsArePersisted) {
   EXPECT_EQ(time, payload_state2.GetP2PFirstAttemptTimestamp());
 }
 
-TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
+TEST_F(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
@@ -1659,7 +1661,7 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   EXPECT_EQ(null_time, payload_state.GetP2PFirstAttemptTimestamp());
 }
 
-TEST(PayloadStateTest, NextPayloadResetsUrlIndex) {
+TEST_F(PayloadStateTest, NextPayloadResetsUrlIndex) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   StrictMock<MockExcluder> mock_excluder;
@@ -1689,7 +1691,7 @@ TEST(PayloadStateTest, NextPayloadResetsUrlIndex) {
   EXPECT_EQ(payload_state.GetCurrentUrl(), "http://test1b");
 }
 
-TEST(PayloadStateTest, ExcludeNoopForNonExcludables) {
+TEST_F(PayloadStateTest, ExcludeNoopForNonExcludables) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   StrictMock<MockExcluder> mock_excluder;
@@ -1711,7 +1713,7 @@ TEST(PayloadStateTest, ExcludeNoopForNonExcludables) {
   payload_state.ExcludeCurrentPayload();
 }
 
-TEST(PayloadStateTest, ExcludeOnlyCanExcludables) {
+TEST_F(PayloadStateTest, ExcludeOnlyCanExcludables) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   StrictMock<MockExcluder> mock_excluder;
@@ -1734,7 +1736,7 @@ TEST(PayloadStateTest, ExcludeOnlyCanExcludables) {
   payload_state.ExcludeCurrentPayload();
 }
 
-TEST(PayloadStateTest, IncrementFailureExclusionTest) {
+TEST_F(PayloadStateTest, IncrementFailureExclusionTest) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   StrictMock<MockExcluder> mock_excluder;
@@ -1778,7 +1780,7 @@ TEST(PayloadStateTest, IncrementFailureExclusionTest) {
   payload_state.IncrementFailureCount();
 }
 
-TEST(PayloadStateTest, HaltExclusionPostPayloadExhaustion) {
+TEST_F(PayloadStateTest, HaltExclusionPostPayloadExhaustion) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   StrictMock<MockExcluder> mock_excluder;
@@ -1809,7 +1811,7 @@ TEST(PayloadStateTest, HaltExclusionPostPayloadExhaustion) {
   payload_state.ExcludeCurrentPayload();
 }
 
-TEST(PayloadStateTest, NonInfinitePayloadIndexIncrement) {
+TEST_F(PayloadStateTest, NonInfinitePayloadIndexIncrement) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
