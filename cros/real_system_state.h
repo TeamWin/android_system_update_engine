@@ -60,64 +60,55 @@ class RealSystemState : public SystemState {
   bool Initialize();
 
   // SystemState overrides.
-  inline void set_device_policy(
-      const policy::DevicePolicy* device_policy) override {
+  void set_device_policy(const policy::DevicePolicy* device_policy) override {
     device_policy_ = device_policy;
   }
 
-  inline const policy::DevicePolicy* device_policy() override {
+  const policy::DevicePolicy* device_policy() override {
     return device_policy_;
   }
 
-  inline BootControlInterface* boot_control() override {
-    return boot_control_.get();
-  }
+  BootControlInterface* boot_control() override { return boot_control_.get(); }
 
-  inline ClockInterface* clock() override { return &clock_; }
+  ClockInterface* clock() override { return &clock_; }
 
-  inline ConnectionManagerInterface* connection_manager() override {
+  ConnectionManagerInterface* connection_manager() override {
     return connection_manager_.get();
   }
 
-  inline HardwareInterface* hardware() override { return hardware_.get(); }
+  HardwareInterface* hardware() override { return hardware_.get(); }
 
-  inline MetricsReporterInterface* metrics_reporter() override {
+  MetricsReporterInterface* metrics_reporter() override {
     return &metrics_reporter_;
   }
 
-  inline PrefsInterface* prefs() override { return prefs_.get(); }
+  PrefsInterface* prefs() override { return prefs_.get(); }
 
-  inline PrefsInterface* powerwash_safe_prefs() override {
+  PrefsInterface* powerwash_safe_prefs() override {
     return powerwash_safe_prefs_.get();
   }
 
-  inline PayloadStateInterface* payload_state() override {
-    return &payload_state_;
-  }
+  PayloadStateInterface* payload_state() override { return &payload_state_; }
 
-  inline UpdateAttempter* update_attempter() override {
+  UpdateAttempter* update_attempter() override {
     return update_attempter_.get();
   }
 
-  inline OmahaRequestParams* request_params() override {
-    return &request_params_;
-  }
+  OmahaRequestParams* request_params() override { return &request_params_; }
 
-  inline P2PManager* p2p_manager() override { return p2p_manager_.get(); }
+  P2PManager* p2p_manager() override { return p2p_manager_.get(); }
 
-  inline chromeos_update_manager::UpdateManager* update_manager() override {
+  chromeos_update_manager::UpdateManager* update_manager() override {
     return update_manager_.get();
   }
 
-  inline PowerManagerInterface* power_manager() override {
+  PowerManagerInterface* power_manager() override {
     return power_manager_.get();
   }
 
-  inline bool system_rebooted() override { return system_rebooted_; }
+  bool system_rebooted() override { return system_rebooted_; }
 
-  inline DlcServiceInterface* dlcservice() override {
-    return dlcservice_.get();
-  }
+  DlcServiceInterface* dlcservice() override { return dlcservice_.get(); }
 
  private:
   // Real DBus proxies using the DBus connection.
