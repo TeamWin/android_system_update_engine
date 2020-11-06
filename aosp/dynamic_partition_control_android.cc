@@ -1256,6 +1256,18 @@ DynamicPartitionControlAndroid::OpenCowWriter(
   return snapshot_->OpenSnapshotWriter(params, std::move(source_path));
 }  // namespace chromeos_update_engine
 
+FileDescriptorPtr DynamicPartitionControlAndroid::OpenCowReader(
+    const std::string& unsuffixed_partition_name,
+    const std::optional<std::string>& source_path,
+    bool is_append) {
+  auto cow_writer =
+      OpenCowWriter(unsuffixed_partition_name, source_path, is_append);
+  if (cow_writer == nullptr) {
+    return nullptr;
+  }
+  return cow_writer->OpenReader();
+}
+
 std::optional<base::FilePath> DynamicPartitionControlAndroid::GetSuperDevice() {
   std::string device_dir_str;
   if (!GetDeviceDir(&device_dir_str)) {
