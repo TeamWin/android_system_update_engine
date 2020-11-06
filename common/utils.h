@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_COMMON_UTILS_H_
 
 #include <errno.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -63,10 +64,11 @@ bool WriteAll(int fd, const void* buf, size_t count);
 bool PWriteAll(int fd, const void* buf, size_t count, off_t offset);
 
 bool WriteAll(const FileDescriptorPtr& fd, const void* buf, size_t count);
-bool PWriteAll(const FileDescriptorPtr& fd,
-               const void* buf,
-               size_t count,
-               off_t offset);
+// WriteAll writes data at specified offset, but it modifies file position.
+bool WriteAll(const FileDescriptorPtr& fd,
+              const void* buf,
+              size_t count,
+              off_t off);
 
 // Calls read() repeatedly until |count| bytes are read or EOF or EWOULDBLOCK
 // is reached. Returns whether all read() calls succeeded (including EWOULDBLOCK
@@ -81,11 +83,12 @@ bool ReadAll(
 bool PReadAll(
     int fd, void* buf, size_t count, off_t offset, ssize_t* out_bytes_read);
 
-bool PReadAll(const FileDescriptorPtr& fd,
-              void* buf,
-              size_t count,
-              off_t offset,
-              ssize_t* out_bytes_read);
+// Reads data at specified offset, this function does change file position.
+bool ReadAll(const FileDescriptorPtr& fd,
+             void* buf,
+             size_t count,
+             off_t offset,
+             ssize_t* out_bytes_read);
 
 // Opens |path| for reading and appends its entire content to the container
 // pointed to by |out_p|. Returns true upon successfully reading all of the
