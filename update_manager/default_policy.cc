@@ -46,6 +46,7 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
   result->rollback_allowed_milestones = -1;  // No version rolls should happen.
   result->rollback_on_channel_downgrade = false;
   result->interactive = false;
+  result->quick_fix_build_token.clear();
 
   // Ensure that the minimum interval is set. If there's no clock, this defaults
   // to always allowing the update.

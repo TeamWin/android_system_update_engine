@@ -264,6 +264,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
       new string("foo-channel"));
   fake_state_.device_policy_provider()->var_release_lts_tag()->reset(
       new string("foo-hint"));
+  fake_state_.device_policy_provider()->var_quick_fix_build_token()->reset(
+      new string("foo-token"));
 
   UpdateCheckParams result;
   ExpectPolicyStatus(
@@ -273,6 +275,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   EXPECT_EQ(5, result.rollback_allowed_milestones);
   EXPECT_EQ("foo-channel", result.target_channel);
   EXPECT_EQ("foo-hint", result.lts_tag);
+  EXPECT_EQ("foo-token", result.quick_fix_build_token);
   EXPECT_FALSE(result.interactive);
 }
 

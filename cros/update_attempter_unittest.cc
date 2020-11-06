@@ -288,7 +288,6 @@ class UpdateAttempterTest : public ::testing::Test {
   void SessionIdTestEnforceEmptyStrPingOmaha();
   void SessionIdTestConsistencyInUpdateFlow();
   void SessionIdTestInDownloadAction();
-  void UpdateToQuickFixBuildStart(bool set_token);
   void ResetRollbackHappenedStart(bool is_consumer,
                                   bool is_policy_available,
                                   bool expected_reset);
@@ -2153,43 +2152,14 @@ TEST_F(UpdateAttempterTest, ProcessingDoneInstallError) {
   TestProcessingDone();
 }
 
-void UpdateAttempterTest::UpdateToQuickFixBuildStart(bool set_token) {
-  // Tests that checks if |device_quick_fix_build_token| arrives when
-  // policy is set and the device is enterprise enrolled based on |set_token|.
-  string token = set_token ? "some_token" : "";
-  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
-  FakeSystemState::Get()->set_device_policy(device_policy.get());
-  EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
+TEST_F(UpdateAttempterTest, QuickFixTokenWhenDeviceIsEnterpriseEnrolled) {
+  attempter_.CalculateUpdateParams({.quick_fix_build_token = "token"});
+  EXPECT_EQ("token",
+            FakeSystemState::Get()->request_params()->autoupdate_token());
 
-  if (set_token)
-    EXPECT_CALL(*device_policy, GetDeviceQuickFixBuildToken(_))
-        .WillOnce(DoAll(SetArgPointee<0>(token), Return(true)));
-  else
-    EXPECT_CALL(*device_policy, GetDeviceQuickFixBuildToken(_))
-        .WillOnce(Return(false));
-  attempter_.policy_provider_.reset(
-      new policy::PolicyProvider(std::move(device_policy)));
-  attempter_.Update({});
-
-  EXPECT_EQ(token, attempter_.omaha_request_params_->autoupdate_token());
-  ScheduleQuitMainLoop();
-}
-
-TEST_F(UpdateAttempterTest,
-       QuickFixTokenWhenDeviceIsEnterpriseEnrolledAndPolicyIsSet) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::UpdateToQuickFixBuildStart,
-                            base::Unretained(this),
-                            /*set_token=*/true));
-  loop_.Run();
-}
-
-TEST_F(UpdateAttempterTest, EmptyQuickFixToken) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::UpdateToQuickFixBuildStart,
-                            base::Unretained(this),
-                            /*set_token=*/false));
-  loop_.Run();
+  attempter_.CalculateUpdateParams({});
+  EXPECT_TRUE(
+      FakeSystemState::Get()->request_params()->autoupdate_token().empty());
 }
 
 TEST_F(UpdateAttempterTest, ScheduleUpdateSpamHandlerTest) {

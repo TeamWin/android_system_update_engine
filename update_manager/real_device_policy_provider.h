@@ -122,6 +122,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_device_minimum_version_;
   }
 
+  Variable<std::string>* var_quick_fix_build_token() override {
+    return &var_quick_fix_build_token_;
+  }
+
  private:
   FRIEND_TEST(UmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
@@ -234,6 +238,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
       "channel_downgrade_behavior"};
   AsyncCopyVariable<base::Version> var_device_minimum_version_{
       "device_minimum_version"};
+  AsyncCopyVariable<std::string> var_quick_fix_build_token_{
+      "quick_fix_build_token"};
 
   DISALLOW_COPY_AND_ASSIGN(RealDevicePolicyProvider);
 };

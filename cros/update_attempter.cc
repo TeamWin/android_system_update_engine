@@ -409,16 +409,6 @@ bool UpdateAttempter::CalculateUpdateParams(const UpdateCheckParams& params) {
   // |omaha_request_params_| shall be made below this line.
   CalculateDlcParams();
 
-  // Set Quick Fix Build token if policy is set and the device is enterprise
-  // enrolled.
-  string token;
-  if (SystemState::Get()->device_policy()) {
-    if (!SystemState::Get()->device_policy()->GetDeviceQuickFixBuildToken(
-            &token))
-      token.clear();
-  }
-  omaha_request_params_->set_autoupdate_token(token);
-
   LOG(INFO) << "target_version_prefix = "
             << omaha_request_params_->target_version_prefix()
             << ", rollback_allowed = "

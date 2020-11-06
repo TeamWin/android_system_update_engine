@@ -223,6 +223,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
   result->rollback_allowed_milestones = -1;
   result->rollback_on_channel_downgrade = false;
   result->interactive = false;
+  result->quick_fix_build_token.clear();
 
   EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;
   EnterpriseDevicePolicyImpl enterprise_device_policy;

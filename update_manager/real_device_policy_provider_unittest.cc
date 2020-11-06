@@ -197,6 +197,7 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_disallowed_time_intervals());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_channel_downgrade_behavior());
+  UmTestUtils::ExpectVariableNotSet(provider_->var_quick_fix_build_token());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
@@ -443,6 +444,19 @@ TEST_F(UmRealDevicePolicyProviderTest, DeviceMinimumVersionPolicySet) {
 
   UmTestUtils::ExpectVariableHasValue(device_minimum_version,
                                       provider_->var_device_minimum_version());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, DeviceQuickFixBuildTokenSet) {
+  SetUpExistentDevicePolicy();
+
+  EXPECT_CALL(mock_device_policy_, GetDeviceQuickFixBuildToken(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(string("some_token")), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(string("some_token"),
+                                      provider_->var_quick_fix_build_token());
 }
 
 }  // namespace chromeos_update_manager

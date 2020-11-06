@@ -289,6 +289,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
   FRIEND_TEST(UpdateAttempterTest, GetSuccessfulDlcIds);
+  FRIEND_TEST(UpdateAttempterTest, QuickFixTokenWhenDeviceIsEnterpriseEnrolled);
 
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
