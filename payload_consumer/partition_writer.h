@@ -25,6 +25,7 @@
 #include <gtest/gtest_prod.h>
 
 #include "update_engine/common/dynamic_partition_control_interface.h"
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
@@ -36,6 +37,7 @@ class PartitionWriter {
                   const InstallPlan::Partition& install_part,
                   DynamicPartitionControlInterface* dynamic_control,
                   size_t block_size,
+                  PrefsInterface* prefs,
                   bool is_interactive);
   virtual ~PartitionWriter();
   static bool ValidateSourceHash(const brillo::Blob& calculated_hash,
@@ -47,6 +49,11 @@ class PartitionWriter {
   // applied to this partition
   [[nodiscard]] virtual bool Init(const InstallPlan* install_plan,
                                   bool source_may_exist);
+
+  // This will be called by DeltaPerformer after applying an InstallOp.
+  // |next_op_index| is index of next operation that should be applied.
+  // |next_op_index-1| is the last operation that is already applied.
+  virtual void CheckpointUpdateProgress(size_t next_op_index) {}
 
   int Close();
 
@@ -111,6 +118,8 @@ class PartitionWriter {
   // Used to avoid re-opening the same source partition if it is not actually
   // error corrected.
   bool source_ecc_open_failure_{false};
+
+  PrefsInterface* prefs_;
 };
 
 namespace partition_writer {
@@ -121,6 +130,7 @@ std::unique_ptr<PartitionWriter> CreatePartitionWriter(
     const InstallPlan::Partition& install_part,
     DynamicPartitionControlInterface* dynamic_control,
     size_t block_size,
+    PrefsInterface* prefs,
     bool is_interactive,
     bool is_dynamic_partition);
 }  // namespace partition_writer
