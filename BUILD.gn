@@ -344,6 +344,7 @@ static_library("libpayload_generator") {
     "payload_generator/block_mapping.cc",
     "payload_generator/boot_img_filesystem_stub.cc",
     "payload_generator/bzip.cc",
+    "payload_generator/cow_size_estimator_stub.cc",
     "payload_generator/deflate_utils.cc",
     "payload_generator/delta_diff_generator.cc",
     "payload_generator/delta_diff_utils.cc",

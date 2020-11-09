@@ -24,6 +24,7 @@
 #include "update_engine/common/cow_operation_convert.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/extent_writer.h"
+#include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/partition_writer.h"
 #include "update_engine/payload_consumer/snapshot_extent_writer.h"
@@ -90,35 +91,44 @@ bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
   // TODO(zhangkelvin) Rewrite this in C++20 coroutine once that's available.
   auto converted = ConvertToCowOperations(partition_update_.operations(),
                                           partition_update_.merge_operations());
-  std::vector<uint8_t> buffer(block_size_);
+
+  WriteAllCowOps(block_size_, converted, cow_writer_.get(), source_fd_);
+  // Emit label 0 to mark end of all SOURCE_COPY operations
+  cow_writer_->AddLabel(0);
+  TEST_AND_RETURN_FALSE(
+      prefs_->SetInt64(kPrefsUpdateStatePartitionNextOperation, 0));
+  return true;
+}
+
+bool VABCPartitionWriter::WriteAllCowOps(
+    size_t block_size,
+    const std::vector<CowOperation>& converted,
+    android::snapshot::ICowWriter* cow_writer,
+    FileDescriptorPtr source_fd) {
+  std::vector<uint8_t> buffer(block_size);
 
   for (const auto& cow_op : converted) {
     switch (cow_op.op) {
       case CowOperation::CowCopy:
         TEST_AND_RETURN_FALSE(
-            cow_writer_->AddCopy(cow_op.dst_block, cow_op.src_block));
+            cow_writer->AddCopy(cow_op.dst_block, cow_op.src_block));
         break;
       case CowOperation::CowReplace:
         ssize_t bytes_read = 0;
-        TEST_AND_RETURN_FALSE(utils::PReadAll(source_fd_,
+        TEST_AND_RETURN_FALSE(utils::PReadAll(source_fd,
                                               buffer.data(),
-                                              block_size_,
-                                              cow_op.src_block * block_size_,
+                                              block_size,
+                                              cow_op.src_block * block_size,
                                               &bytes_read));
-        if (bytes_read <= 0 || static_cast<size_t>(bytes_read) != block_size_) {
+        if (bytes_read <= 0 || static_cast<size_t>(bytes_read) != block_size) {
           LOG(ERROR) << "source_fd->Read failed: " << bytes_read;
           return false;
         }
-        TEST_AND_RETURN_FALSE(cow_writer_->AddRawBlocks(
-            cow_op.dst_block, buffer.data(), block_size_));
+        TEST_AND_RETURN_FALSE(cow_writer->AddRawBlocks(
+            cow_op.dst_block, buffer.data(), block_size));
         break;
     }
   }
-
-  // Emit label 0 to mark end of all SOURCE_COPY operations
-  cow_writer_->AddLabel(0);
-  TEST_AND_RETURN_FALSE(
-      prefs_->SetInt64(kPrefsUpdateStatePartitionNextOperation, 0));
   return true;
 }
 

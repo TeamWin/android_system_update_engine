@@ -44,7 +44,8 @@ class PayloadFile {
   bool AddPartition(const PartitionConfig& old_conf,
                     const PartitionConfig& new_conf,
                     std::vector<AnnotatedOperation> aops,
-                    std::vector<CowMergeOperation> merge_sequence);
+                    std::vector<CowMergeOperation> merge_sequence,
+                    size_t cow_size);
 
   // Write the payload to the |payload_file| file. The operations reference
   // blobs in the |data_blobs_path| file and the blobs will be reordered in the
@@ -100,6 +101,7 @@ class PayloadFile {
     VerityConfig verity;
     // Per partition timestamp.
     std::string version;
+    size_t cow_size;
   };
 
   std::vector<Partition> part_vec_;
