@@ -19,6 +19,7 @@
 
 #include <base/logging.h>
 
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/payload_consumer/vabc_partition_writer.h"
 
 namespace chromeos_update_engine::partition_writer {
@@ -28,6 +29,7 @@ std::unique_ptr<PartitionWriter> CreatePartitionWriter(
     const InstallPlan::Partition& install_part,
     DynamicPartitionControlInterface* dynamic_control,
     size_t block_size,
+    PrefsInterface* prefs,
     bool is_interactive,
     bool is_dynamic_partition) {
   if (dynamic_control &&
@@ -40,6 +42,7 @@ std::unique_ptr<PartitionWriter> CreatePartitionWriter(
                                                  install_part,
                                                  dynamic_control,
                                                  block_size,
+                                                 prefs,
                                                  is_interactive);
   } else {
     LOG(INFO) << "Virtual AB Compression disabled, using Partition Writer for `"
@@ -48,6 +51,7 @@ std::unique_ptr<PartitionWriter> CreatePartitionWriter(
                                              install_part,
                                              dynamic_control,
                                              block_size,
+                                             prefs,
                                              is_interactive);
   }
 }

@@ -242,12 +242,14 @@ PartitionWriter::PartitionWriter(
     const InstallPlan::Partition& install_part,
     DynamicPartitionControlInterface* dynamic_control,
     size_t block_size,
+    PrefsInterface* prefs,
     bool is_interactive)
     : partition_update_(partition_update),
       install_part_(install_part),
       dynamic_control_(dynamic_control),
       interactive_(is_interactive),
-      block_size_(block_size) {}
+      block_size_(block_size),
+      prefs_(prefs) {}
 
 PartitionWriter::~PartitionWriter() {
   Close();

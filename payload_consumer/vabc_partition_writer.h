@@ -42,6 +42,7 @@ class VABCPartitionWriter final : public PartitionWriter {
   [[nodiscard]] bool PerformSourceCopyOperation(
       const InstallOperation& operation, ErrorCode* error) override;
   [[nodiscard]] bool Flush() override;
+  void CheckpointUpdateProgress(size_t next_op_index) override;
 
  private:
   std::unique_ptr<android::snapshot::ISnapshotWriter> cow_writer_;
