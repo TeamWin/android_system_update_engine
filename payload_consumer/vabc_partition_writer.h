@@ -18,9 +18,11 @@
 #define UPDATE_ENGINE_VABC_PARTITION_WRITER_H_
 
 #include <memory>
+#include <vector>
 
 #include <libsnapshot/snapshot_writer.h>
 
+#include "update_engine/common/cow_operation_convert.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/partition_writer.h"
 
@@ -43,6 +45,11 @@ class VABCPartitionWriter final : public PartitionWriter {
       const InstallOperation& operation, ErrorCode* error) override;
   [[nodiscard]] bool Flush() override;
   void CheckpointUpdateProgress(size_t next_op_index) override;
+
+  static bool WriteAllCowOps(size_t block_size,
+                             const std::vector<CowOperation>& converted,
+                             android::snapshot::ICowWriter* cow_writer,
+                             FileDescriptorPtr source_fd);
 
  private:
   std::unique_ptr<android::snapshot::ISnapshotWriter> cow_writer_;

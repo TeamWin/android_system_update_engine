@@ -88,7 +88,7 @@ class PayloadPropertiesTest : public ::testing::Test {
     EXPECT_TRUE(strategy->GenerateOperations(
         config, old_part, new_part, &blob_file_writer, &aops));
 
-    payload.AddPartition(old_part, new_part, aops, {});
+    payload.AddPartition(old_part, new_part, aops, {}, 0);
 
     uint64_t metadata_size;
     EXPECT_TRUE(payload.WritePayload(
