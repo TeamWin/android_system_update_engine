@@ -533,6 +533,7 @@ cc_library_static {
         "payload_generator/block_mapping.cc",
         "payload_generator/boot_img_filesystem.cc",
         "payload_generator/bzip.cc",
+        "payload_generator/cow_size_estimator.cc",
         "payload_generator/deflate_utils.cc",
         "payload_generator/delta_diff_generator.cc",
         "payload_generator/delta_diff_utils.cc",
