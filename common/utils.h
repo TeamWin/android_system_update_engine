@@ -70,6 +70,14 @@ bool WriteAll(const FileDescriptorPtr& fd,
               size_t count,
               off_t off);
 
+// https://man7.org/linux/man-pages/man2/pread.2.html
+// PWriteAll writes data at specified offset, but it DOES NOT modify file
+// position. Behaves similar to linux' pwrite syscall.
+bool PWriteAll(const FileDescriptorPtr& fd,
+               const void* buf,
+               size_t count,
+               off_t offset);
+
 // Calls read() repeatedly until |count| bytes are read or EOF or EWOULDBLOCK
 // is reached. Returns whether all read() calls succeeded (including EWOULDBLOCK
 // as a success case), sets |eof| to whether the eof was reached and sets
@@ -89,6 +97,15 @@ bool ReadAll(const FileDescriptorPtr& fd,
              size_t count,
              off_t offset,
              ssize_t* out_bytes_read);
+
+// https://man7.org/linux/man-pages/man2/pread.2.html
+// Reads data at specified offset, this function DOES NOT change file position.
+// Behavior is similar to linux's pread syscall.
+bool PReadAll(const FileDescriptorPtr& fd,
+              void* buf,
+              size_t count,
+              off_t offset,
+              ssize_t* out_bytes_read);
 
 // Opens |path| for reading and appends its entire content to the container
 // pointed to by |out_p|. Returns true upon successfully reading all of the
