@@ -228,13 +228,13 @@ class DeltaPerformerTest : public ::testing::Test {
     new_part.path = "/dev/zero";
     new_part.size = 1234;
 
-    payload.AddPartition(*old_part, new_part, aops, {});
+    payload.AddPartition(*old_part, new_part, aops, {}, 0);
 
     // We include a kernel partition without operations.
     old_part->name = kPartitionNameKernel;
     new_part.name = kPartitionNameKernel;
     new_part.size = 0;
-    payload.AddPartition(*old_part, new_part, {}, {});
+    payload.AddPartition(*old_part, new_part, {}, {}, 0);
 
     ScopedTempFile payload_file("Payload-XXXXXX");
     string private_key =
