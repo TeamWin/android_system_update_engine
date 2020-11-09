@@ -718,6 +718,8 @@ static void ApplyDeltaFile(bool full_kernel,
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsUpdateStateNextOperation, _))
       .WillRepeatedly(Return(true));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateStatePartitionNextOperation, _))
+      .WillRepeatedly(Return(true));
   EXPECT_CALL(prefs, GetInt64(kPrefsUpdateStateNextOperation, _))
       .WillOnce(Return(false));
   EXPECT_CALL(prefs, SetInt64(kPrefsUpdateStateNextDataOffset, _))
