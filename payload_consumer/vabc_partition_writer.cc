@@ -17,6 +17,7 @@
 #include "update_engine/payload_consumer/vabc_partition_writer.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <libsnapshot/cow_writer.h>
@@ -33,9 +34,15 @@ namespace chromeos_update_engine {
 bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
                                bool source_may_exist) {
   TEST_AND_RETURN_FALSE(install_plan != nullptr);
-  TEST_AND_RETURN_FALSE(PartitionWriter::Init(install_plan, source_may_exist));
+  TEST_AND_RETURN_FALSE(
+      OpenSourcePartition(install_plan->source_slot, source_may_exist));
+  std::optional<std::string> source_path;
+  if (!install_part_.source_path.empty()) {
+    // TODO(zhangkelvin) Make |source_path| a std::optional<std::string>
+    source_path = install_part_.source_path;
+  }
   cow_writer_ = dynamic_control_->OpenCowWriter(
-      install_part_.name, install_part_.source_path, install_plan->is_resume);
+      install_part_.name, source_path, install_plan->is_resume);
   TEST_AND_RETURN_FALSE(cow_writer_ != nullptr);
 
   // TODO(zhangkelvin) Emit a label before writing SOURCE_COPY. When resuming,

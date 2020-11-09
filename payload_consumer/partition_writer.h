@@ -84,6 +84,8 @@ class PartitionWriter {
   friend class PartitionWriterTest;
   FRIEND_TEST(PartitionWriterTest, ChooseSourceFDTest);
 
+  bool OpenSourcePartition(uint32_t source_slot, bool source_may_exist);
+
   bool OpenCurrentECCPartition();
   // For a given operation, choose the source fd to be used (raw device or error
   // correction device) based on the source operation hash.
