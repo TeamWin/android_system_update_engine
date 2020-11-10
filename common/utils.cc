@@ -239,6 +239,31 @@ bool ReadAll(const FileDescriptorPtr& fd,
   return true;
 }
 
+bool PReadAll(const FileDescriptorPtr& fd,
+              void* buf,
+              size_t count,
+              off_t offset,
+              ssize_t* out_bytes_read) {
+  auto old_off = fd->Seek(0, SEEK_CUR);
+  TEST_AND_RETURN_FALSE_ERRNO(old_off >= 0);
+
+  auto success = ReadAll(fd, buf, count, offset, out_bytes_read);
+  TEST_AND_RETURN_FALSE_ERRNO(fd->Seek(old_off, SEEK_SET) == old_off);
+  return success;
+}
+
+bool PWriteAll(const FileDescriptorPtr& fd,
+               const void* buf,
+               size_t count,
+               off_t offset) {
+  auto old_off = fd->Seek(0, SEEK_CUR);
+  TEST_AND_RETURN_FALSE_ERRNO(old_off >= 0);
+
+  auto success = WriteAll(fd, buf, count, offset);
+  TEST_AND_RETURN_FALSE_ERRNO(fd->Seek(old_off, SEEK_SET) == old_off);
+  return success;
+}
+
 // Append |nbytes| of content from |buf| to the vector pointed to by either
 // |vec_p| or |str_p|.
 static void AppendBytes(const uint8_t* buf,
