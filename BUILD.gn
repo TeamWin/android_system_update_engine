@@ -81,7 +81,6 @@ pkg_config("target_defaults") {
     "USE_DBUS=${use.dbus}",
     "USE_FEC=0",
     "USE_HWID_OVERRIDE=${use.hwid_override}",
-    "USE_SHILL=1",
   ]
   include_dirs = [
     # We need this include dir because we include all the local code as

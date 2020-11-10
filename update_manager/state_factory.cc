@@ -27,18 +27,16 @@
 #if USE_DBUS
 #include "update_engine/cros/dbus_connection.h"
 #endif  // USE_DBUS
+#include "update_engine/cros/shill_proxy.h"
 #include "update_engine/update_manager/fake_shill_provider.h"
 #include "update_engine/update_manager/real_config_provider.h"
 #include "update_engine/update_manager/real_device_policy_provider.h"
 #include "update_engine/update_manager/real_random_provider.h"
+#include "update_engine/update_manager/real_shill_provider.h"
 #include "update_engine/update_manager/real_state.h"
 #include "update_engine/update_manager/real_system_provider.h"
 #include "update_engine/update_manager/real_time_provider.h"
 #include "update_engine/update_manager/real_updater_provider.h"
-#if USE_SHILL
-#include "update_engine/cros/shill_proxy.h"
-#include "update_engine/update_manager/real_shill_provider.h"
-#endif  // USE_SHILL
 
 using std::unique_ptr;
 
@@ -62,12 +60,8 @@ State* DefaultStateFactory(
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
       new RealDevicePolicyProvider(policy_provider));
 #endif  // USE_DBUS
-#if USE_SHILL
   unique_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(new chromeos_update_engine::ShillProxy(), clock));
-#else
-  unique_ptr<FakeShillProvider> shill_provider(new FakeShillProvider());
-#endif  // USE_SHILL
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealSystemProvider> system_provider(
       new RealSystemProvider(system_state, kiosk_app_proxy));
@@ -78,9 +72,7 @@ State* DefaultStateFactory(
 
   if (!(config_provider->Init() && device_policy_provider->Init() &&
         random_provider->Init() &&
-#if USE_SHILL
         shill_provider->Init() &&
-#endif  // USE_SHILL
         system_provider->Init() && time_provider->Init() &&
         updater_provider->Init())) {
     LOG(ERROR) << "Error initializing providers";
