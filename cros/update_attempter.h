@@ -40,9 +40,7 @@
 #include "update_engine/common/proxy_resolver.h"
 #include "update_engine/common/service_observer_interface.h"
 #include "update_engine/common/system_state.h"
-#if USE_CHROME_NETWORK_PROXY
 #include "update_engine/cros/chrome_browser_proxy_resolver.h"
-#endif  // USE_CHROME_NETWORK_PROXY
 #include "update_engine/cros/omaha_request_builder_xml.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/omaha_response_handler_action.h"
@@ -341,10 +339,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void MarkDeltaUpdateFailure();
 
   ProxyResolver* GetProxyResolver() {
-#if USE_CHROME_NETWORK_PROXY
     if (obeying_proxies_)
       return &chrome_proxy_resolver_;
-#endif  // USE_CHROME_NETWORK_PROXY
     return &direct_proxy_resolver_;
   }
 
@@ -460,9 +456,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Our two proxy resolvers
   DirectProxyResolver direct_proxy_resolver_;
-#if USE_CHROME_NETWORK_PROXY
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
-#endif  // USE_CHROME_NETWORK_PROXY
 
   std::unique_ptr<ActionProcessor> processor_;
 
