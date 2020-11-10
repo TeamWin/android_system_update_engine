@@ -351,7 +351,7 @@ bool PartitionWriter::PerformZeroOrDiscardOperation(
     for (uint64_t offset = 0; offset < length; offset += zeros.size()) {
       uint64_t chunk_length =
           std::min(length - offset, static_cast<uint64_t>(zeros.size()));
-      TEST_AND_RETURN_FALSE(utils::PWriteAll(
+      TEST_AND_RETURN_FALSE(utils::WriteAll(
           target_fd_, zeros.data(), chunk_length, start + offset));
     }
   }
