@@ -39,11 +39,11 @@ void PerformReplaceOp(const InstallOperation& op,
     // No need to read from payload.bin then decompress, just read from target
     // directly.
     ssize_t bytes_read = 0;
-    auto success = utils::PReadAll(target_fd,
-                                   buffer.data(),
-                                   buffer.size(),
-                                   extent.start_block() * block_size,
-                                   &bytes_read);
+    auto success = utils::ReadAll(target_fd,
+                                  buffer.data(),
+                                  buffer.size(),
+                                  extent.start_block() * block_size,
+                                  &bytes_read);
     CHECK(success);
     CHECK_EQ(static_cast<size_t>(bytes_read), buffer.size());
     writer->AddRawBlocks(extent.start_block(), buffer.data(), buffer.size());

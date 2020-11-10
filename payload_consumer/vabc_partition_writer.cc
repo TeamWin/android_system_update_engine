@@ -115,11 +115,11 @@ bool VABCPartitionWriter::WriteAllCowOps(
         break;
       case CowOperation::CowReplace:
         ssize_t bytes_read = 0;
-        TEST_AND_RETURN_FALSE(utils::PReadAll(source_fd,
-                                              buffer.data(),
-                                              block_size,
-                                              cow_op.src_block * block_size,
-                                              &bytes_read));
+        TEST_AND_RETURN_FALSE(utils::ReadAll(source_fd,
+                                             buffer.data(),
+                                             block_size,
+                                             cow_op.src_block * block_size,
+                                             &bytes_read));
         if (bytes_read <= 0 || static_cast<size_t>(bytes_read) != block_size) {
           LOG(ERROR) << "source_fd->Read failed: " << bytes_read;
           return false;

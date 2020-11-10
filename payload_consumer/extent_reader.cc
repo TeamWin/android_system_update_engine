@@ -77,7 +77,7 @@ bool DirectExtentReader::Read(void* buffer, size_t count) {
         std::min(count - bytes_read, cur_extent_bytes_left);
 
     ssize_t out_bytes_read;
-    TEST_AND_RETURN_FALSE(utils::PReadAll(
+    TEST_AND_RETURN_FALSE(utils::ReadAll(
         fd_,
         bytes + bytes_read,
         bytes_to_read,
