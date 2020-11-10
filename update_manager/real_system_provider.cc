@@ -20,9 +20,7 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/time/time.h>
-#if USE_CHROME_KIOSK_APP
 #include <kiosk-app/dbus-proxies.h>
-#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/hardware_interface.h"
@@ -129,7 +127,6 @@ bool RealSystemProvider::Init() {
 
 bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     string* required_platform_version) {
-#if USE_CHROME_KIOSK_APP
   brillo::ErrorPtr error;
   if (!kiosk_app_proxy_->GetRequiredPlatformVersion(required_platform_version,
                                                     &error)) {
@@ -137,7 +134,6 @@ bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     required_platform_version->clear();
     return false;
   }
-#endif  // USE_CHROME_KIOSK_APP
 
   return true;
 }

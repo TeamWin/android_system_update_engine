@@ -23,10 +23,7 @@
 #include <set>
 
 #include <policy/device_policy.h>
-
-#if USE_CHROME_KIOSK_APP
 #include <kiosk-app/dbus-proxies.h>
-#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
@@ -112,10 +109,8 @@ class RealSystemState : public SystemState {
 
  private:
   // Real DBus proxies using the DBus connection.
-#if USE_CHROME_KIOSK_APP
   std::unique_ptr<org::chromium::KioskAppServiceInterfaceProxy>
       kiosk_app_proxy_;
-#endif  // USE_CHROME_KIOSK_APP
 
   // Interface for the power manager.
   std::unique_ptr<PowerManagerInterface> power_manager_;

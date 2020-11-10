@@ -29,7 +29,6 @@ cc_defaults {
 
     cflags: [
         "-DBASE_VER=576279",
-        "-DUSE_CHROME_KIOSK_APP=0",
         "-DUSE_HWID_OVERRIDE=0",
         "-D_FILE_OFFSET_BITS=64",
         "-D_POSIX_C_SOURCE=199309L",

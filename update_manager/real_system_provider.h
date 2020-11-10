@@ -39,13 +39,8 @@ class RealSystemProvider : public SystemProvider {
   RealSystemProvider(
       chromeos_update_engine::SystemState* system_state,
       org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy)
-#if USE_CHROME_KIOSK_APP
       : system_state_(system_state), kiosk_app_proxy_(kiosk_app_proxy) {
   }
-#else
-      system_state_(system_state) {
-  }
-#endif  // USE_CHROME_KIOSK_APP
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
@@ -86,9 +81,8 @@ class RealSystemProvider : public SystemProvider {
   std::unique_ptr<Variable<base::Version>> var_chromeos_version_;
 
   chromeos_update_engine::SystemState* const system_state_;
-#if USE_CHROME_KIOSK_APP
+
   org::chromium::KioskAppServiceInterfaceProxyInterface* const kiosk_app_proxy_;
-#endif  // USE_CHROME_KIOSK_APP
 
   DISALLOW_COPY_AND_ASSIGN(RealSystemProvider);
 };

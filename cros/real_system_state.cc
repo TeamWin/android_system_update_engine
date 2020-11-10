@@ -25,9 +25,7 @@
 #include <base/location.h>
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
-#if USE_CHROME_KIOSK_APP
 #include <chromeos/dbus/service_constants.h>
-#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
@@ -57,10 +55,8 @@ bool RealSystemState::Initialize() {
     return false;
   }
 
-#if USE_CHROME_KIOSK_APP
   kiosk_app_proxy_.reset(new org::chromium::KioskAppServiceInterfaceProxy(
       DBusConnection::Get()->GetDBus(), chromeos::kKioskAppServiceName));
-#endif  // USE_CHROME_KIOSK_APP
 
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
   LOG_IF(INFO, !hardware_->IsOfficialBuild()) << "Booted non-official build.";
@@ -146,11 +142,7 @@ bool RealSystemState::Initialize() {
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(&policy_provider_,
-#if USE_CHROME_KIOSK_APP
                                                    kiosk_app_proxy_.get(),
-#else
-                                                   nullptr,
-#endif  // USE_CHROME_KIOSK_APP
                                                    this);
 
   if (!um_state) {
