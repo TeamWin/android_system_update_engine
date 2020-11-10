@@ -27,7 +27,7 @@
 #include <libsnapshot/mock_snapshot.h>
 
 #include "update_engine/aosp/dynamic_partition_test_utils.h"
-#include "update_engine/aosp/mock_dynamic_partition_control.h"
+#include "update_engine/aosp/mock_dynamic_partition_control_android.h"
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/test_utils.h"
 
