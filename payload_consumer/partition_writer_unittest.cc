@@ -112,12 +112,8 @@ class PartitionWriterTest : public testing::Test {
   DeltaArchiveManifest manifest_{};
   PartitionUpdate partition_update_{};
   InstallPlan::Partition install_part_{};
-  PartitionWriter writer_{partition_update_,
-                          install_part_,
-                          &dynamic_control_,
-                          kBlockSize,
-                          &prefs_,
-                          false};
+  PartitionWriter writer_{
+      partition_update_, install_part_, &dynamic_control_, kBlockSize, false};
 };
 // Test that the error-corrected file descriptor is used to read a partition
 // when no hash is available for SOURCE_COPY but it falls back to the normal

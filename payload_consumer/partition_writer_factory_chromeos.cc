@@ -27,14 +27,12 @@ std::unique_ptr<PartitionWriter> CreatePartitionWriter(
     const InstallPlan::Partition& install_part,
     DynamicPartitionControlInterface* dynamic_control,
     size_t block_size,
-    PrefsInterface* prefs,
     bool is_interactive,
     bool is_dynamic_partition) {
   return std::make_unique<PartitionWriter>(partition_update,
                                            install_part,
                                            dynamic_control,
                                            block_size,
-                                           prefs,
                                            is_interactive);
 }
 }  // namespace chromeos_update_engine::partition_writer
