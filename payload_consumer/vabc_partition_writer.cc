@@ -30,30 +30,6 @@
 #include "update_engine/payload_consumer/snapshot_extent_writer.h"
 
 namespace chromeos_update_engine {
-// Expected layout of COW file:
-// === Beginning of Cow Image ===
-// All Source Copy Operations
-// ========== Label 0 ==========
-// Operation 0 in PartitionUpdate
-// ========== Label 1 ==========
-// Operation 1 in PartitionUpdate
-// ========== label 2 ==========
-// Operation 2 in PartitionUpdate
-// ========== label 3 ==========
-// .
-// .
-// .
-
-// When resuming, pass |kPrefsUpdateStatePartitionNextOperation| as label to
-// |InitializeWithAppend|.
-// For example, suppose we finished writing SOURCE_COPY, and we finished writing
-// operation 2 completely. Update is suspended when we are half way through
-// operation 3.
-// |kPrefsUpdateStatePartitionNextOperation| would be 3, so we pass 3 as
-// label to |InitializeWithAppend|. The CowWriter will retain all data before
-// label 3, Which contains all operation 2's data, but none of operation 3's
-// data.
-
 bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
                                bool source_may_exist) {
   TEST_AND_RETURN_FALSE(install_plan != nullptr);
@@ -62,41 +38,19 @@ bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
       install_part_.name, install_part_.source_path, install_plan->is_resume);
   TEST_AND_RETURN_FALSE(cow_writer_ != nullptr);
 
-  // Emit a label before writing SOURCE_COPY. When resuming,
+  // TODO(zhangkelvin) Emit a label before writing SOURCE_COPY. When resuming,
   // use pref or CowWriter::GetLastLabel to determine if the SOURCE_COPY ops are
   // written. No need to handle SOURCE_COPY operations when resuming.
 
   // ===== Resume case handling code goes here ====
-  if (install_plan->is_resume) {
-    int64_t next_op = 0;
-    if (!prefs_->GetInt64(kPrefsUpdateStatePartitionNextOperation, &next_op)) {
-      LOG(ERROR)
-          << "Resuming an update but can't fetch |next_op| from saved prefs.";
-      return false;
-    }
-    if (next_op < 0) {
-      TEST_AND_RETURN_FALSE(cow_writer_->Initialize());
-    } else {
-      TEST_AND_RETURN_FALSE(cow_writer_->InitializeAppend(next_op));
-      return true;
-    }
-  } else {
-    TEST_AND_RETURN_FALSE(cow_writer_->Initialize());
-  }
 
   // ==============================================
-  TEST_AND_RETURN_FALSE(
-      prefs_->SetInt64(kPrefsUpdateStatePartitionNextOperation, -1));
 
   // TODO(zhangkelvin) Rewrite this in C++20 coroutine once that's available.
   auto converted = ConvertToCowOperations(partition_update_.operations(),
                                           partition_update_.merge_operations());
 
   WriteAllCowOps(block_size_, converted, cow_writer_.get(), source_fd_);
-  // Emit label 0 to mark end of all SOURCE_COPY operations
-  cow_writer_->AddLabel(0);
-  TEST_AND_RETURN_FALSE(
-      prefs_->SetInt64(kPrefsUpdateStatePartitionNextOperation, 0));
   return true;
 }
 
@@ -153,27 +107,11 @@ std::unique_ptr<ExtentWriter> VABCPartitionWriter::CreateBaseExtentWriter() {
 }
 
 bool VABCPartitionWriter::Flush() {
-  // No need to call fsync/sync, as CowWriter flushes after a label is added
-  // added.
-  int64_t next_op = 0;
-  // |kPrefsUpdateStatePartitionNextOperation| will be maintained and set by
-  // CheckpointUpdateProgress()
-  TEST_AND_RETURN_FALSE(
-      prefs_->GetInt64(kPrefsUpdateStatePartitionNextOperation, &next_op));
-  // +1 because label 0 is reserved for SOURCE_COPY. See beginning of this
-  // file for explanation for cow format.
-  cow_writer_->AddLabel(next_op + 1);
+  // No need to do anything, as CowWriter automatically flushes every OP added.
   return true;
 }
 
-void VABCPartitionWriter::CheckpointUpdateProgress(size_t next_op_index) {
-  prefs_->SetInt64(kPrefsUpdateStatePartitionNextOperation, next_op_index);
-}
-
 VABCPartitionWriter::~VABCPartitionWriter() {
-  // Reset |kPrefsUpdateStatePartitionNextOperation| once we finished a
-  // partition.
-  prefs_->SetInt64(kPrefsUpdateStatePartitionNextOperation, -1);
   cow_writer_->Finalize();
 }
 

@@ -48,7 +48,6 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/terminator.h"
-#include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 #include "update_engine/payload_consumer/cached_file_descriptor.h"
 #include "update_engine/payload_consumer/certificate_parser_interface.h"
@@ -248,7 +247,6 @@ bool DeltaPerformer::OpenCurrentPartition() {
       install_part,
       dynamic_control,
       block_size_,
-      prefs_,
       interactive_,
       IsDynamicPartition(install_part.name));
   // Open source fds if we have a delta payload, or for partitions in the
@@ -1334,13 +1332,6 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
         next_operation != kUpdateStateOperationInvalid && next_operation > 0))
     return false;
 
-  int64_t partition_next_op = -1;
-  if (!(prefs->GetInt64(kPrefsUpdateStatePartitionNextOperation,
-                        &partition_next_op) &&
-        partition_next_op >= 0)) {
-    return false;
-  }
-
   string interrupted_hash;
   if (!(prefs->GetString(kPrefsUpdateCheckResponseHash, &interrupted_hash) &&
         !interrupted_hash.empty() &&
@@ -1393,7 +1384,6 @@ bool DeltaPerformer::ResetUpdateProgress(
     prefs->SetString(kPrefsUpdateStateSignatureBlob, "");
     prefs->SetInt64(kPrefsManifestMetadataSize, -1);
     prefs->SetInt64(kPrefsManifestSignatureSize, -1);
-    prefs->SetInt64(kPrefsUpdateStatePartitionNextOperation, -1);
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
     prefs->Delete(kPrefsPostInstallSucceeded);
     prefs->Delete(kPrefsVerityWritten);
@@ -1438,7 +1428,6 @@ bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
           partitions_[partition_index].operations(partition_operation_num);
       TEST_AND_RETURN_FALSE(
           prefs_->SetInt64(kPrefsUpdateStateNextDataLength, op.data_length()));
-      partition_writer_->CheckpointUpdateProgress(partition_operation_num);
     } else {
       TEST_AND_RETURN_FALSE(
           prefs_->SetInt64(kPrefsUpdateStateNextDataLength, 0));
