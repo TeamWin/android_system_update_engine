@@ -98,8 +98,6 @@ const char kPrefsUpdateServerCertificate[] = "update-server-cert";
 const char kPrefsUpdateStateNextDataLength[] = "update-state-next-data-length";
 const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
 const char kPrefsUpdateStateNextOperation[] = "update-state-next-operation";
-const char kPrefsUpdateStatePartitionNextOperation[] =
-    "update-state-partition-next-operation";
 const char kPrefsUpdateStatePayloadIndex[] = "update-state-payload-index";
 const char kPrefsUpdateStateSHA256Context[] = "update-state-sha-256-context";
 const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";

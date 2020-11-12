@@ -44,7 +44,6 @@ class VABCPartitionWriter final : public PartitionWriter {
   [[nodiscard]] bool PerformSourceCopyOperation(
       const InstallOperation& operation, ErrorCode* error) override;
   [[nodiscard]] bool Flush() override;
-  void CheckpointUpdateProgress(size_t next_op_index) override;
 
   static bool WriteAllCowOps(size_t block_size,
                              const std::vector<CowOperation>& converted,
