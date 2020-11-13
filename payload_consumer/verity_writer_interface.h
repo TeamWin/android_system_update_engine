@@ -22,6 +22,7 @@
 
 #include <base/macros.h>
 
+#include "payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
 
 namespace chromeos_update_engine {
@@ -30,6 +31,9 @@ class VerityWriterInterface {
  public:
   virtual ~VerityWriterInterface() = default;
 
+  virtual bool Init(const InstallPlan::Partition& partition,
+                    FileDescriptorPtr read_fd,
+                    FileDescriptorPtr write_fd) = 0;
   virtual bool Init(const InstallPlan::Partition& partition) = 0;
   // Update partition data at [offset : offset + size) stored in |buffer|.
   // Data not in |hash_tree_data_extent| or |fec_data_extent| is ignored.
