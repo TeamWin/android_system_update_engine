@@ -61,17 +61,9 @@ group("all") {
 pkg_config("target_defaults") {
   cflags_cc = [
     "-fno-strict-aliasing",
-    "-std=gnu++17",
     "-Wnon-virtual-dtor",
   ]
-  cflags = [
-    "-g",
-    "-ffunction-sections",
-    "-Wall",
-    "-Wextra",
-    "-Werror",
-    "-Wno-unused-parameter",
-  ]
+  cflags = [ "-ffunction-sections" ]
   ldflags = [ "-Wl,--gc-sections" ]
   defines = [
     "__CHROMEOS__",
