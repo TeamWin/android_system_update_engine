@@ -420,7 +420,7 @@ class OmahaRequestActionTest : public ::testing::Test {
   }
 
   // This function uses the parameters in |tuc_params_| to do an update check.
-  // It will fill out |post_str| with the result data and |response| with
+  // It will fill out |post_str_| with the result data and |response| with
   // |OmahaResponse|. Returns true iff an output response was obtained from the
   // |OmahaRequestAction|. If |fail_http_response_code| is non-negative, the
   // transfer will fail with that code. |ping_only| is passed through to the
@@ -433,8 +433,8 @@ class OmahaRequestActionTest : public ::testing::Test {
   // metric should not be reported.
   bool TestUpdateCheck();
 
-  // Tests events using |event| and |https_response|. It will fill up |post_str|
-  // with the result data.
+  // Tests events using |event| and |https_response|. It will fill up
+  // |post_str_| with the result data.
   void TestEvent(OmahaEvent* event, const string& http_response);
 
   // Runs and checks a ping test. |ping_only| indicates whether it should send
@@ -470,9 +470,8 @@ class OmahaRequestActionTest : public ::testing::Test {
 
   TestUpdateCheckParams tuc_params_;
 
-  // TODO(ahassani): Add trailing _ to these two variables.
-  OmahaResponse response;
-  string post_str;
+  OmahaResponse response_;
+  string post_str_;
 };
 
 class OmahaRequestActionDlcPingTest : public OmahaRequestActionTest {
@@ -574,8 +573,8 @@ bool OmahaRequestActionTest::TestUpdateCheck() {
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
   if (delegate_.omaha_response_)
-    response = *delegate_.omaha_response_;
-  post_str = string(delegate_.post_data_.begin(), delegate_.post_data_.end());
+    response_ = *delegate_.omaha_response_;
+  post_str_ = string(delegate_.post_data_.begin(), delegate_.post_data_.end());
   return delegate_.omaha_response_ != nullptr;
 }
 
@@ -603,7 +602,7 @@ void OmahaRequestActionTest::TestEvent(OmahaEvent* event,
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
 
-  post_str = string(delegate_.post_data_.begin(), delegate_.post_data_.end());
+  post_str_ = string(delegate_.post_data_.begin(), delegate_.post_data_.end());
 }
 
 TEST_F(OmahaRequestActionTest, RejectEntities) {
@@ -614,7 +613,7 @@ TEST_F(OmahaRequestActionTest, RejectEntities) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_FALSE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, NoUpdateTest) {
@@ -623,7 +622,7 @@ TEST_F(OmahaRequestActionTest, NoUpdateTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppNoUpdateTest) {
@@ -633,7 +632,7 @@ TEST_F(OmahaRequestActionTest, MultiAppNoUpdateTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppNoPartialUpdateTest) {
@@ -643,7 +642,7 @@ TEST_F(OmahaRequestActionTest, MultiAppNoPartialUpdateTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, NoSelfUpdateTest) {
@@ -655,29 +654,29 @@ TEST_F(OmahaRequestActionTest, NoSelfUpdateTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 // Test that all the values in the response are parsed in a normal update
-// response.
+// response_.
 TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   fake_update_response_.deadline = "20101020";
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response_.version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
-            response.packages[0].payload_urls[0]);
-  EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
-  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
-  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
-  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
-  EXPECT_EQ(true, response.packages[0].is_delta);
-  EXPECT_EQ(fake_update_response_.prompt == "true", response.prompt);
-  EXPECT_EQ(fake_update_response_.deadline, response.deadline);
-  EXPECT_FALSE(response.powerwash_required);
+            response_.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.more_info_url, response_.more_info_url);
+  EXPECT_EQ(fake_update_response_.hash, response_.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response_.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response_.packages[0].fp);
+  EXPECT_EQ(true, response_.packages[0].is_delta);
+  EXPECT_EQ(fake_update_response_.prompt == "true", response_.prompt);
+  EXPECT_EQ(fake_update_response_.deadline, response_.deadline);
+  EXPECT_FALSE(response_.powerwash_required);
   // Omaha cohort attributes are not set in the response, so they should not be
   // persisted.
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohort));
@@ -691,23 +690,23 @@ TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response_.version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
-            response.packages[0].payload_urls[0]);
+            response_.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.codebase + "package2",
-            response.packages[1].payload_urls[0]);
-  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
-  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
-  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
-  EXPECT_EQ(true, response.packages[0].is_delta);
-  EXPECT_EQ(11u, response.packages[0].metadata_size);
-  ASSERT_EQ(2u, response.packages.size());
-  EXPECT_EQ(string("hash2"), response.packages[1].hash);
-  EXPECT_EQ(222u, response.packages[1].size);
-  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
-  EXPECT_EQ(22u, response.packages[1].metadata_size);
-  EXPECT_EQ(false, response.packages[1].is_delta);
+            response_.packages[1].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response_.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response_.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response_.packages[0].fp);
+  EXPECT_EQ(true, response_.packages[0].is_delta);
+  EXPECT_EQ(11u, response_.packages[0].metadata_size);
+  ASSERT_EQ(2u, response_.packages.size());
+  EXPECT_EQ(string("hash2"), response_.packages[1].hash);
+  EXPECT_EQ(222u, response_.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response_.packages[1].fp);
+  EXPECT_EQ(22u, response_.packages[1].metadata_size);
+  EXPECT_EQ(false, response_.packages[1].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
@@ -716,23 +715,23 @@ TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response_.version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
-            response.packages[0].payload_urls[0]);
+            response_.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.codebase2 + "package3",
-            response.packages[1].payload_urls[0]);
-  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
-  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
-  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
-  EXPECT_EQ(11u, response.packages[0].metadata_size);
-  EXPECT_EQ(true, response.packages[0].is_delta);
-  ASSERT_EQ(2u, response.packages.size());
-  EXPECT_EQ(string("hash3"), response.packages[1].hash);
-  EXPECT_EQ(333u, response.packages[1].size);
-  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
-  EXPECT_EQ(33u, response.packages[1].metadata_size);
-  EXPECT_EQ(false, response.packages[1].is_delta);
+            response_.packages[1].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response_.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response_.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response_.packages[0].fp);
+  EXPECT_EQ(11u, response_.packages[0].metadata_size);
+  EXPECT_EQ(true, response_.packages[0].is_delta);
+  ASSERT_EQ(2u, response_.packages.size());
+  EXPECT_EQ(string("hash3"), response_.packages[1].hash);
+  EXPECT_EQ(333u, response_.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response_.packages[1].fp);
+  EXPECT_EQ(33u, response_.packages[1].metadata_size);
+  EXPECT_EQ(false, response_.packages[1].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
@@ -742,20 +741,20 @@ TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response_.version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
-            response.packages[0].payload_urls[0]);
-  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
-  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
-  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
-  EXPECT_EQ(11u, response.packages[0].metadata_size);
-  ASSERT_EQ(2u, response.packages.size());
-  EXPECT_EQ(string("hash3"), response.packages[1].hash);
-  EXPECT_EQ(333u, response.packages[1].size);
-  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
-  EXPECT_EQ(33u, response.packages[1].metadata_size);
-  EXPECT_EQ(true, response.packages[1].is_delta);
+            response_.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response_.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response_.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response_.packages[0].fp);
+  EXPECT_EQ(11u, response_.packages[0].metadata_size);
+  ASSERT_EQ(2u, response_.packages.size());
+  EXPECT_EQ(string("hash3"), response_.packages[1].hash);
+  EXPECT_EQ(333u, response_.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response_.packages[1].fp);
+  EXPECT_EQ(33u, response_.packages[1].metadata_size);
+  EXPECT_EQ(true, response_.packages[1].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
@@ -765,30 +764,30 @@ TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response_.version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
-            response.packages[0].payload_urls[0]);
+            response_.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.codebase + "package2",
-            response.packages[1].payload_urls[0]);
+            response_.packages[1].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.codebase2 + "package3",
-            response.packages[2].payload_urls[0]);
-  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
-  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
-  EXPECT_EQ(fake_update_response_.fp, response.packages[0].fp);
-  EXPECT_EQ(11u, response.packages[0].metadata_size);
-  EXPECT_EQ(true, response.packages[0].is_delta);
-  ASSERT_EQ(3u, response.packages.size());
-  EXPECT_EQ(string("hash2"), response.packages[1].hash);
-  EXPECT_EQ(222u, response.packages[1].size);
-  EXPECT_EQ(fake_update_response_.fp2, response.packages[1].fp);
-  EXPECT_EQ(22u, response.packages[1].metadata_size);
-  EXPECT_EQ(false, response.packages[1].is_delta);
-  EXPECT_EQ(string("hash3"), response.packages[2].hash);
-  EXPECT_EQ(333u, response.packages[2].size);
-  EXPECT_EQ(fake_update_response_.fp2, response.packages[2].fp);
-  EXPECT_EQ(33u, response.packages[2].metadata_size);
-  EXPECT_EQ(false, response.packages[2].is_delta);
+            response_.packages[2].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response_.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response_.packages[0].size);
+  EXPECT_EQ(fake_update_response_.fp, response_.packages[0].fp);
+  EXPECT_EQ(11u, response_.packages[0].metadata_size);
+  EXPECT_EQ(true, response_.packages[0].is_delta);
+  ASSERT_EQ(3u, response_.packages.size());
+  EXPECT_EQ(string("hash2"), response_.packages[1].hash);
+  EXPECT_EQ(222u, response_.packages[1].size);
+  EXPECT_EQ(fake_update_response_.fp2, response_.packages[1].fp);
+  EXPECT_EQ(22u, response_.packages[1].metadata_size);
+  EXPECT_EQ(false, response_.packages[1].is_delta);
+  EXPECT_EQ(string("hash3"), response_.packages[2].hash);
+  EXPECT_EQ(333u, response_.packages[2].size);
+  EXPECT_EQ(fake_update_response_.fp2, response_.packages[2].fp);
+  EXPECT_EQ(33u, response_.packages[2].metadata_size);
+  EXPECT_EQ(false, response_.packages[2].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, PowerwashTest) {
@@ -797,8 +796,8 @@ TEST_F(OmahaRequestActionTest, PowerwashTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.powerwash_required);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_TRUE(response_.powerwash_required);
 }
 
 TEST_F(OmahaRequestActionTest, ExtraHeadersSentInteractiveTest) {
@@ -811,7 +810,7 @@ TEST_F(OmahaRequestActionTest, ExtraHeadersSentInteractiveTest) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ExtraHeadersSentNoInteractiveTest) {
@@ -824,7 +823,7 @@ TEST_F(OmahaRequestActionTest, ExtraHeadersSentNoInteractiveTest) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
@@ -846,7 +845,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularAllowedByDevicePolicy) {
@@ -868,7 +867,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularAllowedByDevicePolicy) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularBlockedByDevicePolicy) {
@@ -892,7 +891,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularBlockedByDevicePolicy) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest,
@@ -916,7 +915,7 @@ TEST_F(OmahaRequestActionTest,
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest,
@@ -950,7 +949,7 @@ TEST_F(OmahaRequestActionTest,
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest,
@@ -981,7 +980,7 @@ TEST_F(OmahaRequestActionTest,
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
@@ -998,7 +997,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 // Verify that update checks called during OOBE will not try to download an
@@ -1014,7 +1013,7 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
   // OmahaRequestAction::ActionCompleted.
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 // Verify that the IsOOBEComplete() value is ignored when the OOBE flow is not
@@ -1026,7 +1025,7 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDisabled) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 // Verify that update checks called during OOBE will still try to download an
@@ -1038,7 +1037,7 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBEDeadlineSet) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 // Verify that update checks called during OOBE will not try to download an
@@ -1058,7 +1057,7 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBERollback) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 // Verify that non-critical updates are skipped by reporting the
@@ -1085,7 +1084,7 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesInOOBEOverCellular) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
@@ -1099,7 +1098,7 @@ TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest,
@@ -1114,7 +1113,7 @@ TEST_F(OmahaRequestActionTest,
   // Verify if we are interactive check we don't defer.
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
@@ -1127,7 +1126,7 @@ TEST_F(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
@@ -1141,7 +1140,7 @@ TEST_F(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
@@ -1158,7 +1157,7 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   int64_t count;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
   ASSERT_EQ(count, 0);
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
@@ -1177,7 +1176,7 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   int64_t count;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
   ASSERT_GT(count, 0);
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest,
@@ -1194,7 +1193,7 @@ TEST_F(OmahaRequestActionTest,
   // Verify if we are interactive check we don't defer.
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
@@ -1216,7 +1215,7 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   // |count| remains the same, as the decrementing happens in update_attempter
   // which this test doesn't exercise.
   ASSERT_EQ(count, 5);
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest,
@@ -1234,7 +1233,7 @@ TEST_F(OmahaRequestActionTest,
 
   // Verify if we are interactive check we don't defer.
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
@@ -1254,7 +1253,7 @@ TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 
   // Interactive updates should not be affected.
   request_params_.set_interactive(true);
@@ -1263,7 +1262,7 @@ TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
@@ -1501,7 +1500,7 @@ TEST_F(OmahaRequestActionTest, InvalidXmlTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_FALSE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, EmptyResponseTest) {
@@ -1510,7 +1509,7 @@ TEST_F(OmahaRequestActionTest, EmptyResponseTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_FALSE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, MissingStatusTest) {
@@ -1525,7 +1524,7 @@ TEST_F(OmahaRequestActionTest, MissingStatusTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_FALSE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, InvalidStatusTest) {
@@ -1540,7 +1539,7 @@ TEST_F(OmahaRequestActionTest, InvalidStatusTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_FALSE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, MissingNodesetTest) {
@@ -1555,7 +1554,7 @@ TEST_F(OmahaRequestActionTest, MissingNodesetTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_FALSE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, MissingFieldTest) {
@@ -1579,16 +1578,16 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ("10.2.3.4", response.version);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ("10.2.3.4", response_.version);
   EXPECT_EQ("http://missing/field/test/f",
-            response.packages[0].payload_urls[0]);
-  EXPECT_EQ("", response.more_info_url);
-  EXPECT_EQ("lkq34j5345", response.packages[0].hash);
-  EXPECT_EQ(string("3.789"), response.packages[0].fp);
-  EXPECT_EQ(587u, response.packages[0].size);
-  EXPECT_FALSE(response.prompt);
-  EXPECT_TRUE(response.deadline.empty());
+            response_.packages[0].payload_urls[0]);
+  EXPECT_EQ("", response_.more_info_url);
+  EXPECT_EQ("lkq34j5345", response_.packages[0].hash);
+  EXPECT_EQ(string("3.789"), response_.packages[0].fp);
+  EXPECT_EQ(587u, response_.packages[0].size);
+  EXPECT_FALSE(response_.prompt);
+  EXPECT_TRUE(response_.deadline.empty());
 }
 
 namespace {
@@ -1647,22 +1646,22 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_NE(string::npos, post_str.find("testtheservice_pack&gt;"));
-  EXPECT_EQ(string::npos, post_str.find("testtheservice_pack>"));
-  EXPECT_NE(string::npos, post_str.find("x86 generic&lt;id"));
-  EXPECT_EQ(string::npos, post_str.find("x86 generic<id"));
-  EXPECT_NE(string::npos, post_str.find("unittest_track&amp;lt;"));
-  EXPECT_EQ(string::npos, post_str.find("unittest_track&lt;"));
-  EXPECT_NE(string::npos, post_str.find("unittest_hint&amp;lt;"));
-  EXPECT_EQ(string::npos, post_str.find("unittest_hint&lt;"));
-  EXPECT_NE(string::npos, post_str.find("&lt;OEM MODEL&gt;"));
-  EXPECT_EQ(string::npos, post_str.find("<OEM MODEL>"));
-  EXPECT_NE(string::npos, post_str.find("cohort=\"evil\nstring\""));
-  EXPECT_EQ(string::npos, post_str.find("cohorthint=\"evil&string\\\""));
-  EXPECT_NE(string::npos, post_str.find("cohorthint=\"evil&amp;string\\\""));
+  EXPECT_NE(string::npos, post_str_.find("testtheservice_pack&gt;"));
+  EXPECT_EQ(string::npos, post_str_.find("testtheservice_pack>"));
+  EXPECT_NE(string::npos, post_str_.find("x86 generic&lt;id"));
+  EXPECT_EQ(string::npos, post_str_.find("x86 generic<id"));
+  EXPECT_NE(string::npos, post_str_.find("unittest_track&amp;lt;"));
+  EXPECT_EQ(string::npos, post_str_.find("unittest_track&lt;"));
+  EXPECT_NE(string::npos, post_str_.find("unittest_hint&amp;lt;"));
+  EXPECT_EQ(string::npos, post_str_.find("unittest_hint&lt;"));
+  EXPECT_NE(string::npos, post_str_.find("&lt;OEM MODEL&gt;"));
+  EXPECT_EQ(string::npos, post_str_.find("<OEM MODEL>"));
+  EXPECT_NE(string::npos, post_str_.find("cohort=\"evil\nstring\""));
+  EXPECT_EQ(string::npos, post_str_.find("cohorthint=\"evil&string\\\""));
+  EXPECT_NE(string::npos, post_str_.find("cohorthint=\"evil&amp;string\\\""));
   // Values from Prefs that are too big are removed from the XML instead of
   // encoded.
-  EXPECT_EQ(string::npos, post_str.find("cohortname="));
+  EXPECT_EQ(string::npos, post_str_.find("cohortname="));
 }
 
 TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
@@ -1673,10 +1672,10 @@ TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_EQ("testthe<url", response.more_info_url);
+  EXPECT_EQ("testthe<url", response_.more_info_url);
   EXPECT_EQ("testthe&codebase/file.signed",
-            response.packages[0].payload_urls[0]);
-  EXPECT_EQ("<20110101", response.deadline);
+            response_.packages[0].payload_urls[0]);
+  EXPECT_EQ("<20110101", response_.deadline);
 }
 
 TEST_F(OmahaRequestActionTest, ParseIntTest) {
@@ -1685,7 +1684,7 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(fake_update_response_.size, response_.packages[0].size);
 }
 
 TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
@@ -1704,13 +1703,13 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
   ASSERT_FALSE(TestUpdateCheck());
 
   EXPECT_NE(
-      post_str.find("        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
-                    "        <updatecheck></updatecheck>\n"),
+      post_str_.find("        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
+                     "        <updatecheck></updatecheck>\n"),
       string::npos);
-  EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
+  EXPECT_NE(post_str_.find("hardware_class=\"OEM MODEL 09235 7471\""),
             string::npos);
   // No <event> tag should be sent if we didn't reboot to an update.
-  EXPECT_EQ(post_str.find("<event"), string::npos);
+  EXPECT_EQ(post_str_.find("<event"), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
@@ -1721,9 +1720,9 @@ TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
       "        <event eventtype=\"%d\" eventresult=\"%d\"></event>\n",
       OmahaEvent::kTypeUpdateDownloadStarted,
       OmahaEvent::kResultSuccess);
-  EXPECT_NE(post_str.find(expected_event), string::npos);
-  EXPECT_EQ(post_str.find("ping"), string::npos);
-  EXPECT_EQ(post_str.find("updatecheck"), string::npos);
+  EXPECT_NE(post_str_.find(expected_event), string::npos);
+  EXPECT_EQ(post_str_.find("ping"), string::npos);
+  EXPECT_EQ(post_str_.find("updatecheck"), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
@@ -1738,8 +1737,8 @@ TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
       OmahaEvent::kTypeDownloadComplete,
       OmahaEvent::kResultError,
       static_cast<int>(ErrorCode::kError));
-  EXPECT_NE(post_str.find(expected_event), string::npos);
-  EXPECT_EQ(post_str.find("updatecheck"), string::npos);
+  EXPECT_NE(post_str_.find(expected_event), string::npos);
+  EXPECT_EQ(post_str_.find("updatecheck"), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, IsEventTest) {
@@ -1773,9 +1772,9 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
     request_params_.set_delta_okay(delta_okay);
 
     ASSERT_FALSE(TestUpdateCheck());
-    EXPECT_NE(
-        post_str.find(base::StringPrintf(" delta_okay=\"%s\"", delta_okay_str)),
-        string::npos)
+    EXPECT_NE(post_str_.find(
+                  base::StringPrintf(" delta_okay=\"%s\"", delta_okay_str)),
+              string::npos)
         << "i = " << i;
   }
 }
@@ -1792,7 +1791,7 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
     request_params_.set_interactive(interactive);
 
     ASSERT_FALSE(TestUpdateCheck());
-    EXPECT_NE(post_str.find(
+    EXPECT_NE(post_str_.find(
                   base::StringPrintf("installsource=\"%s\"", interactive_str)),
               string::npos)
         << "i = " << i;
@@ -1812,11 +1811,11 @@ TEST_F(OmahaRequestActionTest, FormatTargetVersionPrefixOutputTest) {
 
     ASSERT_FALSE(TestUpdateCheck());
     if (target_version_set) {
-      EXPECT_NE(post_str.find("<updatecheck targetversionprefix=\"10032.\">"),
+      EXPECT_NE(post_str_.find("<updatecheck targetversionprefix=\"10032.\">"),
                 string::npos)
           << "i = " << i;
     } else {
-      EXPECT_EQ(post_str.find("targetversionprefix"), string::npos)
+      EXPECT_EQ(post_str_.find("targetversionprefix"), string::npos)
           << "i = " << i;
     }
   }
@@ -1837,10 +1836,11 @@ TEST_F(OmahaRequestActionTest, FormatRollbackAllowedOutputTest) {
 
     ASSERT_FALSE(TestUpdateCheck());
     if (rollback_allowed && target_version_set) {
-      EXPECT_NE(post_str.find("rollback_allowed=\"true\""), string::npos)
+      EXPECT_NE(post_str_.find("rollback_allowed=\"true\""), string::npos)
           << "i = " << i;
     } else {
-      EXPECT_EQ(post_str.find("rollback_allowed"), string::npos) << "i = " << i;
+      EXPECT_EQ(post_str_.find("rollback_allowed"), string::npos)
+          << "i = " << i;
     }
   }
 }
@@ -1880,10 +1880,10 @@ TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsSetTest) {
   ASSERT_TRUE(TestUpdateCheck());
 
   EXPECT_NE(string::npos,
-            post_str.find("cohorthint=\"" +
-                          string(xml_encoded_autoupdate_token) + "\""));
-  EXPECT_EQ(string::npos, post_str.find(autoupdate_token));
-  EXPECT_EQ(string::npos, post_str.find(omaha_cohort_hint));
+            post_str_.find("cohorthint=\"" +
+                           string(xml_encoded_autoupdate_token) + "\""));
+  EXPECT_EQ(string::npos, post_str_.find(autoupdate_token));
+  EXPECT_EQ(string::npos, post_str_.find(omaha_cohort_hint));
 }
 
 TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsNotSetTest) {
@@ -1901,8 +1901,8 @@ TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsNotSetTest) {
 
   EXPECT_NE(
       string::npos,
-      post_str.find("cohorthint=\"" + string(xml_encoded_cohort_hint) + "\""));
-  EXPECT_EQ(string::npos, post_str.find(omaha_cohort_hint));
+      post_str_.find("cohorthint=\"" + string(xml_encoded_cohort_hint) + "\""));
+  EXPECT_EQ(string::npos, post_str_.find(omaha_cohort_hint));
 }
 
 TEST_F(OmahaRequestActionTest, TargetChannelHintTest) {
@@ -1913,7 +1913,7 @@ TEST_F(OmahaRequestActionTest, TargetChannelHintTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_NE(string::npos, post_str.find("ltstag=\"hint&gt;\""));
+  EXPECT_NE(string::npos, post_str_.find("ltstag=\"hint&gt;\""));
 }
 
 void OmahaRequestActionTest::PingTest(bool ping_only) {
@@ -1941,14 +1941,14 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_NE(post_str.find("<ping active=\"1\" a=\"6\" r=\"5\"></ping>"),
+  EXPECT_NE(post_str_.find("<ping active=\"1\" a=\"6\" r=\"5\"></ping>"),
             string::npos);
   if (ping_only) {
-    EXPECT_EQ(post_str.find("updatecheck"), string::npos);
-    EXPECT_EQ(post_str.find("previousversion"), string::npos);
+    EXPECT_EQ(post_str_.find("updatecheck"), string::npos);
+    EXPECT_EQ(post_str_.find("previousversion"), string::npos);
   } else {
-    EXPECT_NE(post_str.find("updatecheck"), string::npos);
-    EXPECT_NE(post_str.find("previousversion"), string::npos);
+    EXPECT_NE(post_str_.find("updatecheck"), string::npos);
+    EXPECT_NE(post_str_.find("previousversion"), string::npos);
   }
 }
 
@@ -1982,7 +1982,7 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_NE(post_str.find("<ping active=\"1\" a=\"3\"></ping>"), string::npos);
+  EXPECT_NE(post_str_.find("<ping active=\"1\" a=\"3\"></ping>"), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, RollCallPingTest) {
@@ -2007,7 +2007,7 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_NE(post_str.find("<ping active=\"1\" r=\"4\"></ping>\n"),
+  EXPECT_NE(post_str_.find("<ping active=\"1\" r=\"4\"></ping>\n"),
             string::npos);
 }
 
@@ -2038,7 +2038,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_EQ(post_str.find("ping"), string::npos);
+  EXPECT_EQ(post_str_.find("ping"), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
@@ -2059,7 +2059,7 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(post_str.empty());
+  EXPECT_TRUE(post_str_.empty());
 }
 
 TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
@@ -2090,7 +2090,7 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_EQ(post_str.find("ping"), string::npos);
+  EXPECT_EQ(post_str_.find("ping"), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, LastPingDayUpdateTest) {
@@ -2172,8 +2172,8 @@ TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_EQ(post_str.find("machineid="), string::npos);
-  EXPECT_EQ(post_str.find("userid="), string::npos);
+  EXPECT_EQ(post_str_.find("machineid="), string::npos);
+  EXPECT_EQ(post_str_.find("userid="), string::npos);
 }
 
 TEST_F(OmahaRequestActionTest, NetworkFailureTest) {
@@ -2188,7 +2188,7 @@ TEST_F(OmahaRequestActionTest, NetworkFailureTest) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
@@ -2203,7 +2203,7 @@ TEST_F(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
       metrics::DownloadErrorCode::kHttpStatusOther;
 
   ASSERT_FALSE(TestUpdateCheck());
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
@@ -2224,7 +2224,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   int64_t timestamp = 0;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
   EXPECT_EQ(arbitrary_date.ToInternalValue(), timestamp);
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
 
   // Verify if we are interactive check we don't defer.
   request_params_.set_interactive(true);
@@ -2232,7 +2232,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUpdating;
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
@@ -2250,7 +2250,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 
   // Make sure the timestamp t1 is unchanged showing that it was reused.
   int64_t timestamp = 0;
@@ -2280,12 +2280,12 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
 
   ASSERT_FALSE(TestUpdateCheck());
 
-  EXPECT_NE(
-      string::npos,
-      post_str.find("appid=\"{22222222-2222-2222-2222-222222222222}\" "
-                    "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
-                    "track=\"stable-channel\" from_track=\"canary-channel\" "));
-  EXPECT_EQ(string::npos, post_str.find("o.bundle"));
+  EXPECT_NE(string::npos,
+            post_str_.find(
+                "appid=\"{22222222-2222-2222-2222-222222222222}\" "
+                "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
+                "track=\"stable-channel\" from_track=\"canary-channel\" "));
+  EXPECT_EQ(string::npos, post_str_.find("o.bundle"));
 }
 
 TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
@@ -2312,11 +2312,11 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
 
   EXPECT_NE(
       string::npos,
-      post_str.find("appid=\"{11111111-1111-1111-1111-111111111111}\" "
-                    "version=\"5.6.7.8\" "
-                    "track=\"canary-channel\" from_track=\"stable-channel\""));
-  EXPECT_EQ(string::npos, post_str.find("from_version"));
-  EXPECT_NE(string::npos, post_str.find("o.bundle.version=\"1\""));
+      post_str_.find("appid=\"{11111111-1111-1111-1111-111111111111}\" "
+                     "version=\"5.6.7.8\" "
+                     "track=\"canary-channel\" from_track=\"stable-channel\""));
+  EXPECT_EQ(string::npos, post_str_.find("from_version"));
+  EXPECT_NE(string::npos, post_str_.find("o.bundle.version=\"1\""));
 }
 
 // Checks that the initial ping with a=-1 r=-1 is not send when the device
@@ -2333,7 +2333,7 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   ASSERT_TRUE(TestUpdateCheck());
 
   // We shouldn't send a ping in this case since powerwash > 0.
-  EXPECT_EQ(string::npos, post_str.find("<ping"));
+  EXPECT_EQ(string::npos, post_str_.find("<ping"));
 }
 
 // Checks that the initial ping with a=-1 r=-1 is not send when the device
@@ -2355,7 +2355,7 @@ TEST_F(OmahaRequestActionTest, PingWhenFirstActiveOmahaPingIsSent) {
 
   // We shouldn't send a ping in this case since
   // first_active_omaha_ping_sent=true
-  EXPECT_EQ(string::npos, post_str.find("<ping"));
+  EXPECT_EQ(string::npos, post_str_.find("<ping"));
 }
 
 // Checks that the event 54 is sent on a reboot to a new update.
@@ -2372,10 +2372,10 @@ TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
   // An event 54 is included and has the right version.
   EXPECT_NE(
       string::npos,
-      post_str.find(base::StringPrintf("<event eventtype=\"%d\"",
-                                       OmahaEvent::kTypeRebootedAfterUpdate)));
+      post_str_.find(base::StringPrintf("<event eventtype=\"%d\"",
+                                        OmahaEvent::kTypeRebootedAfterUpdate)));
   EXPECT_NE(string::npos,
-            post_str.find("previousversion=\"1.2.3.4\"></event>"));
+            post_str_.find("previousversion=\"1.2.3.4\"></event>"));
 
   // The previous version flag should have been removed.
   EXPECT_TRUE(fake_prefs_.Exists(kPrefsPreviousVersion));
@@ -2429,11 +2429,11 @@ void OmahaRequestActionTest::P2PTest(bool initial_allow_p2p_for_downloading,
   tuc_params_.expected_check_result = metrics::CheckResult::kUpdateAvailable;
 
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 
   EXPECT_EQ(omaha_disable_p2p_for_downloading,
-            response.disable_p2p_for_downloading);
-  EXPECT_EQ(omaha_disable_p2p_for_sharing, response.disable_p2p_for_sharing);
+            response_.disable_p2p_for_downloading);
+  EXPECT_EQ(omaha_disable_p2p_for_sharing, response_.disable_p2p_for_sharing);
 
   EXPECT_EQ(expected_allow_p2p_for_downloading,
             actual_allow_p2p_for_downloading);
@@ -2538,35 +2538,35 @@ TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
   // Check that we parse elapsed_days in the Omaha Response correctly.
   // and that the kPrefsInstallDateDays value is written to.
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
-  EXPECT_TRUE(InstallDateParseHelper("42", &response));
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(42, response.install_date_days);
+  EXPECT_TRUE(InstallDateParseHelper("42", &response_));
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(42, response_.install_date_days);
   EXPECT_TRUE(fake_prefs_.Exists(kPrefsInstallDateDays));
   int64_t prefs_days;
   EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 42);
 
   // If there already is a value set, we shouldn't do anything.
-  EXPECT_TRUE(InstallDateParseHelper("7", &response));
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(7, response.install_date_days);
+  EXPECT_TRUE(InstallDateParseHelper("7", &response_));
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(7, response_.install_date_days);
   EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 42);
 
   // Note that elapsed_days is not necessarily divisible by 7 so check
   // that we round down correctly when populating kPrefsInstallDateDays.
   EXPECT_TRUE(fake_prefs_.Delete(kPrefsInstallDateDays));
-  EXPECT_TRUE(InstallDateParseHelper("23", &response));
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(23, response.install_date_days);
+  EXPECT_TRUE(InstallDateParseHelper("23", &response_));
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(23, response_.install_date_days);
   EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 21);
 
   // Check that we correctly handle elapsed_days not being included in
-  // the Omaha Response.
-  EXPECT_TRUE(InstallDateParseHelper("", &response));
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(-1, response.install_date_days);
+  // the Omaha Response_.
+  EXPECT_TRUE(InstallDateParseHelper("", &response_));
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(-1, response_.install_date_days);
 }
 
 // If there is no prefs and OOBE is not complete, we should not
@@ -2649,7 +2649,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyEnterpriseDevicesSetMaxRollback) {
   tuc_params_.rollback_allowed_milestones = 3;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 
   // Verify kernel_max_rollforward was set to the current minimum
   // kernel key version. This has the effect of freezing roll
@@ -2685,7 +2685,7 @@ TEST_F(OmahaRequestActionTest, NoPolicyConsumerDevicesSetMaxRollback) {
   tuc_params_.rollback_allowed_milestones = 3;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 
   // Verify that with rollback disabled that kernel_max_rollforward
   // was set to logical infinity. This is the expected behavior for
@@ -2721,7 +2721,7 @@ TEST_F(OmahaRequestActionTest, RollbackEnabledDevicesSetMaxRollback) {
   tuc_params_.is_policy_loaded = true;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 
   // Verify that with rollback enabled that kernel_max_rollforward
   // was set to the current minimum kernel key version. This has
@@ -2758,7 +2758,7 @@ TEST_F(OmahaRequestActionTest, RollbackDisabledDevicesSetMaxRollback) {
   tuc_params_.is_policy_loaded = true;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 
   // Verify that with rollback disabled that kernel_max_rollforward
   // was set to logical infinity.
@@ -2775,8 +2775,8 @@ TEST_F(OmahaRequestActionTest, RollbackResponseParsedNoEntries) {
   tuc_params_.is_policy_loaded = true;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.is_rollback);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_TRUE(response_.is_rollback);
 }
 
 TEST_F(OmahaRequestActionTest, RollbackResponseValidVersionsParsed) {
@@ -2790,12 +2790,12 @@ TEST_F(OmahaRequestActionTest, RollbackResponseValidVersionsParsed) {
   tuc_params_.is_policy_loaded = true;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.is_rollback);
-  EXPECT_EQ(1, response.rollback_key_version.firmware_key);
-  EXPECT_EQ(2, response.rollback_key_version.firmware);
-  EXPECT_EQ(3, response.rollback_key_version.kernel_key);
-  EXPECT_EQ(4, response.rollback_key_version.kernel);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_TRUE(response_.is_rollback);
+  EXPECT_EQ(1, response_.rollback_key_version.firmware_key);
+  EXPECT_EQ(2, response_.rollback_key_version.firmware);
+  EXPECT_EQ(3, response_.rollback_key_version.kernel_key);
+  EXPECT_EQ(4, response_.rollback_key_version.kernel);
 }
 
 TEST_F(OmahaRequestActionTest,
@@ -2808,7 +2808,7 @@ TEST_F(OmahaRequestActionTest,
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
   EXPECT_TRUE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
 
   int64_t stored_first_seen_at_time;
@@ -2830,7 +2830,7 @@ TEST_F(OmahaRequestActionTest,
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_FALSE(response.update_exists);
+  EXPECT_FALSE(response_.update_exists);
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
 }
 
@@ -2844,20 +2844,20 @@ TEST_F(OmahaRequestActionTest, InstallTest) {
   ASSERT_TRUE(TestUpdateCheck());
 
   for (const auto& it : request_params_.dlc_apps_params()) {
-    EXPECT_NE(string::npos, post_str.find("appid=\"" + it.first + "\""));
+    EXPECT_NE(string::npos, post_str_.find("appid=\"" + it.first + "\""));
   }
   EXPECT_NE(string::npos,
-            post_str.find("appid=\"" + fake_update_response_.app_id + "\""));
+            post_str_.find("appid=\"" + fake_update_response_.app_id + "\""));
 
-  // Count number of updatecheck tag in response.
+  // Count number of updatecheck tag in response_.
   int updatecheck_count = 0;
   size_t pos = 0;
-  while ((pos = post_str.find("<updatecheck", pos)) != string::npos) {
+  while ((pos = post_str_.find("<updatecheck", pos)) != string::npos) {
     updatecheck_count++;
     pos++;
   }
   EXPECT_EQ(request_params_.dlc_apps_params().size(), updatecheck_count);
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
@@ -2872,8 +2872,8 @@ TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
 
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ(fake_update_response_.current_version, response.version);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_EQ(fake_update_response_.current_version, response_.version);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithDlcTest) {
@@ -2884,10 +2884,10 @@ TEST_F(OmahaRequestActionTest, UpdateWithDlcTest) {
   EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_EQ(response.packages.size(), 2u);
+  EXPECT_EQ(response_.packages.size(), 2u);
   // Two candidate URLs.
-  EXPECT_EQ(response.packages[1].payload_urls.size(), 2u);
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(response_.packages[1].payload_urls.size(), 2u);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithPartiallyExcludedDlcTest) {
@@ -2901,10 +2901,10 @@ TEST_F(OmahaRequestActionTest, UpdateWithPartiallyExcludedDlcTest) {
       .WillOnce(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_EQ(response.packages.size(), 2u);
+  EXPECT_EQ(response_.packages.size(), 2u);
   // One candidate URL.
-  EXPECT_EQ(response.packages[1].payload_urls.size(), 1u);
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(response_.packages[1].payload_urls.size(), 1u);
+  EXPECT_TRUE(response_.update_exists);
   EXPECT_TRUE(request_params_.dlc_apps_params().at(kDlcAppId).updated);
 }
 
@@ -2919,8 +2919,8 @@ TEST_F(OmahaRequestActionTest, UpdateWithExcludedDlcTest) {
       .WillOnce(Return(true));
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_EQ(response.packages.size(), 1u);
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(response_.packages.size(), 1u);
+  EXPECT_TRUE(response_.update_exists);
   EXPECT_FALSE(request_params_.dlc_apps_params().at(kDlcAppId).updated);
 }
 
@@ -2932,7 +2932,7 @@ TEST_F(OmahaRequestActionTest, UpdateWithDeprecatedDlcTest) {
   EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithDlcAndDeprecatedDlcTest) {
@@ -2945,7 +2945,7 @@ TEST_F(OmahaRequestActionTest, UpdateWithDlcAndDeprecatedDlcTest) {
   EXPECT_CALL(mock_excluder_, IsExcluded(_)).WillRepeatedly(Return(false));
   ASSERT_TRUE(TestUpdateCheck());
 
-  EXPECT_TRUE(response.update_exists);
+  EXPECT_TRUE(response_.update_exists);
 }
 
 TEST_F(OmahaRequestActionTest, PastRollbackVersionsNoEntries) {
@@ -2959,16 +2959,16 @@ TEST_F(OmahaRequestActionTest, PastRollbackVersionsNoEntries) {
   tuc_params_.is_policy_loaded = true;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.is_rollback);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_TRUE(response_.is_rollback);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.firmware_key);
+            response_.past_rollback_key_version.firmware_key);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.firmware);
+            response_.past_rollback_key_version.firmware);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.kernel_key);
+            response_.past_rollback_key_version.kernel_key);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.kernel);
+            response_.past_rollback_key_version.kernel);
 }
 
 TEST_F(OmahaRequestActionTest, PastRollbackVersionsValidEntries) {
@@ -2986,12 +2986,12 @@ TEST_F(OmahaRequestActionTest, PastRollbackVersionsValidEntries) {
   tuc_params_.is_policy_loaded = true;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.is_rollback);
-  EXPECT_EQ(16, response.past_rollback_key_version.firmware_key);
-  EXPECT_EQ(15, response.past_rollback_key_version.firmware);
-  EXPECT_EQ(14, response.past_rollback_key_version.kernel_key);
-  EXPECT_EQ(13, response.past_rollback_key_version.kernel);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_TRUE(response_.is_rollback);
+  EXPECT_EQ(16, response_.past_rollback_key_version.firmware_key);
+  EXPECT_EQ(15, response_.past_rollback_key_version.firmware);
+  EXPECT_EQ(14, response_.past_rollback_key_version.kernel_key);
+  EXPECT_EQ(13, response_.past_rollback_key_version.kernel);
 }
 
 TEST_F(OmahaRequestActionTest, MismatchNumberOfVersions) {
@@ -3010,30 +3010,30 @@ TEST_F(OmahaRequestActionTest, MismatchNumberOfVersions) {
   tuc_params_.is_policy_loaded = true;
 
   EXPECT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.is_rollback);
+  EXPECT_TRUE(response_.update_exists);
+  EXPECT_TRUE(response_.is_rollback);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.firmware_key);
+            response_.past_rollback_key_version.firmware_key);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.firmware);
+            response_.past_rollback_key_version.firmware);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.kernel_key);
+            response_.past_rollback_key_version.kernel_key);
   EXPECT_EQ(std::numeric_limits<uint16_t>::max(),
-            response.past_rollback_key_version.kernel);
+            response_.past_rollback_key_version.kernel);
 }
 
 TEST_F(OmahaRequestActionTest, IncludeRequisitionTest) {
   request_params_.set_device_requisition("remora");
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_NE(string::npos, post_str.find("requisition=\"remora\""));
+  EXPECT_NE(string::npos, post_str_.find("requisition=\"remora\""));
 }
 
 TEST_F(OmahaRequestActionTest, NoIncludeRequisitionTest) {
   request_params_.set_device_requisition("");
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_EQ(string::npos, post_str.find("requisition"));
+  EXPECT_EQ(string::npos, post_str_.find("requisition"));
 }
 
 TEST_F(OmahaRequestActionTest, PersistEolDateTest) {
