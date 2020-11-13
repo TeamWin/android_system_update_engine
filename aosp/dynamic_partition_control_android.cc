@@ -1250,11 +1250,11 @@ DynamicPartitionControlAndroid::OpenCowWriter(
       .metadata_slot = target_slot_,
       .partition_name = partition_name + suffix,
       .force_writable = true,
-  };
+      .timeout_ms = kMapSnapshotTimeout};
   // TODO(zhangkelvin) Open an APPEND mode CowWriter once there's an API to do
   // it.
   return snapshot_->OpenSnapshotWriter(params, std::move(source_path));
-}
+}  // namespace chromeos_update_engine
 
 std::optional<base::FilePath> DynamicPartitionControlAndroid::GetSuperDevice() {
   std::string device_dir_str;
@@ -1268,7 +1268,7 @@ std::optional<base::FilePath> DynamicPartitionControlAndroid::GetSuperDevice() {
 }
 
 bool DynamicPartitionControlAndroid::MapAllPartitions() {
-  return snapshot_->MapAllSnapshots();
+  return snapshot_->MapAllSnapshots(kMapSnapshotTimeout);
 }
 
 }  // namespace chromeos_update_engine
