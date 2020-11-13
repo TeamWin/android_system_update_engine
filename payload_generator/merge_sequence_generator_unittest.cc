@@ -116,6 +116,20 @@ TEST_F(MergeSequenceGeneratorTest, FindDependency) {
             merge_after.at(transfers[2]));
 }
 
+TEST_F(MergeSequenceGeneratorTest, FindDependencyEdgeCase) {
+  std::vector<CowMergeOperation> transfers = {
+      CreateCowMergeOperation(ExtentForRange(10, 10), ExtentForRange(15, 10)),
+      CreateCowMergeOperation(ExtentForRange(40, 10), ExtentForRange(50, 10)),
+      CreateCowMergeOperation(ExtentForRange(59, 10), ExtentForRange(60, 10)),
+  };
+
+  std::map<CowMergeOperation, std::set<CowMergeOperation>> merge_after;
+  FindDependency(transfers, &merge_after);
+  ASSERT_EQ(std::set<CowMergeOperation>(), merge_after.at(transfers[0]));
+  ASSERT_EQ(std::set<CowMergeOperation>(), merge_after.at(transfers[1]));
+  ASSERT_EQ(merge_after[transfers[2]].size(), 1U);
+}
+
 TEST_F(MergeSequenceGeneratorTest, FindDependency_ReusedSourceBlocks) {
   std::vector<CowMergeOperation> transfers = {
       CreateCowMergeOperation(ExtentForRange(5, 10), ExtentForRange(15, 10)),
