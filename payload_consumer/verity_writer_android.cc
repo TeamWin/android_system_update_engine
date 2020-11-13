@@ -29,6 +29,7 @@ extern "C" {
 }
 
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/file_descriptor.h"
 
 namespace chromeos_update_engine {
 
@@ -39,7 +40,16 @@ std::unique_ptr<VerityWriterInterface> CreateVerityWriter() {
 }  // namespace verity_writer
 
 bool VerityWriterAndroid::Init(const InstallPlan::Partition& partition) {
+  auto read_fd = FileDescriptorPtr(new EintrSafeFileDescriptor());
+  TEST_AND_RETURN_FALSE(read_fd->Open(partition.target_path.c_str(), O_RDWR));
+  return Init(partition, read_fd, read_fd);
+}
+bool VerityWriterAndroid::Init(const InstallPlan::Partition& partition,
+                               FileDescriptorPtr read_fd,
+                               FileDescriptorPtr write_fd) {
   partition_ = &partition;
+  read_fd_ = read_fd;
+  write_fd_ = write_fd;
 
   if (partition_->hash_tree_size != 0 || partition_->fec_size != 0) {
     utils::SetBlockDeviceReadOnly(partition_->target_path, false);
@@ -82,18 +92,18 @@ bool VerityWriterAndroid::Update(uint64_t offset,
 
       if (end_offset == hash_tree_data_end) {
         // All hash tree data blocks has been hashed, write hash tree to disk.
-        int fd = HANDLE_EINTR(open(partition_->target_path.c_str(), O_WRONLY));
-        if (fd < 0) {
-          PLOG(ERROR) << "Failed to open " << partition_->target_path
-                      << " to write hash tree.";
-          return false;
-        }
-        ScopedFdCloser fd_closer(&fd);
-
         LOG(INFO) << "Writing verity hash tree to " << partition_->target_path;
         TEST_AND_RETURN_FALSE(hash_tree_builder_->BuildHashTree());
-        TEST_AND_RETURN_FALSE(hash_tree_builder_->WriteHashTreeToFd(
-            fd, partition_->hash_tree_offset));
+        TEST_AND_RETURN_FALSE_ERRNO(
+            write_fd_->Seek(partition_->hash_tree_offset, SEEK_SET));
+        auto success = hash_tree_builder_->WriteHashTree(
+            [write_fd_(this->write_fd_)](auto data, auto size) {
+              return utils::WriteAll(write_fd_, data, size);
+            });
+        // hashtree builder already prints error messages.
+        if (!success) {
+          return false;
+        }
         hash_tree_builder_.reset();
       }
     }
@@ -103,7 +113,8 @@ bool VerityWriterAndroid::Update(uint64_t offset,
         partition_->fec_data_offset + partition_->fec_data_size;
     if (offset < fec_data_end && offset + size >= fec_data_end) {
       LOG(INFO) << "Writing verity FEC to " << partition_->target_path;
-      TEST_AND_RETURN_FALSE(EncodeFEC(partition_->target_path,
+      TEST_AND_RETURN_FALSE(EncodeFEC(read_fd_,
+                                      write_fd_,
                                       partition_->fec_data_offset,
                                       partition_->fec_data_size,
                                       partition_->fec_offset,
@@ -116,7 +127,8 @@ bool VerityWriterAndroid::Update(uint64_t offset,
   return true;
 }
 
-bool VerityWriterAndroid::EncodeFEC(const std::string& path,
+bool VerityWriterAndroid::EncodeFEC(FileDescriptorPtr read_fd,
+                                    FileDescriptorPtr write_fd,
                                     uint64_t data_offset,
                                     uint64_t data_size,
                                     uint64_t fec_offset,
@@ -135,13 +147,6 @@ bool VerityWriterAndroid::EncodeFEC(const std::string& path,
       init_rs_char(FEC_PARAMS(fec_roots)), &free_rs_char);
   TEST_AND_RETURN_FALSE(rs_char != nullptr);
 
-  int fd = HANDLE_EINTR(open(path.c_str(), verify_mode ? O_RDONLY : O_RDWR));
-  if (fd < 0) {
-    PLOG(ERROR) << "Failed to open " << path << " to write FEC.";
-    return false;
-  }
-  ScopedFdCloser fd_closer(&fd);
-
   for (size_t i = 0; i < rounds; i++) {
     // Encodes |block_size| number of rs blocks each round so that we can read
     // one block each time instead of 1 byte to increase random read
@@ -154,13 +159,13 @@ bool VerityWriterAndroid::EncodeFEC(const std::string& path,
       // Don't read past |data_size|, treat them as 0.
       if (offset < data_size) {
         ssize_t bytes_read = 0;
-        TEST_AND_RETURN_FALSE(utils::PReadAll(fd,
+        TEST_AND_RETURN_FALSE(utils::PReadAll(read_fd,
                                               buffer.data(),
                                               buffer.size(),
                                               data_offset + offset,
                                               &bytes_read));
-        TEST_AND_RETURN_FALSE(bytes_read ==
-                              static_cast<ssize_t>(buffer.size()));
+        TEST_AND_RETURN_FALSE(bytes_read >= 0);
+        TEST_AND_RETURN_FALSE(static_cast<size_t>(bytes_read) == buffer.size());
       }
       for (size_t k = 0; k < buffer.size(); k++) {
         rs_blocks[k * rs_n + j] = buffer[k];
@@ -179,17 +184,42 @@ bool VerityWriterAndroid::EncodeFEC(const std::string& path,
       brillo::Blob fec_read(fec.size());
       ssize_t bytes_read = 0;
       TEST_AND_RETURN_FALSE(utils::PReadAll(
-          fd, fec_read.data(), fec_read.size(), fec_offset, &bytes_read));
-      TEST_AND_RETURN_FALSE(bytes_read ==
-                            static_cast<ssize_t>(fec_read.size()));
+          read_fd, fec_read.data(), fec_read.size(), fec_offset, &bytes_read));
+      TEST_AND_RETURN_FALSE(bytes_read >= 0);
+      TEST_AND_RETURN_FALSE(static_cast<size_t>(bytes_read) == fec_read.size());
       TEST_AND_RETURN_FALSE(fec == fec_read);
     } else {
-      TEST_AND_RETURN_FALSE(
-          utils::PWriteAll(fd, fec.data(), fec.size(), fec_offset));
+      CHECK(write_fd);
+      if (!utils::PWriteAll(write_fd, fec.data(), fec.size(), fec_offset)) {
+        PLOG(ERROR) << "EncodeFEC write() failed";
+        return false;
+      }
     }
     fec_offset += fec.size();
   }
 
   return true;
+}
+
+bool VerityWriterAndroid::EncodeFEC(const std::string& path,
+                                    uint64_t data_offset,
+                                    uint64_t data_size,
+                                    uint64_t fec_offset,
+                                    uint64_t fec_size,
+                                    uint32_t fec_roots,
+                                    uint32_t block_size,
+                                    bool verify_mode) {
+  FileDescriptorPtr fd(new EintrSafeFileDescriptor());
+  TEST_AND_RETURN_FALSE(
+      fd->Open(path.c_str(), verify_mode ? O_RDONLY : O_RDWR));
+  return EncodeFEC(fd,
+                   fd,
+                   data_offset,
+                   data_size,
+                   fec_offset,
+                   fec_size,
+                   fec_roots,
+                   block_size,
+                   verify_mode);
 }
 }  // namespace chromeos_update_engine

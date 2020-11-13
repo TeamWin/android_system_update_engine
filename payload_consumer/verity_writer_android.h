@@ -22,6 +22,7 @@
 
 #include <verity/hash_tree_builder.h>
 
+#include "payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/verity_writer_interface.h"
 
 namespace chromeos_update_engine {
@@ -31,7 +32,10 @@ class VerityWriterAndroid : public VerityWriterInterface {
   VerityWriterAndroid() = default;
   ~VerityWriterAndroid() override = default;
 
-  bool Init(const InstallPlan::Partition& partition) override;
+  bool Init(const InstallPlan::Partition& partition,
+            FileDescriptorPtr read_fd,
+            FileDescriptorPtr write_fd) override;
+  bool Init(const InstallPlan::Partition& partition);
   bool Update(uint64_t offset, const uint8_t* buffer, size_t size) override;
 
   // Read [data_offset : data_offset + data_size) from |path| and encode FEC
@@ -40,6 +44,15 @@ class VerityWriterAndroid : public VerityWriterInterface {
   // in each Update() like hash tree, because for every rs block, its data are
   // spreaded across entire |data_size|, unless we can cache all data in
   // memory, we have to re-read them from disk.
+  static bool EncodeFEC(FileDescriptorPtr read_fd,
+                        FileDescriptorPtr write_fd,
+                        uint64_t data_offset,
+                        uint64_t data_size,
+                        uint64_t fec_offset,
+                        uint64_t fec_size,
+                        uint32_t fec_roots,
+                        uint32_t block_size,
+                        bool verify_mode);
   static bool EncodeFEC(const std::string& path,
                         uint64_t data_offset,
                         uint64_t data_size,
@@ -52,6 +65,8 @@ class VerityWriterAndroid : public VerityWriterInterface {
  private:
   const InstallPlan::Partition* partition_ = nullptr;
 
+  FileDescriptorPtr read_fd_;
+  FileDescriptorPtr write_fd_;
   std::unique_ptr<HashTreeBuilder> hash_tree_builder_;
 
   DISALLOW_COPY_AND_ASSIGN(VerityWriterAndroid);
