@@ -456,19 +456,17 @@ void OmahaRequestAction::PerformAction() {
     return;
   }
 
-  auto* params = SystemState::Get()->request_params();
   OmahaRequestBuilderXml omaha_request(event_.get(),
-                                       params,
                                        ping_only_,
                                        ShouldPing(),  // include_ping
                                        ping_active_days_,
                                        ping_roll_call_days_,
                                        GetInstallDate(),
-                                       SystemState::Get()->prefs(),
                                        session_id_);
   string request_post = omaha_request.GetRequest();
 
   // Set X-Goog-Update headers.
+  const auto* params = SystemState::Get()->request_params();
   http_fetcher_->SetHeader(kXGoogleUpdateInteractivity,
                            params->interactive() ? "fg" : "bg");
   http_fetcher_->SetHeader(kXGoogleUpdateAppId, params->GetAppId());
