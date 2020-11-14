@@ -516,7 +516,7 @@ bool OmahaRequestActionTest::TestUpdateCheck() {
     fetcher->FailTransfer(tuc_params_.fail_http_response_code);
   }
   // This ensures the tests didn't forget to update |FakeSystemState| if they
-  // are not using the default request_params_.
+  // are not using the default |request_params_|.
   EXPECT_EQ(&request_params_, FakeSystemState::Get()->request_params());
 
   auto omaha_request_action =

@@ -286,9 +286,6 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // kPrefsUpdateFirstSeenAt pref and returns it as a base::Time object.
   base::Time LoadOrPersistUpdateFirstSeenAtPref() const;
 
-  // Contains state that is relevant in the processing of the Omaha request.
-  OmahaRequestParams* params_;
-
   // Pointer to the OmahaEvent info. This is an UpdateCheck request if null.
   std::unique_ptr<OmahaEvent> event_;
 

@@ -280,8 +280,7 @@ OmahaRequestAction::OmahaRequestAction(
     std::unique_ptr<HttpFetcher> http_fetcher,
     bool ping_only,
     const string& session_id)
-    : params_(SystemState::Get()->request_params()),
-      event_(event),
+    : event_(event),
       http_fetcher_(std::move(http_fetcher)),
       policy_provider_(std::make_unique<policy::PolicyProvider>()),
       ping_only_(ping_only),
@@ -411,9 +410,10 @@ int OmahaRequestAction::GetInstallDate() {
 
 void OmahaRequestAction::StorePingReply(
     const OmahaParserData& parser_data) const {
+  const auto* params = SystemState::Get()->request_params();
   for (const auto& app : parser_data.apps) {
-    auto it = params_->dlc_apps_params().find(app.id);
-    if (it == params_->dlc_apps_params().end())
+    auto it = params->dlc_apps_params().find(app.id);
+    if (it == params->dlc_apps_params().end())
       continue;
 
     const OmahaRequestParams::AppParams& dlc_params = it->second;
@@ -456,8 +456,9 @@ void OmahaRequestAction::PerformAction() {
     return;
   }
 
+  auto* params = SystemState::Get()->request_params();
   OmahaRequestBuilderXml omaha_request(event_.get(),
-                                       params_,
+                                       params,
                                        ping_only_,
                                        ShouldPing(),  // include_ping
                                        ping_active_days_,
@@ -469,8 +470,8 @@ void OmahaRequestAction::PerformAction() {
 
   // Set X-Goog-Update headers.
   http_fetcher_->SetHeader(kXGoogleUpdateInteractivity,
-                           params_->interactive() ? "fg" : "bg");
-  http_fetcher_->SetHeader(kXGoogleUpdateAppId, params_->GetAppId());
+                           params->interactive() ? "fg" : "bg");
+  http_fetcher_->SetHeader(kXGoogleUpdateAppId, params->GetAppId());
   http_fetcher_->SetHeader(
       kXGoogleUpdateUpdater,
       base::StringPrintf(
@@ -478,9 +479,9 @@ void OmahaRequestAction::PerformAction() {
 
   http_fetcher_->SetPostData(
       request_post.data(), request_post.size(), kHttpContentTypeTextXml);
-  LOG(INFO) << "Posting an Omaha request to " << params_->update_url();
+  LOG(INFO) << "Posting an Omaha request to " << params->update_url();
   LOG(INFO) << "Request: " << request_post;
-  http_fetcher_->BeginTransfer(params_->update_url());
+  http_fetcher_->BeginTransfer(params->update_url());
 }
 
 void OmahaRequestAction::TerminateProcessing() {
@@ -766,10 +767,11 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   output_object->is_rollback =
       ParseBool(parser_data->updatecheck_attrs[kAttrRollback]);
 
+  const auto* params = SystemState::Get()->request_params();
   // Parses the rollback versions of the current image. If the fields do not
   // exist they default to 0xffff for the 4 key versions.
   ParseRollbackVersions(
-      params_->rollback_allowed_milestones(), parser_data, output_object);
+      params->rollback_allowed_milestones(), parser_data, output_object);
 
   if (!ParseStatus(parser_data, output_object, completer))
     return false;
@@ -784,7 +786,7 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
     // non-critical package installations, let the errors propagate instead
     // of being handled inside update_engine as installations are a dlcservice
     // specific feature.
-    bool can_exclude = !params_->is_install() && params_->IsDlcAppId(app.id);
+    bool can_exclude = !params->is_install() && params->IsDlcAppId(app.id);
     if (!ParsePackage(&app, output_object, can_exclude, completer))
       return false;
   }
@@ -796,15 +798,16 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
   output_object->update_exists = false;
+  auto* params = SystemState::Get()->request_params();
   for (const auto& app : parser_data->apps) {
     const string& status = app.updatecheck_status;
     if (status == kValNoUpdate) {
       // If the app is a DLC, allow status "noupdate" to support DLC
       // deprecations.
-      if (params_->IsDlcAppId(app.id)) {
+      if (params->IsDlcAppId(app.id)) {
         LOG(INFO) << "No update for <app> " << app.id
                   << " but update continuing since a DLC.";
-        params_->SetDlcNoUpdate(app.id);
+        params->SetDlcNoUpdate(app.id);
         continue;
       }
       // Don't update if any app has status="noupdate".
@@ -823,8 +826,8 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
         LOG(INFO) << "Update for <app> " << app.id;
         output_object->update_exists = true;
       }
-    } else if (status.empty() && params_->is_install() &&
-               params_->GetAppId() == app.id) {
+    } else if (status.empty() && params->is_install() &&
+               params->GetAppId() == app.id) {
       // Skips the platform app for install operation.
       LOG(INFO) << "No payload (and ignore) for <app> " << app.id;
     } else {
@@ -844,24 +847,25 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
 bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
+  const auto* params = SystemState::Get()->request_params();
   map<string, string> attrs;
   for (auto& app : parser_data->apps) {
-    if (app.id == params_->GetAppId()) {
+    if (app.id == params->GetAppId()) {
       // this is the app (potentially the only app)
       output_object->version = app.manifest_version;
-    } else if (params_->is_install() &&
-               app.manifest_version != params_->app_version()) {
+    } else if (params->is_install() &&
+               app.manifest_version != params->app_version()) {
       LOG(WARNING) << "An app has a different version (" << app.manifest_version
                    << ") that is different than platform app version ("
-                   << params_->app_version() << ").";
+                   << params->app_version() << ").";
     }
     if (!app.action_postinstall_attrs.empty() && attrs.empty()) {
       attrs = app.action_postinstall_attrs;
     }
   }
-  if (params_->is_install()) {
+  if (params->is_install()) {
     LOG(INFO) << "Use request version for Install operation.";
-    output_object->version = params_->app_version();
+    output_object->version = params->app_version();
   }
   if (output_object->version.empty()) {
     LOG(ERROR) << "Omaha Response does not have version in manifest!";
@@ -1153,7 +1157,8 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
 }
 
 bool OmahaRequestAction::ShouldDeferDownload(OmahaResponse* output_object) {
-  if (params_->interactive()) {
+  const auto* params = SystemState::Get()->request_params();
+  if (params->interactive()) {
     LOG(INFO) << "Not deferring download because update is interactive.";
     return false;
   }
@@ -1174,7 +1179,7 @@ bool OmahaRequestAction::ShouldDeferDownload(OmahaResponse* output_object) {
   // We should defer the downloads only if we've first satisfied the
   // wall-clock-based-waiting period and then the update-check-based waiting
   // period, if required.
-  if (!params_->wall_clock_based_wait_enabled()) {
+  if (!params->wall_clock_based_wait_enabled()) {
     LOG(INFO) << "Wall-clock-based waiting period is not enabled,"
               << " so no deferring needed.";
     return false;
@@ -1230,8 +1235,9 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
       staging_wait_time_in_days > 0)
     max_scatter_period = TimeDelta::FromDays(kMaxWaitTimeStagingInDays);
 
+  const auto* params = SystemState::Get()->request_params();
   LOG(INFO) << "Waiting Period = "
-            << utils::FormatSecs(params_->waiting_period().InSeconds())
+            << utils::FormatSecs(params->waiting_period().InSeconds())
             << ", Time Elapsed = "
             << utils::FormatSecs(elapsed_time.InSeconds())
             << ", MaxDaysToScatter = " << max_scatter_period.InDays();
@@ -1262,14 +1268,14 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
 
   // This means we are required to participate in scattering.
   // See if our turn has arrived now.
-  TimeDelta remaining_wait_time = params_->waiting_period() - elapsed_time;
+  TimeDelta remaining_wait_time = params->waiting_period() - elapsed_time;
   if (remaining_wait_time.InSeconds() <= 0) {
     // Yes, it's our turn now.
     LOG(INFO) << "Successfully passed the wall-clock-based-wait.";
 
     // But we can't download until the update-check-count-based wait is also
     // satisfied, so mark it as required now if update checks are enabled.
-    return params_->update_check_count_wait_enabled()
+    return params->update_check_count_wait_enabled()
                ? kWallClockWaitDoneButUpdateCheckWaitRequired
                : kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
   }
@@ -1284,6 +1290,7 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
 
 bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
   int64_t update_check_count_value;
+  const auto* params = SystemState::Get()->request_params();
 
   if (SystemState::Get()->prefs()->Exists(kPrefsUpdateCheckCount)) {
     if (!SystemState::Get()->prefs()->GetInt64(kPrefsUpdateCheckCount,
@@ -1298,8 +1305,8 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
     // This file does not exist. This means we haven't started our update
     // check count down yet, so this is the right time to start the count down.
     update_check_count_value =
-        base::RandInt(params_->min_update_checks_needed(),
-                      params_->max_update_checks_allowed());
+        base::RandInt(params->min_update_checks_needed(),
+                      params->max_update_checks_allowed());
 
     LOG(INFO) << "Randomly picked update check count value = "
               << update_check_count_value;
@@ -1321,7 +1328,7 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
   }
 
   if (update_check_count_value < 0 ||
-      update_check_count_value > params_->max_update_checks_allowed()) {
+      update_check_count_value > params->max_update_checks_allowed()) {
     // We err on the side of skipping scattering logic instead of stalling
     // a machine from receiving any updates in case of any unexpected state.
     LOG(ERROR) << "Invalid value for update check count detected. "
@@ -1398,15 +1405,16 @@ void OmahaRequestAction::PersistCohortData(const string& prefs_key,
 }
 
 void OmahaRequestAction::PersistCohorts(const OmahaParserData& parser_data) {
+  const auto* params = SystemState::Get()->request_params();
   for (const auto& app : parser_data.apps) {
     // For platform App ID.
-    if (app.id == params_->GetAppId()) {
+    if (app.id == params->GetAppId()) {
       PersistCohortData(kPrefsOmahaCohort, app.cohort);
       PersistCohortData(kPrefsOmahaCohortName, app.cohortname);
       PersistCohortData(kPrefsOmahaCohortHint, app.cohorthint);
-    } else if (params_->IsDlcAppId(app.id)) {
+    } else if (params->IsDlcAppId(app.id)) {
       string dlc_id;
-      if (!params_->GetDlcId(app.id, &dlc_id)) {
+      if (!params->GetDlcId(app.id, &dlc_id)) {
         LOG(WARNING) << "Skip persisting cohorts for DLC App ID=" << app.id
                      << " as it is not in the request params.";
         continue;
@@ -1510,6 +1518,7 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       SystemState::Get()->payload_state()->GetRollbackVersion();
+  const auto* params = SystemState::Get()->request_params();
   if (!rollback_version.empty()) {
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
     if (rollback_version == response.version) {
@@ -1523,7 +1532,7 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
       !SystemState::Get()->hardware()->IsOOBEComplete(nullptr) &&
       (response.deadline.empty() ||
        SystemState::Get()->payload_state()->GetRollbackHappened()) &&
-      params_->app_version() != "ForcedUpdate") {
+      params->app_version() != "ForcedUpdate") {
     LOG(INFO) << "Ignoring a non-critical Omaha update before OOBE completion.";
     *error = ErrorCode::kNonCriticalUpdateInOOBE;
     return true;
