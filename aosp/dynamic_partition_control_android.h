@@ -95,6 +95,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   bool UnmapAllPartitions() override;
 
+  bool IsDynamicPartition(const std::string& part_name) override;
+
  protected:
   // These functions are exposed for testing.
 
@@ -303,6 +305,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   bool is_target_dynamic_ = false;
   uint32_t source_slot_ = UINT32_MAX;
   uint32_t target_slot_ = UINT32_MAX;
+  std::vector<std::string> dynamic_partition_list_;
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };

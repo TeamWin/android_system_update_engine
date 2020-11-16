@@ -68,6 +68,8 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
 
   bool MapAllPartitions() override;
   bool UnmapAllPartitions() override;
+
+  bool IsDynamicPartition(const std::string& part_name) override;
 };
 }  // namespace chromeos_update_engine
 
