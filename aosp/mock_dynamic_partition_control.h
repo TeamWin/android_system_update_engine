@@ -25,6 +25,7 @@
 #include <libsnapshot/cow_writer.h>
 #include <libsnapshot/snapshot_writer.h>
 
+#include "payload_consumer/file_descriptor.h"
 #include "update_engine/aosp/dynamic_partition_control_android.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/dynamic_partition_control_interface.h"
@@ -86,6 +87,12 @@ class MockDynamicPartitionControlAndroid
               (override));
   MOCK_METHOD(std::unique_ptr<android::snapshot::ISnapshotWriter>,
               OpenCowWriter,
+              (const std::string& unsuffixed_partition_name,
+               const std::optional<std::string>& source_path,
+               bool is_append),
+              (override));
+  MOCK_METHOD(FileDescriptorPtr,
+              OpenCowReader,
               (const std::string& unsuffixed_partition_name,
                const std::optional<std::string>& source_path,
                bool is_append),
