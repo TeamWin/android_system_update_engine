@@ -187,12 +187,12 @@ bool UpdateAttempter::StartUpdater() {
 
   auto update_boot_flags_action = std::make_unique<UpdateBootFlagsAction>(
       SystemState::Get()->boot_control());
-  processor_->EnqueueAction(std::move(update_boot_flags_action));
+  aux_processor_.EnqueueAction(std::move(update_boot_flags_action));
   // Update boot flags after 45 seconds.
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&ActionProcessor::StartProcessing,
-                 base::Unretained(processor_.get())),
+                 base::Unretained(&aux_processor_)),
       base::TimeDelta::FromSeconds(45));
 
   // Broadcast the update engine status on startup to ensure consistent system

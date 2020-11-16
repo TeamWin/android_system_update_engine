@@ -461,6 +461,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   std::unique_ptr<ActionProcessor> processor_;
 
+  ActionProcessor aux_processor_;
+
   // Pointer to the certificate checker instance to use.
   CertificateChecker* cert_checker_;
 
