@@ -242,7 +242,6 @@ struct FakeUpdateResponse {
   string app_id = kTestAppId;
   string app_id2 = kTestAppId2;
   string app_id_skip_updatecheck = kTestAppIdSkipUpdatecheck;
-  string current_version = kCurrentVersion;
   string version = "1.2.3.4";
   string version2 = "2.3.4.5";
   string more_info_url = "http://more/info";
@@ -2874,7 +2873,7 @@ TEST_F(OmahaRequestActionTest, InstallMissingPlatformVersionTest) {
   ASSERT_TRUE(TestUpdateCheck());
 
   EXPECT_TRUE(response_.update_exists);
-  EXPECT_EQ(fake_update_response_.current_version, response_.version);
+  EXPECT_EQ(fake_update_response_.version, response_.version);
 }
 
 TEST_F(OmahaRequestActionTest, UpdateWithDlcTest) {
@@ -3040,7 +3039,7 @@ TEST_F(OmahaRequestActionTest, NoIncludeRequisitionTest) {
 TEST_F(OmahaRequestActionTest, PersistEolDateTest) {
   tuc_params_.http_response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+      "protocol=\"3.0\"><app appid=\"test-app-id\" status=\"ok\">"
       "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
       "_eol_date=\"200\" _foo=\"bar\"/></app></response>";
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
@@ -3057,7 +3056,7 @@ TEST_F(OmahaRequestActionTest, PersistEolDateTest) {
 TEST_F(OmahaRequestActionTest, PersistEolMissingDateTest) {
   tuc_params_.http_response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+      "protocol=\"3.0\"><app appid=\"test-app-id\" status=\"ok\">"
       "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
       "_foo=\"bar\"/></app></response>";
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
@@ -3077,7 +3076,7 @@ TEST_F(OmahaRequestActionTest, PersistEolMissingDateTest) {
 TEST_F(OmahaRequestActionTest, PersistEolBadDateTest) {
   tuc_params_.http_response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+      "protocol=\"3.0\"><app appid=\"test-app-id\" status=\"ok\">"
       "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
       "_eol_date=\"bad\" foo=\"bar\"/></app></response>";
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
