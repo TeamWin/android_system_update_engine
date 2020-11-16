@@ -197,10 +197,12 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
       unique_ptr<OperationsGenerator> strategy;
       if (!old_part.path.empty()) {
         // Delta update.
-        LOG(INFO) << "Using generator ABGenerator().";
+        LOG(INFO) << "Using generator ABGenerator() for partition "
+                  << new_part.name;
         strategy.reset(new ABGenerator());
       } else {
-        LOG(INFO) << "Using generator FullUpdateGenerator().";
+        LOG(INFO) << "Using generator FullUpdateGenerator() for partition "
+                  << new_part.name;
         strategy.reset(new FullUpdateGenerator());
       }
 
