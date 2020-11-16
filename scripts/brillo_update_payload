@@ -651,7 +651,12 @@ cmd_generate() {
     fi
     partition_names+="${part}"
     new_partitions+="${DST_PARTITIONS[${part}]}"
-    old_partitions+="${SRC_PARTITIONS[${part}]:-}"
+    if [ "${FLAGS_full_boot}" == "true" ] && [ "${part}" == "boot" ]; then
+      # Skip boot partition.
+      old_partitions+=""
+    else
+      old_partitions+="${SRC_PARTITIONS[${part}]:-}"
+    fi
     new_mapfiles+="${DST_PARTITIONS_MAP[${part}]:-}"
     old_mapfiles+="${SRC_PARTITIONS_MAP[${part}]:-}"
   done
