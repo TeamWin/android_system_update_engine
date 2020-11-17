@@ -72,7 +72,7 @@ class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
     if (action->Type() == FilesystemVerifierAction::StaticType()) {
       ran_ = true;
       code_ = code;
-      EXPECT_FALSE(static_cast<FilesystemVerifierAction*>(action)->src_stream_);
+      EXPECT_FALSE(static_cast<FilesystemVerifierAction*>(action)->read_fd_);
     } else if (action->Type() ==
                ObjectCollectorAction<InstallPlan>::StaticType()) {
       auto collector_action =
@@ -384,4 +384,5 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
   EXPECT_TRUE(delegate.ran());
   EXPECT_EQ(ErrorCode::kSuccess, delegate.code());
 }
+
 }  // namespace chromeos_update_engine

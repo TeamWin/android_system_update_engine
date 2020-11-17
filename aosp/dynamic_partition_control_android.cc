@@ -1265,6 +1265,7 @@ FileDescriptorPtr DynamicPartitionControlAndroid::OpenCowReader(
   if (cow_writer == nullptr) {
     return nullptr;
   }
+  cow_writer->InitializeAppend(kEndOfInstallLabel);
   return cow_writer->OpenReader();
 }
 
