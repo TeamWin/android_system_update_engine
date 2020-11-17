@@ -111,4 +111,9 @@ bool DynamicPartitionControlStub::UnmapAllPartitions() {
   return false;
 }
 
+bool DynamicPartitionControlStub::IsDynamicPartition(
+    const std::string& part_name) {
+  return false;
+}
+
 }  // namespace chromeos_update_engine
