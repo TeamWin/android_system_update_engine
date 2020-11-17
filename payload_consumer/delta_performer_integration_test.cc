@@ -464,7 +464,11 @@ static void GenerateDeltaFile(bool full_kernel,
 
     EXPECT_TRUE(base::CopyFile(mnt_path.Append("regular-small"),
                                mnt_path.Append("regular-small2")));
+#if BASE_VER < 800000
     EXPECT_TRUE(base::DeleteFile(mnt_path.Append("regular-small"), false));
+#else
+    EXPECT_TRUE(base::DeleteFile(mnt_path.Append("regular-small")));
+#endif
     EXPECT_TRUE(base::Move(mnt_path.Append("regular-small2"),
                            mnt_path.Append("regular-small")));
     EXPECT_TRUE(
@@ -491,7 +495,11 @@ static void GenerateDeltaFile(bool full_kernel,
     EXPECT_TRUE(base::Move(mnt_path.Append("tmp"),
                            mnt_path.Append("link-hard-regular-16k")));
 
+#if BASE_VER < 800000
     EXPECT_TRUE(base::DeleteFile(mnt_path.Append("link-short_symlink"), false));
+#else
+    EXPECT_TRUE(base::DeleteFile(mnt_path.Append("link-short_symlink")));
+#endif
     EXPECT_TRUE(test_utils::WriteFileString(
         mnt_path.Append("link-short_symlink").value(), "foobar"));
 

@@ -284,7 +284,7 @@ void PostinstallRunnerAction::ReportProgress(double frac) {
 void PostinstallRunnerAction::Cleanup() {
   utils::UnmountFilesystem(fs_mount_dir_);
 #ifndef __ANDROID__
-  if (!base::DeleteFile(base::FilePath(fs_mount_dir_), false)) {
+  if (!base::DeleteFile(base::FilePath(fs_mount_dir_))) {
     PLOG(WARNING) << "Not removing temporary mountpoint " << fs_mount_dir_;
   }
 #endif  // !__ANDROID__

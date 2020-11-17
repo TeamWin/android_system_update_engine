@@ -41,7 +41,11 @@ void DeleteEmptyDirectories(const base::FilePath& path) {
        dir_path = path_enum.Next()) {
     DeleteEmptyDirectories(dir_path);
     if (base::IsDirectoryEmpty(dir_path))
+#if BASE_VER < 800000
       base::DeleteFile(dir_path, false);
+#else
+      base::DeleteFile(dir_path);
+#endif
   }
 }
 
@@ -210,7 +214,11 @@ bool Prefs::FileStorage::KeyExists(const string& key) const {
 bool Prefs::FileStorage::DeleteKey(const string& key) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
+#if BASE_VER < 800000
   TEST_AND_RETURN_FALSE(base::DeleteFile(filename, false));
+#else
+  TEST_AND_RETURN_FALSE(base::DeleteFile(filename));
+#endif
   return true;
 }
 
