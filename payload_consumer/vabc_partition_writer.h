@@ -50,6 +50,8 @@ class VABCPartitionWriter final : public PartitionWriter {
                              android::snapshot::ICowWriter* cow_writer,
                              FileDescriptorPtr source_fd);
 
+  [[nodiscard]] bool FinishedInstallOps() override;
+
  private:
   std::unique_ptr<android::snapshot::ISnapshotWriter> cow_writer_;
 };

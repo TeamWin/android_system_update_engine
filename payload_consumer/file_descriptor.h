@@ -111,6 +111,7 @@ class FileDescriptor {
 class EintrSafeFileDescriptor : public FileDescriptor {
  public:
   EintrSafeFileDescriptor() : fd_(-1) {}
+  ~EintrSafeFileDescriptor();
 
   // Interface methods.
   bool Open(const char* path, int flags, mode_t mode) override;

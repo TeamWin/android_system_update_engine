@@ -24,10 +24,11 @@
 #include <string>
 #include <vector>
 
-#include <brillo/streams/stream.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/hash_calculator.h"
+#include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/verity_writer_interface.h"
 
@@ -83,6 +84,9 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
  private:
   friend class FilesystemVerifierActionTestDelegate;
+
+  // Return true if we need to write verity bytes.
+  bool ShouldWriteVerity();
   // Starts the hashing of the current partition. If there aren't any partitions
   // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();
@@ -92,8 +96,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // Called from the main loop when a single read from |src_stream_| succeeds or
   // fails, calling OnReadDoneCallback() and OnReadErrorCallback() respectively.
-  void OnReadDoneCallback(size_t bytes_read);
-  void OnReadErrorCallback(const brillo::Error* error);
+  void OnReadDone(size_t bytes_read);
 
   // When the read is done, finalize the hash checking of the current partition
   // and continue checking the next one.
@@ -107,6 +110,10 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Invoke delegate callback to report progress, if delegate is not null
   void UpdateProgress(double progress);
 
+  // Initialize read_fd_ and write_fd_
+  bool InitializeFd(const std::string& part_path);
+  bool InitializeFdVABC();
+
   // The type of the partition that we are verifying.
   VerifierStep verifier_step_ = VerifierStep::kVerifyTargetHash;
 
@@ -114,8 +121,15 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // being hashed.
   size_t partition_index_{0};
 
-  // If not null, the FileStream used to read from the device.
-  brillo::StreamPtr src_stream_;
+  // If not null, the FileDescriptor used to read from the device.
+  // |read_fd_| and |write_fd_| will be initialized when we begin hashing a
+  // partition. They will be deallocated once we encounter an error or
+  // successfully finished hashing.
+  FileDescriptorPtr read_fd_;
+  // If not null, the FileDescriptor used to write to the device.
+  // For VABC, this will be different from |read_fd_|. For other cases
+  // this can be the same as |read_fd_|.
+  FileDescriptorPtr write_fd_;
 
   // Buffer for storing data we read.
   brillo::Blob buffer_;
@@ -143,6 +157,11 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // An observer that observes progress updates of this action.
   FilesystemVerifyDelegate* delegate_{};
+
+  // Callback that should be cancelled on |TerminateProcessing|. Usually this
+  // points to pending read callbacks from async stream.
+  brillo::MessageLoop::TaskId pending_task_id_{
+      brillo::MessageLoop::kTaskIdNull};
 
   DISALLOW_COPY_AND_ASSIGN(FilesystemVerifierAction);
 };
