@@ -253,27 +253,36 @@ PartitionWriter::~PartitionWriter() {
   Close();
 }
 
+bool PartitionWriter::OpenSourcePartition(uint32_t source_slot,
+                                          bool source_may_exist) {
+  source_path_.clear();
+  if (!source_may_exist) {
+    return true;
+  }
+  if (install_part_.source_size > 0 && !install_part_.source_path.empty()) {
+    source_path_ = install_part_.source_path;
+    int err;
+    source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
+    if (source_fd_ == nullptr) {
+      LOG(ERROR) << "Unable to open source partition " << install_part_.name
+                 << " on slot " << BootControlInterface::SlotName(source_slot)
+                 << ", file " << source_path_;
+      return false;
+    }
+  }
+  return true;
+}
+
 bool PartitionWriter::Init(const InstallPlan* install_plan,
                            bool source_may_exist) {
   const PartitionUpdate& partition = partition_update_;
   uint32_t source_slot = install_plan->source_slot;
   uint32_t target_slot = install_plan->target_slot;
+  TEST_AND_RETURN_FALSE(OpenSourcePartition(source_slot, source_may_exist));
 
   // We shouldn't open the source partition in certain cases, e.g. some dynamic
   // partitions in delta payload, partitions included in the full payload for
   // partial updates. Use the source size as the indicator.
-  if (source_may_exist && install_part_.source_size > 0) {
-    source_path_ = install_part_.source_path;
-    int err;
-    source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
-    if (!source_fd_) {
-      LOG(ERROR) << "Unable to open source partition "
-                 << partition.partition_name() << " on slot "
-                 << BootControlInterface::SlotName(source_slot) << ", file "
-                 << source_path_;
-      return false;
-    }
-  }
 
   target_path_ = install_part_.target_path;
   int err;
