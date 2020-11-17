@@ -241,8 +241,6 @@ void PayloadSigner::AddSignatureToManifest(uint64_t signature_blob_offset,
                                            DeltaArchiveManifest* manifest) {
   LOG(INFO) << "Making room for signature in file";
   manifest->set_signatures_offset(signature_blob_offset);
-  LOG(INFO) << "set? " << manifest->has_signatures_offset();
-  manifest->set_signatures_offset(signature_blob_offset);
   manifest->set_signatures_size(signature_blob_length);
 }
 
