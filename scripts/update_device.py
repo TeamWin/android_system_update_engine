@@ -403,6 +403,8 @@ def main():
                       help='Extra headers to pass to the device.')
   parser.add_argument('--secondary', action='store_true',
                       help='Update with the secondary payload in the package.')
+  parser.add_argument('--no-slot-switch', action='store_true',
+                      help='Do not perform slot switch after the update.')
   args = parser.parse_args()
   logging.basicConfig(
       level=logging.WARNING if args.no_verbose else logging.INFO)
@@ -419,6 +421,9 @@ def main():
 
   help_cmd = ['shell', 'su', '0', 'update_engine_client', '--help']
   use_omaha = 'omaha' in dut.adb_output(help_cmd)
+
+  if args.no_slot_switch:
+    args.extra_headers += "\nSWITCH_SLOT_ON_REBOOT=0"
 
   if args.file:
     # Update via pushing a file to /data.
