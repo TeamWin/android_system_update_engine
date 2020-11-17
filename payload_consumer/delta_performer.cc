@@ -489,6 +489,9 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
     // We know there are more operations to perform because we didn't reach the
     // |num_total_operations_| limit yet.
     if (next_operation_num_ >= acc_num_operations_[current_partition_]) {
+      if (partition_writer_) {
+        TEST_AND_RETURN_FALSE(partition_writer_->FinishedInstallOps());
+      }
       CloseCurrentPartition();
       // Skip until there are operations for current_partition_.
       while (next_operation_num_ >= acc_num_operations_[current_partition_]) {
