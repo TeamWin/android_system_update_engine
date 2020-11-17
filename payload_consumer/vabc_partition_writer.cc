@@ -111,6 +111,12 @@ bool VABCPartitionWriter::Flush() {
   return true;
 }
 
+[[nodiscard]] bool VABCPartitionWriter::FinishedInstallOps() {
+  // Add a hardcoded magic label to indicate end of all install ops. This label
+  // is needed by filesystem verification, don't remove.
+  return cow_writer_->AddLabel(kEndOfInstallLabel);
+}
+
 VABCPartitionWriter::~VABCPartitionWriter() {
   cow_writer_->Finalize();
 }
