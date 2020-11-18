@@ -49,7 +49,6 @@ namespace chromeos_update_engine {
 class NoneType;
 class OmahaRequestAction;
 class OmahaRequestParams;
-class PrefsInterface;
 
 // This struct is declared in the .cc file.
 struct OmahaParserData;

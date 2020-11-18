@@ -218,12 +218,11 @@ bool UpdateEngineService::GetChannel(ErrorPtr* /* error */,
 
 bool UpdateEngineService::SetCohortHint(ErrorPtr* error,
                                         const string& in_cohort_hint) {
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-
   // It is ok to override the cohort hint with an invalid value since it is
   // stored in stateful partition. The code reading it should sanitize it
   // anyway.
-  if (!prefs->SetString(kPrefsOmahaCohortHint, in_cohort_hint)) {
+  if (!SystemState::Get()->prefs()->SetString(kPrefsOmahaCohortHint,
+                                              in_cohort_hint)) {
     LogAndSetError(
         error,
         FROM_HERE,
@@ -236,8 +235,7 @@ bool UpdateEngineService::SetCohortHint(ErrorPtr* error,
 
 bool UpdateEngineService::GetCohortHint(ErrorPtr* error,
                                         string* out_cohort_hint) {
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-
+  const auto* prefs = SystemState::Get()->prefs();
   *out_cohort_hint = "";
   if (prefs->Exists(kPrefsOmahaCohortHint) &&
       !prefs->GetString(kPrefsOmahaCohortHint, out_cohort_hint)) {
@@ -249,9 +247,7 @@ bool UpdateEngineService::GetCohortHint(ErrorPtr* error,
 
 bool UpdateEngineService::SetP2PUpdatePermission(ErrorPtr* error,
                                                  bool in_enabled) {
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-
-  if (!prefs->SetBoolean(kPrefsP2PEnabled, in_enabled)) {
+  if (!SystemState::Get()->prefs()->SetBoolean(kPrefsP2PEnabled, in_enabled)) {
     LogAndSetError(
         error,
         FROM_HERE,
@@ -264,8 +260,7 @@ bool UpdateEngineService::SetP2PUpdatePermission(ErrorPtr* error,
 
 bool UpdateEngineService::GetP2PUpdatePermission(ErrorPtr* error,
                                                  bool* out_enabled) {
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-
+  const auto* prefs = SystemState::Get()->prefs();
   bool p2p_pref = false;  // Default if no setting is present.
   if (prefs->Exists(kPrefsP2PEnabled) &&
       !prefs->GetBoolean(kPrefsP2PEnabled, &p2p_pref)) {
@@ -293,11 +288,8 @@ bool UpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
 
   // If the policy wasn't loaded yet, then it is still OK to change the local
   // setting because the policy will be checked again during the update check.
-
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-
-  if (!prefs ||
-      !prefs->SetBoolean(kPrefsUpdateOverCellularPermission, in_allowed)) {
+  if (!SystemState::Get()->prefs()->SetBoolean(
+          kPrefsUpdateOverCellularPermission, in_allowed)) {
     LogAndSetError(error,
                    FROM_HERE,
                    string("Error setting the update over cellular to ") +
@@ -326,10 +318,8 @@ bool UpdateEngineService::SetUpdateOverCellularTarget(
   // If the policy wasn't loaded yet, then it is still OK to change the local
   // setting because the policy will be checked again during the update check.
 
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-
-  if (!prefs ||
-      !prefs->SetString(kPrefsUpdateOverCellularTargetVersion,
+  auto* prefs = SystemState::Get()->prefs();
+  if (!prefs->SetString(kPrefsUpdateOverCellularTargetVersion,
                         target_version) ||
       !prefs->SetInt64(kPrefsUpdateOverCellularTargetSize, target_size)) {
     LogAndSetError(
@@ -349,9 +339,8 @@ bool UpdateEngineService::GetUpdateOverCellularPermission(ErrorPtr* error,
     *out_allowed = connection_manager->IsUpdateAllowedOver(
         ConnectionType::kCellular, ConnectionTethering::kUnknown);
   } else {
-    PrefsInterface* prefs = SystemState::Get()->prefs();
-
-    if (!prefs || !prefs->Exists(kPrefsUpdateOverCellularPermission)) {
+    const auto* prefs = SystemState::Get()->prefs();
+    if (!prefs->Exists(kPrefsUpdateOverCellularPermission)) {
       // Update is not allowed as user preference is not set or not available.
       *out_allowed = false;
       return true;

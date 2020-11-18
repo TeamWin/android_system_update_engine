@@ -22,6 +22,7 @@
 #include <base/logging.h>
 
 #include "update_engine/common/clock_interface.h"
+#include "update_engine/common/prefs_interface.h"
 
 namespace chromeos_update_manager {
 
@@ -49,7 +50,6 @@ class OmahaRequestParams;
 class P2PManager;
 class PayloadStateInterface;
 class PowerManagerInterface;
-class PrefsInterface;
 class UpdateAttempter;
 
 // An interface to global system context, including platform resources,

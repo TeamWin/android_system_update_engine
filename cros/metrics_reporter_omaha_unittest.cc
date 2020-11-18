@@ -25,7 +25,6 @@
 #include <metrics/metrics_library_mock.h>
 
 #include "update_engine/common/fake_clock.h"
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 
 using base::TimeDelta;
@@ -62,10 +61,7 @@ TEST_F(MetricsReporterOmahaTest, ReportDailyMetrics) {
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportUpdateCheckMetrics) {
-  FakePrefs fake_prefs;
-
   // We need to execute the report twice to test the time since last report.
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
   fake_clock_->SetWallclockTime(base::Time::FromInternalValue(1000000));
   fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(1000000));
 
@@ -176,8 +172,6 @@ TEST_F(MetricsReporterOmahaTest,
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
-  FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
   fake_clock_->SetWallclockTime(base::Time::FromInternalValue(1000000));
   fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(1000000));
 
@@ -528,9 +522,6 @@ TEST_F(MetricsReporterOmahaTest,
 TEST_F(MetricsReporterOmahaTest, WallclockDurationHelper) {
   base::TimeDelta duration;
   const std::string state_variable_key = "test-prefs";
-  FakePrefs fake_prefs;
-
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
 
   // Initialize wallclock to 1 sec.
   fake_clock_->SetWallclockTime(base::Time::FromInternalValue(1000000));

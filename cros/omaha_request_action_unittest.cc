@@ -399,7 +399,7 @@ class OmahaRequestActionTest : public ::testing::Test {
     request_params_.set_dlc_apps_params({});
 
     FakeSystemState::Get()->set_request_params(&request_params_);
-    FakeSystemState::Get()->set_prefs(&fake_prefs_);
+    fake_prefs_ = FakeSystemState::Get()->fake_prefs();
 
     // Setting the default update check params. Lookup |TestUpdateCheck()|.
     tuc_params_ = {
@@ -462,7 +462,7 @@ class OmahaRequestActionTest : public ::testing::Test {
   // Used by all tests.
   OmahaRequestParams request_params_;
 
-  FakePrefs fake_prefs_;
+  FakePrefs* fake_prefs_;
 
   OmahaRequestActionTestProcessorDelegate delegate_;
 
@@ -504,6 +504,7 @@ class OmahaRequestActionDlcPingTest : public OmahaRequestActionTest {
   std::string last_active_key_;
   std::string last_rollcall_key_;
 };
+
 bool OmahaRequestActionTest::TestUpdateCheck() {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
@@ -679,9 +680,9 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_FALSE(response_.powerwash_required);
   // Omaha cohort attributes are not set in the response, so they should not be
   // persisted.
-  EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohort));
-  EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortHint));
-  EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortName));
+  EXPECT_FALSE(fake_prefs_->Exists(kPrefsOmahaCohort));
+  EXPECT_FALSE(fake_prefs_->Exists(kPrefsOmahaCohortHint));
+  EXPECT_FALSE(fake_prefs_->Exists(kPrefsOmahaCohortName));
 }
 
 TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
@@ -899,7 +900,7 @@ TEST_F(OmahaRequestActionTest,
   // This test tests that, when device policy is not set, update over cellular
   // is allowed as permission for update over cellular is set to true.
   MockConnectionManager mock_cm;
-  fake_prefs_.SetBoolean(kPrefsUpdateOverCellularPermission, true);
+  fake_prefs_->SetBoolean(kPrefsUpdateOverCellularPermission, true);
   FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
@@ -929,8 +930,8 @@ TEST_F(OmahaRequestActionTest,
   // A size different from the size in omaha response.
   int64_t diff_size = 999;
 
-  fake_prefs_.SetString(kPrefsUpdateOverCellularTargetVersion, diff_version);
-  fake_prefs_.SetInt64(kPrefsUpdateOverCellularTargetSize, diff_size);
+  fake_prefs_->SetString(kPrefsUpdateOverCellularTargetVersion, diff_version);
+  fake_prefs_->SetInt64(kPrefsUpdateOverCellularTargetSize, diff_size);
   // This test tests cellular (3G) being the only connection type being allowed.
   FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
@@ -963,8 +964,8 @@ TEST_F(OmahaRequestActionTest,
   // A size same as the size in omaha response.
   int64_t new_size = fake_update_response_.size;
 
-  fake_prefs_.SetString(kPrefsUpdateOverCellularTargetVersion, new_version);
-  fake_prefs_.SetInt64(kPrefsUpdateOverCellularTargetSize, new_size);
+  fake_prefs_->SetString(kPrefsUpdateOverCellularTargetVersion, new_version);
+  fake_prefs_->SetInt64(kPrefsUpdateOverCellularTargetSize, new_size);
   FakeSystemState::Get()->set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
@@ -1155,7 +1156,7 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   ASSERT_TRUE(TestUpdateCheck());
 
   int64_t count;
-  ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
+  ASSERT_TRUE(fake_prefs_->GetInt64(kPrefsUpdateCheckCount, &count));
   ASSERT_EQ(count, 0);
   EXPECT_TRUE(response_.update_exists);
 }
@@ -1174,7 +1175,7 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   ASSERT_FALSE(TestUpdateCheck());
 
   int64_t count;
-  ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
+  ASSERT_TRUE(fake_prefs_->GetInt64(kPrefsUpdateCheckCount, &count));
   ASSERT_GT(count, 0);
   EXPECT_FALSE(response_.update_exists);
 }
@@ -1207,11 +1208,11 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   tuc_params_.expected_code = ErrorCode::kOmahaUpdateDeferredPerPolicy;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kDeferring;
 
-  ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsUpdateCheckCount, 5));
+  ASSERT_TRUE(fake_prefs_->SetInt64(kPrefsUpdateCheckCount, 5));
   ASSERT_FALSE(TestUpdateCheck());
 
   int64_t count;
-  ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateCheckCount, &count));
+  ASSERT_TRUE(fake_prefs_->GetInt64(kPrefsUpdateCheckCount, &count));
   // |count| remains the same, as the decrementing happens in update_attempter
   // which this test doesn't exercise.
   ASSERT_EQ(count, 5);
@@ -1229,7 +1230,7 @@ TEST_F(OmahaRequestActionTest,
   FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
-  ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsUpdateCheckCount, 5));
+  ASSERT_TRUE(fake_prefs_->SetInt64(kPrefsUpdateCheckCount, 5));
 
   // Verify if we are interactive check we don't defer.
   ASSERT_TRUE(TestUpdateCheck());
@@ -1244,7 +1245,7 @@ TEST_F(OmahaRequestActionTest, StagingTurnedOnCausesScattering) {
   request_params_.set_update_check_count_wait_enabled(false);
   FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
 
-  ASSERT_TRUE(fake_prefs_.SetInt64(kPrefsWallClockStagingWaitPeriod, 6));
+  ASSERT_TRUE(fake_prefs_->SetInt64(kPrefsWallClockStagingWaitPeriod, 6));
   // This should not prevent scattering due to staging.
   fake_update_response_.max_days_to_scatter = "0";
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
@@ -1283,48 +1284,48 @@ TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohort, &value));
   EXPECT_EQ(fake_update_response_.cohort, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohortHint, &value));
   EXPECT_EQ(fake_update_response_.cohorthint, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohortName, &value));
   EXPECT_EQ(fake_update_response_.cohortname, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort}),
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohort, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohortname, value);
 }
 
 TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
-  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
-  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortHint, "old_hint"));
-  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortName, "old_name"));
+  EXPECT_TRUE(fake_prefs_->SetString(kPrefsOmahaCohort, "old_value"));
+  EXPECT_TRUE(fake_prefs_->SetString(kPrefsOmahaCohortHint, "old_hint"));
+  EXPECT_TRUE(fake_prefs_->SetString(kPrefsOmahaCohortName, "old_name"));
   const string dlc_cohort_key =
-      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort});
-  const string dlc_cohort_hint_key = fake_prefs_.CreateSubKey(
+      fake_prefs_->CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort});
+  const string dlc_cohort_hint_key = fake_prefs_->CreateSubKey(
       {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint});
-  const string dlc_cohort_name_key = fake_prefs_.CreateSubKey(
+  const string dlc_cohort_name_key = fake_prefs_->CreateSubKey(
       {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName});
   request_params_.set_dlc_apps_params(
       {{request_params_.GetDlcAppId(kDlcId1), {.name = kDlcId1}}});
-  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_key, "old_value_dlc"));
-  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_hint_key, "old_hint_dlc"));
-  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_name_key, "old_name_dlc"));
+  EXPECT_TRUE(fake_prefs_->SetString(dlc_cohort_key, "old_value_dlc"));
+  EXPECT_TRUE(fake_prefs_->SetString(dlc_cohort_hint_key, "old_hint_dlc"));
+  EXPECT_TRUE(fake_prefs_->SetString(dlc_cohort_name_key, "old_name_dlc"));
   fake_update_response_.include_cohorts = true;
   fake_update_response_.cohort = "s/154454/8479665";
   fake_update_response_.cohorthint = "please-put-me-on-beta";
@@ -1340,48 +1341,48 @@ TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohort, &value));
   EXPECT_EQ(fake_update_response_.cohort, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohortHint, &value));
   EXPECT_EQ(fake_update_response_.cohorthint, value);
 
-  EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_FALSE(fake_prefs_->GetString(kPrefsOmahaCohortName, &value));
 
-  EXPECT_TRUE(fake_prefs_.GetString(dlc_cohort_key, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(dlc_cohort_key, &value));
   EXPECT_EQ(fake_update_response_.dlc_cohort, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(dlc_cohort_hint_key, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(dlc_cohort_hint_key, &value));
   EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
 
-  EXPECT_FALSE(fake_prefs_.GetString(dlc_cohort_name_key, &value));
+  EXPECT_FALSE(fake_prefs_->GetString(dlc_cohort_name_key, &value));
 }
 
 TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
 
-  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
+  EXPECT_TRUE(fake_prefs_->SetString(kPrefsOmahaCohort, "old_value"));
   const string dlc_cohort_key =
-      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort});
-  EXPECT_TRUE(fake_prefs_.SetString(dlc_cohort_key, "old_value_dlc"));
+      fake_prefs_->CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort});
+  EXPECT_TRUE(fake_prefs_->SetString(dlc_cohort_key, "old_value_dlc"));
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohort, &value));
   EXPECT_EQ("old_value", value);
 
-  EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
-  EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_FALSE(fake_prefs_->GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_FALSE(fake_prefs_->GetString(kPrefsOmahaCohortName, &value));
 
-  EXPECT_TRUE(fake_prefs_.GetString(dlc_cohort_key, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(dlc_cohort_key, &value));
   EXPECT_EQ("old_value_dlc", value);
 
-  EXPECT_FALSE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_FALSE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint}),
       &value));
-  EXPECT_FALSE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_FALSE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName}),
       &value));
 }
@@ -1398,13 +1399,13 @@ TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohort, &value));
   EXPECT_EQ(fake_update_response_.cohort, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohortHint, &value));
   EXPECT_EQ(fake_update_response_.cohorthint, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohortName, &value));
   EXPECT_EQ(fake_update_response_.cohortname, value);
 }
 
@@ -1429,42 +1430,42 @@ TEST_F(OmahaRequestActionTest, MultiAppCohortTest) {
   ASSERT_TRUE(TestUpdateCheck());
 
   string value;
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohort, &value));
   EXPECT_EQ(fake_update_response_.cohort, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohortHint, &value));
   EXPECT_EQ(fake_update_response_.cohorthint, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsOmahaCohortName, &value));
   EXPECT_EQ(fake_update_response_.cohortname, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort}),
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey({kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohort}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohort, value);
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey({kDlcPrefsSubDir, kDlcId2, kPrefsOmahaCohort}),
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey({kDlcPrefsSubDir, kDlcId2, kPrefsOmahaCohort}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohort, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortHint}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId2, kPrefsOmahaCohortHint}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohorthint, value);
 
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId1, kPrefsOmahaCohortName}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohortname, value);
-  EXPECT_TRUE(fake_prefs_.GetString(
-      fake_prefs_.CreateSubKey(
+  EXPECT_TRUE(fake_prefs_->GetString(
+      fake_prefs_->CreateSubKey(
           {kDlcPrefsSubDir, kDlcId2, kPrefsOmahaCohortName}),
       &value));
   EXPECT_EQ(fake_update_response_.dlc_cohortname, value);
@@ -1634,9 +1635,9 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   request_params_.set_target_channel("unittest_track&lt;");
   request_params_.set_lts_tag("unittest_hint&lt;");
   request_params_.set_hwid("<OEM MODEL>");
-  fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
-  fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
-  fake_prefs_.SetString(
+  fake_prefs_->SetString(kPrefsOmahaCohort, "evil\nstring");
+  fake_prefs_->SetString(kPrefsOmahaCohortHint, "evil&string\\");
+  fake_prefs_->SetString(
       kPrefsOmahaCohortName,
       base::JoinString(vector<string>(100, "My spoon is too big."), " "));
   tuc_params_.http_response = "invalid xml>";
@@ -1875,7 +1876,7 @@ TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsSetTest) {
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
   request_params_.set_autoupdate_token(autoupdate_token);
-  fake_prefs_.SetString(kPrefsOmahaCohortHint, omaha_cohort_hint);
+  fake_prefs_->SetString(kPrefsOmahaCohortHint, omaha_cohort_hint);
 
   ASSERT_TRUE(TestUpdateCheck());
 
@@ -1895,7 +1896,7 @@ TEST_F(OmahaRequestActionTest, DeviceQuickFixBuildTokenIsNotSetTest) {
   tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
-  fake_prefs_.SetString(kPrefsOmahaCohortHint, omaha_cohort_hint);
+  fake_prefs_->SetString(kPrefsOmahaCohortHint, omaha_cohort_hint);
 
   ASSERT_TRUE(TestUpdateCheck());
 
@@ -2222,7 +2223,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   ASSERT_FALSE(TestUpdateCheck());
 
   int64_t timestamp = 0;
-  ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
+  ASSERT_TRUE(fake_prefs_->GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
   EXPECT_EQ(arbitrary_date.ToInternalValue(), timestamp);
   EXPECT_FALSE(response_.update_exists);
 
@@ -2244,7 +2245,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   ASSERT_TRUE(Time::FromString("1/1/2012", &t1));
   ASSERT_TRUE(Time::FromString("1/3/2012", &t2));
   ASSERT_TRUE(
-      fake_prefs_.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
+      fake_prefs_->SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
   FakeSystemState::Get()->fake_clock()->SetWallclockTime(t2);
 
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
@@ -2254,7 +2255,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
 
   // Make sure the timestamp t1 is unchanged showing that it was reused.
   int64_t timestamp = 0;
-  ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
+  ASSERT_TRUE(fake_prefs_->GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
   ASSERT_TRUE(timestamp == t1.ToInternalValue());
 }
 
@@ -2322,7 +2323,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
 // Checks that the initial ping with a=-1 r=-1 is not send when the device
 // was powerwashed.
 TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
-  fake_prefs_.SetString(kPrefsPreviousVersion, "");
+  fake_prefs_->SetString(kPrefsPreviousVersion, "");
 
   // Flag that the device was powerwashed in the past.
   FakeSystemState::Get()->fake_hardware()->SetPowerwashCount(1);
@@ -2339,7 +2340,7 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
 // Checks that the initial ping with a=-1 r=-1 is not send when the device
 // first_active_omaha_ping_sent is set.
 TEST_F(OmahaRequestActionTest, PingWhenFirstActiveOmahaPingIsSent) {
-  fake_prefs_.SetString(kPrefsPreviousVersion, "");
+  fake_prefs_->SetString(kPrefsPreviousVersion, "");
 
   // Flag that the device was not powerwashed in the past.
   FakeSystemState::Get()->fake_hardware()->SetPowerwashCount(0);
@@ -2361,7 +2362,7 @@ TEST_F(OmahaRequestActionTest, PingWhenFirstActiveOmahaPingIsSent) {
 // Checks that the event 54 is sent on a reboot to a new update.
 TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
   // Flag that the device was updated in a previous boot.
-  fake_prefs_.SetString(kPrefsPreviousVersion, "1.2.3.4");
+  fake_prefs_->SetString(kPrefsPreviousVersion, "1.2.3.4");
 
   tuc_params_.http_response = fake_update_response_.GetNoUpdateResponse();
   tuc_params_.expected_check_result = metrics::CheckResult::kNoUpdateAvailable;
@@ -2378,9 +2379,9 @@ TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
             post_str_.find("previousversion=\"1.2.3.4\"></event>"));
 
   // The previous version flag should have been removed.
-  EXPECT_TRUE(fake_prefs_.Exists(kPrefsPreviousVersion));
+  EXPECT_TRUE(fake_prefs_->Exists(kPrefsPreviousVersion));
   string prev_version;
-  EXPECT_TRUE(fake_prefs_.GetString(kPrefsPreviousVersion, &prev_version));
+  EXPECT_TRUE(fake_prefs_->GetString(kPrefsPreviousVersion, &prev_version));
   EXPECT_TRUE(prev_version.empty());
 }
 
@@ -2537,29 +2538,29 @@ TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
 
   // Check that we parse elapsed_days in the Omaha Response correctly.
   // and that the kPrefsInstallDateDays value is written to.
-  EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
+  EXPECT_FALSE(fake_prefs_->Exists(kPrefsInstallDateDays));
   EXPECT_TRUE(InstallDateParseHelper("42", &response_));
   EXPECT_TRUE(response_.update_exists);
   EXPECT_EQ(42, response_.install_date_days);
-  EXPECT_TRUE(fake_prefs_.Exists(kPrefsInstallDateDays));
+  EXPECT_TRUE(fake_prefs_->Exists(kPrefsInstallDateDays));
   int64_t prefs_days;
-  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_TRUE(fake_prefs_->GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 42);
 
   // If there already is a value set, we shouldn't do anything.
   EXPECT_TRUE(InstallDateParseHelper("7", &response_));
   EXPECT_TRUE(response_.update_exists);
   EXPECT_EQ(7, response_.install_date_days);
-  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_TRUE(fake_prefs_->GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 42);
 
   // Note that elapsed_days is not necessarily divisible by 7 so check
   // that we round down correctly when populating kPrefsInstallDateDays.
-  EXPECT_TRUE(fake_prefs_.Delete(kPrefsInstallDateDays));
+  EXPECT_TRUE(fake_prefs_->Delete(kPrefsInstallDateDays));
   EXPECT_TRUE(InstallDateParseHelper("23", &response_));
   EXPECT_TRUE(response_.update_exists);
   EXPECT_EQ(23, response_.install_date_days);
-  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_TRUE(fake_prefs_->GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 21);
 
   // Check that we correctly handle elapsed_days not being included in
@@ -2574,7 +2575,7 @@ TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
 TEST_F(OmahaRequestActionTest, GetInstallDateWhenNoPrefsNorOOBE) {
   FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(), -1);
-  EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
+  EXPECT_FALSE(fake_prefs_->Exists(kPrefsInstallDateDays));
 }
 
 // If OOBE is complete and happened on a valid date (e.g. after Jan
@@ -2585,7 +2586,7 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedWithInvalidDate) {
   Time oobe_date = Time::FromTimeT(42);  // Dec 31, 1969 16:00:42 PST.
   FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(oobe_date);
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(), -1);
-  EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
+  EXPECT_FALSE(fake_prefs_->Exists(kPrefsInstallDateDays));
 }
 
 // Then check with a valid date. The date Jan 20, 2007 0:00 PST
@@ -2594,10 +2595,10 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedWithValidDate) {
   Time oobe_date = Time::FromTimeT(1169280000);  // Jan 20, 2007 0:00 PST.
   FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(oobe_date);
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(), 14);
-  EXPECT_TRUE(fake_prefs_.Exists(kPrefsInstallDateDays));
+  EXPECT_TRUE(fake_prefs_->Exists(kPrefsInstallDateDays));
 
   int64_t prefs_days;
-  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_TRUE(fake_prefs_->GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 14);
 }
 
@@ -2607,20 +2608,20 @@ TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedWithValidDate) {
 // there's a prefs file, we should still get 14.
 TEST_F(OmahaRequestActionTest, GetInstallDateWhenOOBECompletedDateChanges) {
   // Set a valid date in the prefs first.
-  EXPECT_TRUE(fake_prefs_.SetInt64(kPrefsInstallDateDays, 14));
+  EXPECT_TRUE(fake_prefs_->SetInt64(kPrefsInstallDateDays, 14));
 
   Time oobe_date = Time::FromTimeT(1170144000);  // Jan 30, 2007 0:00 PST.
   FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(oobe_date);
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(), 14);
 
   int64_t prefs_days;
-  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_TRUE(fake_prefs_->GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 14);
 
   // If we delete the prefs file, we should get 28 days.
-  EXPECT_TRUE(fake_prefs_.Delete(kPrefsInstallDateDays));
+  EXPECT_TRUE(fake_prefs_->Delete(kPrefsInstallDateDays));
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(), 28);
-  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_TRUE(fake_prefs_->GetInt64(kPrefsInstallDateDays, &prefs_days));
   EXPECT_EQ(prefs_days, 28);
 }
 
@@ -2809,11 +2810,11 @@ TEST_F(OmahaRequestActionTest,
   ASSERT_TRUE(TestUpdateCheck());
 
   EXPECT_TRUE(response_.update_exists);
-  EXPECT_TRUE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
+  EXPECT_TRUE(fake_prefs_->Exists(kPrefsUpdateFirstSeenAt));
 
   int64_t stored_first_seen_at_time;
-  EXPECT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt,
-                                   &stored_first_seen_at_time));
+  EXPECT_TRUE(fake_prefs_->GetInt64(kPrefsUpdateFirstSeenAt,
+                                    &stored_first_seen_at_time));
   EXPECT_EQ(now.ToInternalValue(), stored_first_seen_at_time);
 }
 
@@ -2831,7 +2832,7 @@ TEST_F(OmahaRequestActionTest,
   ASSERT_TRUE(TestUpdateCheck());
 
   EXPECT_FALSE(response_.update_exists);
-  EXPECT_FALSE(fake_prefs_.Exists(kPrefsUpdateFirstSeenAt));
+  EXPECT_FALSE(fake_prefs_->Exists(kPrefsUpdateFirstSeenAt));
 }
 
 TEST_F(OmahaRequestActionTest, InstallTest) {
@@ -3099,14 +3100,14 @@ TEST_F(OmahaRequestActionDlcPingTest, StorePingReplyNoPing) {
 
   int64_t temp_int;
   // If there was no ping, the metadata files shouldn't exist yet.
-  EXPECT_FALSE(fake_prefs_.GetInt64(active_key_, &temp_int));
-  EXPECT_FALSE(fake_prefs_.GetInt64(last_active_key_, &temp_int));
-  EXPECT_FALSE(fake_prefs_.GetInt64(last_rollcall_key_, &temp_int));
+  EXPECT_FALSE(fake_prefs_->GetInt64(active_key_, &temp_int));
+  EXPECT_FALSE(fake_prefs_->GetInt64(last_active_key_, &temp_int));
+  EXPECT_FALSE(fake_prefs_->GetInt64(last_rollcall_key_, &temp_int));
 }
 
 TEST_F(OmahaRequestActionDlcPingTest, StorePingReplyActiveTest) {
   // Create Active value
-  fake_prefs_.SetInt64(active_key_, 0);
+  fake_prefs_->SetInt64(active_key_, 0);
 
   OmahaRequestParams::AppParams app_param = {
       .active_counting_type = OmahaRequestParams::kDateBased,
@@ -3119,17 +3120,17 @@ TEST_F(OmahaRequestActionDlcPingTest, StorePingReplyActiveTest) {
   int64_t temp_int;
   string temp_str;
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(fake_prefs_.GetInt64(active_key_, &temp_int));
+  EXPECT_TRUE(fake_prefs_->GetInt64(active_key_, &temp_int));
   EXPECT_EQ(temp_int, kPingInactiveValue);
-  EXPECT_TRUE(fake_prefs_.GetString(last_active_key_, &temp_str));
+  EXPECT_TRUE(fake_prefs_->GetString(last_active_key_, &temp_str));
   EXPECT_EQ(temp_str, "4763");
-  EXPECT_TRUE(fake_prefs_.GetString(last_rollcall_key_, &temp_str));
+  EXPECT_TRUE(fake_prefs_->GetString(last_rollcall_key_, &temp_str));
   EXPECT_EQ(temp_str, "4763");
 }
 
 TEST_F(OmahaRequestActionDlcPingTest, StorePingReplyInactiveTest) {
   // Create Active value
-  fake_prefs_.SetInt64(active_key_, 0);
+  fake_prefs_->SetInt64(active_key_, 0);
 
   OmahaRequestParams::AppParams app_param = {
       .active_counting_type = OmahaRequestParams::kDateBased,
@@ -3140,16 +3141,16 @@ TEST_F(OmahaRequestActionDlcPingTest, StorePingReplyInactiveTest) {
       {{request_params_.GetDlcAppId(dlc_id_), app_param}});
 
   // Set the previous active value to an older value than 4763.
-  fake_prefs_.SetString(last_active_key_, "555");
+  fake_prefs_->SetString(last_active_key_, "555");
 
   int64_t temp_int;
   ASSERT_TRUE(TestUpdateCheck());
-  EXPECT_TRUE(fake_prefs_.GetInt64(active_key_, &temp_int));
+  EXPECT_TRUE(fake_prefs_->GetInt64(active_key_, &temp_int));
   EXPECT_EQ(temp_int, kPingInactiveValue);
   string temp_str;
-  EXPECT_TRUE(fake_prefs_.GetString(last_active_key_, &temp_str));
+  EXPECT_TRUE(fake_prefs_->GetString(last_active_key_, &temp_str));
   EXPECT_EQ(temp_str, "555");
-  EXPECT_TRUE(fake_prefs_.GetString(last_rollcall_key_, &temp_str));
+  EXPECT_TRUE(fake_prefs_->GetString(last_rollcall_key_, &temp_str));
   EXPECT_EQ(temp_str, "4763");
 }
 

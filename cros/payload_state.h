@@ -483,10 +483,9 @@ class PayloadState : public PayloadStateInterface {
   size_t payload_index_ = 0;
 
   // The index of the current URL.  This type is different from the one in the
-  // accessor methods because PrefsInterface supports only int64_t but we want
+  // accessor methods because |PrefsInterface| supports only int64_t but we want
   // to provide a stronger abstraction of uint32_t.  Each update to this value
-  // is persisted so we resume from the same value in case of a process
-  // restart.
+  // is persisted so we resume from the same value in case of a process restart.
   size_t url_index_;
 
   // The count of failures encountered in the current attempt to download using

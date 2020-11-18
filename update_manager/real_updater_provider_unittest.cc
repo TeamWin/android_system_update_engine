@@ -23,7 +23,6 @@
 #include <gtest/gtest.h>
 #include <update_engine/dbus-constants.h>
 
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 #include "update_engine/cros/mock_update_attempter.h"
 #include "update_engine/cros/omaha_request_params.h"
@@ -99,7 +98,6 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     FakeSystemState::CreateInstance();
-    FakeSystemState::Get()->set_prefs(&fake_prefs_);
     provider_.reset(new RealUpdaterProvider());
     // Check that provider initializes correctly.
     ASSERT_TRUE(provider_->Init());
@@ -122,7 +120,6 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
     return kCurrWallclockTime - kDurationSinceUpdate;
   }
 
-  FakePrefs fake_prefs_;
   unique_ptr<RealUpdaterProvider> provider_;
 };
 
@@ -363,22 +360,26 @@ TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledOkayPrefDoesntExist) {
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledOkayPrefReadsFalse) {
-  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, false);
+  FakeSystemState::Get()->fake_prefs()->SetBoolean(
+      chromeos_update_engine::kPrefsP2PEnabled, false);
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledReadWhenInitialized) {
-  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, true);
-  SetUp();
+  FakeSystemState::Get()->fake_prefs()->SetBoolean(
+      chromeos_update_engine::kPrefsP2PEnabled, true);
+  provider_.reset(new RealUpdaterProvider());
+  ASSERT_TRUE(provider_->Init());
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_p2p_enabled());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledUpdated) {
-  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, false);
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
+  fake_prefs->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, false);
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
-  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, true);
+  fake_prefs->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, true);
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_p2p_enabled());
-  fake_prefs_.Delete(chromeos_update_engine::kPrefsP2PEnabled);
+  fake_prefs->Delete(chromeos_update_engine::kPrefsP2PEnabled);
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
 }
 
@@ -387,7 +388,7 @@ TEST_F(UmRealUpdaterProviderTest, GetCellularEnabledOkayPrefDoesntExist) {
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetCellularEnabledOkayPrefReadsTrue) {
-  fake_prefs_.SetBoolean(
+  FakeSystemState::Get()->fake_prefs()->SetBoolean(
       chromeos_update_engine::kPrefsUpdateOverCellularPermission, true);
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_cellular_enabled());
 }
@@ -448,14 +449,15 @@ TEST_F(UmRealUpdaterProviderTest, GetUpdateRestrictionsNone) {
 TEST_F(UmRealUpdaterProviderTest, TestUpdateCheckIntervalTimeout) {
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_test_update_check_interval_timeout());
-  fake_prefs_.SetInt64(
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
+  fake_prefs->SetInt64(
       chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout, 1);
   UmTestUtils::ExpectVariableHasValue(
       static_cast<int64_t>(1),
       provider_->var_test_update_check_interval_timeout());
 
   // Make sure the value does not exceed a threshold of 10 minutes.
-  fake_prefs_.SetInt64(
+  fake_prefs->SetInt64(
       chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout, 11 * 60);
   // The next 5 reads should return valid values.
   for (int i = 0; i < 5; ++i)

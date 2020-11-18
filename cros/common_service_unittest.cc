@@ -24,7 +24,6 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 #include "update_engine/cros/omaha_utils.h"
 

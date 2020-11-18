@@ -25,7 +25,6 @@
 #include <base/strings/string_split.h>
 
 #include "update_engine/common/constants.h"
-#include "update_engine/common/prefs.h"
 #include "update_engine/common/system_state.h"
 
 using std::string;
@@ -33,29 +32,30 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-std::unique_ptr<ExcluderInterface> CreateExcluder(PrefsInterface* prefs) {
-  return std::make_unique<ExcluderChromeOS>(prefs);
+std::unique_ptr<ExcluderInterface> CreateExcluder() {
+  return std::make_unique<ExcluderChromeOS>();
 }
 
-ExcluderChromeOS::ExcluderChromeOS(PrefsInterface* prefs) : prefs_(prefs) {}
-
 bool ExcluderChromeOS::Exclude(const string& name) {
-  auto key = prefs_->CreateSubKey({kExclusionPrefsSubDir, name});
-  return prefs_->SetString(key, "");
+  auto* prefs = SystemState::Get()->prefs();
+  auto key = prefs->CreateSubKey({kExclusionPrefsSubDir, name});
+  return prefs->SetString(key, "");
 }
 
 bool ExcluderChromeOS::IsExcluded(const string& name) {
-  auto key = prefs_->CreateSubKey({kExclusionPrefsSubDir, name});
-  return prefs_->Exists(key);
+  auto* prefs = SystemState::Get()->prefs();
+  auto key = prefs->CreateSubKey({kExclusionPrefsSubDir, name});
+  return prefs->Exists(key);
 }
 
 bool ExcluderChromeOS::Reset() {
+  auto* prefs = SystemState::Get()->prefs();
   bool ret = true;
   vector<string> keys;
-  if (!prefs_->GetSubKeys(kExclusionPrefsSubDir, &keys))
+  if (!prefs->GetSubKeys(kExclusionPrefsSubDir, &keys))
     return false;
   for (const auto& key : keys)
-    if (!(ret &= prefs_->Delete(key)))
+    if (!(ret &= prefs->Delete(key)))
       LOG(ERROR) << "Failed to delete exclusion pref for " << key;
   return ret;
 }

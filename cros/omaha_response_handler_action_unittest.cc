@@ -81,6 +81,8 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
     FakeSystemState::CreateInstance();
+    // Enable MockPrefs;
+    FakeSystemState::Get()->set_prefs(nullptr);
     FakeBootControl* fake_boot_control =
         FakeSystemState::Get()->fake_boot_control();
     fake_boot_control->SetPartitionDevice(kPartitionNameKernel, 0, "/dev/sdz2");

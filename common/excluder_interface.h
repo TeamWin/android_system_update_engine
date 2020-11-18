@@ -26,6 +26,8 @@ namespace chromeos_update_engine {
 
 class PrefsInterface;
 
+// TODO(b/171829801): Move this interface to 'cros' directory. 'aosp' in no way
+// is using this. Not even the stub implementation.
 class ExcluderInterface {
  public:
   virtual ~ExcluderInterface() = default;
@@ -53,7 +55,7 @@ class ExcluderInterface {
   ExcluderInterface() = default;
 };
 
-std::unique_ptr<ExcluderInterface> CreateExcluder(PrefsInterface* prefs);
+std::unique_ptr<ExcluderInterface> CreateExcluder();
 
 }  // namespace chromeos_update_engine
 

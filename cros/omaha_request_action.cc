@@ -346,10 +346,7 @@ bool OmahaRequestAction::ShouldPing() const {
 
 // static
 int OmahaRequestAction::GetInstallDate() {
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-  if (prefs == nullptr)
-    return -1;
-
+  auto* prefs = SystemState::Get()->prefs();
   // If we have the value stored on disk, just return it.
   int64_t stored_value;
   if (prefs->GetInt64(kPrefsInstallDateDays, &stored_value)) {
@@ -422,7 +419,7 @@ void OmahaRequestAction::StorePingReply(
     if (!dlc_params.send_ping)
       continue;
 
-    PrefsInterface* prefs = SystemState::Get()->prefs();
+    auto* prefs = SystemState::Get()->prefs();
     // Reset the active metadata value to |kPingInactiveValue|.
     auto active_key =
         prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
@@ -518,7 +515,7 @@ bool ParseBool(const string& str) {
 
 // Update the last ping day preferences based on the server daystart
 // response. Returns true on success, false otherwise.
-bool UpdateLastPingDays(OmahaParserData* parser_data, PrefsInterface* prefs) {
+bool UpdateLastPingDays(OmahaParserData* parser_data) {
   int64_t elapsed_seconds = 0;
   TEST_AND_RETURN_FALSE(base::StringToInt64(
       parser_data->daystart_elapsed_seconds, &elapsed_seconds));
@@ -526,6 +523,7 @@ bool UpdateLastPingDays(OmahaParserData* parser_data, PrefsInterface* prefs) {
 
   // Remember the local time that matches the server's last midnight
   // time.
+  auto* prefs = SystemState::Get()->prefs();
   Time daystart = Time::Now() - TimeDelta::FromSeconds(elapsed_seconds);
   prefs->SetInt64(kPrefsLastActivePingDay, daystart.ToInternalValue());
   prefs->SetInt64(kPrefsLastRollCallPingDay, daystart.ToInternalValue());
@@ -976,7 +974,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher* fetcher,
   // Update the last ping day preferences based on the server daystart response
   // even if we didn't send a ping. Omaha always includes the daystart in the
   // response, but log the error if it didn't.
-  LOG_IF(ERROR, !UpdateLastPingDays(&parser_data, SystemState::Get()->prefs()))
+  LOG_IF(ERROR, !UpdateLastPingDays(&parser_data))
       << "Failed to update the last ping day preferences!";
 
   // Sets first_active_omaha_ping_sent to true (vpd in CrOS). We only do this if
@@ -1357,11 +1355,7 @@ bool OmahaRequestAction::ParseInstallDate(OmahaParserData* parser_data,
 
 // static
 bool OmahaRequestAction::HasInstallDate() {
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-  if (prefs == nullptr)
-    return false;
-
-  return prefs->Exists(kPrefsInstallDateDays);
+  return SystemState::Get()->prefs()->Exists(kPrefsInstallDateDays);
 }
 
 // static
@@ -1370,10 +1364,7 @@ bool OmahaRequestAction::PersistInstallDate(
     InstallDateProvisioningSource source) {
   TEST_AND_RETURN_FALSE(install_date_days >= 0);
 
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-  if (prefs == nullptr)
-    return false;
-
+  auto* prefs = SystemState::Get()->prefs();
   if (!prefs->SetInt64(kPrefsInstallDateDays, install_date_days))
     return false;
 
@@ -1417,7 +1408,7 @@ void OmahaRequestAction::PersistCohorts(const OmahaParserData& parser_data) {
                      << " as it is not in the request params.";
         continue;
       }
-      PrefsInterface* prefs = SystemState::Get()->prefs();
+      auto* prefs = SystemState::Get()->prefs();
       PersistCohortData(
           prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohort}),
           app.cohort);
@@ -1561,16 +1552,8 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(const OmahaResponse& response,
 
 bool OmahaRequestAction::IsUpdateAllowedOverCellularByPrefs(
     const OmahaResponse& response) const {
-  PrefsInterface* prefs = SystemState::Get()->prefs();
-
-  if (!prefs) {
-    LOG(INFO) << "Disabling updates over cellular as the preferences are "
-                 "not available.";
-    return false;
-  }
-
+  auto* prefs = SystemState::Get()->prefs();
   bool is_allowed;
-
   if (prefs->Exists(kPrefsUpdateOverCellularPermission) &&
       prefs->GetBoolean(kPrefsUpdateOverCellularPermission, &is_allowed) &&
       is_allowed) {

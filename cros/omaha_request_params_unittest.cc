@@ -25,7 +25,6 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
@@ -46,7 +45,6 @@ class OmahaRequestParamsTest : public ::testing::Test {
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
     params_.set_root(tempdir_.GetPath().value());
     FakeSystemState::CreateInstance();
-    FakeSystemState::Get()->set_prefs(&fake_prefs_);
     SetLockDown(false);
   }
 
@@ -56,8 +54,6 @@ class OmahaRequestParamsTest : public ::testing::Test {
   }
 
   OmahaRequestParams params_;
-  FakePrefs fake_prefs_;
-
   base::ScopedTempDir tempdir_;
 };
 

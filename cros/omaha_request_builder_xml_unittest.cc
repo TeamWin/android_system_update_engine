@@ -24,7 +24,6 @@
 #include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 
 using std::pair;
@@ -374,23 +373,8 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcCohortMissingCheck) {
   constexpr char kDlcId[] = "test-dlc-id";
   params_.set_dlc_apps_params(
       {{params_.GetDlcAppId(kDlcId), {.name = kDlcId}}});
-  auto* mock_prefs = FakeSystemState::Get()->mock_prefs();
   OmahaEvent event(OmahaEvent::kTypeUpdateDownloadStarted);
   OmahaRequestBuilderXml omaha_request{&event, false, false, 0, 0, 0, ""};
-  // OS App ID Expectations.
-  EXPECT_CALL(*mock_prefs, Exists(kPrefsOmahaCohort));
-  EXPECT_CALL(*mock_prefs, Exists(kPrefsOmahaCohortName));
-  EXPECT_CALL(*mock_prefs, Exists(kPrefsOmahaCohortHint));
-  // DLC App ID Expectations.
-  EXPECT_CALL(*mock_prefs,
-              Exists(PrefsInterface::CreateSubKey(
-                  {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohort})));
-  EXPECT_CALL(*mock_prefs,
-              Exists(PrefsInterface::CreateSubKey(
-                  {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortName})));
-  EXPECT_CALL(*mock_prefs,
-              Exists(PrefsInterface::CreateSubKey(
-                  {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortHint})));
   const string request_xml = omaha_request.GetRequest();
 
   // Check that no cohorts are in the request.
@@ -405,23 +389,22 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcCohortCheck) {
   const string kDlcId = "test-dlc-id";
   params_.set_dlc_apps_params(
       {{params_.GetDlcAppId(kDlcId), {.name = kDlcId}}});
-  FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
   OmahaEvent event(OmahaEvent::kTypeUpdateDownloadStarted);
   OmahaRequestBuilderXml omaha_request{&event, false, false, 0, 0, 0, ""};
   // DLC App ID Expectations.
   const string dlc_cohort_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohort});
   const string kDlcCohortVal = "test-cohort";
-  EXPECT_TRUE(fake_prefs.SetString(dlc_cohort_key, kDlcCohortVal));
+  EXPECT_TRUE(fake_prefs->SetString(dlc_cohort_key, kDlcCohortVal));
   const string dlc_cohort_name_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortName});
   const string kDlcCohortNameVal = "test-cohortname";
-  EXPECT_TRUE(fake_prefs.SetString(dlc_cohort_name_key, kDlcCohortNameVal));
+  EXPECT_TRUE(fake_prefs->SetString(dlc_cohort_name_key, kDlcCohortNameVal));
   const string dlc_cohort_hint_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortHint});
   const string kDlcCohortHintVal = "test-cohortval";
-  EXPECT_TRUE(fake_prefs.SetString(dlc_cohort_hint_key, kDlcCohortHintVal));
+  EXPECT_TRUE(fake_prefs->SetString(dlc_cohort_hint_key, kDlcCohortHintVal));
   const string request_xml = omaha_request.GetRequest();
 
   EXPECT_EQ(1,

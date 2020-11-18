@@ -36,7 +36,6 @@
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/mock_download_action.h"
 #include "update_engine/common/mock_http_fetcher.h"
-#include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/fake_p2p_manager_configuration.h"

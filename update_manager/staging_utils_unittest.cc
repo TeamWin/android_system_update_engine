@@ -24,10 +24,10 @@
 #include <policy/mock_device_policy.h>
 
 #include "update_engine/common/constants.h"
-#include "update_engine/common/fake_prefs.h"
+#include "update_engine/cros/fake_system_state.h"
 
 using base::TimeDelta;
-using chromeos_update_engine::FakePrefs;
+using chromeos_update_engine::FakeSystemState;
 using chromeos_update_engine::kPrefsWallClockStagingWaitPeriod;
 using testing::_;
 using testing::DoAll;
@@ -44,6 +44,7 @@ const StagingSchedule valid_schedule = {{2, 0}, {7, 50}, {9, 80}, {14, 100}};
 class StagingUtilsScheduleTest : public testing::Test {
  protected:
   void SetUp() override {
+    FakeSystemState::CreateInstance();
     test_wait_time_ = TimeDelta();
     test_staging_schedule_ = StagingSchedule();
   }
@@ -55,14 +56,13 @@ class StagingUtilsScheduleTest : public testing::Test {
   }
 
   void SetPersistedStagingVal(int64_t wait_time) {
-    EXPECT_TRUE(
-        fake_prefs_.SetInt64(kPrefsWallClockStagingWaitPeriod, wait_time));
+    EXPECT_TRUE(FakeSystemState::Get()->fake_prefs()->SetInt64(
+        kPrefsWallClockStagingWaitPeriod, wait_time));
   }
 
   void TestStagingCase(const StagingCase& expected) {
     EXPECT_EQ(expected,
               CalculateStagingCase(&device_policy_,
-                                   &fake_prefs_,
                                    &test_wait_time_,
                                    &test_staging_schedule_));
   }
@@ -75,7 +75,6 @@ class StagingUtilsScheduleTest : public testing::Test {
   policy::MockDevicePolicy device_policy_;
   TimeDelta test_wait_time_;
   StagingSchedule test_staging_schedule_;
-  FakePrefs fake_prefs_;
 };
 
 // Last element should be 100, if not return false.

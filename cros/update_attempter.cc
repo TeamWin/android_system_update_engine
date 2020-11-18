@@ -583,7 +583,7 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
   if (device_policy && !interactive && oobe_complete) {
     staging_wait_time_ = omaha_request_params_->waiting_period();
     staging_case = CalculateStagingCase(
-        device_policy, prefs_, &staging_wait_time_, &staging_schedule_);
+        device_policy, &staging_wait_time_, &staging_schedule_);
   }
   switch (staging_case) {
     case StagingCase::kOff:
@@ -618,11 +618,10 @@ void UpdateAttempter::CalculateStagingParams(bool interactive) {
 
 bool UpdateAttempter::ResetDlcPrefs(const string& dlc_id) {
   vector<string> failures;
-  PrefsInterface* prefs = SystemState::Get()->prefs();
   for (auto& sub_key :
        {kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall}) {
-    auto key = prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
-    if (!prefs->Delete(key))
+    auto key = prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
+    if (!prefs_->Delete(key))
       failures.emplace_back(sub_key);
   }
   if (failures.size() != 0)
@@ -653,11 +652,10 @@ bool UpdateAttempter::SetDlcActiveValue(bool is_active, const string& dlc_id) {
   }
   LOG(INFO) << "Set DLC (" << dlc_id << ") to "
             << (is_active ? "Active" : "Inactive");
-  PrefsInterface* prefs = SystemState::Get()->prefs();
   if (is_active) {
     auto ping_active_key =
-        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
-    if (!prefs->SetInt64(ping_active_key, kPingActiveValue)) {
+        prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
+    if (!prefs_->SetInt64(ping_active_key, kPingActiveValue)) {
       LOG(ERROR) << "Failed to set the value of ping metadata '"
                  << kPrefsPingActive << "'.";
       return false;
@@ -692,7 +690,6 @@ void UpdateAttempter::CalculateDlcParams() {
     LOG(INFO) << "Failed to retrieve DLC module IDs from dlcservice. Check the "
                  "state of dlcservice, will not update DLC modules.";
   }
-  PrefsInterface* prefs = SystemState::Get()->prefs();
   map<string, OmahaRequestParams::AppParams> dlc_apps_params;
   for (const auto& dlc_id : dlc_ids_) {
     OmahaRequestParams::AppParams dlc_params{
@@ -712,16 +709,16 @@ void UpdateAttempter::CalculateDlcParams() {
       // install or might not really be active yet.
       dlc_params.ping_active = kPingActiveValue;
       auto ping_active_key =
-          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
-      if (!prefs->GetInt64(ping_active_key, &dlc_params.ping_active) ||
+          prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
+      if (!prefs_->GetInt64(ping_active_key, &dlc_params.ping_active) ||
           dlc_params.ping_active != kPingActiveValue) {
         dlc_params.ping_active = kPingInactiveValue;
       }
       auto ping_last_active_key =
-          prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
+          prefs_->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
       dlc_params.ping_date_last_active = GetPingMetadata(ping_last_active_key);
 
-      auto ping_last_rollcall_key = prefs->CreateSubKey(
+      auto ping_last_rollcall_key = prefs_->CreateSubKey(
           {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
       dlc_params.ping_date_last_rollcall =
           GetPingMetadata(ping_last_rollcall_key);
@@ -1721,7 +1718,7 @@ void UpdateAttempter::UpdateEngineStarted() {
   SystemState::Get()->payload_state()->UpdateEngineStarted();
   StartP2PAtStartup();
 
-  excluder_ = CreateExcluder(SystemState::Get()->prefs());
+  excluder_ = CreateExcluder();
 }
 
 bool UpdateAttempter::StartP2PAtStartup() {

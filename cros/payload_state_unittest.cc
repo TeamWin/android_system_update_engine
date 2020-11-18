@@ -25,7 +25,6 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/fake_hardware.h"
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/metrics_reporter_interface.h"
 #include "update_engine/common/mock_excluder.h"
 #include "update_engine/common/mock_prefs.h"
@@ -108,11 +107,15 @@ static void SetupPayloadStateWith2Urls(string hash,
 class PayloadStateTest : public ::testing::Test {
  public:
   void SetUp() { FakeSystemState::CreateInstance(); }
+
+  // TODO(b/171829801): Replace all the |MockPrefs| in this file with
+  // |FakePrefs| so we don't have to catch every single unimportant mock call.
 };
 
 TEST_F(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   OmahaResponse response;
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
       .Times(AtLeast(1));
@@ -154,7 +157,8 @@ TEST_F(PayloadStateTest, SetResponseWorksWithSingleUrl) {
                                .metadata_size = 58123,
                                .metadata_signature = "msign",
                                .hash = "hash"});
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
       .Times(AtLeast(1));
@@ -205,7 +209,8 @@ TEST_F(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
                                .metadata_size = 558123,
                                .metadata_signature = "metasign",
                                .hash = "rhash"});
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
       .Times(AtLeast(1));
@@ -248,7 +253,8 @@ TEST_F(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
 
 TEST_F(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   OmahaResponse response;
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
   PayloadState payload_state;
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -350,7 +356,8 @@ TEST_F(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   OmahaResponse response;
   PayloadState payload_state;
   int progress_bytes = 100;
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
@@ -495,7 +502,8 @@ TEST_F(PayloadStateTest,
        PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
   OmahaResponse response;
   PayloadState payload_state;
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
@@ -534,7 +542,8 @@ TEST_F(PayloadStateTest,
        PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   OmahaResponse response;
   PayloadState payload_state;
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
@@ -587,20 +596,20 @@ TEST_F(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
 
   // Now, simulate a corrupted url index on persisted store which gets
-  // loaded when update_engine restarts. Using a different prefs object
-  // so as to not bother accounting for the uninteresting calls above.
-  NiceMock<MockPrefs>* prefs2 = FakeSystemState::Get()->mock_prefs();
-  EXPECT_CALL(*prefs2, Exists(_)).WillRepeatedly(Return(true));
-  EXPECT_CALL(*prefs2, GetInt64(_, _)).Times(AtLeast(1));
-  EXPECT_CALL(*prefs2, GetInt64(kPrefsPayloadAttemptNumber, _))
+  // loaded when update_engine restarts.
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
+  EXPECT_CALL(*prefs, Exists(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*prefs, GetInt64(_, _)).Times(AtLeast(1));
+  EXPECT_CALL(*prefs, GetInt64(kPrefsPayloadAttemptNumber, _))
       .Times(AtLeast(1));
-  EXPECT_CALL(*prefs2, GetInt64(kPrefsFullPayloadAttemptNumber, _))
+  EXPECT_CALL(*prefs, GetInt64(kPrefsFullPayloadAttemptNumber, _))
       .Times(AtLeast(1));
-  EXPECT_CALL(*prefs2, GetInt64(kPrefsCurrentUrlIndex, _))
+  EXPECT_CALL(*prefs, GetInt64(kPrefsCurrentUrlIndex, _))
       .WillRepeatedly(DoAll(SetArgPointee<1>(2), Return(true)));
-  EXPECT_CALL(*prefs2, GetInt64(kPrefsCurrentUrlFailureCount, _))
+  EXPECT_CALL(*prefs, GetInt64(kPrefsCurrentUrlFailureCount, _))
       .Times(AtLeast(1));
-  EXPECT_CALL(*prefs2, GetInt64(kPrefsUrlSwitchCount, _)).Times(AtLeast(1));
+  EXPECT_CALL(*prefs, GetInt64(kPrefsUrlSwitchCount, _)).Times(AtLeast(1));
 
   // Note: This will be a different payload object, but the response should
   // have the same hash as before so as to not trivially reset because the
@@ -937,12 +946,12 @@ TEST_F(PayloadStateTest, RestartingUpdateResetsMetrics) {
 }
 
 TEST_F(PayloadStateTest, NumRebootsIncrementsCorrectly) {
-  PayloadState payload_state;
-
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AtLeast(0));
   EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 1)).Times(AtLeast(1));
 
+  PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize());
 
   payload_state.UpdateRestarted();
@@ -964,10 +973,10 @@ TEST_F(PayloadStateTest, NumRebootsIncrementsCorrectly) {
 }
 
 TEST_F(PayloadStateTest, RollbackHappened) {
-  PayloadState payload_state;
-
-  NiceMock<MockPrefs>* mock_powerwash_safe_prefs =
+  FakeSystemState::Get()->set_powerwash_safe_prefs(nullptr);
+  auto* mock_powerwash_safe_prefs =
       FakeSystemState::Get()->mock_powerwash_safe_prefs();
+  PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize());
 
   // Verify pre-conditions are good.
@@ -994,9 +1003,8 @@ TEST_F(PayloadStateTest, RollbackHappened) {
 }
 
 TEST_F(PayloadStateTest, RollbackVersion) {
-  PayloadState payload_state;
-
-  NiceMock<MockPrefs>* mock_powerwash_safe_prefs =
+  FakeSystemState::Get()->set_powerwash_safe_prefs(nullptr);
+  auto* mock_powerwash_safe_prefs =
       FakeSystemState::Get()->mock_powerwash_safe_prefs();
 
   // Mock out the os version and make sure it's excluded correctly.
@@ -1005,6 +1013,7 @@ TEST_F(PayloadStateTest, RollbackVersion) {
   params.Init(rollback_version, "", {});
   FakeSystemState::Get()->set_request_params(&params);
 
+  PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize());
 
   // Verify pre-conditions are good.
@@ -1038,8 +1047,6 @@ TEST_F(PayloadStateTest, RollbackVersion) {
 TEST_F(PayloadStateTest, DurationsAreCorrect) {
   OmahaResponse response;
   response.packages.resize(1);
-  PayloadState payload_state;
-  FakePrefs fake_prefs;
 
   // Set the clock to a well-known time - 1 second on the wall-clock
   // and 2 seconds on the monotonic clock
@@ -1047,7 +1054,7 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
   fake_clock->SetWallclockTime(Time::FromInternalValue(1000000));
   fake_clock->SetMonotonicTime(Time::FromInternalValue(2000000));
 
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
+  PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize());
 
   // Check that durations are correct for a successful update where
@@ -1098,15 +1105,13 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
 
 TEST_F(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   OmahaResponse response;
-  PayloadState payload_state;
-  FakePrefs fake_prefs;
 
   // Set the clock to a well-known time (t = 30 seconds).
   auto* fake_clock = FakeSystemState::Get()->fake_clock();
   fake_clock->SetMonotonicTime(
       Time::FromInternalValue(30 * Time::kMicrosecondsPerSecond));
 
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
+  PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize());
 
   // Make the update succeed.
@@ -1114,8 +1119,9 @@ TEST_F(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
       "Hash8593", true, false, &payload_state, &response);
   payload_state.UpdateSucceeded();
 
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
   // Check that the marker was written.
-  EXPECT_TRUE(fake_prefs.Exists(kPrefsSystemUpdatedMarker));
+  EXPECT_TRUE(fake_prefs->Exists(kPrefsSystemUpdatedMarker));
 
   // Now simulate a reboot and set the wallclock time to a later point
   // (t = 500 seconds). We do this by using a new PayloadState object
@@ -1134,14 +1140,15 @@ TEST_F(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   payload_state2.UpdateEngineStarted();
 
   // Check that the marker was nuked.
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsSystemUpdatedMarker));
+  EXPECT_FALSE(fake_prefs->Exists(kPrefsSystemUpdatedMarker));
 }
 
 TEST_F(PayloadStateTest, RestartAfterCrash) {
   PayloadState payload_state;
   testing::StrictMock<MockMetricsReporter> mock_metrics_reporter;
   FakeSystemState::Get()->set_metrics_reporter(&mock_metrics_reporter);
-  NiceMock<MockPrefs>* prefs = FakeSystemState::Get()->mock_prefs();
+  FakeSystemState::Get()->set_prefs(nullptr);
+  auto* prefs = FakeSystemState::Get()->mock_prefs();
 
   EXPECT_TRUE(payload_state.Initialize());
 
@@ -1173,14 +1180,12 @@ TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsNoReporting) {
 }
 
 TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
-  PayloadState payload_state;
-  FakePrefs fake_prefs;
-
   // If we have a marker at startup, ensure it's reported and the
   // marker is then cleared.
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
-  fake_prefs.SetBoolean(kPrefsAttemptInProgress, true);
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
+  fake_prefs->SetBoolean(kPrefsAttemptInProgress, true);
 
+  PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize());
 
   EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
@@ -1188,17 +1193,14 @@ TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
       .Times(1);
   payload_state.UpdateEngineStarted();
 
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_FALSE(fake_prefs->Exists(kPrefsAttemptInProgress));
 }
 
 TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
-  PayloadState payload_state;
-  FakePrefs fake_prefs;
-
   // Make sure the marker is written and cleared during an attempt and
   // also that we DO NOT emit the metric (since the attempt didn't end
   // abnormally).
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
+  PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize());
   OmahaResponse response;
   response.packages.resize(1);
@@ -1208,18 +1210,19 @@ TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
               ReportAbnormallyTerminatedUpdateAttemptMetrics())
       .Times(0);
 
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
   // Attempt not in progress, should be clear.
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_FALSE(fake_prefs->Exists(kPrefsAttemptInProgress));
 
   payload_state.UpdateRestarted();
 
   // Attempt not in progress, should be set.
-  EXPECT_TRUE(fake_prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_TRUE(fake_prefs->Exists(kPrefsAttemptInProgress));
 
   payload_state.UpdateSucceeded();
 
   // Attempt not in progress, should be clear.
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_FALSE(fake_prefs->Exists(kPrefsAttemptInProgress));
 }
 
 TEST_F(PayloadStateTest, CandidateUrlsComputedCorrectly) {
@@ -1373,9 +1376,6 @@ TEST_F(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
 TEST_F(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
-
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
       "Hash3141", true, false, &payload_state, &response);
@@ -1415,9 +1415,6 @@ TEST_F(PayloadStateTest, RebootAfterUpdateFailedMetric) {
 TEST_F(PayloadStateTest, RebootAfterUpdateSucceed) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
-
   FakeBootControl* fake_boot_control =
       FakeSystemState::Get()->fake_boot_control();
   fake_boot_control->SetCurrentSlot(0);
@@ -1448,9 +1445,6 @@ TEST_F(PayloadStateTest, RebootAfterUpdateSucceed) {
 TEST_F(PayloadStateTest, RebootAfterCanceledUpdate) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
       "Hash3141", true, false, &payload_state, &response);
@@ -1473,9 +1467,6 @@ TEST_F(PayloadStateTest, RebootAfterCanceledUpdate) {
 
 TEST_F(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
 
   EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
@@ -1489,9 +1480,6 @@ TEST_F(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
 TEST_F(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
-
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
       "Hash8593", true, false, &payload_state, &response);
@@ -1509,9 +1497,6 @@ TEST_F(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
 TEST_F(PayloadStateTest, DisallowP2PAfterDeadline) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
       "Hash8593", true, false, &payload_state, &response);
@@ -1553,9 +1538,6 @@ TEST_F(PayloadStateTest, DisallowP2PAfterDeadline) {
 TEST_F(PayloadStateTest, P2PStateVarsInitialValue) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
       "Hash8593", true, false, &payload_state, &response);
@@ -1568,8 +1550,6 @@ TEST_F(PayloadStateTest, P2PStateVarsInitialValue) {
 TEST_F(PayloadStateTest, P2PStateVarsArePersisted) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
       "Hash8593", true, false, &payload_state, &response);
@@ -1594,9 +1574,6 @@ TEST_F(PayloadStateTest, P2PStateVarsArePersisted) {
 TEST_F(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_prefs(&fake_prefs);
-
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
       "Hash8593", true, false, &payload_state, &response);

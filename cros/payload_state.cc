@@ -831,7 +831,6 @@ void PayloadState::ResetPersistedState() {
 }
 
 void PayloadState::ResetRollbackVersion() {
-  CHECK(powerwash_safe_prefs_);
   rollback_version_ = "";
   powerwash_safe_prefs_->Delete(kPrefsRollbackVersion);
 }
@@ -880,7 +879,6 @@ string PayloadState::CalculateResponseSignature() {
 }
 
 void PayloadState::LoadResponseSignature() {
-  CHECK(prefs_);
   string stored_value;
   if (prefs_->Exists(kPrefsCurrentResponseSignature) &&
       prefs_->GetString(kPrefsCurrentResponseSignature, &stored_value)) {
@@ -889,7 +887,6 @@ void PayloadState::LoadResponseSignature() {
 }
 
 void PayloadState::SetResponseSignature(const string& response_signature) {
-  CHECK(prefs_);
   response_signature_ = response_signature;
   LOG(INFO) << "Current Response Signature = \n" << response_signature_;
   prefs_->SetString(kPrefsCurrentResponseSignature, response_signature_);
@@ -912,7 +909,6 @@ void PayloadState::SetPayloadAttemptNumber(int payload_attempt_number) {
 
 void PayloadState::SetFullPayloadAttemptNumber(
     int full_payload_attempt_number) {
-  CHECK(prefs_);
   full_payload_attempt_number_ = full_payload_attempt_number;
   LOG(INFO) << "Full Payload Attempt Number = " << full_payload_attempt_number_;
   prefs_->SetInt64(kPrefsFullPayloadAttemptNumber,
@@ -920,7 +916,6 @@ void PayloadState::SetFullPayloadAttemptNumber(
 }
 
 void PayloadState::SetPayloadIndex(size_t payload_index) {
-  CHECK(prefs_);
   payload_index_ = payload_index;
   LOG(INFO) << "Payload Index = " << payload_index_;
   prefs_->SetInt64(kPrefsUpdateStatePayloadIndex, payload_index_);
@@ -941,7 +936,6 @@ void PayloadState::LoadUrlIndex() {
 }
 
 void PayloadState::SetUrlIndex(uint32_t url_index) {
-  CHECK(prefs_);
   url_index_ = url_index;
   LOG(INFO) << "Current URL Index = " << url_index_;
   prefs_->SetInt64(kPrefsCurrentUrlIndex, url_index_);
@@ -957,7 +951,6 @@ void PayloadState::LoadScatteringWaitPeriod() {
 }
 
 void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
-  CHECK(prefs_);
   scattering_wait_period_ = wait_period;
   LOG(INFO) << "Scattering Wait Period (seconds) = "
             << scattering_wait_period_.InSeconds();
@@ -975,7 +968,6 @@ void PayloadState::LoadStagingWaitPeriod() {
 }
 
 void PayloadState::SetStagingWaitPeriod(TimeDelta wait_period) {
-  CHECK(prefs_);
   staging_wait_period_ = wait_period;
   LOG(INFO) << "Staging Wait Period (days) =" << staging_wait_period_.InDays();
   if (staging_wait_period_.InSeconds() > 0) {
@@ -991,7 +983,6 @@ void PayloadState::LoadUrlSwitchCount() {
 }
 
 void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
-  CHECK(prefs_);
   url_switch_count_ = url_switch_count;
   LOG(INFO) << "URL Switch Count = " << url_switch_count_;
   prefs_->SetInt64(kPrefsUrlSwitchCount, url_switch_count_);
@@ -1002,7 +993,6 @@ void PayloadState::LoadUrlFailureCount() {
 }
 
 void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
-  CHECK(prefs_);
   url_failure_count_ = url_failure_count;
   LOG(INFO) << "Current URL (Url" << GetUrlIndex()
             << ")'s Failure Count = " << url_failure_count_;
@@ -1010,7 +1000,6 @@ void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
 }
 
 void PayloadState::LoadBackoffExpiryTime() {
-  CHECK(prefs_);
   int64_t stored_value;
   if (!prefs_->Exists(kPrefsBackoffExpiryTime))
     return;
@@ -1029,7 +1018,6 @@ void PayloadState::LoadBackoffExpiryTime() {
 }
 
 void PayloadState::SetBackoffExpiryTime(const Time& new_time) {
-  CHECK(prefs_);
   backoff_expiry_time_ = new_time;
   LOG(INFO) << "Backoff Expiry Time = "
             << utils::ToString(backoff_expiry_time_);
@@ -1047,9 +1035,6 @@ TimeDelta PayloadState::GetUpdateDuration() {
 void PayloadState::LoadUpdateTimestampStart() {
   int64_t stored_value;
   Time stored_time;
-
-  CHECK(prefs_);
-
   Time now = SystemState::Get()->clock()->GetWallclockTime();
 
   if (!prefs_->Exists(kPrefsUpdateTimestampStart)) {
@@ -1098,8 +1083,6 @@ void PayloadState::LoadUpdateDurationUptime() {
   int64_t stored_value;
   TimeDelta stored_delta;
 
-  CHECK(prefs_);
-
   if (!prefs_->Exists(kPrefsUpdateDurationUptime)) {
     // The preference missing is not unexpected - in that case, just
     // we'll use zero as the delta
@@ -1130,14 +1113,12 @@ void PayloadState::LoadNumReboots() {
 }
 
 void PayloadState::LoadRollbackHappened() {
-  CHECK(powerwash_safe_prefs_);
   bool rollback_happened = false;
   powerwash_safe_prefs_->GetBoolean(kPrefsRollbackHappened, &rollback_happened);
   SetRollbackHappened(rollback_happened);
 }
 
 void PayloadState::SetRollbackHappened(bool rollback_happened) {
-  CHECK(powerwash_safe_prefs_);
   LOG(INFO) << "Setting rollback-happened to " << rollback_happened << ".";
   rollback_happened_ = rollback_happened;
   if (rollback_happened) {
@@ -1149,7 +1130,6 @@ void PayloadState::SetRollbackHappened(bool rollback_happened) {
 }
 
 void PayloadState::LoadRollbackVersion() {
-  CHECK(powerwash_safe_prefs_);
   string rollback_version;
   if (powerwash_safe_prefs_->GetString(kPrefsRollbackVersion,
                                        &rollback_version)) {
@@ -1158,7 +1138,6 @@ void PayloadState::LoadRollbackVersion() {
 }
 
 void PayloadState::SetRollbackVersion(const string& rollback_version) {
-  CHECK(powerwash_safe_prefs_);
   LOG(INFO) << "Excluding version " << rollback_version;
   rollback_version_ = rollback_version;
   powerwash_safe_prefs_->SetString(kPrefsRollbackVersion, rollback_version);
@@ -1167,7 +1146,6 @@ void PayloadState::SetRollbackVersion(const string& rollback_version) {
 void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,
                                                    const Time& timestamp,
                                                    bool use_logging) {
-  CHECK(prefs_);
   update_duration_uptime_ = value;
   update_duration_uptime_timestamp_ = timestamp;
   prefs_->SetInt64(kPrefsUpdateDurationUptime,
@@ -1206,8 +1184,6 @@ void PayloadState::LoadCurrentBytesDownloaded(DownloadSource source) {
 void PayloadState::SetCurrentBytesDownloaded(DownloadSource source,
                                              uint64_t current_bytes_downloaded,
                                              bool log) {
-  CHECK(prefs_);
-
   if (source >= kNumDownloadSources)
     return;
 
@@ -1229,8 +1205,6 @@ void PayloadState::LoadTotalBytesDownloaded(DownloadSource source) {
 void PayloadState::SetTotalBytesDownloaded(DownloadSource source,
                                            uint64_t total_bytes_downloaded,
                                            bool log) {
-  CHECK(prefs_);
-
   if (source >= kNumDownloadSources)
     return;
 
@@ -1249,7 +1223,6 @@ void PayloadState::LoadNumResponsesSeen() {
 }
 
 void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
-  CHECK(prefs_);
   num_responses_seen_ = num_responses_seen;
   LOG(INFO) << "Num Responses Seen = " << num_responses_seen_;
   prefs_->SetInt64(kPrefsNumResponsesSeen, num_responses_seen_);
@@ -1389,7 +1362,6 @@ int PayloadState::GetP2PNumAttempts() {
 void PayloadState::SetP2PNumAttempts(int value) {
   p2p_num_attempts_ = value;
   LOG(INFO) << "p2p Num Attempts = " << p2p_num_attempts_;
-  CHECK(prefs_);
   prefs_->SetInt64(kPrefsP2PNumAttempts, value);
 }
 
@@ -1405,7 +1377,6 @@ void PayloadState::SetP2PFirstAttemptTimestamp(const Time& time) {
   p2p_first_attempt_timestamp_ = time;
   LOG(INFO) << "p2p First Attempt Timestamp = "
             << utils::ToString(p2p_first_attempt_timestamp_);
-  CHECK(prefs_);
   int64_t stored_value = time.ToInternalValue();
   prefs_->SetInt64(kPrefsP2PFirstAttemptTimestamp, stored_value);
 }
@@ -1418,7 +1389,6 @@ void PayloadState::LoadP2PFirstAttemptTimestamp() {
 }
 
 void PayloadState::P2PNewAttempt() {
-  CHECK(prefs_);
   // Set timestamp, if it hasn't been set already
   if (p2p_first_attempt_timestamp_.is_null()) {
     SetP2PFirstAttemptTimestamp(

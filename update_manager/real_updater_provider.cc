@@ -299,32 +299,31 @@ class BooleanPrefVariable
       public chromeos_update_engine::PrefsInterface::ObserverInterface {
  public:
   BooleanPrefVariable(const string& name,
-                      chromeos_update_engine::PrefsInterface* prefs,
                       const char* key,
                       bool default_val)
       : AsyncCopyVariable<bool>(name),
-        prefs_(prefs),
         key_(key),
         default_val_(default_val) {
-    prefs->AddObserver(key, this);
+    SystemState::Get()->prefs()->AddObserver(key, this);
     OnPrefSet(key);
   }
-  ~BooleanPrefVariable() { prefs_->RemoveObserver(key_, this); }
+  ~BooleanPrefVariable() {
+    SystemState::Get()->prefs()->RemoveObserver(key_, this);
+  }
 
  private:
   // Reads the actual value from the Prefs instance and updates the Variable
   // value.
   void OnPrefSet(const string& key) override {
     bool result = default_val_;
-    if (prefs_ && prefs_->Exists(key_) && !prefs_->GetBoolean(key_, &result))
+    auto* prefs = SystemState::Get()->prefs();
+    if (prefs->Exists(key_) && !prefs->GetBoolean(key_, &result))
       result = default_val_;
     // AsyncCopyVariable will take care of values that didn't change.
     SetValue(result);
   }
 
   void OnPrefDeleted(const string& key) override { SetValue(default_val_); }
-
-  chromeos_update_engine::PrefsInterface* prefs_;
 
   // The Boolean preference key and default value.
   const char* const key_;
@@ -435,11 +434,8 @@ class UpdateRestrictionsVariable
 // A variable class for reading timeout interval prefs value.
 class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
  public:
-  TestUpdateCheckIntervalTimeoutVariable(
-      const string& name, chromeos_update_engine::PrefsInterface* prefs)
-      : Variable<int64_t>(name, kVariableModePoll),
-        prefs_(prefs),
-        read_count_(0) {
+  explicit TestUpdateCheckIntervalTimeoutVariable(const string& name)
+      : Variable<int64_t>(name, kVariableModePoll), read_count_(0) {
     SetMissingOk();
   }
   ~TestUpdateCheckIntervalTimeoutVariable() = default;
@@ -448,12 +444,13 @@ class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
   const int64_t* GetValue(TimeDelta /* timeout */,
                           string* /* errmsg */) override {
     auto key = chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout;
+    auto* prefs = SystemState::Get()->prefs();
     int64_t result;
-    if (prefs_ && prefs_->Exists(key) && prefs_->GetInt64(key, &result)) {
+    if (prefs->Exists(key) && prefs->GetInt64(key, &result)) {
       // This specific value is used for testing only. So it should not be kept
       // around and should be deleted after a few reads.
       if (++read_count_ > 5)
-        prefs_->Delete(key);
+        prefs->Delete(key);
 
       // Limit the timeout interval to 10 minutes so it is not abused if it is
       // seen on official images.
@@ -461,8 +458,6 @@ class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
     }
     return nullptr;
   }
-
-  chromeos_update_engine::PrefsInterface* prefs_;
 
   // Counts how many times this variable is read. This is used to delete the
   // underlying file defining the variable after a certain number of reads in
@@ -487,14 +482,10 @@ RealUpdaterProvider::RealUpdaterProvider()
       var_payload_size_(new PayloadSizeVariable("payload_size")),
       var_curr_channel_(new CurrChannelVariable("curr_channel")),
       var_new_channel_(new NewChannelVariable("new_channel")),
-      var_p2p_enabled_(
-          new BooleanPrefVariable("p2p_enabled",
-                                  SystemState::Get()->prefs(),
-                                  chromeos_update_engine::kPrefsP2PEnabled,
-                                  false)),
+      var_p2p_enabled_(new BooleanPrefVariable(
+          "p2p_enabled", chromeos_update_engine::kPrefsP2PEnabled, false)),
       var_cellular_enabled_(new BooleanPrefVariable(
           "cellular_enabled",
-          SystemState::Get()->prefs(),
           chromeos_update_engine::kPrefsUpdateOverCellularPermission,
           false)),
       var_consecutive_failed_update_checks_(
@@ -508,6 +499,5 @@ RealUpdaterProvider::RealUpdaterProvider()
           new UpdateRestrictionsVariable("update_restrictions")),
       var_test_update_check_interval_timeout_(
           new TestUpdateCheckIntervalTimeoutVariable(
-              "test_update_check_interval_timeout",
-              SystemState::Get()->prefs())) {}
+              "test_update_check_interval_timeout")) {}
 }  // namespace chromeos_update_manager
