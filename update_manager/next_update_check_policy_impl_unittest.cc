@@ -52,14 +52,14 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest,
   // Set the last update time so it'll appear as if this is a first update check
   // in the lifetime of the current updater.
   fake_state_.updater_provider()->var_last_checked_time()->reset(
-      new Time(fake_clock_.GetWallclockTime() - TimeDelta::FromMinutes(10)));
+      new Time(fake_clock_->GetWallclockTime() - TimeDelta::FromMinutes(10)));
 
   CallMethodWithContext(&NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime,
                         &next_update_check,
                         policy_test_constants);
 
-  EXPECT_LE(fake_clock_.GetWallclockTime(), next_update_check);
-  EXPECT_GE(fake_clock_.GetWallclockTime() +
+  EXPECT_LE(fake_clock_->GetWallclockTime(), next_update_check);
+  EXPECT_GE(fake_clock_->GetWallclockTime() +
                 TimeDelta::FromSeconds(
                     policy_test_constants.timeout_initial_interval +
                     policy_test_constants.timeout_regular_fuzz / 2),
@@ -75,12 +75,12 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest, RecurringCheckBaseIntervalAndFuzz) {
                         &next_update_check,
                         policy_test_constants);
 
-  EXPECT_LE(fake_clock_.GetWallclockTime() +
+  EXPECT_LE(fake_clock_->GetWallclockTime() +
                 TimeDelta::FromSeconds(
                     policy_test_constants.timeout_periodic_interval -
                     policy_test_constants.timeout_regular_fuzz / 2),
             next_update_check);
-  EXPECT_GE(fake_clock_.GetWallclockTime() +
+  EXPECT_GE(fake_clock_->GetWallclockTime() +
                 TimeDelta::FromSeconds(
                     policy_test_constants.timeout_periodic_interval +
                     policy_test_constants.timeout_regular_fuzz / 2),
@@ -103,11 +103,11 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest,
 
   int expected_interval = policy_test_constants.timeout_periodic_interval * 4;
   EXPECT_LE(
-      fake_clock_.GetWallclockTime() +
+      fake_clock_->GetWallclockTime() +
           TimeDelta::FromSeconds(expected_interval - expected_interval / 2),
       next_update_check);
   EXPECT_GE(
-      fake_clock_.GetWallclockTime() +
+      fake_clock_->GetWallclockTime() +
           TimeDelta::FromSeconds(expected_interval + expected_interval / 2),
       next_update_check);
 }
@@ -129,10 +129,10 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest,
                &next_update_check,
                policy_test_constants);
 
-  EXPECT_LE(fake_clock_.GetWallclockTime() +
+  EXPECT_LE(fake_clock_->GetWallclockTime() +
                 TimeDelta::FromSeconds(kInterval - kInterval / 2),
             next_update_check);
-  EXPECT_GE(fake_clock_.GetWallclockTime() +
+  EXPECT_GE(fake_clock_->GetWallclockTime() +
                 TimeDelta::FromSeconds(kInterval + kInterval / 2),
             next_update_check);
 }
@@ -148,12 +148,12 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest, ExponentialBackoffIsCapped) {
                &next_update_check,
                policy_test_constants);
 
-  EXPECT_LE(fake_clock_.GetWallclockTime() +
+  EXPECT_LE(fake_clock_->GetWallclockTime() +
                 TimeDelta::FromSeconds(
                     policy_test_constants.timeout_max_backoff_interval -
                     policy_test_constants.timeout_max_backoff_interval / 2),
             next_update_check);
-  EXPECT_GE(fake_clock_.GetWallclockTime() +
+  EXPECT_GE(fake_clock_->GetWallclockTime() +
                 TimeDelta::FromSeconds(
                     policy_test_constants.timeout_max_backoff_interval +
                     policy_test_constants.timeout_max_backoff_interval / 2),

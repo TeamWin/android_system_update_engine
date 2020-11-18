@@ -509,8 +509,7 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 // Test fixture for P2P tests.
 class P2PDownloadActionTest : public testing::Test {
  protected:
-  P2PDownloadActionTest()
-      : start_at_offset_(0), fake_um_(FakeSystemState::Get()->fake_clock()) {}
+  P2PDownloadActionTest() : start_at_offset_(0) {}
 
   ~P2PDownloadActionTest() override {}
 
@@ -535,7 +534,6 @@ class P2PDownloadActionTest : public testing::Test {
     // Setup p2p.
     FakeP2PManagerConfiguration* test_conf = new FakeP2PManagerConfiguration();
     p2p_manager_.reset(P2PManager::Construct(test_conf,
-                                             nullptr,
                                              &fake_um_,
                                              "cros_au",
                                              3,

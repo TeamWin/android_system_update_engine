@@ -22,7 +22,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <metrics/metrics_library.h>
 
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/system_state.h"

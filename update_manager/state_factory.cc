@@ -23,7 +23,6 @@
 #include <session_manager/dbus-proxies.h>
 #endif  // USE_DBUS
 
-#include "update_engine/common/clock_interface.h"
 #if USE_DBUS
 #include "update_engine/cros/dbus_connection.h"
 #endif  // USE_DBUS
@@ -47,8 +46,6 @@ namespace chromeos_update_manager {
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
     org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy) {
-  chromeos_update_engine::ClockInterface* const clock =
-      SystemState::Get()->clock();
   unique_ptr<RealConfigProvider> config_provider(
       new RealConfigProvider(SystemState::Get()->hardware()));
 #if USE_DBUS
@@ -63,12 +60,12 @@ State* DefaultStateFactory(
       new RealDevicePolicyProvider(policy_provider));
 #endif  // USE_DBUS
   unique_ptr<RealShillProvider> shill_provider(
-      new RealShillProvider(new chromeos_update_engine::ShillProxy(), clock));
+      new RealShillProvider(new chromeos_update_engine::ShillProxy()));
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealSystemProvider> system_provider(
       new RealSystemProvider(kiosk_app_proxy));
 
-  unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
+  unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider());
   unique_ptr<RealUpdaterProvider> updater_provider(new RealUpdaterProvider());
 
   if (!(config_provider->Init() && device_policy_provider->Init() &&

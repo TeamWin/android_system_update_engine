@@ -27,7 +27,6 @@
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/client_library/include/update_engine/update_status.h"
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/system_state.h"
 #include "update_engine/cros/omaha_request_params.h"
@@ -238,7 +237,7 @@ class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
       return nullptr;
     }
 
-    chromeos_update_engine::ClockInterface* clock = SystemState::Get()->clock();
+    const auto* clock = SystemState::Get()->clock();
     Time curr_boottime = clock->GetBootTime();
     if (curr_boottime < update_boottime) {
       if (errmsg)

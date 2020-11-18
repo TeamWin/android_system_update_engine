@@ -21,7 +21,6 @@
 
 #include <base/time/time.h>
 
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/update_manager/time_provider.h"
 
 namespace chromeos_update_manager {
@@ -29,8 +28,7 @@ namespace chromeos_update_manager {
 // TimeProvider concrete implementation.
 class RealTimeProvider : public TimeProvider {
  public:
-  explicit RealTimeProvider(chromeos_update_engine::ClockInterface* clock)
-      : clock_(clock) {}
+  RealTimeProvider() = default;
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
@@ -44,9 +42,6 @@ class RealTimeProvider : public TimeProvider {
   Variable<int>* var_curr_minute() override { return var_curr_minute_.get(); }
 
  private:
-  // A clock abstraction (fakeable).
-  chromeos_update_engine::ClockInterface* const clock_;
-
   std::unique_ptr<Variable<base::Time>> var_curr_date_;
   std::unique_ptr<Variable<int>> var_curr_hour_;
   std::unique_ptr<Variable<int>> var_curr_minute_;

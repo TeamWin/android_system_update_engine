@@ -14,10 +14,12 @@
 // limitations under the License.
 //
 
+#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/default_policy.h"
 
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::InstallPlan;
+using chromeos_update_engine::SystemState;
 
 namespace {
 
@@ -30,9 +32,6 @@ const int kCheckIntervalInSeconds = 15 * 60;
 }  // namespace
 
 namespace chromeos_update_manager {
-
-DefaultPolicy::DefaultPolicy(chromeos_update_engine::ClockInterface* clock)
-    : clock_(clock), aux_state_(new DefaultPolicyState()) {}
 
 EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
                                              State* state,
@@ -54,8 +53,8 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
       ec->IsMonotonicTimeGreaterThan(
           aux_state_->last_check_allowed_time() +
           base::TimeDelta::FromSeconds(kCheckIntervalInSeconds))) {
-    if (clock_)
-      aux_state_->set_last_check_allowed_time(clock_->GetMonotonicTime());
+    aux_state_->set_last_check_allowed_time(
+        SystemState::Get()->clock()->GetMonotonicTime());
     return EvalStatus::kSucceeded;
   }
 

@@ -148,7 +148,6 @@ bool RealSystemState::Initialize() {
     return false;
   }
   update_manager_.reset(new chromeos_update_manager::UpdateManager(
-      &clock_,
       base::TimeDelta::FromSeconds(5),
       base::TimeDelta::FromHours(12),
       um_state));
@@ -156,7 +155,6 @@ bool RealSystemState::Initialize() {
   // The P2P Manager depends on the Update Manager for its initialization.
   p2p_manager_.reset(
       P2PManager::Construct(nullptr,
-                            &clock_,
                             update_manager_.get(),
                             "cros_au",
                             kMaxP2PFilesToKeep,

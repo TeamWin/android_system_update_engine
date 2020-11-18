@@ -23,7 +23,6 @@
 #include <gtest/gtest.h>
 #include <update_engine/dbus-constants.h>
 
-#include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 #include "update_engine/cros/mock_update_attempter.h"
@@ -32,7 +31,6 @@
 
 using base::Time;
 using base::TimeDelta;
-using chromeos_update_engine::FakeClock;
 using chromeos_update_engine::FakePrefs;
 using chromeos_update_engine::FakeSystemState;
 using chromeos_update_engine::OmahaRequestParams;
@@ -101,7 +99,6 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     FakeSystemState::CreateInstance();
-    fake_clock_ = FakeSystemState::Get()->fake_clock();
     FakeSystemState::Get()->set_prefs(&fake_prefs_);
     provider_.reset(new RealUpdaterProvider());
     // Check that provider initializes correctly.
@@ -120,19 +117,20 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
     EXPECT_CALL(*FakeSystemState::Get()->mock_update_attempter(),
                 GetBootTimeAtUpdate(_))
         .WillOnce(DoAll(SetArgPointee<0>(kUpdateBootTime), Return(true)));
-    fake_clock_->SetBootTime(kCurrBootTime);
-    fake_clock_->SetWallclockTime(kCurrWallclockTime);
+    FakeSystemState::Get()->fake_clock()->SetBootTime(kCurrBootTime);
+    FakeSystemState::Get()->fake_clock()->SetWallclockTime(kCurrWallclockTime);
     return kCurrWallclockTime - kDurationSinceUpdate;
   }
 
-  FakeClock* fake_clock_;  // Short for FakeSystemState::Get()->fake_clock()
   FakePrefs fake_prefs_;
   unique_ptr<RealUpdaterProvider> provider_;
 };
 
 TEST_F(UmRealUpdaterProviderTest, UpdaterStartedTimeIsWallclockTime) {
-  fake_clock_->SetWallclockTime(Time::FromDoubleT(123.456));
-  fake_clock_->SetMonotonicTime(Time::FromDoubleT(456.123));
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(
+      Time::FromDoubleT(123.456));
+  FakeSystemState::Get()->fake_clock()->SetMonotonicTime(
+      Time::FromDoubleT(456.123));
   // Re-initialize to re-setup the provider under test to use these values.
   provider_.reset(new RealUpdaterProvider());
   ASSERT_TRUE(provider_->Init());

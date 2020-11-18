@@ -21,6 +21,8 @@
 
 #include <base/logging.h>
 
+#include "update_engine/common/clock_interface.h"
+
 namespace chromeos_update_manager {
 
 class UpdateManager;
@@ -39,7 +41,6 @@ namespace chromeos_update_engine {
 // any circular references in header file inclusion. Hence forward-declaring
 // the required classes.
 class BootControlInterface;
-class ClockInterface;
 class ConnectionManagerInterface;
 class DlcServiceInterface;
 class HardwareInterface;

@@ -196,7 +196,7 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
 
   attempt_type_ = attempt_type;
 
-  ClockInterface* clock = SystemState::Get()->clock();
+  const auto* clock = SystemState::Get()->clock();
   attempt_start_time_boot_ = clock->GetBootTime();
   attempt_start_time_monotonic_ = clock->GetMonotonicTime();
   attempt_num_bytes_downloaded_ = 0;
@@ -628,7 +628,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
 
   int64_t payload_bytes_downloaded = attempt_num_bytes_downloaded_;
 
-  ClockInterface* clock = SystemState::Get()->clock();
+  const auto* clock = SystemState::Get()->clock();
   TimeDelta duration = clock->GetBootTime() - attempt_start_time_boot_;
   TimeDelta duration_uptime =
       clock->GetMonotonicTime() - attempt_start_time_monotonic_;

@@ -24,7 +24,6 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/excluder_interface.h"
-#include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/metrics_reporter_interface.h"
@@ -1040,15 +1039,14 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
   OmahaResponse response;
   response.packages.resize(1);
   PayloadState payload_state;
-  FakeClock fake_clock;
   FakePrefs fake_prefs;
 
   // Set the clock to a well-known time - 1 second on the wall-clock
   // and 2 seconds on the monotonic clock
-  fake_clock.SetWallclockTime(Time::FromInternalValue(1000000));
-  fake_clock.SetMonotonicTime(Time::FromInternalValue(2000000));
+  auto* fake_clock = FakeSystemState::Get()->fake_clock();
+  fake_clock->SetWallclockTime(Time::FromInternalValue(1000000));
+  fake_clock->SetMonotonicTime(Time::FromInternalValue(2000000));
 
-  FakeSystemState::Get()->set_clock(&fake_clock);
   FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
 
@@ -1057,8 +1055,8 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
   // the monotonic clock.
   SetupPayloadStateWith2Urls(
       "Hash8593", true, false, &payload_state, &response);
-  fake_clock.SetWallclockTime(Time::FromInternalValue(8000000));
-  fake_clock.SetMonotonicTime(Time::FromInternalValue(6000000));
+  fake_clock->SetWallclockTime(Time::FromInternalValue(8000000));
+  fake_clock->SetMonotonicTime(Time::FromInternalValue(6000000));
   payload_state.UpdateSucceeded();
   EXPECT_EQ(payload_state.GetUpdateDuration().InMicroseconds(), 7000000);
   EXPECT_EQ(payload_state.GetUpdateDurationUptime().InMicroseconds(), 4000000);
@@ -1071,8 +1069,8 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
 
   // Advance time a bit (10 secs), simulate download progress and
   // check that durations are updated.
-  fake_clock.SetWallclockTime(Time::FromInternalValue(18000000));
-  fake_clock.SetMonotonicTime(Time::FromInternalValue(16000000));
+  fake_clock->SetWallclockTime(Time::FromInternalValue(18000000));
+  fake_clock->SetMonotonicTime(Time::FromInternalValue(16000000));
   payload_state.DownloadProgress(10);
   EXPECT_EQ(payload_state.GetUpdateDuration().InMicroseconds(), 10000000);
   EXPECT_EQ(payload_state.GetUpdateDurationUptime().InMicroseconds(), 10000000);
@@ -1080,7 +1078,7 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
   // Now simulate a reboot by resetting monotonic time (to 5000) and
   // creating a new PayloadState object and check that we load the
   // durations correctly (e.g. they are the same as before).
-  fake_clock.SetMonotonicTime(Time::FromInternalValue(5000));
+  fake_clock->SetMonotonicTime(Time::FromInternalValue(5000));
   PayloadState payload_state2;
   EXPECT_TRUE(payload_state2.Initialize());
   payload_state2.SetResponse(response);
@@ -1090,8 +1088,8 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
 
   // Advance wall-clock by 7 seconds and monotonic clock by 6 seconds
   // and check that the durations are increased accordingly.
-  fake_clock.SetWallclockTime(Time::FromInternalValue(25000000));
-  fake_clock.SetMonotonicTime(Time::FromInternalValue(6005000));
+  fake_clock->SetWallclockTime(Time::FromInternalValue(25000000));
+  fake_clock->SetMonotonicTime(Time::FromInternalValue(6005000));
   payload_state2.UpdateSucceeded();
   EXPECT_EQ(payload_state2.GetUpdateDuration().InMicroseconds(), 17000000);
   EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),
@@ -1101,14 +1099,13 @@ TEST_F(PayloadStateTest, DurationsAreCorrect) {
 TEST_F(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakeClock fake_clock;
   FakePrefs fake_prefs;
 
   // Set the clock to a well-known time (t = 30 seconds).
-  fake_clock.SetMonotonicTime(
+  auto* fake_clock = FakeSystemState::Get()->fake_clock();
+  fake_clock->SetMonotonicTime(
       Time::FromInternalValue(30 * Time::kMicrosecondsPerSecond));
 
-  FakeSystemState::Get()->set_clock(&fake_clock);
   FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
 
@@ -1124,7 +1121,7 @@ TEST_F(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   // (t = 500 seconds). We do this by using a new PayloadState object
   // and checking that it emits the right UMA metric with the right
   // value.
-  fake_clock.SetMonotonicTime(
+  fake_clock->SetMonotonicTime(
       Time::FromInternalValue(500 * Time::kMicrosecondsPerSecond));
   PayloadState payload_state2;
   EXPECT_TRUE(payload_state2.Initialize());
@@ -1512,10 +1509,8 @@ TEST_F(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
 TEST_F(PayloadStateTest, DisallowP2PAfterDeadline) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakeClock fake_clock;
   FakePrefs fake_prefs;
 
-  FakeSystemState::Get()->set_clock(&fake_clock);
   FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
@@ -1523,7 +1518,8 @@ TEST_F(PayloadStateTest, DisallowP2PAfterDeadline) {
 
   // Set the clock to 1 second.
   Time epoch = Time::FromInternalValue(1000000);
-  fake_clock.SetWallclockTime(epoch);
+  auto* fake_clock = FakeSystemState::Get()->fake_clock();
+  fake_clock->SetWallclockTime(epoch);
 
   // Do an attempt - this will set the timestamp.
   payload_state.P2PNewAttempt();
@@ -1535,7 +1531,7 @@ TEST_F(PayloadStateTest, DisallowP2PAfterDeadline) {
   EXPECT_TRUE(payload_state.P2PAttemptAllowed());
 
   // Set clock to half the deadline - this should work.
-  fake_clock.SetWallclockTime(
+  fake_clock->SetWallclockTime(
       epoch + TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds) / 2);
   EXPECT_TRUE(payload_state.P2PAttemptAllowed());
 
@@ -1544,12 +1540,12 @@ TEST_F(PayloadStateTest, DisallowP2PAfterDeadline) {
   EXPECT_EQ(epoch, payload_state.GetP2PFirstAttemptTimestamp());
 
   // Set clock to _just_ before the deadline - this should work.
-  fake_clock.SetWallclockTime(
+  fake_clock->SetWallclockTime(
       epoch + TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds - 1));
   EXPECT_TRUE(payload_state.P2PAttemptAllowed());
 
   // Set clock to _just_ after the deadline - this should not work.
-  fake_clock.SetWallclockTime(
+  fake_clock->SetWallclockTime(
       epoch + TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds + 1));
   EXPECT_FALSE(payload_state.P2PAttemptAllowed());
 }
@@ -1572,9 +1568,7 @@ TEST_F(PayloadStateTest, P2PStateVarsInitialValue) {
 TEST_F(PayloadStateTest, P2PStateVarsArePersisted) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakeClock fake_clock;
   FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_clock(&fake_clock);
   FakeSystemState::Get()->set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize());
   SetupPayloadStateWith2Urls(
@@ -1582,7 +1576,7 @@ TEST_F(PayloadStateTest, P2PStateVarsArePersisted) {
 
   // Set the clock to something known.
   Time time = Time::FromInternalValue(12345);
-  fake_clock.SetWallclockTime(time);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(time);
 
   // New p2p attempt - as a side-effect this will update the p2p state vars.
   payload_state.P2PNewAttempt();
@@ -1600,9 +1594,7 @@ TEST_F(PayloadStateTest, P2PStateVarsArePersisted) {
 TEST_F(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   OmahaResponse response;
   PayloadState payload_state;
-  FakeClock fake_clock;
   FakePrefs fake_prefs;
-  FakeSystemState::Get()->set_clock(&fake_clock);
   FakeSystemState::Get()->set_prefs(&fake_prefs);
 
   EXPECT_TRUE(payload_state.Initialize());
@@ -1611,7 +1603,7 @@ TEST_F(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
 
   // Set the clock to something known.
   Time time = Time::FromInternalValue(12345);
-  fake_clock.SetWallclockTime(time);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(time);
 
   // New p2p attempt - as a side-effect this will update the p2p state vars.
   payload_state.P2PNewAttempt();

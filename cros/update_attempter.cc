@@ -44,7 +44,6 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/download_action.h"

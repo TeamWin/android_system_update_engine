@@ -27,6 +27,7 @@
 #include <base/strings/string_util.h>
 #include <base/values.h>
 
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 
 using base::Callback;
@@ -34,7 +35,7 @@ using base::Closure;
 using base::Time;
 using base::TimeDelta;
 using brillo::MessageLoop;
-using chromeos_update_engine::ClockInterface;
+using chromeos_update_engine::SystemState;
 using std::string;
 using std::unique_ptr;
 
@@ -65,12 +66,10 @@ TimeDelta GetTimeout(Time curr, Time expires) {
 namespace chromeos_update_manager {
 
 EvaluationContext::EvaluationContext(
-    ClockInterface* clock,
     TimeDelta evaluation_timeout,
     TimeDelta expiration_timeout,
     unique_ptr<Callback<void(EvaluationContext*)>> unregister_cb)
-    : clock_(clock),
-      evaluation_timeout_(evaluation_timeout),
+    : evaluation_timeout_(evaluation_timeout),
       expiration_timeout_(expiration_timeout),
       unregister_cb_(std::move(unregister_cb)),
       weak_ptr_factory_(this) {
@@ -98,13 +97,15 @@ unique_ptr<Closure> EvaluationContext::RemoveObserversAndTimeout() {
 TimeDelta EvaluationContext::RemainingTime(Time monotonic_deadline) const {
   if (monotonic_deadline.is_max())
     return TimeDelta::Max();
-  TimeDelta remaining = monotonic_deadline - clock_->GetMonotonicTime();
+  TimeDelta remaining =
+      monotonic_deadline - SystemState::Get()->clock()->GetMonotonicTime();
   return std::max(remaining, TimeDelta());
 }
 
 Time EvaluationContext::MonotonicDeadline(TimeDelta timeout) {
-  return (timeout.is_max() ? Time::Max()
-                           : clock_->GetMonotonicTime() + timeout);
+  return (timeout.is_max()
+              ? Time::Max()
+              : SystemState::Get()->clock()->GetMonotonicTime() + timeout);
 }
 
 void EvaluationContext::ValueChanged(BaseVariable* var) {
@@ -139,8 +140,9 @@ bool EvaluationContext::IsMonotonicTimeGreaterThan(Time timestamp) {
 }
 
 void EvaluationContext::ResetEvaluation() {
-  evaluation_start_wallclock_ = clock_->GetWallclockTime();
-  evaluation_start_monotonic_ = clock_->GetMonotonicTime();
+  const auto* clock = SystemState::Get()->clock();
+  evaluation_start_wallclock_ = clock->GetWallclockTime();
+  evaluation_start_monotonic_ = clock->GetMonotonicTime();
   reevaluation_time_wallclock_ = Time::Max();
   reevaluation_time_monotonic_ = Time::Max();
   evaluation_monotonic_deadline_ = MonotonicDeadline(evaluation_timeout_);

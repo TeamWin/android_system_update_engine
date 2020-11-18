@@ -26,7 +26,6 @@
 #include <brillo/strings/string_utils.h>
 #include <policy/device_policy.h>
 
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/system_state.h"
@@ -379,7 +378,7 @@ bool UpdateEngineService::GetDurationSinceUpdate(ErrorPtr* error,
     return false;
   }
 
-  ClockInterface* clock = SystemState::Get()->clock();
+  const auto* clock = SystemState::Get()->clock();
   *out_usec_wallclock = (clock->GetBootTime() - time).InMicroseconds();
   return true;
 }

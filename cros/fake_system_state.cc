@@ -22,8 +22,6 @@ namespace chromeos_update_engine {
 // OOBE is completed even when there's no such marker file, etc.
 FakeSystemState::FakeSystemState()
     : mock_update_attempter_(nullptr),
-      mock_request_params_(),
-      fake_update_manager_(&fake_clock_),
       clock_(&fake_clock_),
       connection_manager_(&mock_connection_manager_),
       hardware_(&fake_hardware_),

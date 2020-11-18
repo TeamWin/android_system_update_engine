@@ -993,8 +993,7 @@ TEST_F(OmahaResponseHandlerActionTest, TestDeferredByPolicy) {
                          .app_id = kPayloadAppId,
                          .fp = kPayloadFp1});
   // Setup the UpdateManager to disallow the update.
-  FakeClock fake_clock;
-  MockPolicy* mock_policy = new MockPolicy(&fake_clock);
+  MockPolicy* mock_policy = new MockPolicy();
   FakeUpdateManager* fake_update_manager =
       FakeSystemState::Get()->fake_update_manager();
   fake_update_manager->set_policy(mock_policy);
