@@ -203,6 +203,12 @@ class DeltaPerformer : public FileWriter {
   FRIEND_TEST(DeltaPerformerTest, BrilloParsePayloadMetadataTest);
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
+  // Obtain the operation index for current partition. If all operations for
+  // current partition is are finished, return # of operations. This is mostly
+  // intended to be used by CheckpointUpdateProgress, where partition writer
+  // needs to know the current operation number to properly checkpoint update.
+  size_t GetPartitionOperationNum();
+
   // Parse and move the update instructions of all partitions into our local
   // |partitions_| variable based on the version of the payload. Requires the
   // manifest to be parsed and valid.

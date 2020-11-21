@@ -31,7 +31,8 @@ class VABCPartitionWriter final : public PartitionWriter {
  public:
   using PartitionWriter::PartitionWriter;
   [[nodiscard]] bool Init(const InstallPlan* install_plan,
-                          bool source_may_exist) override;
+                          bool source_may_exist,
+                          size_t next_op_index) override;
   ~VABCPartitionWriter() override;
 
   [[nodiscard]] std::unique_ptr<ExtentWriter> CreateBaseExtentWriter() override;
@@ -43,7 +44,8 @@ class VABCPartitionWriter final : public PartitionWriter {
       const InstallOperation& operation) override;
   [[nodiscard]] bool PerformSourceCopyOperation(
       const InstallOperation& operation, ErrorCode* error) override;
-  [[nodiscard]] bool Flush() override;
+
+  void CheckpointUpdateProgress(size_t next_op_index) override;
 
   static bool WriteAllCowOps(size_t block_size,
                              const std::vector<CowOperation>& converted,
