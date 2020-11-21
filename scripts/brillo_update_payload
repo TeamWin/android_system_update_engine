@@ -198,6 +198,7 @@ update. This feature is enabled by default."
   DEFINE_string is_partial_update "" \
     "Optional: True if the payload is for partial update. i.e. it only updates \
 a subset of partitions on device."
+  DEFINE_string full_boot "" "Will include full boot image"
 fi
 if [[ "${COMMAND}" == "hash" || "${COMMAND}" == "sign" ]]; then
   DEFINE_string unsigned_payload "" "Path to the input unsigned payload."
