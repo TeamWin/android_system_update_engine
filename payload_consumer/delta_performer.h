@@ -170,6 +170,12 @@ class DeltaPerformer : public FileWriter {
   // Return true if header parsing is finished and no errors occurred.
   bool IsHeaderParsed() const;
 
+  // Checkpoints the update progress into persistent storage to allow this
+  // update attempt to be resumed after reboot.
+  // If |force| is false, checkpoint may be throttled.
+  // Exposed for testing purposes.
+  bool CheckpointUpdateProgress(bool force);
+
   // Compare |calculated_hash| with source hash in |operation|, return false and
   // dump hash and set |error| if don't match.
   // |source_fd| is the file descriptor of the source partition.
@@ -271,11 +277,6 @@ class DeltaPerformer : public FileWriter {
   // deallocated. If |do_advance_offset|, advances the internal offset counter
   // accordingly.
   void DiscardBuffer(bool do_advance_offset, size_t signed_hash_buffer_size);
-
-  // Checkpoints the update progress into persistent storage to allow this
-  // update attempt to be resumed after reboot.
-  // If |force| is false, checkpoint may be throttled.
-  bool CheckpointUpdateProgress(bool force);
 
   // Primes the required update state. Returns true if the update state was
   // successfully initialized to a saved resume state or if the update is a new
