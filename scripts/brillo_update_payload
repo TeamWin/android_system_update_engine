@@ -195,6 +195,9 @@ system:1234,vendor:456"
   DEFINE_string disable_fec_computation "" \
     "Optional: Disables the on device fec data computation for incremental \
 update. This feature is enabled by default."
+  DEFINE_string disable_verity_computation "" \
+    "Optional: Disables the on device verity computation for incremental \
+update. This feature is enabled by default."
   DEFINE_string is_partial_update "" \
     "Optional: True if the payload is for partial update. i.e. it only updates \
 a subset of partitions on device."
@@ -688,6 +691,10 @@ cmd_generate() {
     if [[ -n "${FLAGS_disable_fec_computation}" ]]; then
       GENERATOR_ARGS+=(
         --disable_fec_computation="${FLAGS_disable_fec_computation}" )
+    fi
+    if [[ -n "${FLAGS_disable_verity_computation}" ]]; then
+      GENERATOR_ARGS+=(
+        --disable_verity_computation="${FLAGS_disable_verity_computation}" )
     fi
   fi
 
