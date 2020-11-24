@@ -44,6 +44,11 @@ class BootControlAndroid : public BootControlInterface {
   // BootControlInterface overrides.
   unsigned int GetNumSlots() const override;
   BootControlInterface::Slot GetCurrentSlot() const override;
+  std::optional<PartitionDevice> GetPartitionDevice(
+      const std::string& partition_name,
+      uint32_t slot,
+      uint32_t current_slot,
+      bool not_in_payload = false) const override;
   bool GetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,
                           bool not_in_payload,

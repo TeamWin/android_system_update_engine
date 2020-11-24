@@ -50,7 +50,6 @@ const int kPostinstallStatusFd = 3;
 
 namespace chromeos_update_engine {
 
-using brillo::MessageLoop;
 using std::string;
 using std::vector;
 
@@ -127,7 +126,7 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   const InstallPlan::Partition& partition =
       install_plan_.partitions[current_partition_];
 
-  const string mountable_device = partition.target_path;
+  const string mountable_device = partition.postinstall_mount_device;
   if (mountable_device.empty()) {
     LOG(ERROR) << "Cannot make mountable device from " << partition.target_path;
     return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
