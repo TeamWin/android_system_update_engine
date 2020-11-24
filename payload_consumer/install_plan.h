@@ -45,6 +45,7 @@ struct InstallPlan {
   bool operator!=(const InstallPlan& that) const;
 
   void Dump() const;
+  std::string ToString() const;
 
   // Loads the |source_path| and |target_path| of all |partitions| based on the
   // |source_slot| and |target_slot| if available. Returns whether it succeeded

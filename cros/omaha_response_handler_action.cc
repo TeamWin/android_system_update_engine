@@ -221,7 +221,6 @@ void OmahaResponseHandlerAction::PerformAction() {
   TEST_AND_RETURN(HasOutputPipe());
   if (HasOutputPipe())
     SetOutputObject(install_plan_);
-  LOG(INFO) << "Using this install plan:";
   install_plan_.Dump();
 
   // Send the deadline data (if any) to Chrome through a file. This is a pretty

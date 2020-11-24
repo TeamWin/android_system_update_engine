@@ -850,7 +850,6 @@ bool UpdateAttempter::Rollback(bool powerwash) {
       SystemState::Get()->boot_control()));
   install_plan_->powerwash_required = powerwash;
 
-  LOG(INFO) << "Using this install plan:";
   install_plan_->Dump();
 
   auto install_plan_action =

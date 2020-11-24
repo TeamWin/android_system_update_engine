@@ -277,7 +277,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
     }
   }
 
-  LOG(INFO) << "Using this install plan:";
   install_plan_.Dump();
 
   HttpFetcher* fetcher = nullptr;
