@@ -35,6 +35,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
  public:
   DynamicPartitionControlAndroid();
   ~DynamicPartitionControlAndroid();
+
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
   FeatureFlag GetVirtualAbCompressionFeatureFlag() override;
@@ -71,6 +72,13 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // Note: this function is only used by BootControl*::GetPartitionDevice.
   // Other callers should prefer BootControl*::GetPartitionDevice over
   // BootControl*::GetDynamicPartitionControl()->GetPartitionDevice().
+  std::optional<PartitionDevice> GetPartitionDevice(
+      const std::string& partition_name,
+      uint32_t slot,
+      uint32_t current_slot,
+      bool not_in_payload = false);
+  // Deprecated, please use GetPartitionDevice(string, uint32_t, uint32_t);
+  // TODO(zhangkelvin) Remove below deprecated APIs.
   bool GetPartitionDevice(const std::string& partition_name,
                           uint32_t slot,
                           uint32_t current_slot,
@@ -110,10 +118,10 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
       const std::string& super_device, uint32_t slot);
 
-  // Retrieves metadata from |super_device| at slot |source_slot|. And modifies
-  // the metadata so that during updates, the metadata can be written to
-  // |target_slot|. In particular, on retrofit devices, the returned metadata
-  // automatically includes block devices at |target_slot|.
+  // Retrieves metadata from |super_device| at slot |source_slot|. And
+  // modifies the metadata so that during updates, the metadata can be written
+  // to |target_slot|. In particular, on retrofit devices, the returned
+  // metadata automatically includes block devices at |target_slot|.
   virtual std::unique_ptr<android::fs_mgr::MetadataBuilder> LoadMetadataBuilder(
       const std::string& super_device,
       uint32_t source_slot,
@@ -210,6 +218,9 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   bool MapAllPartitions() override;
 
+  void SetSourceSlot(uint32_t slot) { source_slot_ = slot; }
+  void SetTargetSlot(uint32_t slot) { target_slot_ = slot; }
+
  private:
   friend class DynamicPartitionControlAndroidTest;
   friend class SnapshotPartitionTestP;
@@ -231,8 +242,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                uint32_t target_slot,
                                const DeltaArchiveManifest& manifest);
 
-  // Helper for PreparePartitionsForUpdate. Used for snapshotted partitions for
-  // Virtual A/B update.
+  // Helper for PreparePartitionsForUpdate. Used for snapshotted partitions
+  // for Virtual A/B update.
   bool PrepareSnapshotPartitionsForUpdate(uint32_t source_slot,
                                           uint32_t target_slot,
                                           const DeltaArchiveManifest& manifest,
@@ -270,17 +281,20 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // Returns true if metadata is expected to be mounted, false otherwise.
   // Note that it returns false on non-Virtual A/B devices.
   //
-  // Almost all functions of SnapshotManager depends on metadata being mounted.
+  // Almost all functions of SnapshotManager depends on metadata being
+  // mounted.
   // - In Android mode for Virtual A/B devices, assume it is mounted. If not,
   //   let caller fails when calling into SnapshotManager.
-  // - In recovery for Virtual A/B devices, it is possible that metadata is not
+  // - In recovery for Virtual A/B devices, it is possible that metadata is
+  // not
   //   formatted, hence it cannot be mounted. Caller should not call into
   //   SnapshotManager.
-  // - On non-Virtual A/B devices, updates do not depend on metadata partition.
+  // - On non-Virtual A/B devices, updates do not depend on metadata
+  // partition.
   //   Caller should not call into SnapshotManager.
   //
-  // This function does NOT mount metadata partition. Use EnsureMetadataMounted
-  // to mount metadata partition.
+  // This function does NOT mount metadata partition. Use
+  // EnsureMetadataMounted to mount metadata partition.
   bool ExpectMetadataMounted();
 
   // Ensure /metadata is mounted. Returns true if successful, false otherwise.
@@ -303,6 +317,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // Whether the target partitions should be loaded as dynamic partitions. Set
   // by PreparePartitionsForUpdate() per each update.
   bool is_target_dynamic_ = false;
+
   uint32_t source_slot_ = UINT32_MAX;
   uint32_t target_slot_ = UINT32_MAX;
   std::vector<std::string> dynamic_partition_list_;

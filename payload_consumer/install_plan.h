@@ -98,9 +98,17 @@ struct InstallPlan {
     uint64_t source_size{0};
     brillo::Blob source_hash;
 
+    // |target_path| is intended to be a path to block device, which you can
+    // open with |open| syscall and perform regular unix style read/write.
+    // For VABC, this will be empty. As you can't read/write VABC devices with
+    // regular syscall.
     std::string target_path;
+    // |mountable_target_device| is intended to be a path to block device which
+    // can be used for mounting this block device's underlying filesystem.
+    std::string postinstall_mount_device;
     uint64_t target_size{0};
     brillo::Blob target_hash;
+
     uint32_t block_size{0};
 
     // Whether we should run the postinstall script from this partition and the

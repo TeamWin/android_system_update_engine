@@ -30,8 +30,6 @@
 
 using std::string;
 
-using android::dm::DmDeviceState;
-using android::hardware::hidl_string;
 using android::hardware::Return;
 using android::hardware::boot::V1_0::BoolResult;
 using android::hardware::boot::V1_0::CommandResult;
@@ -183,4 +181,12 @@ BootControlAndroid::GetDynamicPartitionControl() {
   return dynamic_control_.get();
 }
 
+std::optional<PartitionDevice> BootControlAndroid::GetPartitionDevice(
+    const std::string& partition_name,
+    uint32_t slot,
+    uint32_t current_slot,
+    bool not_in_payload) const {
+  return dynamic_control_->GetPartitionDevice(
+      partition_name, slot, current_slot, not_in_payload);
+}
 }  // namespace chromeos_update_engine

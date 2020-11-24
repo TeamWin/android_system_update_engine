@@ -51,14 +51,16 @@ class FakeBootControl : public BootControlInterface {
                           bool not_in_payload,
                           std::string* device,
                           bool* is_dynamic) const override {
-    if (slot >= num_slots_)
+    auto dev =
+        GetPartitionDevice(partition_name, slot, current_slot_, not_in_payload);
+    if (!dev.has_value()) {
       return false;
-    auto part_it = devices_[slot].find(partition_name);
-    if (part_it == devices_[slot].end())
-      return false;
-    *device = part_it->second;
-    if (is_dynamic != nullptr) {
-      *is_dynamic = false;
+    }
+    if (is_dynamic) {
+      *is_dynamic = dev->is_dynamic;
+    }
+    if (device) {
+      *device = dev->rw_device_path;
     }
     return true;
   }
@@ -118,6 +120,25 @@ class FakeBootControl : public BootControlInterface {
 
   DynamicPartitionControlInterface* GetDynamicPartitionControl() override {
     return dynamic_partition_control_.get();
+  }
+
+  std::optional<PartitionDevice> GetPartitionDevice(
+      const std::string& partition_name,
+      uint32_t slot,
+      uint32_t current_slot,
+      bool not_in_payload = false) const override {
+    if (slot >= devices_.size()) {
+      return {};
+    }
+    auto device_path = devices_[slot].find(partition_name);
+    if (device_path == devices_[slot].end()) {
+      return {};
+    }
+    PartitionDevice device;
+    device.is_dynamic = false;
+    device.rw_device_path = device_path->second;
+    device.mountable_device_path = device.rw_device_path;
+    return device;
   }
 
  private:

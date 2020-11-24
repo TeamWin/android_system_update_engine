@@ -47,7 +47,7 @@ using namespace android::storage_literals;  // NOLINT(build/namespaces)
 
 constexpr const uint32_t kMaxNumSlots = 2;
 constexpr const char* kSlotSuffixes[kMaxNumSlots] = {"_a", "_b"};
-constexpr const char* kFakeDevicePath = "/fake/dev/path/";
+constexpr std::string_view kFakeDevicePath = "/fake/dev/path/";
 constexpr const char* kFakeDmDevicePath = "/fake/dm/dev/path/";
 constexpr const uint32_t kFakeMetadataSize = 65536;
 constexpr const char* kDefaultGroup = "foo";
@@ -112,7 +112,7 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 inline std::string GetDevice(const std::string& name) {
-  return kFakeDevicePath + name;
+  return std::string(kFakeDevicePath) + name;
 }
 
 inline std::string GetDmDevice(const std::string& name) {
