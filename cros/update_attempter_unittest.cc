@@ -2448,4 +2448,34 @@ TEST_F(UpdateAttempterTest, GetSuccessfulDlcIds) {
   EXPECT_THAT(attempter_.GetSuccessfulDlcIds(), ElementsAre(dlc_2));
 }
 
+TEST_F(UpdateAttempterTest, MoveToPrefs) {
+  string key1 = kPrefsLastActivePingDay;
+  string key2 = kPrefsPingLastRollcall;
+
+  FakePrefs fake_prefs;
+  EXPECT_TRUE(fake_prefs.SetString(key2, "current-rollcall"));
+  FakeSystemState::Get()->set_prefs(&fake_prefs);
+
+  FakePrefs powerwash_safe_prefs;
+  EXPECT_TRUE(powerwash_safe_prefs.SetString(key1, "powerwash-last-active"));
+  EXPECT_TRUE(powerwash_safe_prefs.SetString(key2, "powerwash-last-rollcall"));
+  FakeSystemState::Get()->set_powerwash_safe_prefs(&powerwash_safe_prefs);
+
+  attempter_.Init();
+  attempter_.MoveToPrefs({key1, key2});
+
+  string pref_value_1;
+  fake_prefs.GetString(key1, &pref_value_1);
+  EXPECT_EQ(pref_value_1, "powerwash-last-active");
+  // Do not overwrite if value already exists.
+  string pref_value_2;
+  fake_prefs.GetString(key2, &pref_value_2);
+  EXPECT_EQ(pref_value_2, "current-rollcall");
+
+  // Make sure keys are deleted from powerwash safe prefs regardless of whether
+  // they are written to prefs.
+  EXPECT_FALSE(FakeSystemState::Get()->powerwash_safe_prefs()->Exists(key1));
+  EXPECT_FALSE(FakeSystemState::Get()->powerwash_safe_prefs()->Exists(key2));
+}
+
 }  // namespace chromeos_update_engine

@@ -1715,10 +1715,29 @@ void UpdateAttempter::UpdateEngineStarted() {
     }
   }
 
+  MoveToPrefs({kPrefsLastRollCallPingDay, kPrefsLastActivePingDay});
+
   SystemState::Get()->payload_state()->UpdateEngineStarted();
   StartP2PAtStartup();
 
   excluder_ = CreateExcluder();
+}
+
+void UpdateAttempter::MoveToPrefs(const vector<string>& keys) {
+  auto* powerwash_safe_prefs = SystemState::Get()->powerwash_safe_prefs();
+  for (const auto& key : keys) {
+    // Do not overwrite existing pref key with powerwash prefs.
+    if (!prefs_->Exists(key) && powerwash_safe_prefs->Exists(key)) {
+      string value;
+      if (!powerwash_safe_prefs->GetString(key, &value) ||
+          !prefs_->SetString(key, value)) {
+        PLOG(ERROR) << "Unable to add powerwash safe key " << key
+                    << " to prefs. Powerwash safe key will be deleted.";
+      }
+    }
+    // Delete keys regardless of operation success to preserve privacy.
+    powerwash_safe_prefs->Delete(key);
+  }
 }
 
 bool UpdateAttempter::StartP2PAtStartup() {

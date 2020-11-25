@@ -290,6 +290,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
   FRIEND_TEST(UpdateAttempterTest, GetSuccessfulDlcIds);
   FRIEND_TEST(UpdateAttempterTest, QuickFixTokenWhenDeviceIsEnterpriseEnrolled);
+  FRIEND_TEST(UpdateAttempterTest, MoveToPrefs);
 
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
@@ -386,6 +387,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // |use_p2p_to_download_| and |use_p2p_to_share_| parameters
   // on the |omaha_request_params_| object.
   void CalculateP2PParams(bool interactive);
+
+  // For each key, reads value from powerwash safe prefs and adds it to prefs
+  // if key doesnt already exist. Then deletes the powerwash safe keys.
+  void MoveToPrefs(const std::vector<std::string>& keys);
 
   // Starts P2P if it's enabled and there are files to actually share.
   // Called only at program startup. Returns true only if p2p was
