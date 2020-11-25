@@ -16,6 +16,7 @@
 
 #include "update_engine/aosp/dynamic_partition_control_android.h"
 
+#include <algorithm>
 #include <set>
 #include <vector>
 
@@ -38,6 +39,7 @@ using std::string;
 using testing::_;
 using testing::AnyNumber;
 using testing::AnyOf;
+using testing::AtLeast;
 using testing::Invoke;
 using testing::NiceMock;
 using testing::Not;
@@ -54,6 +56,8 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
     ON_CALL(dynamicControl(), GetDynamicPartitionsFeatureFlag())
         .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
     ON_CALL(dynamicControl(), GetVirtualAbFeatureFlag())
+        .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
+    ON_CALL(dynamicControl(), GetVirtualAbCompressionFeatureFlag())
         .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
 
     ON_CALL(dynamicControl(), GetDeviceDir(_))
@@ -217,6 +221,8 @@ class DynamicPartitionControlAndroidTestP
   void SetUp() override {
     DynamicPartitionControlAndroidTest::SetUp();
     SetSlots(GetParam());
+    dynamicControl().SetSourceSlot(source());
+    dynamicControl().SetTargetSlot(target());
   }
 };
 
@@ -384,6 +390,84 @@ TEST_P(DynamicPartitionControlAndroidTestP,
   EXPECT_TRUE(dynamicControl().GetPartitionDevice(
       "bar", target(), source(), &bar_device));
   EXPECT_EQ(GetDevice(T("bar")), bar_device);
+}
+
+TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePath) {
+  ON_CALL(dynamicControl(), GetDynamicPartitionsFeatureFlag())
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  ON_CALL(dynamicControl(), GetVirtualAbFeatureFlag())
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  ON_CALL(dynamicControl(), GetVirtualAbCompressionFeatureFlag())
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
+  ON_CALL(dynamicControl(), IsDynamicPartition(_)).WillByDefault(Return(true));
+
+  EXPECT_CALL(dynamicControl(),
+              DeviceExists(AnyOf(GetDevice(S("vendor")),
+                                 GetDevice(T("vendor")),
+                                 GetDevice(S("system")),
+                                 GetDevice(T("system")))))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(
+      dynamicControl(),
+      GetState(AnyOf(S("vendor"), T("vendor"), S("system"), T("system"))))
+      .WillRepeatedly(Return(DmDeviceState::ACTIVE));
+
+  SetMetadata(source(), {{S("system"), 2_GiB}, {S("vendor"), 1_GiB}});
+  SetMetadata(target(), {{T("system"), 2_GiB}, {T("vendor"), 1_GiB}});
+  std::string device;
+  ASSERT_TRUE(dynamicControl().GetPartitionDevice(
+      "system", source(), source(), &device));
+  ASSERT_EQ(GetDmDevice(S("system")), device);
+
+  ASSERT_TRUE(dynamicControl().GetPartitionDevice(
+      "system", target(), source(), &device));
+  ASSERT_EQ(GetDevice(T("system")), device);
+
+  // If VABC is disabled, mountable device path should be same as device path.
+  auto device_info =
+      dynamicControl().GetPartitionDevice("system", target(), source());
+  ASSERT_TRUE(device_info.has_value());
+  ASSERT_EQ(device_info->mountable_device_path, device);
+}
+
+TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePathVABC) {
+  ON_CALL(dynamicControl(), GetDynamicPartitionsFeatureFlag())
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  ON_CALL(dynamicControl(), GetVirtualAbFeatureFlag())
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  ON_CALL(dynamicControl(), GetVirtualAbCompressionFeatureFlag())
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  EXPECT_CALL(dynamicControl(), IsDynamicPartition(_))
+      .Times(AtLeast(1))
+      .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(dynamicControl(),
+              DeviceExists(AnyOf(GetDevice(S("vendor")),
+                                 GetDevice(T("vendor")),
+                                 GetDevice(S("system")),
+                                 GetDevice(T("system")))))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(
+      dynamicControl(),
+      GetState(AnyOf(S("vendor"), T("vendor"), S("system"), T("system"))))
+      .WillRepeatedly(Return(DmDeviceState::ACTIVE));
+
+  SetMetadata(source(), {{S("system"), 2_GiB}, {S("vendor"), 1_GiB}});
+  SetMetadata(target(), {{T("system"), 2_GiB}, {T("vendor"), 1_GiB}});
+
+  std::string device;
+  ASSERT_TRUE(dynamicControl().GetPartitionDevice(
+      "system", source(), source(), &device));
+  ASSERT_EQ(GetDmDevice(S("system")), device);
+
+  ASSERT_TRUE(dynamicControl().GetPartitionDevice(
+      "system", target(), source(), &device));
+  ASSERT_EQ("", device);
+
+  auto device_info =
+      dynamicControl().GetPartitionDevice("system", target(), source());
+  ASSERT_TRUE(device_info.has_value());
+  ASSERT_EQ(device_info->mountable_device_path, GetDevice(T("system")));
 }
 
 TEST_P(DynamicPartitionControlAndroidTestP,

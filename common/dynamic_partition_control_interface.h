@@ -36,6 +36,12 @@ class ISnapshotWriter;
 
 namespace chromeos_update_engine {
 
+struct PartitionDevice {
+  std::string rw_device_path;
+  std::string mountable_device_path;
+  bool is_dynamic;
+};
+
 struct FeatureFlag {
   enum class Value { NONE = 0, RETROFIT, LAUNCH };
   constexpr explicit FeatureFlag(Value value) : value_(value) {}

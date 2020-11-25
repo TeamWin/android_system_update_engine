@@ -16,6 +16,7 @@
 
 #include "update_engine/aosp/dynamic_partition_control_android.h"
 
+#include <algorithm>
 #include <chrono>  // NOLINT(build/c++11) - using libsnapshot / liblp API
 #include <cstdint>
 #include <map>
@@ -960,47 +961,16 @@ bool DynamicPartitionControlAndroid::GetPartitionDevice(
     bool not_in_payload,
     std::string* device,
     bool* is_dynamic) {
-  const auto& partition_name_suffix =
-      partition_name + SlotSuffixForSlotNumber(slot);
-  std::string device_dir_str;
-  TEST_AND_RETURN_FALSE(GetDeviceDir(&device_dir_str));
-  base::FilePath device_dir(device_dir_str);
-
-  if (is_dynamic) {
-    *is_dynamic = false;
-  }
-
-  // When looking up target partition devices, treat them as static if the
-  // current payload doesn't encode them as dynamic partitions. This may happen
-  // when applying a retrofit update on top of a dynamic-partitions-enabled
-  // build.
-  if (GetDynamicPartitionsFeatureFlag().IsEnabled() &&
-      (slot == current_slot || is_target_dynamic_)) {
-    switch (GetDynamicPartitionDevice(device_dir,
-                                      partition_name_suffix,
-                                      slot,
-                                      current_slot,
-                                      not_in_payload,
-                                      device)) {
-      case DynamicPartitionDeviceStatus::SUCCESS:
-        if (is_dynamic) {
-          *is_dynamic = true;
-        }
-        return true;
-      case DynamicPartitionDeviceStatus::TRY_STATIC:
-        break;
-      case DynamicPartitionDeviceStatus::ERROR:  // fallthrough
-      default:
-        return false;
-    }
-  }
-  base::FilePath path = device_dir.Append(partition_name_suffix);
-  if (!DeviceExists(path.value())) {
-    LOG(ERROR) << "Device file " << path.value() << " does not exist.";
+  auto partition_dev = GetPartitionDevice(partition_name, slot, current_slot);
+  if (!partition_dev.has_value()) {
     return false;
   }
-
-  *device = path.value();
+  if (device) {
+    *device = std::move(partition_dev->rw_device_path);
+  }
+  if (is_dynamic) {
+    *is_dynamic = partition_dev->is_dynamic;
+  }
   return true;
 }
 
@@ -1011,6 +981,73 @@ bool DynamicPartitionControlAndroid::GetPartitionDevice(
     std::string* device) {
   return GetPartitionDevice(
       partition_name, slot, current_slot, false, device, nullptr);
+}
+
+static std::string GetStaticDevicePath(
+    const base::FilePath& device_dir,
+    const std::string& partition_name_suffixed) {
+  base::FilePath path = device_dir.Append(partition_name_suffixed);
+  return path.value();
+}
+
+std::optional<PartitionDevice>
+DynamicPartitionControlAndroid::GetPartitionDevice(
+    const std::string& partition_name,
+    uint32_t slot,
+    uint32_t current_slot,
+    bool not_in_payload) {
+  std::string device_dir_str;
+  if (!GetDeviceDir(&device_dir_str)) {
+    LOG(ERROR) << "Failed to GetDeviceDir()";
+    return {};
+  }
+  const base::FilePath device_dir(device_dir_str);
+  // When VABC is enabled, we can't get device path for dynamic partitions in
+  // target slot.
+  const auto& partition_name_suffix =
+      partition_name + SlotSuffixForSlotNumber(slot);
+  if (GetVirtualAbCompressionFeatureFlag().IsEnabled() &&
+      IsDynamicPartition(partition_name) && slot != current_slot) {
+    return {{.mountable_device_path =
+                 GetStaticDevicePath(device_dir, partition_name_suffix),
+             .is_dynamic = true}};
+  }
+
+  // When looking up target partition devices, treat them as static if the
+  // current payload doesn't encode them as dynamic partitions. This may happen
+  // when applying a retrofit update on top of a dynamic-partitions-enabled
+  // build.
+  std::string device;
+  if (GetDynamicPartitionsFeatureFlag().IsEnabled() &&
+      (slot == current_slot || is_target_dynamic_)) {
+    switch (GetDynamicPartitionDevice(device_dir,
+                                      partition_name_suffix,
+                                      slot,
+                                      current_slot,
+                                      not_in_payload,
+                                      &device)) {
+      case DynamicPartitionDeviceStatus::SUCCESS:
+        return {{.rw_device_path = device,
+                 .mountable_device_path = device,
+                 .is_dynamic = true}};
+
+      case DynamicPartitionDeviceStatus::TRY_STATIC:
+        break;
+      case DynamicPartitionDeviceStatus::ERROR:  // fallthrough
+      default:
+        return {};
+    }
+  }
+  // Try static partitions.
+  auto static_path = GetStaticDevicePath(device_dir, partition_name_suffix);
+  if (!DeviceExists(static_path)) {
+    LOG(ERROR) << "Device file " << static_path << " does not exist.";
+    return {};
+  }
+
+  return {{.rw_device_path = static_path,
+           .mountable_device_path = static_path,
+           .is_dynamic = false}};
 }
 
 bool DynamicPartitionControlAndroid::IsSuperBlockDevice(
@@ -1294,4 +1331,5 @@ bool DynamicPartitionControlAndroid::IsDynamicPartition(
                    dynamic_partition_list_.end(),
                    partition_name) != dynamic_partition_list_.end();
 }
+
 }  // namespace chromeos_update_engine
