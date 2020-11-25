@@ -138,7 +138,7 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   FakeVariable<std::string> var_auto_launched_kiosk_app_id_{
       "auto_launched_kiosk_app_id", kVariableModePoll};
   FakeVariable<WeeklyTimeIntervalVector> var_disallowed_time_intervals_{
-      "disallowed_time_intervals", kVariableModePoll};
+      "disallowed_time_intervals", kVariableModeAsync};
   FakeVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
       "channel_downgrade_behavior", kVariableModePoll};
   FakeVariable<base::Version> var_device_minimum_version_{
