@@ -54,14 +54,33 @@ void LogMountHistory(const FileDescriptorPtr blockdevice_fd) {
   //   0x30: len32 Write time
   //   0x34: len16 Number of mounts since the last fsck
   //   0x38: len16 Magic signature 0xEF53
+  //   0x40: len32 Time of last check
+  //   0x108: len32 When the filesystem was created
 
   time_t mount_time =
       *reinterpret_cast<uint32_t*>(&block0_buffer[0x400 + 0x2C]);
+  time_t write_time =
+      *reinterpret_cast<uint32_t*>(&block0_buffer[0x400 + 0x30]);
   uint16_t mount_count =
       *reinterpret_cast<uint16_t*>(&block0_buffer[0x400 + 0x34]);
   uint16_t magic = *reinterpret_cast<uint16_t*>(&block0_buffer[0x400 + 0x38]);
+  time_t check_time =
+      *reinterpret_cast<uint32_t*>(&block0_buffer[0x400 + 0x40]);
+  time_t created_time =
+      *reinterpret_cast<uint32_t*>(&block0_buffer[0x400 + 0x108]);
 
   if (magic == 0xEF53) {
+    // Timestamps can be updated by fsck without updating mount count,
+    // log if any timestamp differ
+    if (! (write_time == created_time && check_time == created_time)) {
+      LOG(WARNING) << "Device have been modified after being created. "
+                   << "Filesystem created on "
+                   << base::Time::FromTimeT(created_time) << ", "
+                   << "last written on "
+                   << base::Time::FromTimeT(write_time) << ", "
+                   << "last checked on "
+                   << base::Time::FromTimeT(check_time) << ".";
+    }
     if (mount_count > 0) {
       LOG(WARNING) << "Device was remounted R/W " << mount_count << " times. "
                    << "Last remount happened on "
