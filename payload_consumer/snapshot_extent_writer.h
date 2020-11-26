@@ -41,7 +41,7 @@ class SnapshotExtentWriter : public chromeos_update_engine::ExtentWriter {
 
  private:
   bool next_extent();
-  size_t ConsumeWithBuffer(const uint8_t* bytes, size_t count);
+  [[nodiscard]] size_t ConsumeWithBuffer(const uint8_t* bytes, size_t count);
   // It's a non-owning pointer, because PartitionWriter owns the CowWruter. This
   // allows us to use a single instance of CowWriter for all operations applied
   // to the same partition.
