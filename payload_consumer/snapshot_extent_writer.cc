@@ -54,8 +54,14 @@ size_t SnapshotExtentWriter::ConsumeWithBuffer(const uint8_t* data,
   const auto cur_extent_size = cur_extent.num_blocks() * block_size_;
 
   if (buffer_.empty() && count >= cur_extent_size) {
-    TEST_AND_RETURN_FALSE(cow_writer_->AddRawBlocks(
-        cur_extent.start_block(), data, cur_extent_size));
+    if (!cow_writer_->AddRawBlocks(
+            cur_extent.start_block(), data, cur_extent_size)) {
+      LOG(ERROR) << "AddRawBlocks(" << cur_extent.start_block() << ", " << data
+                 << ", " << cur_extent_size << ") failed.";
+      // return value is expected to be greater than 0. Return 0 to signal error
+      // condition
+      return 0;
+    }
     if (!next_extent()) {
       CHECK_EQ(count, cur_extent_size)
           << "Exhausted all blocks, but still have " << count - cur_extent_size
@@ -75,8 +81,12 @@ size_t SnapshotExtentWriter::ConsumeWithBuffer(const uint8_t* data,
   CHECK_LE(buffer_.size(), cur_extent_size);
 
   if (buffer_.size() == cur_extent_size) {
-    TEST_AND_RETURN_FALSE(cow_writer_->AddRawBlocks(
-        cur_extent.start_block(), buffer_.data(), buffer_.size()));
+    if (!cow_writer_->AddRawBlocks(
+            cur_extent.start_block(), buffer_.data(), buffer_.size())) {
+      LOG(ERROR) << "AddRawBlocks(" << cur_extent.start_block() << ", "
+                 << buffer_.data() << ", " << buffer_.size() << ") failed.";
+      return 0;
+    }
     buffer_.clear();
     if (!next_extent()) {
       CHECK_EQ(count, bytes_to_copy) << "Exhausted all blocks, but still have "
@@ -100,6 +110,7 @@ bool SnapshotExtentWriter::Write(const void* bytes, size_t count) {
   auto data = static_cast<const uint8_t*>(bytes);
   while (count > 0) {
     auto bytes_written = ConsumeWithBuffer(data, count);
+    TEST_AND_RETURN_FALSE(bytes_written > 0);
     data += bytes_written;
     count -= bytes_written;
   }
