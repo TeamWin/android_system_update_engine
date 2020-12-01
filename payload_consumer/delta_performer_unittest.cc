@@ -59,7 +59,6 @@ using std::string;
 using std::vector;
 using test_utils::GetBuildArtifactsPath;
 using test_utils::kRandomString;
-using test_utils::System;
 using testing::_;
 
 extern const char* kUnittestPrivateKeyPath;
@@ -417,8 +416,6 @@ class DeltaPerformerTest : public ::testing::Test {
     // implicitly confirms that the metadata signature is valid, if required.
     EXPECT_EQ(payload_.metadata_size, performer_.metadata_size_);
   }
-
-
 
   FakePrefs prefs_;
   InstallPlan install_plan_;
@@ -1070,6 +1067,32 @@ TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
   EXPECT_TRUE(store.GetString("PAYLOAD_MAJOR_VERSION", &major_version_str));
   EXPECT_TRUE(base::StringToUint64(major_version_str, &major_version));
   EXPECT_EQ(kMaxSupportedMajorPayloadVersion, major_version);
+}
+
+TEST_F(DeltaPerformerTest, FullPayloadCanResumeTest) {
+  payload_.type = InstallPayloadType::kFull;
+  brillo::Blob expected_data =
+      brillo::Blob(std::begin(kRandomString), std::end(kRandomString));
+  expected_data.resize(4096);  // block size
+  vector<AnnotatedOperation> aops;
+  AnnotatedOperation aop;
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_data_offset(0);
+  aop.op.set_data_length(expected_data.size());
+  aop.op.set_type(InstallOperation::REPLACE);
+  aops.push_back(aop);
+
+  brillo::Blob payload_data = GeneratePayload(expected_data,
+                                              aops,
+                                              false,
+                                              kBrilloMajorPayloadVersion,
+                                              kFullPayloadMinorVersion);
+
+  ASSERT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
+  performer_.CheckpointUpdateProgress(true);
+  const std::string payload_id = "12345";
+  prefs_.SetString(kPrefsUpdateCheckResponseHash, payload_id);
+  ASSERT_TRUE(DeltaPerformer::CanResumeUpdate(&prefs_, payload_id));
 }
 
 }  // namespace chromeos_update_engine
