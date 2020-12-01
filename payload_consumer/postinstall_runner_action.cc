@@ -143,6 +143,11 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   fs_mount_dir_ = temp_dir.value();
 #endif  // __ANDROID__
 
+  if (!utils::FileExists(fs_mount_dir_.c_str())) {
+    LOG(ERROR) << "Mount point " << fs_mount_dir_
+               << " does not exist, mount call will fail";
+    return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
+  }
   // Double check that the fs_mount_dir is not busy with a previous mounted
   // filesystem from a previous crashed postinstall step.
   if (utils::IsMountpoint(fs_mount_dir_)) {
