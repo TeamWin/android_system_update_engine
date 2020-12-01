@@ -1440,7 +1440,14 @@ bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
       TEST_AND_RETURN_FALSE(
           prefs_->SetInt64(kPrefsUpdateStateNextDataLength, 0));
     }
-    partition_writer_->CheckpointUpdateProgress(GetPartitionOperationNum());
+    if (partition_writer_) {
+      partition_writer_->CheckpointUpdateProgress(GetPartitionOperationNum());
+    } else {
+      CHECK_EQ(next_operation_num_, num_total_operations_)
+          << "Partition writer is null, we are expected to finish all "
+             "operations: "
+          << next_operation_num_ << "/" << num_total_operations_;
+    }
   }
   TEST_AND_RETURN_FALSE(
       prefs_->SetInt64(kPrefsUpdateStateNextOperation, next_operation_num_));
