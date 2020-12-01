@@ -45,7 +45,7 @@ int DaemonChromeOS::OnInit() {
   // TODO(deymo): Move the initialization to a factory method avoiding the
   // explicit re-usage of the |bus| instance, shared between D-Bus service and
   // D-Bus client calls.
-  RealSystemState::CreateInstance();
+  RealSystemState::SetInstance(&system_state_);
 
   // Create the DBus service.
   dbus_adaptor_.reset(new UpdateEngineAdaptor());

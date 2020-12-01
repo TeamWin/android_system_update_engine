@@ -47,13 +47,16 @@ namespace chromeos_update_engine {
 // used by the actual product code.
 class RealSystemState : public SystemState {
  public:
+  // Constructs all system objects that do not require separate initialization;
+  // see Initialize() below for the remaining ones.
+  RealSystemState() = default;
   ~RealSystemState() = default;
 
-  static void CreateInstance() {
-    CHECK(!g_instance_) << "SystemState has been previously created.";
-    RealSystemState* rss = new RealSystemState();
-    g_instance_.reset(rss);
-    LOG_IF(FATAL, !rss->Initialize()) << "Failed to initialize system state.";
+  static void SetInstance(RealSystemState* system_state) {
+    CHECK(g_pointer_ == nullptr) << "SystemState has been previously set.";
+    g_pointer_ = system_state;
+    LOG_IF(FATAL, !system_state->Initialize())
+        << "Failed to initialize system state.";
   }
 
   // SystemState overrides.
@@ -108,10 +111,6 @@ class RealSystemState : public SystemState {
   DlcServiceInterface* dlcservice() override { return dlcservice_.get(); }
 
  private:
-  // Constructs all system objects that do not require separate initialization;
-  // see Initialize() below for the remaining ones.
-  RealSystemState() = default;
-
   // Initializes and sets systems objects that require an initialization
   // separately from construction. Returns |true| on success.
   bool Initialize();

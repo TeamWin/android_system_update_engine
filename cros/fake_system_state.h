@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_CROS_FAKE_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_CROS_FAKE_SYSTEM_STATE_H_
 
+#include <memory>
+
 #include <base/logging.h>
 #include <gmock/gmock.h>
 #include <policy/mock_device_policy.h>
@@ -43,10 +45,14 @@ namespace chromeos_update_engine {
 // OOBE is completed even when there's no such marker file, etc.
 class FakeSystemState : public SystemState {
  public:
-  static void CreateInstance() { g_instance_.reset(new FakeSystemState()); }
+  static void CreateInstance() {
+    static std::unique_ptr<FakeSystemState> system_state;
+    system_state.reset(new FakeSystemState());
+    g_pointer_ = system_state.get();
+  }
 
   static FakeSystemState* Get() {
-    return reinterpret_cast<FakeSystemState*>(g_instance_.get());
+    return reinterpret_cast<FakeSystemState*>(g_pointer_);
   }
 
   // Base class overrides. All getters return the current implementation of

@@ -18,6 +18,6 @@
 
 namespace chromeos_update_engine {
 
-std::unique_ptr<SystemState> SystemState::g_instance_;
+SystemState* SystemState::g_pointer_ = nullptr;
 
 }  // namespace chromeos_update_engine

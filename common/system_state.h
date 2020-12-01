@@ -61,8 +61,8 @@ class SystemState {
   virtual ~SystemState() = default;
 
   static SystemState* Get() {
-    CHECK(g_instance_);
-    return g_instance_.get();
+    CHECK(g_pointer_ != nullptr);
+    return g_pointer_;
   }
 
   // Sets or gets the latest device policy.
@@ -121,7 +121,7 @@ class SystemState {
   virtual DlcServiceInterface* dlcservice() = 0;
 
  protected:
-  static std::unique_ptr<SystemState> g_instance_;
+  static SystemState* g_pointer_;
 };
 
 }  // namespace chromeos_update_engine
