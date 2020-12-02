@@ -358,7 +358,7 @@ static bool CreateP2PFile(string p2p_dir,
 
 // Check that sharing a *new* file works.
 TEST_F(P2PManagerTest, ShareFile) {
-  const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
+  const int kP2PTestFileSize = 1000 * 8;  // 8 KB
 
   EXPECT_TRUE(manager_->FileShare("foo", kP2PTestFileSize));
   EXPECT_EQ(manager_->FileGetPath("foo"),
@@ -377,7 +377,7 @@ TEST_F(P2PManagerTest, ShareFile) {
 
 // Check that making a shared file visible, does what is expected.
 TEST_F(P2PManagerTest, MakeFileVisible) {
-  const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
+  const int kP2PTestFileSize = 1000 * 8;  // 8 KB
 
   // First, check that it's not visible.
   manager_->FileShare("foo", kP2PTestFileSize);
