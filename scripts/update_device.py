@@ -104,7 +104,7 @@ class AndroidOTAPackage(object):
 
     if payload_info.compress_type != 0:
       logging.error(
-          "Expected layload to be uncompressed, got compression method %d",
+          "Expected payload to be uncompressed, got compression method %d",
           payload_info.compress_type)
     # Don't use len(payload_info.extra). Because that returns size of extra
     # fields in central directory. We need to look at local file directory,
@@ -125,10 +125,10 @@ class AndroidOTAPackage(object):
       payload_header = fp.read(4)
       if payload_header != self.PAYLOAD_MAGIC_HEADER:
         logging.warning(
-            "Invalid header, expeted %s, got %s."
+            "Invalid header, expected %s, got %s."
             "Either the offset is not correct, or payload is corrupted",
             binascii.hexlify(self.PAYLOAD_MAGIC_HEADER),
-            payload_header)
+            binascii.hexlify(payload_header))
 
     property_entry = (self.SECONDARY_OTA_PAYLOAD_PROPERTIES_TXT if
                       secondary_payload else self.OTA_PAYLOAD_PROPERTIES_TXT)
