@@ -60,7 +60,7 @@ class UmUpdateTimeRestrictionsPolicyImplTest : public UmPolicyTestBase {
 
     Time time;
     EXPECT_TRUE(Time::FromLocalExploded(exploded, &time));
-    fake_clock_.SetWallclockTime(time);
+    fake_clock_->SetWallclockTime(time);
     SetUpDefaultTimeProvider();
     fake_state_.device_policy_provider()
         ->var_disallowed_time_intervals()

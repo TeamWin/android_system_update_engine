@@ -66,6 +66,9 @@ struct UpdateCheckParams {
   std::string target_channel;
   // Specifies if the channel hint, e.g. LTS (Long Term Support) updates.
   std::string lts_tag;
+  // Specifies a token which maps to a Chrome OS Quick Fix Build, if imposed by
+  // policy; otherwise, an empty string.
+  std::string quick_fix_build_token;
 
   // Whether the allowed update is interactive (user-initiated) or periodic.
   bool interactive{false};
@@ -227,9 +230,6 @@ class Policy {
     if (reinterpret_cast<typeof(&Policy::UpdateCanStart)>(policy_method) ==
         &Policy::UpdateCanStart)
       return class_name + "UpdateCanStart";
-    if (reinterpret_cast<typeof(&Policy::UpdateDownloadAllowed)>(
-            policy_method) == &Policy::UpdateDownloadAllowed)
-      return class_name + "UpdateDownloadAllowed";
     if (reinterpret_cast<typeof(&Policy::P2PEnabled)>(policy_method) ==
         &Policy::P2PEnabled)
       return class_name + "P2PEnabled";
@@ -278,17 +278,6 @@ class Policy {
                                     UpdateDownloadParams* result,
                                     UpdateState update_state) const = 0;
 
-  // Checks whether downloading of an update is allowed; currently, this checks
-  // whether the network connection type is suitable for updating over.  May
-  // consult the shill provider as well as the device policy (if available).
-  // Returns |EvalStatus::kSucceeded|, setting |result| according to whether or
-  // not the current connection can be used; on error, returns
-  // |EvalStatus::kFailed| and sets |error| accordingly.
-  virtual EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
-                                           State* state,
-                                           std::string* error,
-                                           bool* result) const = 0;
-
   // Checks whether P2P is enabled. This may consult device policy and other
   // global settings.
   virtual EvalStatus P2PEnabled(EvaluationContext* ec,
@@ -317,9 +306,7 @@ class Policy {
   DISALLOW_COPY_AND_ASSIGN(Policy);
 };
 
-// Get system dependent (Chrome OS vs. Android) policy
-// implementation. Implementations can be found in chromeos_policy.cc and
-// android_things_policy.cc.
+// Get system dependent policy implementation.
 std::unique_ptr<Policy> GetSystemPolicy();
 
 }  // namespace chromeos_update_manager

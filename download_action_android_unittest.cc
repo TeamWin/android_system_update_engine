@@ -77,7 +77,6 @@ TEST_F(DownloadActionTest, CacheManifestInvalid) {
       std::make_unique<DownloadAction>(&prefs,
                                        &boot_control,
                                        nullptr,
-                                       nullptr,
                                        http_fetcher,
                                        false /* interactive */);
   download_action->set_in_pipe(action_pipe);

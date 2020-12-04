@@ -51,6 +51,7 @@
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/common/subprocess.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
@@ -115,7 +116,6 @@ class ConfigurationImpl : public P2PManager::Configuration {
 class P2PManagerImpl : public P2PManager {
  public:
   P2PManagerImpl(Configuration* configuration,
-                 ClockInterface* clock,
                  UpdateManager* update_manager,
                  const string& file_extension,
                  const int num_files_to_keep,
@@ -170,9 +170,6 @@ class P2PManagerImpl : public P2PManager {
   // Configuration object.
   unique_ptr<Configuration> configuration_;
 
-  // Object for telling the time.
-  ClockInterface* clock_;
-
   // A pointer to the global Update Manager.
   UpdateManager* update_manager_;
 
@@ -211,13 +208,11 @@ const char P2PManagerImpl::kP2PExtension[] = ".p2p";
 const char P2PManagerImpl::kTmpExtension[] = ".tmp";
 
 P2PManagerImpl::P2PManagerImpl(Configuration* configuration,
-                               ClockInterface* clock,
                                UpdateManager* update_manager,
                                const string& file_extension,
                                const int num_files_to_keep,
                                const TimeDelta& max_file_age)
-    : clock_(clock),
-      update_manager_(update_manager),
+    : update_manager_(update_manager),
       file_extension_(file_extension),
       num_files_to_keep_(num_files_to_keep),
       max_file_age_(max_file_age) {
@@ -344,8 +339,9 @@ bool P2PManagerImpl::PerformHousekeeping() {
     // If instructed to keep only files younger than a given age
     // (|max_file_age_| != 0), delete files satisfying this criteria
     // right now. Otherwise add it to a list we'll consider for later.
-    if (clock_ != nullptr && max_file_age_ != TimeDelta() &&
-        clock_->GetWallclockTime() - time > max_file_age_) {
+    if (max_file_age_ != TimeDelta() &&
+        SystemState::Get()->clock()->GetWallclockTime() - time >
+            max_file_age_) {
       if (!DeleteP2PFile(name, "file too old"))
         deletion_failed = true;
     } else {
@@ -722,13 +718,11 @@ void P2PManagerImpl::OnEnabledStatusChange(EvalStatus status,
 }
 
 P2PManager* P2PManager::Construct(Configuration* configuration,
-                                  ClockInterface* clock,
                                   UpdateManager* update_manager,
                                   const string& file_extension,
                                   const int num_files_to_keep,
                                   const TimeDelta& max_file_age) {
   return new P2PManagerImpl(configuration,
-                            clock,
                             update_manager,
                             file_extension,
                             num_files_to_keep,

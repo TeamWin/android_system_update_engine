@@ -23,10 +23,7 @@
 #include <set>
 
 #include <policy/device_policy.h>
-
-#if USE_CHROME_KIOSK_APP
 #include <kiosk-app/dbus-proxies.h>
-#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
@@ -48,95 +45,79 @@ namespace chromeos_update_engine {
 
 // A real implementation of the SystemStateInterface which is
 // used by the actual product code.
-class RealSystemState : public SystemState, public DaemonStateInterface {
+class RealSystemState : public SystemState {
  public:
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
   RealSystemState() = default;
-  ~RealSystemState() override;
+  ~RealSystemState() = default;
 
+  static void SetInstance(RealSystemState* system_state) {
+    CHECK(g_pointer_ == nullptr) << "SystemState has been previously set.";
+    g_pointer_ = system_state;
+    LOG_IF(FATAL, !system_state->Initialize())
+        << "Failed to initialize system state.";
+  }
+
+  // SystemState overrides.
+  void set_device_policy(const policy::DevicePolicy* device_policy) override {
+    device_policy_ = device_policy;
+  }
+
+  const policy::DevicePolicy* device_policy() override {
+    return device_policy_;
+  }
+
+  BootControlInterface* boot_control() override { return boot_control_.get(); }
+
+  ClockInterface* clock() override { return &clock_; }
+
+  ConnectionManagerInterface* connection_manager() override {
+    return connection_manager_.get();
+  }
+
+  HardwareInterface* hardware() override { return hardware_.get(); }
+
+  MetricsReporterInterface* metrics_reporter() override {
+    return &metrics_reporter_;
+  }
+
+  PrefsInterface* prefs() override { return prefs_.get(); }
+
+  PrefsInterface* powerwash_safe_prefs() override {
+    return powerwash_safe_prefs_.get();
+  }
+
+  PayloadStateInterface* payload_state() override { return &payload_state_; }
+
+  UpdateAttempter* update_attempter() override {
+    return update_attempter_.get();
+  }
+
+  OmahaRequestParams* request_params() override { return &request_params_; }
+
+  P2PManager* p2p_manager() override { return p2p_manager_.get(); }
+
+  chromeos_update_manager::UpdateManager* update_manager() override {
+    return update_manager_.get();
+  }
+
+  PowerManagerInterface* power_manager() override {
+    return power_manager_.get();
+  }
+
+  bool system_rebooted() override { return system_rebooted_; }
+
+  DlcServiceInterface* dlcservice() override { return dlcservice_.get(); }
+
+ private:
   // Initializes and sets systems objects that require an initialization
   // separately from construction. Returns |true| on success.
   bool Initialize();
 
-  // DaemonStateInterface overrides.
-  // Start the periodic update attempts. Must be called at the beginning of the
-  // program to start the periodic update check process.
-  bool StartUpdater() override;
-
-  void AddObserver(ServiceObserverInterface* observer) override;
-  void RemoveObserver(ServiceObserverInterface* observer) override;
-  const std::set<ServiceObserverInterface*>& service_observers() override {
-    CHECK(update_attempter_.get());
-    return update_attempter_->service_observers();
-  }
-
-  // SystemState overrides.
-  inline void set_device_policy(
-      const policy::DevicePolicy* device_policy) override {
-    device_policy_ = device_policy;
-  }
-
-  inline const policy::DevicePolicy* device_policy() override {
-    return device_policy_;
-  }
-
-  inline BootControlInterface* boot_control() override {
-    return boot_control_.get();
-  }
-
-  inline ClockInterface* clock() override { return &clock_; }
-
-  inline ConnectionManagerInterface* connection_manager() override {
-    return connection_manager_.get();
-  }
-
-  inline HardwareInterface* hardware() override { return hardware_.get(); }
-
-  inline MetricsReporterInterface* metrics_reporter() override {
-    return &metrics_reporter_;
-  }
-
-  inline PrefsInterface* prefs() override { return prefs_.get(); }
-
-  inline PrefsInterface* powerwash_safe_prefs() override {
-    return powerwash_safe_prefs_.get();
-  }
-
-  inline PayloadStateInterface* payload_state() override {
-    return &payload_state_;
-  }
-
-  inline UpdateAttempter* update_attempter() override {
-    return update_attempter_.get();
-  }
-
-  inline OmahaRequestParams* request_params() override {
-    return &request_params_;
-  }
-
-  inline P2PManager* p2p_manager() override { return p2p_manager_.get(); }
-
-  inline chromeos_update_manager::UpdateManager* update_manager() override {
-    return update_manager_.get();
-  }
-
-  inline PowerManagerInterface* power_manager() override {
-    return power_manager_.get();
-  }
-
-  inline bool system_rebooted() override { return system_rebooted_; }
-
-  inline DlcServiceInterface* dlcservice() override {
-    return dlcservice_.get();
-  }
-
- private:
   // Real DBus proxies using the DBus connection.
-#if USE_CHROME_KIOSK_APP
   std::unique_ptr<org::chromium::KioskAppServiceInterfaceProxy>
       kiosk_app_proxy_;
-#endif  // USE_CHROME_KIOSK_APP
 
   // Interface for the power manager.
   std::unique_ptr<PowerManagerInterface> power_manager_;
@@ -181,7 +162,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   std::unique_ptr<UpdateAttempter> update_attempter_;
 
   // Common parameters for all Omaha requests.
-  OmahaRequestParams request_params_{this};
+  OmahaRequestParams request_params_;
 
   std::unique_ptr<P2PManager> p2p_manager_;
 
@@ -193,8 +174,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   // rebooted. Important for tracking whether you are running instance of the
   // update engine on first boot or due to a crash/restart.
   bool system_rebooted_{false};
-
-  ActionProcessor processor_;
 };
 
 }  // namespace chromeos_update_engine

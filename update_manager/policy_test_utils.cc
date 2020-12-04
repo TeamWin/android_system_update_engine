@@ -20,11 +20,13 @@
 #include <tuple>
 #include <vector>
 
+#include "update_engine/cros/fake_system_state.h"
 #include "update_engine/update_manager/next_update_check_policy_impl.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::FakeSystemState;
 using std::string;
 using std::tuple;
 using std::vector;
@@ -33,9 +35,10 @@ namespace chromeos_update_manager {
 
 void UmPolicyTestBase::SetUp() {
   loop_.SetAsCurrent();
+  FakeSystemState::CreateInstance();
+  fake_clock_ = FakeSystemState::Get()->fake_clock();
   SetUpDefaultClock();
-  eval_ctx_.reset(
-      new EvaluationContext(&fake_clock_, TimeDelta::FromSeconds(5)));
+  eval_ctx_.reset(new EvaluationContext(TimeDelta::FromSeconds(5)));
   SetUpDefaultState();
 }
 
@@ -45,12 +48,12 @@ void UmPolicyTestBase::TearDown() {
 
 // Sets the clock to fixed values.
 void UmPolicyTestBase::SetUpDefaultClock() {
-  fake_clock_.SetMonotonicTime(Time::FromInternalValue(12345678L));
-  fake_clock_.SetWallclockTime(Time::FromInternalValue(12345678901234L));
+  fake_clock_->SetMonotonicTime(Time::FromInternalValue(12345678L));
+  fake_clock_->SetWallclockTime(Time::FromInternalValue(12345678901234L));
 }
 
 void UmPolicyTestBase::SetUpDefaultTimeProvider() {
-  Time current_time = fake_clock_.GetWallclockTime();
+  Time current_time = FakeSystemState::Get()->clock()->GetWallclockTime();
   base::Time::Exploded exploded;
   current_time.LocalExplode(&exploded);
   fake_state_.time_provider()->var_curr_hour()->reset(new int(exploded.hour));
@@ -62,9 +65,9 @@ void UmPolicyTestBase::SetUpDefaultTimeProvider() {
 
 void UmPolicyTestBase::SetUpDefaultState() {
   fake_state_.updater_provider()->var_updater_started_time()->reset(
-      new Time(fake_clock_.GetWallclockTime()));
+      new Time(fake_clock_->GetWallclockTime()));
   fake_state_.updater_provider()->var_last_checked_time()->reset(
-      new Time(fake_clock_.GetWallclockTime()));
+      new Time(fake_clock_->GetWallclockTime()));
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->reset(
       new unsigned int(0));  // NOLINT(readability/casting)
   fake_state_.updater_provider()->var_server_dictated_poll_interval()->reset(
@@ -79,7 +82,8 @@ void UmPolicyTestBase::SetUpDefaultState() {
 // Returns a default UpdateState structure:
 UpdateState UmPolicyTestBase::GetDefaultUpdateState(
     TimeDelta first_seen_period) {
-  Time first_seen_time = fake_clock_.GetWallclockTime() - first_seen_period;
+  Time first_seen_time =
+      FakeSystemState::Get()->clock()->GetWallclockTime() - first_seen_period;
   UpdateState update_state = UpdateState();
 
   // This is a non-interactive check returning a delta payload, seen for the

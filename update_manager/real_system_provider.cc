@@ -20,17 +20,17 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/time/time.h>
-#if USE_CHROME_KIOSK_APP
 #include <kiosk-app/dbus-proxies.h>
-#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/variable.h"
 
+using chromeos_update_engine::SystemState;
 using std::string;
 
 namespace chromeos_update_manager {
@@ -100,19 +100,20 @@ class RetryPollVariable : public Variable<T> {
 
 bool RealSystemProvider::Init() {
   var_is_normal_boot_mode_.reset(new ConstCopyVariable<bool>(
-      "is_normal_boot_mode", system_state_->hardware()->IsNormalBootMode()));
+      "is_normal_boot_mode",
+      SystemState::Get()->hardware()->IsNormalBootMode()));
 
   var_is_official_build_.reset(new ConstCopyVariable<bool>(
-      "is_official_build", system_state_->hardware()->IsOfficialBuild()));
+      "is_official_build", SystemState::Get()->hardware()->IsOfficialBuild()));
 
   var_is_oobe_complete_.reset(new CallCopyVariable<bool>(
       "is_oobe_complete",
       base::Bind(&chromeos_update_engine::HardwareInterface::IsOOBEComplete,
-                 base::Unretained(system_state_->hardware()),
+                 base::Unretained(SystemState::Get()->hardware()),
                  nullptr)));
 
   var_num_slots_.reset(new ConstCopyVariable<unsigned int>(
-      "num_slots", system_state_->boot_control()->GetNumSlots()));
+      "num_slots", SystemState::Get()->boot_control()->GetNumSlots()));
 
   var_kiosk_required_platform_version_.reset(new RetryPollVariable<string>(
       "kiosk_required_platform_version",
@@ -122,14 +123,13 @@ bool RealSystemProvider::Init() {
 
   var_chromeos_version_.reset(new ConstCopyVariable<base::Version>(
       "chromeos_version",
-      base::Version(system_state_->request_params()->app_version())));
+      base::Version(SystemState::Get()->request_params()->app_version())));
 
   return true;
 }
 
 bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     string* required_platform_version) {
-#if USE_CHROME_KIOSK_APP
   brillo::ErrorPtr error;
   if (!kiosk_app_proxy_->GetRequiredPlatformVersion(required_platform_version,
                                                     &error)) {
@@ -137,7 +137,6 @@ bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     required_platform_version->clear();
     return false;
   }
-#endif  // USE_CHROME_KIOSK_APP
 
   return true;
 }

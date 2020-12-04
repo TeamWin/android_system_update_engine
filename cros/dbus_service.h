@@ -38,7 +38,7 @@ namespace chromeos_update_engine {
 class DBusUpdateEngineService
     : public org::chromium::UpdateEngineInterfaceInterface {
  public:
-  explicit DBusUpdateEngineService(SystemState* system_state);
+  DBusUpdateEngineService();
   virtual ~DBusUpdateEngineService() = default;
 
   // Implementation of org::chromium::UpdateEngineInterfaceInterface.
@@ -165,7 +165,7 @@ class DBusUpdateEngineService
 class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
                             public ServiceObserverInterface {
  public:
-  explicit UpdateEngineAdaptor(SystemState* system_state);
+  UpdateEngineAdaptor();
   ~UpdateEngineAdaptor() = default;
 
   // Register the DBus object with the update engine service asynchronously.

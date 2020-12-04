@@ -25,7 +25,6 @@
 #include <metrics/metrics_library_mock.h>
 
 #include "update_engine/common/fake_clock.h"
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 
 using base::TimeDelta;
@@ -40,12 +39,16 @@ class MetricsReporterOmahaTest : public ::testing::Test {
 
   // Reset the metrics_lib_ to a mock library.
   void SetUp() override {
+    FakeSystemState::CreateInstance();
+    fake_clock_ = FakeSystemState::Get()->fake_clock();
     mock_metrics_lib_ = new testing::NiceMock<MetricsLibraryMock>();
     reporter_.metrics_lib_.reset(mock_metrics_lib_);
   }
 
   testing::NiceMock<MetricsLibraryMock>* mock_metrics_lib_;
   MetricsReporterOmaha reporter_;
+
+  FakeClock* fake_clock_;
 };
 
 TEST_F(MetricsReporterOmahaTest, ReportDailyMetrics) {
@@ -58,15 +61,9 @@ TEST_F(MetricsReporterOmahaTest, ReportDailyMetrics) {
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportUpdateCheckMetrics) {
-  FakeSystemState fake_system_state;
-  FakeClock fake_clock;
-  FakePrefs fake_prefs;
-
   // We need to execute the report twice to test the time since last report.
-  fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&fake_prefs);
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(1000000));
-  fake_clock.SetMonotonicTime(base::Time::FromInternalValue(1000000));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(1000000));
+  fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(1000000));
 
   metrics::CheckResult result = metrics::CheckResult::kUpdateAvailable;
   metrics::CheckReaction reaction = metrics::CheckReaction::kIgnored;
@@ -104,24 +101,20 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateCheckMetrics) {
           metrics::kMetricCheckTimeSinceLastCheckUptimeMinutes, 1, _, _, _))
       .Times(1);
 
-  reporter_.ReportUpdateCheckMetrics(
-      &fake_system_state, result, reaction, error_code);
+  reporter_.ReportUpdateCheckMetrics(result, reaction, error_code);
 
   // Advance the clock by 1 minute and report the same metrics again.
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(61000000));
-  fake_clock.SetMonotonicTime(base::Time::FromInternalValue(61000000));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(61000000));
+  fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(61000000));
   // Allow rollback
-  reporter_.ReportUpdateCheckMetrics(
-      &fake_system_state, result, reaction, error_code);
+  reporter_.ReportUpdateCheckMetrics(result, reaction, error_code);
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportUpdateCheckMetricsPinned) {
-  FakeSystemState fake_system_state;
-
-  OmahaRequestParams params(&fake_system_state);
+  OmahaRequestParams params;
   params.set_target_version_prefix("10575.");
   params.set_rollback_allowed(false);
-  fake_system_state.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
 
   metrics::CheckResult result = metrics::CheckResult::kUpdateAvailable;
   metrics::CheckReaction reaction = metrics::CheckReaction::kIgnored;
@@ -138,17 +131,14 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateCheckMetricsPinned) {
               SendSparseToUMA(metrics::kMetricCheckRollbackTargetVersion, _))
       .Times(0);
 
-  reporter_.ReportUpdateCheckMetrics(
-      &fake_system_state, result, reaction, error_code);
+  reporter_.ReportUpdateCheckMetrics(result, reaction, error_code);
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportUpdateCheckMetricsRollback) {
-  FakeSystemState fake_system_state;
-
-  OmahaRequestParams params(&fake_system_state);
+  OmahaRequestParams params;
   params.set_target_version_prefix("10575.");
   params.set_rollback_allowed(true);
-  fake_system_state.set_request_params(&params);
+  FakeSystemState::Get()->set_request_params(&params);
 
   metrics::CheckResult result = metrics::CheckResult::kUpdateAvailable;
   metrics::CheckReaction reaction = metrics::CheckReaction::kIgnored;
@@ -166,8 +156,7 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateCheckMetricsRollback) {
       SendSparseToUMA(metrics::kMetricCheckRollbackTargetVersion, 10575))
       .Times(1);
 
-  reporter_.ReportUpdateCheckMetrics(
-      &fake_system_state, result, reaction, error_code);
+  reporter_.ReportUpdateCheckMetrics(result, reaction, error_code);
 }
 
 TEST_F(MetricsReporterOmahaTest,
@@ -183,14 +172,8 @@ TEST_F(MetricsReporterOmahaTest,
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
-  FakeSystemState fake_system_state;
-  FakeClock fake_clock;
-  FakePrefs fake_prefs;
-
-  fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&fake_prefs);
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(1000000));
-  fake_clock.SetMonotonicTime(base::Time::FromInternalValue(1000000));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(1000000));
+  fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(1000000));
 
   int attempt_number = 1;
   PayloadType payload_type = kPayloadTypeFull;
@@ -252,8 +235,7 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
           metrics::kMetricAttemptTimeSinceLastAttemptUptimeMinutes, 1, _, _, _))
       .Times(1);
 
-  reporter_.ReportUpdateAttemptMetrics(&fake_system_state,
-                                       attempt_number,
+  reporter_.ReportUpdateAttemptMetrics(attempt_number,
                                        payload_type,
                                        duration,
                                        duration_uptime,
@@ -262,10 +244,9 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
                                        internal_error_code);
 
   // Advance the clock by 1 minute and report the same metrics again.
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(61000000));
-  fake_clock.SetMonotonicTime(base::Time::FromInternalValue(61000000));
-  reporter_.ReportUpdateAttemptMetrics(&fake_system_state,
-                                       attempt_number,
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(61000000));
+  fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(61000000));
+  reporter_.ReportUpdateAttemptMetrics(attempt_number,
                                        payload_type,
                                        duration,
                                        duration_uptime,
@@ -539,113 +520,87 @@ TEST_F(MetricsReporterOmahaTest,
 }
 
 TEST_F(MetricsReporterOmahaTest, WallclockDurationHelper) {
-  FakeSystemState fake_system_state;
-  FakeClock fake_clock;
   base::TimeDelta duration;
   const std::string state_variable_key = "test-prefs";
-  FakePrefs fake_prefs;
-
-  fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&fake_prefs);
 
   // Initialize wallclock to 1 sec.
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(1000000));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(1000000));
 
   // First time called so no previous measurement available.
-  EXPECT_FALSE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  EXPECT_FALSE(
+      reporter_.WallclockDurationHelper(state_variable_key, &duration));
 
   // Next time, we should get zero since the clock didn't advance.
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 
   // We can also call it as many times as we want with it being
   // considered a failure.
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 
   // Advance the clock one second, then we should get 1 sec on the
   // next call and 0 sec on the subsequent call.
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(2000000));
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(2000000));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 1);
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 
   // Advance clock two seconds and we should get 2 sec and then 0 sec.
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(4000000));
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(4000000));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 2);
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 
   // There's a possibility that the wallclock can go backwards (NTP
   // adjustments, for example) so check that we properly handle this
   // case.
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(3000000));
-  EXPECT_FALSE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
-  fake_clock.SetWallclockTime(base::Time::FromInternalValue(4000000));
-  EXPECT_TRUE(reporter_.WallclockDurationHelper(
-      &fake_system_state, state_variable_key, &duration));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(3000000));
+  EXPECT_FALSE(
+      reporter_.WallclockDurationHelper(state_variable_key, &duration));
+  fake_clock_->SetWallclockTime(base::Time::FromInternalValue(4000000));
+  EXPECT_TRUE(reporter_.WallclockDurationHelper(state_variable_key, &duration));
   EXPECT_EQ(duration.InSeconds(), 1);
 }
 
 TEST_F(MetricsReporterOmahaTest, MonotonicDurationHelper) {
   int64_t storage = 0;
-  FakeSystemState fake_system_state;
-  FakeClock fake_clock;
   base::TimeDelta duration;
 
-  fake_system_state.set_clock(&fake_clock);
-
   // Initialize monotonic clock to 1 sec.
-  fake_clock.SetMonotonicTime(base::Time::FromInternalValue(1000000));
+  fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(1000000));
 
   // First time called so no previous measurement available.
-  EXPECT_FALSE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  EXPECT_FALSE(reporter_.MonotonicDurationHelper(&storage, &duration));
 
   // Next time, we should get zero since the clock didn't advance.
-  EXPECT_TRUE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  EXPECT_TRUE(reporter_.MonotonicDurationHelper(&storage, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 
   // We can also call it as many times as we want with it being
   // considered a failure.
-  EXPECT_TRUE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  EXPECT_TRUE(reporter_.MonotonicDurationHelper(&storage, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
-  EXPECT_TRUE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  EXPECT_TRUE(reporter_.MonotonicDurationHelper(&storage, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 
   // Advance the clock one second, then we should get 1 sec on the
   // next call and 0 sec on the subsequent call.
-  fake_clock.SetMonotonicTime(base::Time::FromInternalValue(2000000));
-  EXPECT_TRUE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(2000000));
+  EXPECT_TRUE(reporter_.MonotonicDurationHelper(&storage, &duration));
   EXPECT_EQ(duration.InSeconds(), 1);
-  EXPECT_TRUE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  EXPECT_TRUE(reporter_.MonotonicDurationHelper(&storage, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 
   // Advance clock two seconds and we should get 2 sec and then 0 sec.
-  fake_clock.SetMonotonicTime(base::Time::FromInternalValue(4000000));
-  EXPECT_TRUE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  fake_clock_->SetMonotonicTime(base::Time::FromInternalValue(4000000));
+  EXPECT_TRUE(reporter_.MonotonicDurationHelper(&storage, &duration));
   EXPECT_EQ(duration.InSeconds(), 2);
-  EXPECT_TRUE(reporter_.MonotonicDurationHelper(
-      &fake_system_state, &storage, &duration));
+  EXPECT_TRUE(reporter_.MonotonicDurationHelper(&storage, &duration));
   EXPECT_EQ(duration.InSeconds(), 0);
 }
 

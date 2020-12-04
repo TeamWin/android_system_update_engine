@@ -26,12 +26,11 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
-#include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/system_state.h"
 
 using base::TimeDelta;
 using chromeos_update_engine::kPrefsWallClockStagingWaitPeriod;
-using chromeos_update_engine::PrefsInterface;
+using chromeos_update_engine::SystemState;
 using policy::DevicePolicy;
 
 namespace chromeos_update_manager {
@@ -98,7 +97,6 @@ int CalculateWaitTimeInDaysFromSchedule(
 }
 
 StagingCase CalculateStagingCase(const DevicePolicy* device_policy,
-                                 PrefsInterface* prefs,
                                  TimeDelta* staging_wait_time,
                                  StagingSchedule* staging_schedule) {
   // Check that the schedule in the device policy is correct.
@@ -128,7 +126,8 @@ StagingCase CalculateStagingCase(const DevicePolicy* device_policy,
   int64_t wait_period_in_days;
   // There exists a persisted value that is valid. That is, it's smaller than
   // the maximum amount of days of staging set by the user.
-  if (prefs->GetInt64(kPrefsWallClockStagingWaitPeriod, &wait_period_in_days) &&
+  if (SystemState::Get()->prefs()->GetInt64(kPrefsWallClockStagingWaitPeriod,
+                                            &wait_period_in_days) &&
       wait_period_in_days > 0 && wait_period_in_days <= max_days) {
     *staging_wait_time = TimeDelta::FromDays(wait_period_in_days);
     return StagingCase::kSetStagingFromPref;

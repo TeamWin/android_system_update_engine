@@ -62,7 +62,6 @@ int GetStagingSchedule(const policy::DevicePolicy* device_policy,
 // contain the previous staging schedule, if there is a new schedule found, its
 // value will be replaced with the new one.
 StagingCase CalculateStagingCase(const policy::DevicePolicy* device_policy,
-                                 chromeos_update_engine::PrefsInterface* prefs,
                                  base::TimeDelta* staging_wait_time,
                                  StagingSchedule* staging_schedule);
 

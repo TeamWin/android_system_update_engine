@@ -25,7 +25,6 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
@@ -38,26 +37,23 @@ namespace chromeos_update_engine {
 
 class OmahaRequestParamsTest : public ::testing::Test {
  public:
-  OmahaRequestParamsTest() : params_(&fake_system_state_) {}
+  OmahaRequestParamsTest() : params_() {}
 
  protected:
   void SetUp() override {
     // Create a uniquely named test directory.
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
     params_.set_root(tempdir_.GetPath().value());
+    FakeSystemState::CreateInstance();
     SetLockDown(false);
-    fake_system_state_.set_prefs(&fake_prefs_);
   }
 
   void SetLockDown(bool locked_down) {
-    fake_system_state_.fake_hardware()->SetIsOfficialBuild(locked_down);
-    fake_system_state_.fake_hardware()->SetIsNormalBootMode(locked_down);
+    FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(locked_down);
+    FakeSystemState::Get()->fake_hardware()->SetIsNormalBootMode(locked_down);
   }
 
-  FakeSystemState fake_system_state_;
-  OmahaRequestParams params_{&fake_system_state_};
-  FakePrefs fake_prefs_;
-
+  OmahaRequestParams params_;
   base::ScopedTempDir tempdir_;
 };
 
@@ -110,7 +106,7 @@ TEST_F(OmahaRequestParamsTest, NoDeltasTest) {
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   {
-    OmahaRequestParams params(&fake_system_state_);
+    OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
@@ -124,7 +120,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   {
-    OmahaRequestParams params(&fake_system_state_);
+    OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", true, nullptr));
@@ -138,7 +134,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
   {
-    OmahaRequestParams params(&fake_system_state_);
+    OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     SetLockDown(true);
     EXPECT_TRUE(params.Init("", "", {}));
@@ -261,4 +257,38 @@ TEST_F(OmahaRequestParamsTest, RequisitionIsSetTest) {
   EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_EQ("fake_requisition", params_.device_requisition());
 }
+
+TEST_F(OmahaRequestParamsTest, GetMissingDlcId) {
+  EXPECT_TRUE(params_.Init("", "", {}));
+
+  string dlc_id;
+  EXPECT_FALSE(params_.GetDlcId("some-dlc-app-id", &dlc_id));
+}
+
+TEST_F(OmahaRequestParamsTest, GetDlcId) {
+  EXPECT_TRUE(params_.Init("", "", {}));
+  const string kExpectedDlcId = "test-dlc";
+  const string dlc_app_id = params_.GetDlcAppId(kExpectedDlcId);
+  params_.set_dlc_apps_params({{dlc_app_id, {.name = kExpectedDlcId}}});
+
+  string dlc_id;
+  EXPECT_TRUE(params_.GetDlcId(dlc_app_id, &dlc_id));
+  EXPECT_EQ(kExpectedDlcId, dlc_id);
+}
+
+TEST_F(OmahaRequestParamsTest, GetDlcAppId) {
+  EXPECT_TRUE(params_.Init("", "", {}));
+  const string kAppId = "test-app-id";
+  params_.set_app_id(kAppId);
+  const string kDlcId = "test-dlc";
+  const string expected_dlc_app_id = kAppId + "_" + kDlcId;
+
+  EXPECT_EQ(expected_dlc_app_id, params_.GetDlcAppId(kDlcId));
+}
+
+TEST_F(OmahaRequestParamsTest, AutoUpdateTokenTest) {
+  EXPECT_TRUE(params_.Init("", "", {.quick_fix_build_token = "foo-token"}));
+  EXPECT_EQ("foo-token", params_.autoupdate_token());
+}
+
 }  // namespace chromeos_update_engine

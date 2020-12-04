@@ -24,7 +24,7 @@
 #include <base/callback.h>
 #include <base/time/time.h>
 
-#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/default_policy.h"
 #include "update_engine/update_manager/evaluation_context.h"
 #include "update_engine/update_manager/policy.h"
@@ -56,8 +56,7 @@ class UpdateManager : public SpecializedPolicyRequestInterface {
  public:
   // Creates the UpdateManager instance, assuming ownership on the provided
   // |state|.
-  UpdateManager(chromeos_update_engine::ClockInterface* clock,
-                base::TimeDelta evaluation_timeout,
+  UpdateManager(base::TimeDelta evaluation_timeout,
                 base::TimeDelta expiration_timeout,
                 State* state);
 
@@ -161,9 +160,6 @@ class UpdateManager : public SpecializedPolicyRequestInterface {
 
   // State Providers.
   std::unique_ptr<State> state_;
-
-  // Pointer to the mockable clock interface;
-  chromeos_update_engine::ClockInterface* clock_;
 
   // Timeout for a policy evaluation.
   const base::TimeDelta evaluation_timeout_;

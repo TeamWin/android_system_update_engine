@@ -16,51 +16,39 @@
 
 #include "update_engine/cros/excluder_chromeos.h"
 
-#include <memory>
-
-#include <base/files/file_util.h>
-#include <base/files/scoped_temp_dir.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/common/prefs.h"
-
-using std::string;
-using std::unique_ptr;
+#include "update_engine/cros/fake_system_state.h"
 
 namespace chromeos_update_engine {
 
+namespace {
 constexpr char kFakeHash[] =
     "71ff43d76e2488e394e46872f5b066cc25e394c2c3e3790dd319517883b33db1";
+}  // namespace
 
 class ExcluderChromeOSTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
-    ASSERT_TRUE(base::PathExists(tempdir_.GetPath()));
-    ASSERT_TRUE(prefs_.Init(tempdir_.GetPath()));
-    excluder_ = std::make_unique<ExcluderChromeOS>(&prefs_);
-  }
+  void SetUp() override { FakeSystemState::CreateInstance(); }
 
-  base::ScopedTempDir tempdir_;
-  Prefs prefs_;
-  unique_ptr<ExcluderChromeOS> excluder_;
+  ExcluderChromeOS excluder_;
 };
 
 TEST_F(ExcluderChromeOSTest, ExclusionCheck) {
-  EXPECT_FALSE(excluder_->IsExcluded(kFakeHash));
-  EXPECT_TRUE(excluder_->Exclude(kFakeHash));
-  EXPECT_TRUE(excluder_->IsExcluded(kFakeHash));
+  EXPECT_FALSE(excluder_.IsExcluded(kFakeHash));
+  EXPECT_TRUE(excluder_.Exclude(kFakeHash));
+  EXPECT_TRUE(excluder_.IsExcluded(kFakeHash));
 }
 
 TEST_F(ExcluderChromeOSTest, ResetFlow) {
-  EXPECT_TRUE(excluder_->Exclude("abc"));
-  EXPECT_TRUE(excluder_->Exclude(kFakeHash));
-  EXPECT_TRUE(excluder_->IsExcluded("abc"));
-  EXPECT_TRUE(excluder_->IsExcluded(kFakeHash));
+  EXPECT_TRUE(excluder_.Exclude("abc"));
+  EXPECT_TRUE(excluder_.Exclude(kFakeHash));
+  EXPECT_TRUE(excluder_.IsExcluded("abc"));
+  EXPECT_TRUE(excluder_.IsExcluded(kFakeHash));
 
-  EXPECT_TRUE(excluder_->Reset());
-  EXPECT_FALSE(excluder_->IsExcluded("abc"));
-  EXPECT_FALSE(excluder_->IsExcluded(kFakeHash));
+  EXPECT_TRUE(excluder_.Reset());
+  EXPECT_FALSE(excluder_.IsExcluded("abc"));
+  EXPECT_FALSE(excluder_.IsExcluded(kFakeHash));
 }
 
 }  // namespace chromeos_update_engine

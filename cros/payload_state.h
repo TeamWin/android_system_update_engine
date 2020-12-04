@@ -48,7 +48,7 @@ class PayloadState : public PayloadStateInterface {
   // It performs the initial loading of all persisted state into memory and
   // dumps the initial state for debugging purposes.  Note: the other methods
   // should be called only after calling Initialize on this object.
-  bool Initialize(SystemState* system_state);
+  bool Initialize();
 
   // Implementation of PayloadStateInterface methods.
   void SetResponse(const OmahaResponse& response) override;
@@ -429,9 +429,6 @@ class PayloadState : public PayloadStateInterface {
   // Get the total size of all payloads.
   int64_t GetPayloadSize();
 
-  // The global state of the system.
-  SystemState* system_state_;
-
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
   PrefsInterface* prefs_;
@@ -486,10 +483,9 @@ class PayloadState : public PayloadStateInterface {
   size_t payload_index_ = 0;
 
   // The index of the current URL.  This type is different from the one in the
-  // accessor methods because PrefsInterface supports only int64_t but we want
+  // accessor methods because |PrefsInterface| supports only int64_t but we want
   // to provide a stronger abstraction of uint32_t.  Each update to this value
-  // is persisted so we resume from the same value in case of a process
-  // restart.
+  // is persisted so we resume from the same value in case of a process restart.
   size_t url_index_;
 
   // The count of failures encountered in the current attempt to download using

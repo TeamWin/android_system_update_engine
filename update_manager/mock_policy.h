@@ -29,8 +29,7 @@ namespace chromeos_update_manager {
 // A mocked implementation of Policy.
 class MockPolicy : public Policy {
  public:
-  explicit MockPolicy(chromeos_update_engine::ClockInterface* clock)
-      : default_policy_(clock) {
+  MockPolicy() {
     // We defer to the corresponding DefaultPolicy methods, by default.
     ON_CALL(*this,
             UpdateCheckAllowed(testing::_, testing::_, testing::_, testing::_))
@@ -46,11 +45,6 @@ class MockPolicy : public Policy {
                 testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillByDefault(
             testing::Invoke(&default_policy_, &DefaultPolicy::UpdateCanStart));
-    ON_CALL(
-        *this,
-        UpdateDownloadAllowed(testing::_, testing::_, testing::_, testing::_))
-        .WillByDefault(testing::Invoke(&default_policy_,
-                                       &DefaultPolicy::UpdateDownloadAllowed));
     ON_CALL(*this, P2PEnabled(testing::_, testing::_, testing::_, testing::_))
         .WillByDefault(
             testing::Invoke(&default_policy_, &DefaultPolicy::P2PEnabled));
@@ -60,8 +54,6 @@ class MockPolicy : public Policy {
         .WillByDefault(testing::Invoke(&default_policy_,
                                        &DefaultPolicy::P2PEnabledChanged));
   }
-
-  MockPolicy() : MockPolicy(nullptr) {}
   ~MockPolicy() override {}
 
   // Policy overrides.

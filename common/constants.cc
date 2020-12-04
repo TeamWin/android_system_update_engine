@@ -71,6 +71,7 @@ const char kPrefsTestUpdateCheckIntervalTimeout[] =
 const char kPrefsPingActive[] = "active";
 const char kPrefsPingLastActive[] = "date_last_active";
 const char kPrefsPingLastRollcall[] = "date_last_rollcall";
+const char kPrefsLastFp[] = "last-fp";
 const char kPrefsPostInstallSucceeded[] = "post-install-succeeded";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";

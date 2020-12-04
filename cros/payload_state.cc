@@ -78,11 +78,10 @@ PayloadState::PayloadState()
     total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
 }
 
-bool PayloadState::Initialize(SystemState* system_state) {
-  system_state_ = system_state;
-  prefs_ = system_state_->prefs();
-  powerwash_safe_prefs_ = system_state_->powerwash_safe_prefs();
-  excluder_ = system_state_->update_attempter()->GetExcluder();
+bool PayloadState::Initialize() {
+  prefs_ = SystemState::Get()->prefs();
+  powerwash_safe_prefs_ = SystemState::Get()->powerwash_safe_prefs();
+  excluder_ = SystemState::Get()->update_attempter()->GetExcluder();
   LoadResponseSignature();
   LoadPayloadAttemptNumber();
   LoadFullPayloadAttemptNumber();
@@ -197,7 +196,7 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
 
   attempt_type_ = attempt_type;
 
-  ClockInterface* clock = system_state_->clock();
+  const auto* clock = SystemState::Get()->clock();
   attempt_start_time_boot_ = clock->GetBootTime();
   attempt_start_time_monotonic_ = clock->GetMonotonicTime();
   attempt_num_bytes_downloaded_ = 0;
@@ -206,7 +205,7 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
   ConnectionType network_connection_type;
   ConnectionTethering tethering;
   ConnectionManagerInterface* connection_manager =
-      system_state_->connection_manager();
+      SystemState::Get()->connection_manager();
   if (!connection_manager->GetConnectionProperties(&network_connection_type,
                                                    &tethering)) {
     LOG(ERROR) << "Failed to determine connection type.";
@@ -236,7 +235,7 @@ void PayloadState::UpdateRestarted() {
 void PayloadState::UpdateSucceeded() {
   // Send the relevant metrics that are tracked in this class to UMA.
   CalculateUpdateDurationUptime();
-  SetUpdateTimestampEnd(system_state_->clock()->GetWallclockTime());
+  SetUpdateTimestampEnd(SystemState::Get()->clock()->GetWallclockTime());
 
   switch (attempt_type_) {
     case AttemptType::kUpdate:
@@ -246,7 +245,7 @@ void PayloadState::UpdateSucceeded() {
       break;
 
     case AttemptType::kRollback:
-      system_state_->metrics_reporter()->ReportRollbackMetrics(
+      SystemState::Get()->metrics_reporter()->ReportRollbackMetrics(
           metrics::RollbackResult::kSuccess);
       break;
   }
@@ -256,7 +255,7 @@ void PayloadState::UpdateSucceeded() {
   SetNumResponsesSeen(0);
   SetPayloadIndex(0);
 
-  metrics_utils::SetSystemUpdatedMarker(system_state_->clock(), prefs_);
+  metrics_utils::SetSystemUpdatedMarker(SystemState::Get()->clock(), prefs_);
 }
 
 void PayloadState::UpdateFailed(ErrorCode error) {
@@ -279,7 +278,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
       break;
 
     case AttemptType::kRollback:
-      system_state_->metrics_reporter()->ReportRollbackMetrics(
+      SystemState::Get()->metrics_reporter()->ReportRollbackMetrics(
           metrics::RollbackResult::kFailed);
       break;
   }
@@ -409,7 +408,7 @@ bool PayloadState::ShouldBackoffDownload() {
               << "will happen from local peer (via p2p).";
     return false;
   }
-  if (system_state_->request_params()->interactive()) {
+  if (SystemState::Get()->request_params()->interactive()) {
     LOG(INFO) << "Payload backoff disabled for interactive update checks.";
     return false;
   }
@@ -425,7 +424,7 @@ bool PayloadState::ShouldBackoffDownload() {
     }
   }
 
-  if (!system_state_->hardware()->IsOfficialBuild() &&
+  if (!SystemState::Get()->hardware()->IsOfficialBuild() &&
       !prefs_->Exists(kPrefsNoIgnoreBackoff)) {
     // Backoffs are needed only for official builds. We do not want any delays
     // or update failures due to backoffs during testing or development. Unless
@@ -454,7 +453,7 @@ bool PayloadState::ShouldBackoffDownload() {
 }
 
 void PayloadState::Rollback() {
-  SetRollbackVersion(system_state_->request_params()->app_version());
+  SetRollbackVersion(SystemState::Get()->request_params()->app_version());
   AttemptStarted(AttemptType::kRollback);
 }
 
@@ -612,7 +611,7 @@ PayloadType PayloadState::CalculatePayloadType() {
       return kPayloadTypeDelta;
     }
   }
-  OmahaRequestParams* params = system_state_->request_params();
+  OmahaRequestParams* params = SystemState::Get()->request_params();
   if (params->delta_okay()) {
     return kPayloadTypeFull;
   }
@@ -629,7 +628,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
 
   int64_t payload_bytes_downloaded = attempt_num_bytes_downloaded_;
 
-  ClockInterface* clock = system_state_->clock();
+  const auto* clock = SystemState::Get()->clock();
   TimeDelta duration = clock->GetBootTime() - attempt_start_time_boot_;
   TimeDelta duration_uptime =
       clock->GetMonotonicTime() - attempt_start_time_monotonic_;
@@ -680,8 +679,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
       break;
   }
 
-  system_state_->metrics_reporter()->ReportUpdateAttemptMetrics(
-      system_state_,
+  SystemState::Get()->metrics_reporter()->ReportUpdateAttemptMetrics(
       attempt_number,
       payload_type,
       duration,
@@ -690,7 +688,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
       attempt_result,
       internal_error_code);
 
-  system_state_->metrics_reporter()->ReportUpdateAttemptDownloadMetrics(
+  SystemState::Get()->metrics_reporter()->ReportUpdateAttemptDownloadMetrics(
       payload_bytes_downloaded,
       payload_download_speed_bps,
       download_source,
@@ -720,7 +718,8 @@ void PayloadState::ReportAndClearPersistedAttemptMetrics() {
   if (!attempt_in_progress)
     return;
 
-  system_state_->metrics_reporter()
+  SystemState::Get()
+      ->metrics_reporter()
       ->ReportAbnormallyTerminatedUpdateAttemptMetrics();
 
   ClearPersistedAttemptMetrics();
@@ -784,7 +783,7 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
 
   int updates_abandoned_count = num_responses_seen_ - 1;
 
-  system_state_->metrics_reporter()->ReportSuccessfulUpdateMetrics(
+  SystemState::Get()->metrics_reporter()->ReportSuccessfulUpdateMetrics(
       attempt_count,
       updates_abandoned_count,
       payload_type,
@@ -800,7 +799,7 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
 void PayloadState::UpdateNumReboots() {
   // We only update the reboot count when the system has been detected to have
   // been rebooted.
-  if (!system_state_->system_rebooted()) {
+  if (!SystemState::Get()->system_rebooted()) {
     return;
   }
 
@@ -820,7 +819,7 @@ void PayloadState::ResetPersistedState() {
   SetUrlFailureCount(0);
   SetUrlSwitchCount(0);
   UpdateBackoffExpiryTime();  // This will reset the backoff expiry time.
-  SetUpdateTimestampStart(system_state_->clock()->GetWallclockTime());
+  SetUpdateTimestampStart(SystemState::Get()->clock()->GetWallclockTime());
   SetUpdateTimestampEnd(Time());  // Set to null time
   SetUpdateDurationUptime(TimeDelta::FromSeconds(0));
   ResetDownloadSourcesOnNewUpdate();
@@ -832,7 +831,6 @@ void PayloadState::ResetPersistedState() {
 }
 
 void PayloadState::ResetRollbackVersion() {
-  CHECK(powerwash_safe_prefs_);
   rollback_version_ = "";
   powerwash_safe_prefs_->Delete(kPrefsRollbackVersion);
 }
@@ -881,7 +879,6 @@ string PayloadState::CalculateResponseSignature() {
 }
 
 void PayloadState::LoadResponseSignature() {
-  CHECK(prefs_);
   string stored_value;
   if (prefs_->Exists(kPrefsCurrentResponseSignature) &&
       prefs_->GetString(kPrefsCurrentResponseSignature, &stored_value)) {
@@ -890,7 +887,6 @@ void PayloadState::LoadResponseSignature() {
 }
 
 void PayloadState::SetResponseSignature(const string& response_signature) {
-  CHECK(prefs_);
   response_signature_ = response_signature;
   LOG(INFO) << "Current Response Signature = \n" << response_signature_;
   prefs_->SetString(kPrefsCurrentResponseSignature, response_signature_);
@@ -913,7 +909,6 @@ void PayloadState::SetPayloadAttemptNumber(int payload_attempt_number) {
 
 void PayloadState::SetFullPayloadAttemptNumber(
     int full_payload_attempt_number) {
-  CHECK(prefs_);
   full_payload_attempt_number_ = full_payload_attempt_number;
   LOG(INFO) << "Full Payload Attempt Number = " << full_payload_attempt_number_;
   prefs_->SetInt64(kPrefsFullPayloadAttemptNumber,
@@ -921,7 +916,6 @@ void PayloadState::SetFullPayloadAttemptNumber(
 }
 
 void PayloadState::SetPayloadIndex(size_t payload_index) {
-  CHECK(prefs_);
   payload_index_ = payload_index;
   LOG(INFO) << "Payload Index = " << payload_index_;
   prefs_->SetInt64(kPrefsUpdateStatePayloadIndex, payload_index_);
@@ -942,7 +936,6 @@ void PayloadState::LoadUrlIndex() {
 }
 
 void PayloadState::SetUrlIndex(uint32_t url_index) {
-  CHECK(prefs_);
   url_index_ = url_index;
   LOG(INFO) << "Current URL Index = " << url_index_;
   prefs_->SetInt64(kPrefsCurrentUrlIndex, url_index_);
@@ -958,7 +951,6 @@ void PayloadState::LoadScatteringWaitPeriod() {
 }
 
 void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
-  CHECK(prefs_);
   scattering_wait_period_ = wait_period;
   LOG(INFO) << "Scattering Wait Period (seconds) = "
             << scattering_wait_period_.InSeconds();
@@ -976,7 +968,6 @@ void PayloadState::LoadStagingWaitPeriod() {
 }
 
 void PayloadState::SetStagingWaitPeriod(TimeDelta wait_period) {
-  CHECK(prefs_);
   staging_wait_period_ = wait_period;
   LOG(INFO) << "Staging Wait Period (days) =" << staging_wait_period_.InDays();
   if (staging_wait_period_.InSeconds() > 0) {
@@ -992,7 +983,6 @@ void PayloadState::LoadUrlSwitchCount() {
 }
 
 void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
-  CHECK(prefs_);
   url_switch_count_ = url_switch_count;
   LOG(INFO) << "URL Switch Count = " << url_switch_count_;
   prefs_->SetInt64(kPrefsUrlSwitchCount, url_switch_count_);
@@ -1003,7 +993,6 @@ void PayloadState::LoadUrlFailureCount() {
 }
 
 void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
-  CHECK(prefs_);
   url_failure_count_ = url_failure_count;
   LOG(INFO) << "Current URL (Url" << GetUrlIndex()
             << ")'s Failure Count = " << url_failure_count_;
@@ -1011,7 +1000,6 @@ void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
 }
 
 void PayloadState::LoadBackoffExpiryTime() {
-  CHECK(prefs_);
   int64_t stored_value;
   if (!prefs_->Exists(kPrefsBackoffExpiryTime))
     return;
@@ -1030,7 +1018,6 @@ void PayloadState::LoadBackoffExpiryTime() {
 }
 
 void PayloadState::SetBackoffExpiryTime(const Time& new_time) {
-  CHECK(prefs_);
   backoff_expiry_time_ = new_time;
   LOG(INFO) << "Backoff Expiry Time = "
             << utils::ToString(backoff_expiry_time_);
@@ -1040,7 +1027,7 @@ void PayloadState::SetBackoffExpiryTime(const Time& new_time) {
 
 TimeDelta PayloadState::GetUpdateDuration() {
   Time end_time = update_timestamp_end_.is_null()
-                      ? system_state_->clock()->GetWallclockTime()
+                      ? SystemState::Get()->clock()->GetWallclockTime()
                       : update_timestamp_end_;
   return end_time - update_timestamp_start_;
 }
@@ -1048,10 +1035,7 @@ TimeDelta PayloadState::GetUpdateDuration() {
 void PayloadState::LoadUpdateTimestampStart() {
   int64_t stored_value;
   Time stored_time;
-
-  CHECK(prefs_);
-
-  Time now = system_state_->clock()->GetWallclockTime();
+  Time now = SystemState::Get()->clock()->GetWallclockTime();
 
   if (!prefs_->Exists(kPrefsUpdateTimestampStart)) {
     // The preference missing is not unexpected - in that case, just
@@ -1099,8 +1083,6 @@ void PayloadState::LoadUpdateDurationUptime() {
   int64_t stored_value;
   TimeDelta stored_delta;
 
-  CHECK(prefs_);
-
   if (!prefs_->Exists(kPrefsUpdateDurationUptime)) {
     // The preference missing is not unexpected - in that case, just
     // we'll use zero as the delta
@@ -1131,14 +1113,12 @@ void PayloadState::LoadNumReboots() {
 }
 
 void PayloadState::LoadRollbackHappened() {
-  CHECK(powerwash_safe_prefs_);
   bool rollback_happened = false;
   powerwash_safe_prefs_->GetBoolean(kPrefsRollbackHappened, &rollback_happened);
   SetRollbackHappened(rollback_happened);
 }
 
 void PayloadState::SetRollbackHappened(bool rollback_happened) {
-  CHECK(powerwash_safe_prefs_);
   LOG(INFO) << "Setting rollback-happened to " << rollback_happened << ".";
   rollback_happened_ = rollback_happened;
   if (rollback_happened) {
@@ -1150,7 +1130,6 @@ void PayloadState::SetRollbackHappened(bool rollback_happened) {
 }
 
 void PayloadState::LoadRollbackVersion() {
-  CHECK(powerwash_safe_prefs_);
   string rollback_version;
   if (powerwash_safe_prefs_->GetString(kPrefsRollbackVersion,
                                        &rollback_version)) {
@@ -1159,7 +1138,6 @@ void PayloadState::LoadRollbackVersion() {
 }
 
 void PayloadState::SetRollbackVersion(const string& rollback_version) {
-  CHECK(powerwash_safe_prefs_);
   LOG(INFO) << "Excluding version " << rollback_version;
   rollback_version_ = rollback_version;
   powerwash_safe_prefs_->SetString(kPrefsRollbackVersion, rollback_version);
@@ -1168,7 +1146,6 @@ void PayloadState::SetRollbackVersion(const string& rollback_version) {
 void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,
                                                    const Time& timestamp,
                                                    bool use_logging) {
-  CHECK(prefs_);
   update_duration_uptime_ = value;
   update_duration_uptime_timestamp_ = timestamp;
   prefs_->SetInt64(kPrefsUpdateDurationUptime,
@@ -1180,12 +1157,12 @@ void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,
 }
 
 void PayloadState::SetUpdateDurationUptime(const TimeDelta& value) {
-  Time now = system_state_->clock()->GetMonotonicTime();
+  Time now = SystemState::Get()->clock()->GetMonotonicTime();
   SetUpdateDurationUptimeExtended(value, now, true);
 }
 
 void PayloadState::CalculateUpdateDurationUptime() {
-  Time now = system_state_->clock()->GetMonotonicTime();
+  Time now = SystemState::Get()->clock()->GetMonotonicTime();
   TimeDelta uptime_since_last_update = now - update_duration_uptime_timestamp_;
 
   if (uptime_since_last_update > TimeDelta::FromSeconds(kUptimeResolution)) {
@@ -1207,8 +1184,6 @@ void PayloadState::LoadCurrentBytesDownloaded(DownloadSource source) {
 void PayloadState::SetCurrentBytesDownloaded(DownloadSource source,
                                              uint64_t current_bytes_downloaded,
                                              bool log) {
-  CHECK(prefs_);
-
   if (source >= kNumDownloadSources)
     return;
 
@@ -1230,8 +1205,6 @@ void PayloadState::LoadTotalBytesDownloaded(DownloadSource source) {
 void PayloadState::SetTotalBytesDownloaded(DownloadSource source,
                                            uint64_t total_bytes_downloaded,
                                            bool log) {
-  CHECK(prefs_);
-
   if (source >= kNumDownloadSources)
     return;
 
@@ -1250,7 +1223,6 @@ void PayloadState::LoadNumResponsesSeen() {
 }
 
 void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
-  CHECK(prefs_);
   num_responses_seen_ = num_responses_seen;
   LOG(INFO) << "Num Responses Seen = " << num_responses_seen_;
   prefs_->SetInt64(kPrefsNumResponsesSeen, num_responses_seen_);
@@ -1259,8 +1231,8 @@ void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
 void PayloadState::ComputeCandidateUrls() {
   bool http_url_ok = true;
 
-  if (system_state_->hardware()->IsOfficialBuild()) {
-    const policy::DevicePolicy* policy = system_state_->device_policy();
+  if (SystemState::Get()->hardware()->IsOfficialBuild()) {
+    const policy::DevicePolicy* policy = SystemState::Get()->device_policy();
     if (policy && policy->GetHttpDownloadsEnabled(&http_url_ok) && !http_url_ok)
       LOG(INFO) << "Downloads via HTTP Url are not enabled by device policy";
   } else {
@@ -1293,12 +1265,14 @@ void PayloadState::UpdateEngineStarted() {
 
   // Avoid the UpdateEngineStarted actions if this is not the first time we
   // run the update engine since reboot.
-  if (!system_state_->system_rebooted())
+  if (!SystemState::Get()->system_rebooted())
     return;
 
   // Report time_to_reboot if we booted into a new update.
   metrics_utils::LoadAndReportTimeToReboot(
-      system_state_->metrics_reporter(), prefs_, system_state_->clock());
+      SystemState::Get()->metrics_reporter(),
+      prefs_,
+      SystemState::Get()->clock());
   prefs_->Delete(kPrefsSystemUpdatedMarker);
 
   // Check if it is needed to send metrics about a failed reboot into a new
@@ -1323,7 +1297,8 @@ void PayloadState::ReportFailedBootIfNeeded() {
     // since we successfully booted the new update in that case. If the boot
     // failed, we will read this value from the same version, so it will always
     // be compatible.
-    if (installed_from == system_state_->boot_control()->GetCurrentSlot()) {
+    if (installed_from ==
+        SystemState::Get()->boot_control()->GetCurrentSlot()) {
       // A reboot was pending, but the chromebook is again in the same
       // BootDevice where the update was installed from.
       int64_t target_attempt;
@@ -1334,7 +1309,7 @@ void PayloadState::ReportFailedBootIfNeeded() {
       }
 
       // Report the UMA metric of the current boot failure.
-      system_state_->metrics_reporter()->ReportFailedUpdateCount(
+      SystemState::Get()->metrics_reporter()->ReportFailedUpdateCount(
           target_attempt);
     } else {
       prefs_->Delete(kPrefsTargetVersionAttempt);
@@ -1365,7 +1340,7 @@ void PayloadState::ExpectRebootInNewVersion(const string& target_version_uid) {
   prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt + 1);
 
   prefs_->SetInt64(kPrefsTargetVersionInstalledFrom,
-                   system_state_->boot_control()->GetCurrentSlot());
+                   SystemState::Get()->boot_control()->GetCurrentSlot());
 }
 
 void PayloadState::ResetUpdateStatus() {
@@ -1387,7 +1362,6 @@ int PayloadState::GetP2PNumAttempts() {
 void PayloadState::SetP2PNumAttempts(int value) {
   p2p_num_attempts_ = value;
   LOG(INFO) << "p2p Num Attempts = " << p2p_num_attempts_;
-  CHECK(prefs_);
   prefs_->SetInt64(kPrefsP2PNumAttempts, value);
 }
 
@@ -1403,7 +1377,6 @@ void PayloadState::SetP2PFirstAttemptTimestamp(const Time& time) {
   p2p_first_attempt_timestamp_ = time;
   LOG(INFO) << "p2p First Attempt Timestamp = "
             << utils::ToString(p2p_first_attempt_timestamp_);
-  CHECK(prefs_);
   int64_t stored_value = time.ToInternalValue();
   prefs_->SetInt64(kPrefsP2PFirstAttemptTimestamp, stored_value);
 }
@@ -1416,10 +1389,10 @@ void PayloadState::LoadP2PFirstAttemptTimestamp() {
 }
 
 void PayloadState::P2PNewAttempt() {
-  CHECK(prefs_);
   // Set timestamp, if it hasn't been set already
   if (p2p_first_attempt_timestamp_.is_null()) {
-    SetP2PFirstAttemptTimestamp(system_state_->clock()->GetWallclockTime());
+    SetP2PFirstAttemptTimestamp(
+        SystemState::Get()->clock()->GetWallclockTime());
   }
   // Increase number of attempts
   SetP2PNumAttempts(GetP2PNumAttempts() + 1);
@@ -1434,7 +1407,7 @@ bool PayloadState::P2PAttemptAllowed() {
   }
 
   if (!p2p_first_attempt_timestamp_.is_null()) {
-    Time now = system_state_->clock()->GetWallclockTime();
+    Time now = SystemState::Get()->clock()->GetWallclockTime();
     TimeDelta time_spent_attempting_p2p = now - p2p_first_attempt_timestamp_;
     if (time_spent_attempting_p2p.InSeconds() < 0) {
       LOG(ERROR) << "Time spent attempting p2p is negative"

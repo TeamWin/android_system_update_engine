@@ -27,6 +27,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/connection_manager_interface.h"
 #include "update_engine/cros/omaha_request_params.h"
@@ -43,10 +44,8 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-OmahaResponseHandlerAction::OmahaResponseHandlerAction(
-    SystemState* system_state)
-    : system_state_(system_state),
-      deadline_file_(constants::kOmahaResponseDeadlineFile) {}
+OmahaResponseHandlerAction::OmahaResponseHandlerAction()
+    : deadline_file_(constants::kOmahaResponseDeadlineFile) {}
 
 void OmahaResponseHandlerAction::PerformAction() {
   CHECK(HasInputObject());
@@ -60,7 +59,7 @@ void OmahaResponseHandlerAction::PerformAction() {
 
   // All decisions as to which URL should be used have already been done. So,
   // make the current URL as the download URL.
-  string current_url = system_state_->payload_state()->GetCurrentUrl();
+  string current_url = SystemState::Get()->payload_state()->GetCurrentUrl();
   if (current_url.empty()) {
     // This shouldn't happen as we should always supply the HTTPS backup URL.
     // Handling this anyway, just in case.
@@ -76,8 +75,9 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.download_url = current_url;
   install_plan_.version = response.version;
 
-  OmahaRequestParams* const params = system_state_->request_params();
-  PayloadStateInterface* const payload_state = system_state_->payload_state();
+  OmahaRequestParams* const params = SystemState::Get()->request_params();
+  PayloadStateInterface* const payload_state =
+      SystemState::Get()->payload_state();
 
   // If we're using p2p to download and there is a local peer, use it.
   if (payload_state->GetUsingP2PForDownloading() &&
@@ -106,31 +106,36 @@ void OmahaResponseHandlerAction::PerformAction() {
          .metadata_signature = package.metadata_signature,
          .hash = raw_hash,
          .type = package.is_delta ? InstallPayloadType::kDelta
-                                  : InstallPayloadType::kFull});
+                                  : InstallPayloadType::kFull,
+         .fp = package.fp,
+         .app_id = package.app_id});
     update_check_response_hash += package.hash + ":";
   }
   install_plan_.public_key_rsa = response.public_key_rsa;
   install_plan_.hash_checks_mandatory = AreHashChecksMandatory(response);
   install_plan_.is_resume = DeltaPerformer::CanResumeUpdate(
-      system_state_->prefs(), update_check_response_hash);
+      SystemState::Get()->prefs(), update_check_response_hash);
   if (install_plan_.is_resume) {
     payload_state->UpdateResumed();
   } else {
     payload_state->UpdateRestarted();
     LOG_IF(WARNING,
-           !DeltaPerformer::ResetUpdateProgress(system_state_->prefs(), false))
+           !DeltaPerformer::ResetUpdateProgress(SystemState::Get()->prefs(),
+                                                false))
         << "Unable to reset the update progress.";
     LOG_IF(WARNING,
-           !system_state_->prefs()->SetString(kPrefsUpdateCheckResponseHash,
-                                              update_check_response_hash))
+           !SystemState::Get()->prefs()->SetString(
+               kPrefsUpdateCheckResponseHash, update_check_response_hash))
         << "Unable to save the update check response hash.";
   }
 
   if (params->is_install()) {
-    install_plan_.target_slot = system_state_->boot_control()->GetCurrentSlot();
+    install_plan_.target_slot =
+        SystemState::Get()->boot_control()->GetCurrentSlot();
     install_plan_.source_slot = BootControlInterface::kInvalidSlot;
   } else {
-    install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
+    install_plan_.source_slot =
+        SystemState::Get()->boot_control()->GetCurrentSlot();
     install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
   }
 
@@ -140,8 +145,8 @@ void OmahaResponseHandlerAction::PerformAction() {
   // downloaded from.
   string current_channel_key =
       kPrefsChannelOnSlotPrefix + std::to_string(install_plan_.target_slot);
-  system_state_->prefs()->SetString(current_channel_key,
-                                    params->download_channel());
+  SystemState::Get()->prefs()->SetString(current_channel_key,
+                                         params->download_channel());
 
   // Checking whether device is able to boot up the returned rollback image.
   if (response.is_rollback) {
@@ -153,9 +158,9 @@ void OmahaResponseHandlerAction::PerformAction() {
 
     // Calculate the values on the version values on current device.
     auto min_kernel_key_version = static_cast<uint32_t>(
-        system_state_->hardware()->GetMinKernelKeyVersion());
+        SystemState::Get()->hardware()->GetMinKernelKeyVersion());
     auto min_firmware_key_version = static_cast<uint32_t>(
-        system_state_->hardware()->GetMinFirmwareKeyVersion());
+        SystemState::Get()->hardware()->GetMinFirmwareKeyVersion());
 
     uint32_t kernel_key_version =
         static_cast<uint32_t>(response.rollback_key_version.kernel_key) << 16 |
@@ -208,15 +213,14 @@ void OmahaResponseHandlerAction::PerformAction() {
       install_plan_.powerwash_required = true;
       // Always try to preserve enrollment and wifi data for enrolled devices.
       install_plan_.rollback_data_save_requested =
-          system_state_ && system_state_->device_policy() &&
-          system_state_->device_policy()->IsEnterpriseEnrolled();
+          SystemState::Get()->device_policy() &&
+          SystemState::Get()->device_policy()->IsEnterpriseEnrolled();
     }
   }
 
   TEST_AND_RETURN(HasOutputPipe());
   if (HasOutputPipe())
     SetOutputObject(install_plan_);
-  LOG(INFO) << "Using this install plan:";
   install_plan_.Dump();
 
   // Send the deadline data (if any) to Chrome through a file. This is a pretty
@@ -242,7 +246,7 @@ void OmahaResponseHandlerAction::PerformAction() {
 
   // Check the generated install-plan with the Policy to confirm that
   // it can be applied at this time (or at all).
-  UpdateManager* const update_manager = system_state_->update_manager();
+  UpdateManager* const update_manager = SystemState::Get()->update_manager();
   CHECK(update_manager);
   auto ec = ErrorCode::kSuccess;
   update_manager->PolicyRequest(
@@ -283,7 +287,7 @@ void OmahaResponseHandlerAction::PerformAction() {
                 << " max_firmware_rollforward=" << max_firmware_rollforward
                 << " rollback_allowed_milestones="
                 << params->rollback_allowed_milestones();
-      system_state_->hardware()->SetMaxKernelKeyRollforward(
+      SystemState::Get()->hardware()->SetMaxKernelKeyRollforward(
           max_kernel_rollforward);
       // TODO(crbug/783998): Set max firmware rollforward when implemented.
     }
@@ -292,7 +296,8 @@ void OmahaResponseHandlerAction::PerformAction() {
               << " to infinity";
     // When rollback is not allowed, explicitly set the max roll forward to
     // infinity.
-    system_state_->hardware()->SetMaxKernelKeyRollforward(kRollforwardInfinity);
+    SystemState::Get()->hardware()->SetMaxKernelKeyRollforward(
+        kRollforwardInfinity);
     // TODO(crbug/783998): Set max firmware rollforward when implemented.
   }
 }
@@ -312,8 +317,8 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
   //      devmode/debugd checks pass, in which case the hash is waived.
   //  * Dev/test image:
   //    - Any URL is allowed through with no hash checking.
-  if (!system_state_->request_params()->IsUpdateUrlOfficial() ||
-      !system_state_->hardware()->IsOfficialBuild()) {
+  if (!SystemState::Get()->request_params()->IsUpdateUrlOfficial() ||
+      !SystemState::Get()->hardware()->IsOfficialBuild()) {
     // Still do a hash check if a public key is included.
     if (!response.public_key_rsa.empty()) {
       // The autoupdate_CatchBadSignatures test checks for this string

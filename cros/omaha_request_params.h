@@ -37,8 +37,6 @@
 
 namespace chromeos_update_engine {
 
-class SystemState;
-
 // This class encapsulates the data Omaha gets for the request, along with
 // essential state needed for the processing of the request/response.  The
 // strings in this struct should not be XML escaped.
@@ -47,9 +45,8 @@ class SystemState;
 // reflect its lifetime more appropriately.
 class OmahaRequestParams {
  public:
-  explicit OmahaRequestParams(SystemState* system_state)
-      : system_state_(system_state),
-        os_platform_(constants::kOmahaPlatformName),
+  OmahaRequestParams()
+      : os_platform_(constants::kOmahaPlatformName),
         os_version_(kOsVersion),
         delta_okay_(true),
         interactive_(false),
@@ -228,6 +225,10 @@ class OmahaRequestParams {
   // request parameters.
   virtual bool IsDlcAppId(const std::string& app_id) const;
 
+  // Returns the DLC App ID if the given App ID is a DLC that is currently part
+  // of the request parameters.
+  virtual bool GetDlcId(const std::string& app_id, std::string* dlc_id) const;
+
   // If the App ID is a DLC App ID will set to no update.
   void SetDlcNoUpdate(const std::string& app_id);
 
@@ -322,9 +323,6 @@ class OmahaRequestParams {
 
   // Gets the machine type (e.g. "i686").
   std::string GetMachineType() const;
-
-  // Global system context.
-  SystemState* system_state_;
 
   // The system image properties.
   ImageProperties image_props_;

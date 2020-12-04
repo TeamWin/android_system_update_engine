@@ -25,8 +25,6 @@
 
 namespace chromeos_update_engine {
 
-class SystemState;
-
 // The read-only system properties of the running image.
 struct ImageProperties {
   // The product id of the image used for all channels, except canary.
@@ -77,16 +75,15 @@ struct MutableImageProperties {
 // Loads all the image properties from the running system. In case of error
 // loading any of these properties from the read-only system image a default
 // value may be returned instead.
-ImageProperties LoadImageProperties(SystemState* system_state);
+ImageProperties LoadImageProperties();
 
 // Loads the mutable image properties from the stateful partition if found or
 // the system image otherwise.
-MutableImageProperties LoadMutableImageProperties(SystemState* system_state);
+MutableImageProperties LoadMutableImageProperties();
 
 // Stores the mutable image properties in the stateful partition. Returns
 // whether the operation succeeded.
-bool StoreMutableImageProperties(SystemState* system_state,
-                                 const MutableImageProperties& properties);
+bool StoreMutableImageProperties(const MutableImageProperties& properties);
 
 // Logs the image properties.
 void LogImageProperties();

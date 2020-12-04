@@ -25,9 +25,7 @@
 #include <base/location.h>
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
-#if USE_CHROME_KIOSK_APP
 #include <chromeos/dbus/service_constants.h>
-#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
@@ -39,19 +37,9 @@
 #if USE_DBUS
 #include "update_engine/cros/dbus_connection.h"
 #endif  // USE_DBUS
-#include "update_engine/update_boot_flags_action.h"
 #include "update_engine/update_manager/state_factory.h"
 
-using brillo::MessageLoop;
-
 namespace chromeos_update_engine {
-
-RealSystemState::~RealSystemState() {
-  // Prevent any DBus communication from UpdateAttempter when shutting down the
-  // daemon.
-  if (update_attempter_)
-    update_attempter_->ClearObservers();
-}
 
 bool RealSystemState::Initialize() {
   boot_control_ = boot_control::CreateBootControl();
@@ -67,15 +55,13 @@ bool RealSystemState::Initialize() {
     return false;
   }
 
-#if USE_CHROME_KIOSK_APP
   kiosk_app_proxy_.reset(new org::chromium::KioskAppServiceInterfaceProxy(
       DBusConnection::Get()->GetDBus(), chromeos::kKioskAppServiceName));
-#endif  // USE_CHROME_KIOSK_APP
 
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
   LOG_IF(INFO, !hardware_->IsOfficialBuild()) << "Booted non-official build.";
 
-  connection_manager_ = connection_manager::CreateConnectionManager(this);
+  connection_manager_ = connection_manager::CreateConnectionManager();
   if (!connection_manager_) {
     LOG(ERROR) << "Error initializing the ConnectionManagerInterface.";
     return false;
@@ -147,8 +133,7 @@ bool RealSystemState::Initialize() {
       new CertificateChecker(prefs_.get(), &openssl_wrapper_));
   certificate_checker_->Init();
 
-  update_attempter_.reset(
-      new UpdateAttempter(this, certificate_checker_.get()));
+  update_attempter_.reset(new UpdateAttempter(certificate_checker_.get()));
 
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_->Init();
@@ -156,19 +141,13 @@ bool RealSystemState::Initialize() {
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(&policy_provider_,
-#if USE_CHROME_KIOSK_APP
-                                                   kiosk_app_proxy_.get(),
-#else
-                                                   nullptr,
-#endif  // USE_CHROME_KIOSK_APP
-                                                   this);
+                                                   kiosk_app_proxy_.get());
 
   if (!um_state) {
     LOG(ERROR) << "Failed to initialize the Update Manager.";
     return false;
   }
   update_manager_.reset(new chromeos_update_manager::UpdateManager(
-      &clock_,
       base::TimeDelta::FromSeconds(5),
       base::TimeDelta::FromHours(12),
       um_state));
@@ -176,13 +155,12 @@ bool RealSystemState::Initialize() {
   // The P2P Manager depends on the Update Manager for its initialization.
   p2p_manager_.reset(
       P2PManager::Construct(nullptr,
-                            &clock_,
                             update_manager_.get(),
                             "cros_au",
                             kMaxP2PFilesToKeep,
                             base::TimeDelta::FromDays(kMaxP2PFileAgeDays)));
 
-  if (!payload_state_.Initialize(this)) {
+  if (!payload_state_.Initialize()) {
     LOG(ERROR) << "Failed to initialize the payload state object.";
     return false;
   }
@@ -199,45 +177,6 @@ bool RealSystemState::Initialize() {
 
   // All is well. Initialization successful.
   return true;
-}
-
-bool RealSystemState::StartUpdater() {
-  // Initiate update checks.
-  update_attempter_->ScheduleUpdates();
-
-  auto update_boot_flags_action =
-      std::make_unique<UpdateBootFlagsAction>(boot_control_.get());
-  processor_.EnqueueAction(std::move(update_boot_flags_action));
-  // Update boot flags after 45 seconds.
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&ActionProcessor::StartProcessing,
-                 base::Unretained(&processor_)),
-      base::TimeDelta::FromSeconds(45));
-
-  // Broadcast the update engine status on startup to ensure consistent system
-  // state on crashes.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&UpdateAttempter::BroadcastStatus,
-                 base::Unretained(update_attempter_.get())));
-
-  // Run the UpdateEngineStarted() method on |update_attempter|.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&UpdateAttempter::UpdateEngineStarted,
-                 base::Unretained(update_attempter_.get())));
-  return true;
-}
-
-void RealSystemState::AddObserver(ServiceObserverInterface* observer) {
-  CHECK(update_attempter_.get());
-  update_attempter_->AddObserver(observer);
-}
-
-void RealSystemState::RemoveObserver(ServiceObserverInterface* observer) {
-  CHECK(update_attempter_.get());
-  update_attempter_->RemoveObserver(observer);
 }
 
 }  // namespace chromeos_update_engine
