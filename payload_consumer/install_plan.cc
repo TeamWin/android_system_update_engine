@@ -16,6 +16,9 @@
 
 #include "update_engine/payload_consumer/install_plan.h"
 
+#include <algorithm>
+#include <utility>
+
 #include <base/format_macros.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
@@ -26,13 +29,28 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 
 using std::string;
+using std::vector;
 
 namespace chromeos_update_engine {
 
+namespace {
 string PayloadUrlsToString(
     const decltype(InstallPlan::Payload::payload_urls)& payload_urls) {
   return "(" + base::JoinString(payload_urls, ",") + ")";
 }
+
+string VectorToString(const vector<std::pair<string, string>>& input,
+                      const string& separator) {
+  vector<string> vec;
+  std::transform(input.begin(),
+                 input.end(),
+                 std::back_inserter(vec),
+                 [](const auto& pair) {
+                   return base::JoinString({pair.first, pair.second}, ": ");
+                 });
+  return base::JoinString(vec, separator);
+}
+}  // namespace
 
 string InstallPayloadTypeToString(InstallPayloadType type) {
   switch (type) {
@@ -58,30 +76,10 @@ bool InstallPlan::operator!=(const InstallPlan& that) const {
 }
 
 void InstallPlan::Dump() const {
-  string partitions_str;
-  for (const auto& partition : partitions) {
-    partitions_str +=
-        base::StringPrintf(", part: %s (source_size: %" PRIu64
-                           ", target_size %" PRIu64 ", postinst:%s)",
-                           partition.name.c_str(),
-                           partition.source_size,
-                           partition.target_size,
-                           utils::ToString(partition.run_postinstall).c_str());
-  }
-  string payloads_str;
-  for (const auto& payload : payloads) {
-    payloads_str += base::StringPrintf(
-        ", payload: (urls: %s, size: %" PRIu64 ", metadata_size: %" PRIu64
-        ", metadata signature: %s, hash: %s, payload type: %s)",
-        PayloadUrlsToString(payload.payload_urls).c_str(),
-        payload.size,
-        payload.metadata_size,
-        payload.metadata_signature.c_str(),
-        base::HexEncode(payload.hash.data(), payload.hash.size()).c_str(),
-        InstallPayloadTypeToString(payload.type).c_str());
-  }
+  LOG(INFO) << "InstallPlan: \n" << ToString();
+}
 
-  string version_str = base::StringPrintf(", version: %s", version.c_str());
+string InstallPlan::ToString() const {
   string url_str = download_url;
   if (base::StartsWith(
           url_str, "fd://", base::CompareCase::INSENSITIVE_ASCII)) {
@@ -89,19 +87,65 @@ void InstallPlan::Dump() const {
     url_str = utils::GetFilePath(fd);
   }
 
-  LOG(INFO) << "InstallPlan: " << (is_resume ? "resume" : "new_update")
-            << version_str
-            << ", source_slot: " << BootControlInterface::SlotName(source_slot)
-            << ", target_slot: " << BootControlInterface::SlotName(target_slot)
-            << ", initial url: " << url_str << payloads_str << partitions_str
-            << ", hash_checks_mandatory: "
-            << utils::ToString(hash_checks_mandatory)
-            << ", powerwash_required: " << utils::ToString(powerwash_required)
-            << ", switch_slot_on_reboot: "
-            << utils::ToString(switch_slot_on_reboot)
-            << ", run_post_install: " << utils::ToString(run_post_install)
-            << ", is_rollback: " << utils::ToString(is_rollback)
-            << ", write_verity: " << utils::ToString(write_verity);
+  vector<string> result_str;
+  result_str.emplace_back(VectorToString(
+      {
+          {"type", (is_resume ? "resume" : "new_update")},
+          {"version", version},
+          {"source_slot", BootControlInterface::SlotName(source_slot)},
+          {"target_slot", BootControlInterface::SlotName(target_slot)},
+          {"initial url", url_str},
+          {"hash_checks_mandatory", utils::ToString(hash_checks_mandatory)},
+          {"powerwash_required", utils::ToString(powerwash_required)},
+          {"switch_slot_on_reboot", utils::ToString(switch_slot_on_reboot)},
+          {"run_post_install", utils::ToString(run_post_install)},
+          {"is_rollback", utils::ToString(is_rollback)},
+          {"rollback_data_save_requested",
+           utils::ToString(rollback_data_save_requested)},
+          {"write_verity", utils::ToString(write_verity)},
+      },
+      "\n"));
+
+  for (const auto& partition : partitions) {
+    result_str.emplace_back(VectorToString(
+        {
+            {"Partition", partition.name},
+            {"source_size", base::NumberToString(partition.source_size)},
+            {"source_path", partition.source_path},
+            {"source_hash",
+             base::HexEncode(partition.source_hash.data(),
+                             partition.source_hash.size())},
+            {"target_size", base::NumberToString(partition.target_size)},
+            {"target_path", partition.target_path},
+            {"target_hash",
+             base::HexEncode(partition.target_hash.data(),
+                             partition.target_hash.size())},
+            {"run_postinstall", utils::ToString(partition.run_postinstall)},
+            {"postinstall_path", partition.postinstall_path},
+            {"filesystem_type", partition.filesystem_type},
+        },
+        "\n  "));
+  }
+
+  for (unsigned int i = 0; i < payloads.size(); ++i) {
+    const auto& payload = payloads[i];
+    result_str.emplace_back(VectorToString(
+        {
+            {"Payload", base::NumberToString(i)},
+            {"urls", PayloadUrlsToString(payload.payload_urls)},
+            {"size", base::NumberToString(payload.size)},
+            {"metadata_size", base::NumberToString(payload.metadata_size)},
+            {"metadata_signature", payload.metadata_signature},
+            {"hash", base::HexEncode(payload.hash.data(), payload.hash.size())},
+            {"type", InstallPayloadTypeToString(payload.type)},
+            {"fingerprint", payload.fp},
+            {"app_id", payload.app_id},
+            {"already_applied", utils::ToString(payload.already_applied)},
+        },
+        "\n  "));
+  }
+
+  return base::JoinString(result_str, "\n");
 }
 
 bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {

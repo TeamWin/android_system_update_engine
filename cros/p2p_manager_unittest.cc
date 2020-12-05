@@ -46,12 +46,12 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "update_engine/common/fake_clock.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/fake_p2p_manager_configuration.h"
+#include "update_engine/cros/fake_system_state.h"
 #include "update_engine/update_manager/fake_update_manager.h"
 #include "update_engine/update_manager/mock_policy.h"
 
@@ -72,12 +72,13 @@ namespace chromeos_update_engine {
 // done.
 class P2PManagerTest : public testing::Test {
  protected:
-  P2PManagerTest() : fake_um_(&fake_clock_) {}
-  ~P2PManagerTest() override {}
+  P2PManagerTest() = default;
+  ~P2PManagerTest() override = default;
 
   // Derived from testing::Test.
   void SetUp() override {
     loop_.SetAsCurrent();
+    FakeSystemState::CreateInstance();
     async_signal_handler_.Init();
     subprocess_.Init(&async_signal_handler_);
     test_conf_ = new FakeP2PManagerConfiguration();
@@ -85,12 +86,11 @@ class P2PManagerTest : public testing::Test {
     // Allocate and install a mock policy implementation in the fake Update
     // Manager.  Note that the FakeUpdateManager takes ownership of the policy
     // object.
-    mock_policy_ = new chromeos_update_manager::MockPolicy(&fake_clock_);
+    mock_policy_ = new chromeos_update_manager::MockPolicy();
     fake_um_.set_policy(mock_policy_);
 
     // Construct the P2P manager under test.
     manager_.reset(P2PManager::Construct(test_conf_,
-                                         &fake_clock_,
                                          &fake_um_,
                                          "cros_au",
                                          3,
@@ -110,7 +110,6 @@ class P2PManagerTest : public testing::Test {
   // The P2PManager::Configuration instance used for testing.
   FakeP2PManagerConfiguration* test_conf_;
 
-  FakeClock fake_clock_;
   chromeos_update_manager::MockPolicy* mock_policy_ = nullptr;
   chromeos_update_manager::FakeUpdateManager fake_um_;
 
@@ -149,7 +148,6 @@ TEST_F(P2PManagerTest, HousekeepingCountLimit) {
   // will be freed.
   test_conf_ = new FakeP2PManagerConfiguration();
   manager_.reset(P2PManager::Construct(test_conf_,
-                                       &fake_clock_,
                                        &fake_um_,
                                        "cros_au",
                                        3,
@@ -207,14 +205,14 @@ TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
 
   // Set the clock just so files with a timestamp before |cutoff_time|
   // will be deleted at housekeeping.
-  fake_clock_.SetWallclockTime(cutoff_time + age_limit);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(cutoff_time +
+                                                         age_limit);
 
   // Specifically pass 0 for |num_files_to_keep| to allow any number of files.
   // Note that we need to reallocate the test_conf_ member, whose currently
   // aliased object will be freed.
   test_conf_ = new FakeP2PManagerConfiguration();
   manager_.reset(P2PManager::Construct(test_conf_,
-                                       &fake_clock_,
                                        &fake_um_,
                                        "cros_au",
                                        0 /* num_files_to_keep */,
@@ -360,7 +358,7 @@ static bool CreateP2PFile(string p2p_dir,
 
 // Check that sharing a *new* file works.
 TEST_F(P2PManagerTest, ShareFile) {
-  const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
+  const int kP2PTestFileSize = 1000 * 8;  // 8 KB
 
   EXPECT_TRUE(manager_->FileShare("foo", kP2PTestFileSize));
   EXPECT_EQ(manager_->FileGetPath("foo"),
@@ -379,7 +377,7 @@ TEST_F(P2PManagerTest, ShareFile) {
 
 // Check that making a shared file visible, does what is expected.
 TEST_F(P2PManagerTest, MakeFileVisible) {
-  const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
+  const int kP2PTestFileSize = 1000 * 8;  // 8 KB
 
   // First, check that it's not visible.
   manager_->FileShare("foo", kP2PTestFileSize);

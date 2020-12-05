@@ -29,7 +29,6 @@
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/metrics_constants.h"
 #include "update_engine/common/metrics_reporter_interface.h"
-#include "update_engine/common/system_state.h"
 
 namespace chromeos_update_engine {
 
@@ -117,13 +116,11 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportDailyMetrics(base::TimeDelta os_age) override;
 
   void ReportUpdateCheckMetrics(
-      SystemState* system_state,
       metrics::CheckResult result,
       metrics::CheckReaction reaction,
       metrics::DownloadErrorCode download_error_code) override;
 
-  void ReportUpdateAttemptMetrics(SystemState* system_state,
-                                  int attempt_number,
+  void ReportUpdateAttemptMetrics(int attempt_number,
                                   PayloadType payload_type,
                                   base::TimeDelta duration,
                                   base::TimeDelta duration_uptime,
@@ -181,8 +178,7 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   // If the function returns |true|, the duration (always non-negative)
   // is returned in |out_duration|. If the function returns |false|
   // something went wrong or there was no previous measurement.
-  bool WallclockDurationHelper(SystemState* system_state,
-                               const std::string& state_variable_key,
+  bool WallclockDurationHelper(const std::string& state_variable_key,
                                base::TimeDelta* out_duration);
 
   // This function returns the duration on the monotonic clock since the
@@ -194,9 +190,7 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   // If the function returns |true|, the duration (always non-negative)
   // is returned in |out_duration|. If the function returns |false|
   // something went wrong or there was no previous measurement.
-  bool MonotonicDurationHelper(SystemState* system_state,
-                               int64_t* storage,
-                               base::TimeDelta* out_duration);
+  bool MonotonicDurationHelper(int64_t* storage, base::TimeDelta* out_duration);
 
   std::unique_ptr<MetricsLibraryInterface> metrics_lib_;
 

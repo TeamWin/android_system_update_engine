@@ -118,6 +118,23 @@ class BasePrefsTest : public ::testing::Test {
     for (const auto& key : keys0corner)
       EXPECT_TRUE(common_prefs_->Delete(key));
     EXPECT_FALSE(common_prefs_->Exists(key0corner));
+
+    // Test sub directory namespace.
+    const string kDlcPrefsSubDir = "foo-dir";
+    key1A = common_prefs_->CreateSubKey({kDlcPrefsSubDir, "dlc1", "keyA"});
+    EXPECT_TRUE(common_prefs_->SetString(key1A, "fp_1A"));
+    key1B = common_prefs_->CreateSubKey({kDlcPrefsSubDir, "dlc1", "keyB"});
+    EXPECT_TRUE(common_prefs_->SetString(key1B, "fp_1B"));
+    auto key2A = common_prefs_->CreateSubKey({kDlcPrefsSubDir, "dlc2", "keyA"});
+    EXPECT_TRUE(common_prefs_->SetString(key2A, "fp_A2"));
+
+    vector<string> fpKeys;
+    EXPECT_TRUE(common_prefs_->GetSubKeys(kDlcPrefsSubDir, &fpKeys));
+    EXPECT_EQ(fpKeys.size(), 3UL);
+    EXPECT_TRUE(common_prefs_->Delete(fpKeys[0]));
+    EXPECT_TRUE(common_prefs_->Delete(fpKeys[1]));
+    EXPECT_TRUE(common_prefs_->Delete(fpKeys[2]));
+    EXPECT_FALSE(common_prefs_->Exists(key1A));
   }
 
   PrefsInterface* common_prefs_;
@@ -421,6 +438,71 @@ TEST_F(PrefsTest, SetDeleteSubKey) {
   EXPECT_FALSE(base::PathExists(sub_pref_path.Append(sub_key2)));
   prefs_.Init(prefs_dir_);
   EXPECT_FALSE(base::PathExists(prefs_dir_.Append(name_space)));
+}
+
+TEST_F(PrefsTest, DeletePrefs) {
+  const string kPrefsSubDir = "foo-dir";
+  const string kFpKey = "kPrefFp";
+  const string kNotFpKey = "NotkPrefFp";
+  const string kOtherKey = "kPrefNotFp";
+
+  EXPECT_TRUE(prefs_.SetString(kFpKey, "3.000"));
+  EXPECT_TRUE(prefs_.SetString(kOtherKey, "not_fp_val"));
+
+  auto key1_fp = prefs_.CreateSubKey({kPrefsSubDir, "id-1", kFpKey});
+  EXPECT_TRUE(prefs_.SetString(key1_fp, "3.7"));
+  auto key_not_fp = prefs_.CreateSubKey({kPrefsSubDir, "id-1", kOtherKey});
+  EXPECT_TRUE(prefs_.SetString(key_not_fp, "not_fp_val"));
+  auto key2_fp = prefs_.CreateSubKey({kPrefsSubDir, "id-2", kFpKey});
+  EXPECT_TRUE(prefs_.SetString(key2_fp, "3.9"));
+  auto key3_fp = prefs_.CreateSubKey({kPrefsSubDir, "id-3", kFpKey});
+  EXPECT_TRUE(prefs_.SetString(key3_fp, "3.45"));
+
+  // Pref key does not match full subkey at end, should not delete.
+  auto key_middle_fp = prefs_.CreateSubKey({kPrefsSubDir, kFpKey, kOtherKey});
+  EXPECT_TRUE(prefs_.SetString(key_middle_fp, "not_fp_val"));
+  auto key_end_not_fp = prefs_.CreateSubKey({kPrefsSubDir, "id-1", kNotFpKey});
+  EXPECT_TRUE(prefs_.SetString(key_end_not_fp, "not_fp_val"));
+
+  // Delete key in platform and one namespace.
+  prefs_.Delete(kFpKey, {kPrefsSubDir});
+
+  EXPECT_FALSE(prefs_.Exists(kFpKey));
+  EXPECT_FALSE(prefs_.Exists(key1_fp));
+  EXPECT_FALSE(prefs_.Exists(key2_fp));
+  EXPECT_FALSE(prefs_.Exists(key3_fp));
+
+  // Check other keys are not deleted.
+  EXPECT_TRUE(prefs_.Exists(kOtherKey));
+  EXPECT_TRUE(prefs_.Exists(key_not_fp));
+  EXPECT_TRUE(prefs_.Exists(key_middle_fp));
+  EXPECT_TRUE(prefs_.Exists(key_end_not_fp));
+}
+
+TEST_F(PrefsTest, DeleteMultipleNamespaces) {
+  const string kFirstSubDir = "foo-dir";
+  const string kSecondarySubDir = "bar-dir";
+  const string kTertiarySubDir = "ter-dir";
+  const string kFpKey = "kPrefFp";
+
+  EXPECT_TRUE(prefs_.SetString(kFpKey, "3.000"));
+  // Set pref key in different namespaces.
+  auto key1_fp = prefs_.CreateSubKey({kFirstSubDir, "id-1", kFpKey});
+  EXPECT_TRUE(prefs_.SetString(key1_fp, "3.7"));
+  auto key2_fp = prefs_.CreateSubKey({kSecondarySubDir, "id-3", kFpKey});
+  EXPECT_TRUE(prefs_.SetString(key2_fp, "7.45"));
+  auto key3_fp = prefs_.CreateSubKey({kTertiarySubDir, "id-3", kFpKey});
+  EXPECT_TRUE(prefs_.SetString(key3_fp, "7.45"));
+
+  // Delete key in platform and given namespaces.
+  prefs_.Delete(kFpKey, {kFirstSubDir, kSecondarySubDir});
+
+  EXPECT_FALSE(prefs_.Exists(kFpKey));
+  EXPECT_FALSE(prefs_.Exists(key1_fp));
+  EXPECT_FALSE(prefs_.Exists(key2_fp));
+
+  // Tertiary namespace not given to delete. Key should still exist.
+  EXPECT_TRUE(prefs_.Exists(key3_fp));
 }
 
 class MockPrefsObserver : public PrefsInterface::ObserverInterface {

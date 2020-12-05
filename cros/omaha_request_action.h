@@ -28,12 +28,12 @@
 
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include <base/optional.h>
 #include <brillo/secure_blob.h>
 #include <curl/curl.h>
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
-#include "update_engine/common/system_state.h"
 #include "update_engine/cros/omaha_request_builder_xml.h"
 #include "update_engine/cros/omaha_response.h"
 
@@ -49,7 +49,6 @@ namespace chromeos_update_engine {
 class NoneType;
 class OmahaRequestAction;
 class OmahaRequestParams;
-class PrefsInterface;
 
 // This struct is declared in the .cc file.
 struct OmahaParserData;
@@ -101,8 +100,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // OmahaRequestAction(..., new OmahaEvent(...), new WhateverHttpFetcher);
   // or
   // OmahaRequestAction(..., nullptr, new WhateverHttpFetcher);
-  OmahaRequestAction(SystemState* system_state,
-                     OmahaEvent* event,
+  OmahaRequestAction(OmahaEvent* event,
                      std::unique_ptr<HttpFetcher> http_fetcher,
                      bool ping_only,
                      const std::string& session_id);
@@ -156,7 +154,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // Gets the install date, expressed as the number of PST8PDT
   // calendar weeks since January 1st 2007, times seven. Returns -1 if
   // unknown. See http://crbug.com/336838 for details about this value.
-  static int GetInstallDate(SystemState* system_state);
+  static int GetInstallDate();
 
   // Parses the Omaha Response in |doc| and sets the
   // |install_date_days| field of |output_object| to the value of the
@@ -167,25 +165,25 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
   // Returns True if the kPrefsInstallDateDays state variable is set,
   // False otherwise.
-  static bool HasInstallDate(SystemState* system_state);
+  static bool HasInstallDate();
 
   // Writes |install_date_days| into the kPrefsInstallDateDays state
   // variable and emits an UMA stat for the |source| used. Returns
   // True if the value was written, False if an error occurred.
-  static bool PersistInstallDate(SystemState* system_state,
-                                 int install_date_days,
+  static bool PersistInstallDate(int install_date_days,
                                  InstallDateProvisioningSource source);
 
-  // Persist the new cohort* value received in the XML file in the |prefs_key|
-  // preference file. If the |new_value| is empty, the currently stored value
-  // will be deleted. Don't call this function with an empty |new_value| if the
-  // value was not set in the XML, since that would delete the stored value.
-  bool PersistCohortData(const std::string& prefs_key,
-                         const std::string& new_value);
+  // Persist the new cohort value received in the XML file in the |prefs_key|
+  // preference file. If the |new_value| is empty, do nothing. If the
+  // |new_value| stores and empty value, the currently stored value will be
+  // deleted. Don't call this function with an empty |new_value| if the value
+  // was not set in the XML, since that would delete the stored value.
+  void PersistCohortData(const std::string& prefs_key,
+                         const base::Optional<std::string>& new_value);
 
-  // Parses and persists the end-of-life date flag sent back in the updatecheck
-  // tag attributes. The flags will be validated and stored in the Prefs.
-  bool PersistEolInfo(const std::map<std::string, std::string>& attrs);
+  // Parses and persists the cohorts sent back in the updatecheck tag
+  // attributes.
+  void PersistCohorts(const OmahaParserData& parser_data);
 
   // If this is an update check request, initializes
   // |ping_active_days_| and |ping_roll_call_days_| to values that may
@@ -282,12 +280,6 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // exists. Otherwise saves the current wallclock time to the
   // kPrefsUpdateFirstSeenAt pref and returns it as a base::Time object.
   base::Time LoadOrPersistUpdateFirstSeenAtPref() const;
-
-  // Global system context.
-  SystemState* system_state_;
-
-  // Contains state that is relevant in the processing of the Omaha request.
-  OmahaRequestParams* params_;
 
   // Pointer to the OmahaEvent info. This is an UpdateCheck request if null.
   std::unique_ptr<OmahaEvent> event_;

@@ -30,8 +30,6 @@
 
 namespace chromeos_update_engine {
 
-class SystemState;
-
 namespace metrics_utils {
 
 // Transforms a ErrorCode value into a metrics::DownloadErrorCode.

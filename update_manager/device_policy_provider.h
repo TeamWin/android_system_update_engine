@@ -97,6 +97,10 @@ class DevicePolicyProvider : public Provider {
   // Chrome OS version number.
   virtual Variable<base::Version>* var_device_minimum_version() = 0;
 
+  // Variable that contains a token which maps to a Chrome OS Quick Fix Build to
+  // which the device would be updated if not blocked by another policy.
+  virtual Variable<std::string>* var_quick_fix_build_token() = 0;
+
  protected:
   DevicePolicyProvider() {}
 

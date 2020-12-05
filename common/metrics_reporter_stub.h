@@ -39,13 +39,11 @@ class MetricsReporterStub : public MetricsReporterInterface {
   void ReportDailyMetrics(base::TimeDelta os_age) override {}
 
   void ReportUpdateCheckMetrics(
-      SystemState* system_state,
       metrics::CheckResult result,
       metrics::CheckReaction reaction,
       metrics::DownloadErrorCode download_error_code) override {}
 
-  void ReportUpdateAttemptMetrics(SystemState* system_state,
-                                  int attempt_number,
+  void ReportUpdateAttemptMetrics(int attempt_number,
                                   PayloadType payload_type,
                                   base::TimeDelta duration,
                                   base::TimeDelta duration_uptime,

@@ -61,7 +61,6 @@ std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
 }  // namespace metrics
 
 void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
-    SystemState* /* system_state */,
     int attempt_number,
     PayloadType payload_type,
     base::TimeDelta duration,

@@ -92,13 +92,6 @@ class PolicyImplBase : public Policy {
     return EvalStatus::kContinue;
   };
 
-  EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
-                                   State* state,
-                                   std::string* error,
-                                   bool* result) const override {
-    return EvalStatus::kContinue;
-  };
-
   EvalStatus P2PEnabled(EvaluationContext* ec,
                         State* state,
                         std::string* error,

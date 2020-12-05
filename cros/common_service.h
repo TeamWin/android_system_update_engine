@@ -26,7 +26,6 @@
 #include <brillo/errors/error.h>
 
 #include "update_engine/client_library/include/update_engine/update_status.h"
-#include "update_engine/common/system_state.h"
 
 namespace chromeos_update_engine {
 
@@ -38,7 +37,7 @@ class UpdateEngineService {
   // Generic service error.
   static const char* const kErrorFailed;
 
-  explicit UpdateEngineService(SystemState* system_state);
+  UpdateEngineService();
   virtual ~UpdateEngineService() = default;
 
   // Set flags that influence how updates and checks are performed.  These
@@ -160,9 +159,6 @@ class UpdateEngineService {
   // Returns the last UpdateAttempt error.
   bool GetLastAttemptError(brillo::ErrorPtr* error,
                            int32_t* out_last_attempt_error);
-
- private:
-  SystemState* system_state_;
 };
 
 }  // namespace chromeos_update_engine

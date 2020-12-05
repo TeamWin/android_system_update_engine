@@ -29,6 +29,7 @@
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/p2p_manager.h"
@@ -42,13 +43,11 @@ namespace chromeos_update_engine {
 DownloadAction::DownloadAction(PrefsInterface* prefs,
                                BootControlInterface* boot_control,
                                HardwareInterface* hardware,
-                               SystemState* system_state,
                                HttpFetcher* http_fetcher,
                                bool interactive)
     : prefs_(prefs),
       boot_control_(boot_control),
       hardware_(hardware),
-      system_state_(system_state),
       http_fetcher_(new MultiRangeHttpFetcher(http_fetcher)),
       interactive_(interactive),
       writer_(nullptr),
@@ -68,7 +67,8 @@ void DownloadAction::CloseP2PSharingFd(bool delete_p2p_file) {
   }
 
   if (delete_p2p_file) {
-    FilePath path = system_state_->p2p_manager()->FileGetPath(p2p_file_id_);
+    FilePath path =
+        SystemState::Get()->p2p_manager()->FileGetPath(p2p_file_id_);
     if (unlink(path.value().c_str()) != 0) {
       PLOG(ERROR) << "Error deleting p2p file " << path.value();
     } else {
@@ -81,7 +81,7 @@ void DownloadAction::CloseP2PSharingFd(bool delete_p2p_file) {
 }
 
 bool DownloadAction::SetupP2PSharingFd() {
-  P2PManager* p2p_manager = system_state_->p2p_manager();
+  P2PManager* p2p_manager = SystemState::Get()->p2p_manager();
 
   if (!p2p_manager->FileShare(p2p_file_id_, payload_->size)) {
     LOG(ERROR) << "Unable to share file via p2p";
@@ -295,8 +295,10 @@ void DownloadAction::StartDownloading() {
     }
   }
 
-  if (system_state_ != nullptr) {
-    const PayloadStateInterface* payload_state = system_state_->payload_state();
+#ifndef __ANDROID__
+  if (SystemState::Get() != nullptr) {
+    const PayloadStateInterface* payload_state =
+        SystemState::Get()->payload_state();
     string file_id = utils::CalculateP2PFileId(payload_->hash, payload_->size);
     if (payload_state->GetUsingP2PForSharing()) {
       // If we're sharing the update, store the file_id to convey
@@ -309,7 +311,7 @@ void DownloadAction::StartDownloading() {
       // hash. If this is the case, we NEED to clean it up otherwise
       // we're essentially timing out other peers downloading from us
       // (since we're never going to complete the file).
-      FilePath path = system_state_->p2p_manager()->FileGetPath(file_id);
+      FilePath path = SystemState::Get()->p2p_manager()->FileGetPath(file_id);
       if (!path.empty()) {
         if (unlink(path.value().c_str()) != 0) {
           PLOG(ERROR) << "Error deleting p2p file " << path.value();
@@ -331,6 +333,7 @@ void DownloadAction::StartDownloading() {
       http_fetcher_->set_connect_timeout(kDownloadP2PConnectTimeoutSeconds);
     }
   }
+#endif
 
   http_fetcher_->BeginTransfer(install_plan_.download_url);
 }
@@ -391,10 +394,10 @@ bool DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
 
   // Call p2p_manager_->FileMakeVisible() when we've successfully
   // verified the manifest!
-  if (!p2p_visible_ && system_state_ && delta_performer_.get() &&
+  if (!p2p_visible_ && SystemState::Get() && delta_performer_.get() &&
       delta_performer_->IsManifestValid()) {
     LOG(INFO) << "Manifest has been validated. Making p2p file visible.";
-    system_state_->p2p_manager()->FileMakeVisible(p2p_file_id_);
+    SystemState::Get()->p2p_manager()->FileMakeVisible(p2p_file_id_);
     p2p_visible_ = true;
   }
   return true;
@@ -416,7 +419,7 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
       code = delta_performer_->VerifyPayload(payload_->hash, payload_->size);
     if (code == ErrorCode::kSuccess) {
       if (payload_ < &install_plan_.payloads.back() &&
-          system_state_->payload_state()->NextPayload()) {
+          SystemState::Get()->payload_state()->NextPayload()) {
         LOG(INFO) << "Incrementing to next payload";
         // No need to reset if this payload was already applied.
         if (delta_performer_ && !payload_->already_applied)
@@ -425,7 +428,7 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
         bytes_received_previous_payloads_ += payload_->size;
         payload_++;
         install_plan_.download_url =
-            system_state_->payload_state()->GetCurrentUrl();
+            SystemState::Get()->payload_state()->GetCurrentUrl();
         StartDownloading();
         return;
       }

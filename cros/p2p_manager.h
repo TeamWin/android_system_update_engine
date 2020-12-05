@@ -27,7 +27,6 @@
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/update_manager/update_manager.h"
 
@@ -174,7 +173,6 @@ class P2PManager {
   // performing housekeeping (pass zero to allow files of any age).
   static P2PManager* Construct(
       Configuration* configuration,
-      ClockInterface* clock,
       chromeos_update_manager::UpdateManager* update_manager,
       const std::string& file_extension,
       const int num_files_to_keep,

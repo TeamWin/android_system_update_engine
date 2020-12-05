@@ -158,4 +158,13 @@ TEST_F(UmEnterpriseDevicePolicyImplTest, ChannelDowngradeBehaviorRollback) {
   EXPECT_TRUE(result.rollback_on_channel_downgrade);
 }
 
+TEST_F(UmEnterpriseDevicePolicyImplTest, QuickFixBuildToken) {
+  fake_state_.device_policy_provider()->var_quick_fix_build_token()->reset(
+      new std::string("token"));
+  UpdateCheckParams result;
+  ExpectPolicyStatus(
+      EvalStatus::kContinue, &Policy::UpdateCheckAllowed, &result);
+  EXPECT_EQ(result.quick_fix_build_token, "token");
+}
+
 }  // namespace chromeos_update_manager
