@@ -266,6 +266,8 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
                  &RealDevicePolicyProvider::ConvertChannelDowngradeBehavior);
   UpdateVariable(&var_device_minimum_version_,
                  &DevicePolicy::GetHighestDeviceMinimumVersion);
+  UpdateVariable(&var_quick_fix_build_token_,
+                 &DevicePolicy::GetDeviceQuickFixBuildToken);
 }
 
 }  // namespace chromeos_update_manager

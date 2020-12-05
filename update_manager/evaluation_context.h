@@ -27,7 +27,6 @@
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
 
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/update_manager/boxed_value.h"
 #include "update_engine/update_manager/variable.h"
 
@@ -64,14 +63,11 @@ namespace chromeos_update_manager {
 class EvaluationContext : private BaseVariable::ObserverInterface {
  public:
   EvaluationContext(
-      chromeos_update_engine::ClockInterface* clock,
       base::TimeDelta evaluation_timeout,
       base::TimeDelta expiration_timeout,
       std::unique_ptr<base::Callback<void(EvaluationContext*)>> unregister_cb);
-  EvaluationContext(chromeos_update_engine::ClockInterface* clock,
-                    base::TimeDelta evaluation_timeout)
+  explicit EvaluationContext(base::TimeDelta evaluation_timeout)
       : EvaluationContext(
-            clock,
             evaluation_timeout,
             base::TimeDelta::Max(),
             std::unique_ptr<base::Callback<void(EvaluationContext*)>>()) {}
@@ -171,9 +167,6 @@ class EvaluationContext : private BaseVariable::ObserverInterface {
 
   // Whether the evaluation context has indeed expired.
   bool is_expired_ = false;
-
-  // Pointer to the mockable clock interface;
-  chromeos_update_engine::ClockInterface* const clock_;
 
   // The timestamps when the evaluation of this EvaluationContext started,
   // corresponding to ClockInterface::GetWallclockTime() and

@@ -52,8 +52,8 @@ void ConvertToStatusResult(const UpdateEngineStatus& ue_status,
 }
 }  // namespace
 
-DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
-    : common_(new UpdateEngineService{system_state}) {}
+DBusUpdateEngineService::DBusUpdateEngineService()
+    : common_(new UpdateEngineService()) {}
 
 // org::chromium::UpdateEngineInterfaceInterface methods implementation.
 
@@ -192,10 +192,10 @@ bool DBusUpdateEngineService::GetLastAttemptError(
   return common_->GetLastAttemptError(error, out_last_attempt_error);
 }
 
-UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state)
+UpdateEngineAdaptor::UpdateEngineAdaptor()
     : org::chromium::UpdateEngineInterfaceAdaptor(&dbus_service_),
       bus_(DBusConnection::Get()->GetDBus()),
-      dbus_service_(system_state),
+      dbus_service_(),
       dbus_object_(nullptr,
                    bus_,
                    dbus::ObjectPath(update_engine::kUpdateEngineServicePath)) {}

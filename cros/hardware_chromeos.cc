@@ -253,7 +253,7 @@ bool HardwareChromeOS::SchedulePowerwash(bool save_rollback_data) {
 }
 
 bool HardwareChromeOS::CancelPowerwash() {
-  bool result = base::DeleteFile(base::FilePath(kPowerwashMarkerFile), false);
+  bool result = base::DeleteFile(base::FilePath(kPowerwashMarkerFile));
 
   if (result) {
     LOG(INFO) << "Successfully deleted the powerwash marker file : "
@@ -264,7 +264,7 @@ bool HardwareChromeOS::CancelPowerwash() {
   }
 
   // Delete the rollback save marker file if it existed.
-  if (!base::DeleteFile(base::FilePath(kRollbackSaveMarkerFile), false)) {
+  if (!base::DeleteFile(base::FilePath(kRollbackSaveMarkerFile))) {
     PLOG(ERROR) << "Could not remove rollback save marker";
   }
 

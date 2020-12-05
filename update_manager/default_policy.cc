@@ -14,10 +14,12 @@
 // limitations under the License.
 //
 
+#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/default_policy.h"
 
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::InstallPlan;
+using chromeos_update_engine::SystemState;
 
 namespace {
 
@@ -31,9 +33,6 @@ const int kCheckIntervalInSeconds = 15 * 60;
 
 namespace chromeos_update_manager {
 
-DefaultPolicy::DefaultPolicy(chromeos_update_engine::ClockInterface* clock)
-    : clock_(clock), aux_state_(new DefaultPolicyState()) {}
-
 EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
                                              State* state,
                                              std::string* error,
@@ -46,6 +45,7 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
   result->rollback_allowed_milestones = -1;  // No version rolls should happen.
   result->rollback_on_channel_downgrade = false;
   result->interactive = false;
+  result->quick_fix_build_token.clear();
 
   // Ensure that the minimum interval is set. If there's no clock, this defaults
   // to always allowing the update.
@@ -53,8 +53,8 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(EvaluationContext* ec,
       ec->IsMonotonicTimeGreaterThan(
           aux_state_->last_check_allowed_time() +
           base::TimeDelta::FromSeconds(kCheckIntervalInSeconds))) {
-    if (clock_)
-      aux_state_->set_last_check_allowed_time(clock_->GetMonotonicTime());
+    aux_state_->set_last_check_allowed_time(
+        SystemState::Get()->clock()->GetMonotonicTime());
     return EvalStatus::kSucceeded;
   }
 
@@ -86,14 +86,6 @@ EvalStatus DefaultPolicy::UpdateCanStart(EvaluationContext* ec,
   result->backoff_expiry = base::Time();
   result->scatter_wait_period = base::TimeDelta();
   result->scatter_check_threshold = 0;
-  return EvalStatus::kSucceeded;
-}
-
-EvalStatus DefaultPolicy::UpdateDownloadAllowed(EvaluationContext* ec,
-                                                State* state,
-                                                std::string* error,
-                                                bool* result) const {
-  *result = true;
   return EvalStatus::kSucceeded;
 }
 

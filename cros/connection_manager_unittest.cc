@@ -52,7 +52,8 @@ class ConnectionManagerTest : public ::testing::Test {
 
   void SetUp() override {
     loop_.SetAsCurrent();
-    fake_system_state_.set_connection_manager(&cmut_);
+    FakeSystemState::CreateInstance();
+    FakeSystemState::Get()->set_connection_manager(&cmut_);
   }
 
   void TearDown() override { EXPECT_FALSE(loop_.PendingTasks()); }
@@ -81,11 +82,10 @@ class ConnectionManagerTest : public ::testing::Test {
                                 ConnectionTethering expected_tethering);
 
   brillo::FakeMessageLoop loop_{nullptr};
-  FakeSystemState fake_system_state_;
   FakeShillProxy* fake_shill_proxy_;
 
   // ConnectionManager under test.
-  ConnectionManager cmut_{fake_shill_proxy_, &fake_system_state_};
+  ConnectionManager cmut_{fake_shill_proxy_};
 };
 
 void ConnectionManagerTest::SetManagerReply(const char* default_service,
@@ -227,7 +227,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOverWifiTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  fake_system_state_.set_device_policy(&allow_3g_policy);
+  FakeSystemState::Get()->set_device_policy(&allow_3g_policy);
 
   // This test tests cellular (3G) being the only connection type being allowed.
   set<string> allowed_set;
@@ -244,7 +244,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  fake_system_state_.set_device_policy(&allow_3g_policy);
+  FakeSystemState::Get()->set_device_policy(&allow_3g_policy);
 
   // This test tests multiple connection types being allowed, with
   // 3G one among them. Only Cellular is currently enforced by the policy
@@ -276,7 +276,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOverCellularByDefaultTest) {
   policy::MockDevicePolicy device_policy;
   // Set an empty device policy.
-  fake_system_state_.set_device_policy(&device_policy);
+  FakeSystemState::Get()->set_device_policy(&device_policy);
 
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
                                         ConnectionTethering::kUnknown));
@@ -285,7 +285,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOverCellularByDefaultTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOverTetheredNetworkByDefaultTest) {
   policy::MockDevicePolicy device_policy;
   // Set an empty device policy.
-  fake_system_state_.set_device_policy(&device_policy);
+  FakeSystemState::Get()->set_device_policy(&device_policy);
 
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
                                         ConnectionTethering::kConfirmed));
@@ -298,7 +298,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOverTetheredNetworkByDefaultTest) {
 TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
   policy::MockDevicePolicy block_3g_policy;
 
-  fake_system_state_.set_device_policy(&block_3g_policy);
+  FakeSystemState::Get()->set_device_policy(&block_3g_policy);
 
   // Test that updates for 3G are blocked while updates are allowed
   // over several other types.
@@ -317,7 +317,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOver3GIfPolicyIsNotSet) {
   policy::MockDevicePolicy device_policy;
 
-  fake_system_state_.set_device_policy(&device_policy);
+  FakeSystemState::Get()->set_device_policy(&device_policy);
 
   // Return false for GetAllowedConnectionTypesForUpdate and see
   // that updates are allowed as device policy is not set. Further
@@ -331,7 +331,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GIfPolicyIsNotSet) {
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverCellularIfPolicyFailsToBeLoaded) {
-  fake_system_state_.set_device_policy(nullptr);
+  FakeSystemState::Get()->set_device_policy(nullptr);
 
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
                                         ConnectionTethering::kUnknown));

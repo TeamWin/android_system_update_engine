@@ -27,8 +27,8 @@
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/client_library/include/update_engine/update_status.h"
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/common/prefs.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/update_attempter.h"
 #include "update_engine/update_status_utils.h"
@@ -49,25 +49,16 @@ namespace chromeos_update_manager {
 template <typename T>
 class UpdaterVariableBase : public Variable<T> {
  public:
-  UpdaterVariableBase(const string& name,
-                      VariableMode mode,
-                      SystemState* system_state)
-      : Variable<T>(name, mode), system_state_(system_state) {}
-
- protected:
-  // The system state used for pulling information from the updater.
-  inline SystemState* system_state() const { return system_state_; }
-
- private:
-  SystemState* const system_state_;
+  UpdaterVariableBase(const string& name, VariableMode mode)
+      : Variable<T>(name, mode) {}
 };
 
 // Helper class for issuing a GetStatus() to the UpdateAttempter.
 class GetStatusHelper {
  public:
-  GetStatusHelper(SystemState* system_state, string* errmsg) {
-    is_success_ =
-        system_state->update_attempter()->GetStatus(&update_engine_status_);
+  explicit GetStatusHelper(string* errmsg) {
+    is_success_ = SystemState::Get()->update_attempter()->GetStatus(
+        &update_engine_status_);
     if (!is_success_ && errmsg) {
       *errmsg = "Failed to get a status update from the update engine";
     }
@@ -97,12 +88,12 @@ class GetStatusHelper {
 // A variable reporting the time when a last update check was issued.
 class LastCheckedTimeVariable : public UpdaterVariableBase<Time> {
  public:
-  LastCheckedTimeVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<Time>(name, kVariableModePoll, system_state) {}
+  explicit LastCheckedTimeVariable(const string& name)
+      : UpdaterVariableBase<Time>(name, kVariableModePoll) {}
 
  private:
   const Time* GetValue(TimeDelta /* timeout */, string* errmsg) override {
-    GetStatusHelper raw(system_state(), errmsg);
+    GetStatusHelper raw(errmsg);
     if (!raw.is_success())
       return nullptr;
 
@@ -116,12 +107,12 @@ class LastCheckedTimeVariable : public UpdaterVariableBase<Time> {
 // between 0.0 and 1.0.
 class ProgressVariable : public UpdaterVariableBase<double> {
  public:
-  ProgressVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<double>(name, kVariableModePoll, system_state) {}
+  explicit ProgressVariable(const string& name)
+      : UpdaterVariableBase<double>(name, kVariableModePoll) {}
 
  private:
   const double* GetValue(TimeDelta /* timeout */, string* errmsg) override {
-    GetStatusHelper raw(system_state(), errmsg);
+    GetStatusHelper raw(errmsg);
     if (!raw.is_success())
       return nullptr;
 
@@ -142,8 +133,8 @@ class ProgressVariable : public UpdaterVariableBase<double> {
 // A variable reporting the stage in which the update process is.
 class StageVariable : public UpdaterVariableBase<Stage> {
  public:
-  StageVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<Stage>(name, kVariableModePoll, system_state) {}
+  explicit StageVariable(const string& name)
+      : UpdaterVariableBase<Stage>(name, kVariableModePoll) {}
 
  private:
   struct CurrOpStrToStage {
@@ -175,7 +166,7 @@ const StageVariable::CurrOpStrToStage StageVariable::curr_op_str_to_stage[] = {
 };
 
 const Stage* StageVariable::GetValue(TimeDelta /* timeout */, string* errmsg) {
-  GetStatusHelper raw(system_state(), errmsg);
+  GetStatusHelper raw(errmsg);
   if (!raw.is_success())
     return nullptr;
 
@@ -191,12 +182,12 @@ const Stage* StageVariable::GetValue(TimeDelta /* timeout */, string* errmsg) {
 // A variable reporting the version number that an update is updating to.
 class NewVersionVariable : public UpdaterVariableBase<string> {
  public:
-  NewVersionVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
+  explicit NewVersionVariable(const string& name)
+      : UpdaterVariableBase<string>(name, kVariableModePoll) {}
 
  private:
   const string* GetValue(TimeDelta /* timeout */, string* errmsg) override {
-    GetStatusHelper raw(system_state(), errmsg);
+    GetStatusHelper raw(errmsg);
     if (!raw.is_success())
       return nullptr;
 
@@ -209,12 +200,12 @@ class NewVersionVariable : public UpdaterVariableBase<string> {
 // A variable reporting the size of the update being processed in bytes.
 class PayloadSizeVariable : public UpdaterVariableBase<uint64_t> {
  public:
-  PayloadSizeVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<uint64_t>(name, kVariableModePoll, system_state) {}
+  explicit PayloadSizeVariable(const string& name)
+      : UpdaterVariableBase<uint64_t>(name, kVariableModePoll) {}
 
  private:
   const uint64_t* GetValue(TimeDelta /* timeout */, string* errmsg) override {
-    GetStatusHelper raw(system_state(), errmsg);
+    GetStatusHelper raw(errmsg);
     if (!raw.is_success())
       return nullptr;
 
@@ -233,20 +224,20 @@ class PayloadSizeVariable : public UpdaterVariableBase<uint64_t> {
 // policy request.
 class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
  public:
-  UpdateCompletedTimeVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<Time>(name, kVariableModePoll, system_state) {}
+  explicit UpdateCompletedTimeVariable(const string& name)
+      : UpdaterVariableBase<Time>(name, kVariableModePoll) {}
 
  private:
   const Time* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     Time update_boottime;
-    if (!system_state()->update_attempter()->GetBootTimeAtUpdate(
+    if (!SystemState::Get()->update_attempter()->GetBootTimeAtUpdate(
             &update_boottime)) {
       if (errmsg)
         *errmsg = "Update completed time could not be read";
       return nullptr;
     }
 
-    chromeos_update_engine::ClockInterface* clock = system_state()->clock();
+    const auto* clock = SystemState::Get()->clock();
     Time curr_boottime = clock->GetBootTime();
     if (curr_boottime < update_boottime) {
       if (errmsg)
@@ -263,12 +254,12 @@ class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
 // Variables reporting the current image channel.
 class CurrChannelVariable : public UpdaterVariableBase<string> {
  public:
-  CurrChannelVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
+  explicit CurrChannelVariable(const string& name)
+      : UpdaterVariableBase<string>(name, kVariableModePoll) {}
 
  private:
   const string* GetValue(TimeDelta /* timeout */, string* errmsg) override {
-    OmahaRequestParams* request_params = system_state()->request_params();
+    OmahaRequestParams* request_params = SystemState::Get()->request_params();
     string channel = request_params->current_channel();
     if (channel.empty()) {
       if (errmsg)
@@ -284,12 +275,12 @@ class CurrChannelVariable : public UpdaterVariableBase<string> {
 // Variables reporting the new image channel.
 class NewChannelVariable : public UpdaterVariableBase<string> {
  public:
-  NewChannelVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
+  explicit NewChannelVariable(const string& name)
+      : UpdaterVariableBase<string>(name, kVariableModePoll) {}
 
  private:
   const string* GetValue(TimeDelta /* timeout */, string* errmsg) override {
-    OmahaRequestParams* request_params = system_state()->request_params();
+    OmahaRequestParams* request_params = SystemState::Get()->request_params();
     string channel = request_params->target_channel();
     if (channel.empty()) {
       if (errmsg)
@@ -308,32 +299,31 @@ class BooleanPrefVariable
       public chromeos_update_engine::PrefsInterface::ObserverInterface {
  public:
   BooleanPrefVariable(const string& name,
-                      chromeos_update_engine::PrefsInterface* prefs,
                       const char* key,
                       bool default_val)
       : AsyncCopyVariable<bool>(name),
-        prefs_(prefs),
         key_(key),
         default_val_(default_val) {
-    prefs->AddObserver(key, this);
+    SystemState::Get()->prefs()->AddObserver(key, this);
     OnPrefSet(key);
   }
-  ~BooleanPrefVariable() { prefs_->RemoveObserver(key_, this); }
+  ~BooleanPrefVariable() {
+    SystemState::Get()->prefs()->RemoveObserver(key_, this);
+  }
 
  private:
   // Reads the actual value from the Prefs instance and updates the Variable
   // value.
   void OnPrefSet(const string& key) override {
     bool result = default_val_;
-    if (prefs_ && prefs_->Exists(key_) && !prefs_->GetBoolean(key_, &result))
+    auto* prefs = SystemState::Get()->prefs();
+    if (prefs->Exists(key_) && !prefs->GetBoolean(key_, &result))
       result = default_val_;
     // AsyncCopyVariable will take care of values that didn't change.
     SetValue(result);
   }
 
   void OnPrefDeleted(const string& key) override { SetValue(default_val_); }
-
-  chromeos_update_engine::PrefsInterface* prefs_;
 
   // The Boolean preference key and default value.
   const char* const key_;
@@ -346,16 +336,16 @@ class BooleanPrefVariable
 class ConsecutiveFailedUpdateChecksVariable
     : public UpdaterVariableBase<unsigned int> {
  public:
-  ConsecutiveFailedUpdateChecksVariable(const string& name,
-                                        SystemState* system_state)
-      : UpdaterVariableBase<unsigned int>(
-            name, kVariableModePoll, system_state) {}
+  explicit ConsecutiveFailedUpdateChecksVariable(const string& name)
+      : UpdaterVariableBase<unsigned int>(name, kVariableModePoll) {}
 
  private:
   const unsigned int* GetValue(TimeDelta /* timeout */,
                                string* /* errmsg */) override {
-    return new unsigned int(
-        system_state()->update_attempter()->consecutive_failed_update_checks());
+    // NOLINTNEXTLINE(readability/casting)
+    return new unsigned int(SystemState::Get()
+                                ->update_attempter()
+                                ->consecutive_failed_update_checks());
   }
 
   DISALLOW_COPY_AND_ASSIGN(ConsecutiveFailedUpdateChecksVariable);
@@ -365,16 +355,16 @@ class ConsecutiveFailedUpdateChecksVariable
 class ServerDictatedPollIntervalVariable
     : public UpdaterVariableBase<unsigned int> {
  public:
-  ServerDictatedPollIntervalVariable(const string& name,
-                                     SystemState* system_state)
-      : UpdaterVariableBase<unsigned int>(
-            name, kVariableModePoll, system_state) {}
+  explicit ServerDictatedPollIntervalVariable(const string& name)
+      : UpdaterVariableBase<unsigned int>(name, kVariableModePoll) {}
 
  private:
   const unsigned int* GetValue(TimeDelta /* timeout */,
                                string* /* errmsg */) override {
-    return new unsigned int(
-        system_state()->update_attempter()->server_dictated_poll_interval());
+    // NOLINTNEXTLINE(readability/casting)
+    return new unsigned int(SystemState::Get()
+                                ->update_attempter()
+                                ->server_dictated_poll_interval());
   }
 
   DISALLOW_COPY_AND_ASSIGN(ServerDictatedPollIntervalVariable);
@@ -384,10 +374,10 @@ class ServerDictatedPollIntervalVariable
 class ForcedUpdateRequestedVariable
     : public UpdaterVariableBase<UpdateRequestStatus> {
  public:
-  ForcedUpdateRequestedVariable(const string& name, SystemState* system_state)
+  explicit ForcedUpdateRequestedVariable(const string& name)
       : UpdaterVariableBase<UpdateRequestStatus>::UpdaterVariableBase(
-            name, kVariableModeAsync, system_state) {
-    system_state->update_attempter()->set_forced_update_pending_callback(
+            name, kVariableModeAsync) {
+    SystemState::Get()->update_attempter()->set_forced_update_pending_callback(
         new base::Callback<void(bool, bool)>(  // NOLINT(readability/function)
             base::Bind(&ForcedUpdateRequestedVariable::Reset,
                        base::Unretained(this))));
@@ -419,15 +409,14 @@ class ForcedUpdateRequestedVariable
 class UpdateRestrictionsVariable
     : public UpdaterVariableBase<UpdateRestrictions> {
  public:
-  UpdateRestrictionsVariable(const string& name, SystemState* system_state)
-      : UpdaterVariableBase<UpdateRestrictions>(
-            name, kVariableModePoll, system_state) {}
+  explicit UpdateRestrictionsVariable(const string& name)
+      : UpdaterVariableBase<UpdateRestrictions>(name, kVariableModePoll) {}
 
  private:
   const UpdateRestrictions* GetValue(TimeDelta /* timeout */,
                                      string* /* errmsg */) override {
     UpdateAttemptFlags attempt_flags =
-        system_state()->update_attempter()->GetCurrentUpdateAttemptFlags();
+        SystemState::Get()->update_attempter()->GetCurrentUpdateAttemptFlags();
     UpdateRestrictions restriction_flags = UpdateRestrictions::kNone;
     // Don't blindly copy the whole value, test and set bits that should
     // transfer from one set of flags to the other.
@@ -445,11 +434,8 @@ class UpdateRestrictionsVariable
 // A variable class for reading timeout interval prefs value.
 class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
  public:
-  TestUpdateCheckIntervalTimeoutVariable(
-      const string& name, chromeos_update_engine::PrefsInterface* prefs)
-      : Variable<int64_t>(name, kVariableModePoll),
-        prefs_(prefs),
-        read_count_(0) {
+  explicit TestUpdateCheckIntervalTimeoutVariable(const string& name)
+      : Variable<int64_t>(name, kVariableModePoll), read_count_(0) {
     SetMissingOk();
   }
   ~TestUpdateCheckIntervalTimeoutVariable() = default;
@@ -458,12 +444,13 @@ class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
   const int64_t* GetValue(TimeDelta /* timeout */,
                           string* /* errmsg */) override {
     auto key = chromeos_update_engine::kPrefsTestUpdateCheckIntervalTimeout;
+    auto* prefs = SystemState::Get()->prefs();
     int64_t result;
-    if (prefs_ && prefs_->Exists(key) && prefs_->GetInt64(key, &result)) {
+    if (prefs->Exists(key) && prefs->GetInt64(key, &result)) {
       // This specific value is used for testing only. So it should not be kept
       // around and should be deleted after a few reads.
       if (++read_count_ > 5)
-        prefs_->Delete(key);
+        prefs->Delete(key);
 
       // Limit the timeout interval to 10 minutes so it is not abused if it is
       // seen on official images.
@@ -471,8 +458,6 @@ class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
     }
     return nullptr;
   }
-
-  chromeos_update_engine::PrefsInterface* prefs_;
 
   // Counts how many times this variable is read. This is used to delete the
   // underlying file defining the variable after a certain number of reads in
@@ -484,40 +469,35 @@ class TestUpdateCheckIntervalTimeoutVariable : public Variable<int64_t> {
 
 // RealUpdaterProvider methods.
 
-RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
-    : system_state_(system_state),
-      var_updater_started_time_("updater_started_time",
-                                system_state->clock()->GetWallclockTime()),
-      var_last_checked_time_(
-          new LastCheckedTimeVariable("last_checked_time", system_state_)),
-      var_update_completed_time_(new UpdateCompletedTimeVariable(
-          "update_completed_time", system_state_)),
-      var_progress_(new ProgressVariable("progress", system_state_)),
-      var_stage_(new StageVariable("stage", system_state_)),
-      var_new_version_(new NewVersionVariable("new_version", system_state_)),
-      var_payload_size_(new PayloadSizeVariable("payload_size", system_state_)),
-      var_curr_channel_(new CurrChannelVariable("curr_channel", system_state_)),
-      var_new_channel_(new NewChannelVariable("new_channel", system_state_)),
-      var_p2p_enabled_(
-          new BooleanPrefVariable("p2p_enabled",
-                                  system_state_->prefs(),
-                                  chromeos_update_engine::kPrefsP2PEnabled,
-                                  false)),
+RealUpdaterProvider::RealUpdaterProvider()
+    : var_updater_started_time_(
+          "updater_started_time",
+          SystemState::Get()->clock()->GetWallclockTime()),
+      var_last_checked_time_(new LastCheckedTimeVariable("last_checked_time")),
+      var_update_completed_time_(
+          new UpdateCompletedTimeVariable("update_completed_time")),
+      var_progress_(new ProgressVariable("progress")),
+      var_stage_(new StageVariable("stage")),
+      var_new_version_(new NewVersionVariable("new_version")),
+      var_payload_size_(new PayloadSizeVariable("payload_size")),
+      var_curr_channel_(new CurrChannelVariable("curr_channel")),
+      var_new_channel_(new NewChannelVariable("new_channel")),
+      var_p2p_enabled_(new BooleanPrefVariable(
+          "p2p_enabled", chromeos_update_engine::kPrefsP2PEnabled, false)),
       var_cellular_enabled_(new BooleanPrefVariable(
           "cellular_enabled",
-          system_state_->prefs(),
           chromeos_update_engine::kPrefsUpdateOverCellularPermission,
           false)),
       var_consecutive_failed_update_checks_(
           new ConsecutiveFailedUpdateChecksVariable(
-              "consecutive_failed_update_checks", system_state_)),
+              "consecutive_failed_update_checks")),
       var_server_dictated_poll_interval_(new ServerDictatedPollIntervalVariable(
-          "server_dictated_poll_interval", system_state_)),
-      var_forced_update_requested_(new ForcedUpdateRequestedVariable(
-          "forced_update_requested", system_state_)),
+          "server_dictated_poll_interval")),
+      var_forced_update_requested_(
+          new ForcedUpdateRequestedVariable("forced_update_requested")),
       var_update_restrictions_(
-          new UpdateRestrictionsVariable("update_restrictions", system_state_)),
+          new UpdateRestrictionsVariable("update_restrictions")),
       var_test_update_check_interval_timeout_(
           new TestUpdateCheckIntervalTimeoutVariable(
-              "test_update_check_interval_timeout", system_state_->prefs())) {}
+              "test_update_check_interval_timeout")) {}
 }  // namespace chromeos_update_manager

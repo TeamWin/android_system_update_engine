@@ -17,7 +17,6 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 
-#include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/state.h"
 
 namespace org {
@@ -35,8 +34,7 @@ namespace chromeos_update_manager {
 // to initialize.
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
-    org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy,
-    chromeos_update_engine::SystemState* system_state);
+    org::chromium::KioskAppServiceInterfaceProxyInterface* kiosk_app_proxy);
 
 }  // namespace chromeos_update_manager
 

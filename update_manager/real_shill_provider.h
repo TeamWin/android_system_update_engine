@@ -27,7 +27,7 @@
 #include <base/time/time.h>
 #include <dbus/object_path.h>
 
-#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/cros/shill_proxy_interface.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/shill_provider.h"
@@ -37,9 +37,9 @@ namespace chromeos_update_manager {
 // ShillProvider concrete implementation.
 class RealShillProvider : public ShillProvider {
  public:
-  RealShillProvider(chromeos_update_engine::ShillProxyInterface* shill_proxy,
-                    chromeos_update_engine::ClockInterface* clock)
-      : shill_proxy_(shill_proxy), clock_(clock) {}
+  explicit RealShillProvider(
+      chromeos_update_engine::ShillProxyInterface* shill_proxy)
+      : shill_proxy_(shill_proxy) {}
 
   ~RealShillProvider() override = default;
 
@@ -80,9 +80,6 @@ class RealShillProvider : public ShillProvider {
 
   // The mockable interface to access the shill DBus proxies.
   std::unique_ptr<chromeos_update_engine::ShillProxyInterface> shill_proxy_;
-
-  // A clock abstraction (mockable).
-  chromeos_update_engine::ClockInterface* const clock_;
 
   // The provider's variables.
   AsyncCopyVariable<bool> var_is_connected_{"is_connected"};

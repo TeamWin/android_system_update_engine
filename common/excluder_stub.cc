@@ -24,7 +24,7 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-std::unique_ptr<ExcluderInterface> CreateExcluder(PrefsInterface* prefs) {
+std::unique_ptr<ExcluderInterface> CreateExcluder() {
   return std::make_unique<ExcluderStub>();
 }
 

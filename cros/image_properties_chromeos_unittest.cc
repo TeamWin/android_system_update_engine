@@ -40,15 +40,14 @@ class ImagePropertiesTest : public ::testing::Test {
     EXPECT_TRUE(base::CreateDirectory(base::FilePath(
         tempdir_.GetPath().value() + kStatefulPartition + "/etc")));
     test::SetImagePropertiesRootPrefix(tempdir_.GetPath().value().c_str());
+    FakeSystemState::CreateInstance();
     SetLockDown(false);
   }
 
   void SetLockDown(bool locked_down) {
-    fake_system_state_.fake_hardware()->SetIsOfficialBuild(locked_down);
-    fake_system_state_.fake_hardware()->SetIsNormalBootMode(locked_down);
+    FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(locked_down);
+    FakeSystemState::Get()->fake_hardware()->SetIsNormalBootMode(locked_down);
   }
-
-  FakeSystemState fake_system_state_;
 
   base::ScopedTempDir tempdir_;
 };
@@ -61,7 +60,7 @@ TEST_F(ImagePropertiesTest, SimpleTest) {
                       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
                       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
                       "CHROMEOS_AUSERVER=http://www.google.com"));
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("arm-generic", props.board);
   EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", props.product_id);
   EXPECT_EQ("0.2.2.3", props.version);
@@ -73,7 +72,7 @@ TEST_F(ImagePropertiesTest, AppIDTest) {
   ASSERT_TRUE(WriteFileString(
       tempdir_.GetPath().Append("etc/lsb-release").value(),
       "CHROMEOS_RELEASE_APPID={58c35cef-9d30-476e-9098-ce20377d535d}"));
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("{58c35cef-9d30-476e-9098-ce20377d535d}", props.product_id);
 }
 
@@ -82,12 +81,12 @@ TEST_F(ImagePropertiesTest, ConfusingReleaseTest) {
       WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
                       "CHROMEOS_RELEASE_FOO=CHROMEOS_RELEASE_VERSION=1.2.3.4\n"
                       "CHROMEOS_RELEASE_VERSION=0.2.2.3"));
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("0.2.2.3", props.version);
 }
 
 TEST_F(ImagePropertiesTest, MissingVersionTest) {
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("", props.version);
 }
 
@@ -103,12 +102,11 @@ TEST_F(ImagePropertiesTest, OverrideTest) {
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=beta-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("x86-generic", props.board);
   EXPECT_EQ("dev-channel", props.current_channel);
   EXPECT_EQ("https://www.google.com", props.omaha_url);
-  MutableImageProperties mutable_props =
-      LoadMutableImageProperties(&fake_system_state_);
+  MutableImageProperties mutable_props = LoadMutableImageProperties();
   EXPECT_EQ("beta-channel", mutable_props.target_channel);
 }
 
@@ -125,12 +123,11 @@ TEST_F(ImagePropertiesTest, OverrideLockDownTest) {
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
   SetLockDown(true);
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("arm-generic", props.board);
   EXPECT_EQ("dev-channel", props.current_channel);
   EXPECT_EQ("https://www.google.com", props.omaha_url);
-  MutableImageProperties mutable_props =
-      LoadMutableImageProperties(&fake_system_state_);
+  MutableImageProperties mutable_props = LoadMutableImageProperties();
   EXPECT_EQ("stable-channel", mutable_props.target_channel);
 }
 
@@ -141,7 +138,7 @@ TEST_F(ImagePropertiesTest, BoardAppIdUsedForNonCanaryChannelTest) {
                       "CHROMEOS_BOARD_APPID=b\n"
                       "CHROMEOS_CANARY_APPID=c\n"
                       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("stable-channel", props.current_channel);
   EXPECT_EQ("b", props.product_id);
 }
@@ -153,7 +150,7 @@ TEST_F(ImagePropertiesTest, CanaryAppIdUsedForCanaryChannelTest) {
                       "CHROMEOS_BOARD_APPID=b\n"
                       "CHROMEOS_CANARY_APPID=c\n"
                       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("canary-channel", props.current_channel);
   EXPECT_EQ("c", props.canary_product_id);
 }
@@ -164,7 +161,7 @@ TEST_F(ImagePropertiesTest, ReleaseAppIdUsedAsDefaultTest) {
                       "CHROMEOS_RELEASE_APPID=r\n"
                       "CHROMEOS_CANARY_APPID=c\n"
                       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
-  ImageProperties props = LoadImageProperties(&fake_system_state_);
+  ImageProperties props = LoadImageProperties();
   EXPECT_EQ("stable-channel", props.current_channel);
   EXPECT_EQ("r", props.product_id);
 }

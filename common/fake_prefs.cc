@@ -106,6 +106,22 @@ bool FakePrefs::Delete(const string& key) {
   return true;
 }
 
+bool FakePrefs::Delete(const string& key, const vector<string>& nss) {
+  bool success = Delete(key);
+  for (const auto& ns : nss) {
+    vector<string> ns_keys;
+    success = GetSubKeys(ns, &ns_keys) && success;
+    for (const auto& sub_key : ns_keys) {
+      auto last_key_seperator = sub_key.find_last_of(kKeySeparator);
+      if (last_key_seperator != string::npos &&
+          key == sub_key.substr(last_key_seperator + 1)) {
+        success = Delete(sub_key) && success;
+      }
+    }
+  }
+  return success;
+}
+
 bool FakePrefs::GetSubKeys(const string& ns, vector<string>* keys) const {
   for (const auto& pr : values_)
     if (pr.first.compare(0, ns.length(), ns) == 0)

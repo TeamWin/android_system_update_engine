@@ -41,18 +41,15 @@ int DaemonChromeOS::OnInit() {
   if (exit_code != EX_OK)
     return exit_code;
 
-  // Initialize update engine global state but continue if something fails.
-  // TODO(deymo): Move the daemon_state_ initialization to a factory method
-  // avoiding the explicit re-usage of the |bus| instance, shared between
-  // D-Bus service and D-Bus client calls.
-  RealSystemState* real_system_state = new RealSystemState();
-  daemon_state_.reset(real_system_state);
-  LOG_IF(ERROR, !real_system_state->Initialize())
-      << "Failed to initialize system state.";
+  // Initialize update engine global state.
+  // TODO(deymo): Move the initialization to a factory method avoiding the
+  // explicit re-usage of the |bus| instance, shared between D-Bus service and
+  // D-Bus client calls.
+  RealSystemState::SetInstance(&system_state_);
 
   // Create the DBus service.
-  dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state));
-  daemon_state_->AddObserver(dbus_adaptor_.get());
+  dbus_adaptor_.reset(new UpdateEngineAdaptor());
+  SystemState::Get()->update_attempter()->AddObserver(dbus_adaptor_.get());
 
   dbus_adaptor_->RegisterAsync(
       base::Bind(&DaemonChromeOS::OnDBusRegistered, base::Unretained(this)));
@@ -76,7 +73,7 @@ void DaemonChromeOS::OnDBusRegistered(bool succeeded) {
     QuitWithExitCode(1);
     return;
   }
-  daemon_state_->StartUpdater();
+  SystemState::Get()->update_attempter()->StartUpdater();
 }
 
 }  // namespace chromeos_update_engine

@@ -21,54 +21,44 @@
 #include <base/time/time.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <kiosk-app/dbus-proxies.h>
+#include <kiosk-app/dbus-proxy-mocks.h>
 
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/cros/fake_system_state.h"
 #include "update_engine/update_manager/umtest_utils.h"
-#if USE_CHROME_KIOSK_APP
-#include "kiosk-app/dbus-proxies.h"
-#include "kiosk-app/dbus-proxy-mocks.h"
 
+using chromeos_update_engine::FakeSystemState;
 using org::chromium::KioskAppServiceInterfaceProxyMock;
-#endif  // USE_CHROME_KIOSK_APP
 using std::unique_ptr;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
 
-#if USE_CHROME_KIOSK_APP
 namespace {
 const char kRequiredPlatformVersion[] = "1234.0.0";
 }  // namespace
-#endif  // USE_CHROME_KIOSK_APP
 
 namespace chromeos_update_manager {
 
 class UmRealSystemProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
-#if USE_CHROME_KIOSK_APP
+    FakeSystemState::CreateInstance();
     kiosk_app_proxy_mock_.reset(new KioskAppServiceInterfaceProxyMock());
     ON_CALL(*kiosk_app_proxy_mock_, GetRequiredPlatformVersion(_, _, _))
         .WillByDefault(
             DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
 
-    provider_.reset(new RealSystemProvider(&fake_system_state_,
-                                           kiosk_app_proxy_mock_.get()));
-#else
-    provider_.reset(new RealSystemProvider(&fake_system_state, nullptr));
-#endif  // USE_CHROME_KIOSK_APP
+    provider_.reset(new RealSystemProvider(kiosk_app_proxy_mock_.get()));
     EXPECT_TRUE(provider_->Init());
   }
 
-  chromeos_update_engine::FakeSystemState fake_system_state_;
   unique_ptr<RealSystemProvider> provider_;
 
-#if USE_CHROME_KIOSK_APP
   unique_ptr<KioskAppServiceInterfaceProxyMock> kiosk_app_proxy_mock_;
-#endif  // USE_CHROME_KIOSK_APP
 };
 
 TEST_F(UmRealSystemProviderTest, InitTest) {
@@ -80,17 +70,17 @@ TEST_F(UmRealSystemProviderTest, InitTest) {
 }
 
 TEST_F(UmRealSystemProviderTest, IsOOBECompleteTrue) {
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(base::Time());
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(base::Time());
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_is_oobe_complete());
 }
 
 TEST_F(UmRealSystemProviderTest, IsOOBECompleteFalse) {
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_oobe_complete());
 }
 
 TEST_F(UmRealSystemProviderTest, VersionFromRequestParams) {
-  fake_system_state_.request_params()->set_app_version("1.2.3");
+  FakeSystemState::Get()->request_params()->set_app_version("1.2.3");
   // Call |Init| again to pick up the version.
   EXPECT_TRUE(provider_->Init());
 
@@ -99,7 +89,6 @@ TEST_F(UmRealSystemProviderTest, VersionFromRequestParams) {
                                       provider_->var_chromeos_version());
 }
 
-#if USE_CHROME_KIOSK_APP
 TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
   UmTestUtils::ExpectVariableHasValue(
       std::string(kRequiredPlatformVersion),
@@ -145,11 +134,5 @@ TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionRepeatedFailure) {
   UmTestUtils::ExpectVariableHasValue(
       std::string(""), provider_->var_kiosk_required_platform_version());
 }
-#else
-TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
-  UmTestUtils::ExpectVariableHasValue(
-      std::string(), provider_->var_kiosk_required_platform_version());
-}
-#endif  // USE_CHROME_KIOSK_APP
 
 }  // namespace chromeos_update_manager

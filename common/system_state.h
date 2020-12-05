@@ -17,6 +17,13 @@
 #ifndef UPDATE_ENGINE_COMMON_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_COMMON_SYSTEM_STATE_H_
 
+#include <memory>
+
+#include <base/logging.h>
+
+#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/prefs_interface.h"
+
 namespace chromeos_update_manager {
 
 class UpdateManager;
@@ -35,7 +42,6 @@ namespace chromeos_update_engine {
 // any circular references in header file inclusion. Hence forward-declaring
 // the required classes.
 class BootControlInterface;
-class ClockInterface;
 class ConnectionManagerInterface;
 class DlcServiceInterface;
 class HardwareInterface;
@@ -44,20 +50,20 @@ class OmahaRequestParams;
 class P2PManager;
 class PayloadStateInterface;
 class PowerManagerInterface;
-class PrefsInterface;
 class UpdateAttempter;
 
 // An interface to global system context, including platform resources,
 // the current state of the system, high-level objects whose lifetime is same
 // as main, system interfaces, etc.
 // Carved out separately so it can be mocked for unit tests.
-// Currently it has only one method, but we should start migrating other
-// methods to use this as and when needed to unit test them.
-// TODO(jaysri): Consider renaming this to something like GlobalContext.
 class SystemState {
  public:
-  // Destructs this object.
-  virtual ~SystemState() {}
+  virtual ~SystemState() = default;
+
+  static SystemState* Get() {
+    CHECK(g_pointer_ != nullptr);
+    return g_pointer_;
+  }
 
   // Sets or gets the latest device policy.
   virtual void set_device_policy(const policy::DevicePolicy* device_policy) = 0;
@@ -113,6 +119,9 @@ class SystemState {
 
   // Returns a pointer to the DlcServiceInterface singleton.
   virtual DlcServiceInterface* dlcservice() = 0;
+
+ protected:
+  static SystemState* g_pointer_;
 };
 
 }  // namespace chromeos_update_engine

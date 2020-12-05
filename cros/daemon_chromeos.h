@@ -23,6 +23,7 @@
 #include "update_engine/common/daemon_state_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/cros/dbus_service.h"
+#include "update_engine/cros/real_system_state.h"
 
 namespace chromeos_update_engine {
 
@@ -39,6 +40,13 @@ class DaemonChromeOS : public DaemonBase {
   // initialization.
   void OnDBusRegistered(bool succeeded);
 
+  // |SystemState| is a global context, but we can't have a static singleton of
+  // its object because the style guide does not allow that (it has non-trivial
+  // dtor). We need an instance of |SystemState| in this class instead and have
+  // a global pointer to it. This is better to be defined as the first variable
+  // of this class so it is initialized first and destructed last.
+  RealSystemState system_state_;
+
   // Main D-Bus service adaptor.
   std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
 
@@ -46,10 +54,6 @@ class DaemonChromeOS : public DaemonBase {
   // current thread, so we need to initialize it from this class instead of
   // the main() function.
   Subprocess subprocess_;
-
-  // The daemon state with all the required daemon classes for the configured
-  // platform.
-  std::unique_ptr<DaemonStateInterface> daemon_state_;
 
   DISALLOW_COPY_AND_ASSIGN(DaemonChromeOS);
 };
