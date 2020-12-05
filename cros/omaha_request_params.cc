@@ -65,8 +65,8 @@ bool OmahaRequestParams::Init(const string& app_version,
                               const string& update_url,
                               const UpdateCheckParams& params) {
   LOG(INFO) << "Initializing parameters for this update attempt";
-  image_props_ = LoadImageProperties(system_state_);
-  mutable_image_props_ = LoadMutableImageProperties(system_state_);
+  image_props_ = LoadImageProperties();
+  mutable_image_props_ = LoadMutableImageProperties();
 
   // Validation check the channel names.
   if (!IsValidChannel(image_props_.current_channel))
@@ -84,8 +84,8 @@ bool OmahaRequestParams::Init(const string& app_version,
 
   os_sp_ = image_props_.version + "_" + GetMachineType();
   app_lang_ = "en-US";
-  hwid_ = system_state_->hardware()->GetHardwareClass();
-  device_requisition_ = system_state_->hardware()->GetDeviceRequisition();
+  hwid_ = SystemState::Get()->hardware()->GetHardwareClass();
+  device_requisition_ = SystemState::Get()->hardware()->GetDeviceRequisition();
 
   if (image_props_.current_channel == mutable_image_props_.target_channel) {
     // deltas are only okay if the /.nodelta file does not exist.  if we don't
@@ -121,6 +121,8 @@ bool OmahaRequestParams::Init(const string& app_version,
   target_version_prefix_ = params.target_version_prefix;
 
   lts_tag_ = params.lts_tag;
+
+  autoupdate_token_ = params.quick_fix_build_token;
 
   rollback_allowed_ = params.rollback_allowed;
 
@@ -177,7 +179,7 @@ bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,
   new_props.target_channel = new_target_channel;
   new_props.is_powerwash_allowed = is_powerwash_allowed;
 
-  if (!StoreMutableImageProperties(system_state_, new_props)) {
+  if (!StoreMutableImageProperties(new_props)) {
     if (error_message)
       *error_message = "Error storing the new channel value.";
     return false;
@@ -272,6 +274,14 @@ string OmahaRequestParams::GetDlcAppId(const std::string& dlc_id) const {
 
 bool OmahaRequestParams::IsDlcAppId(const std::string& app_id) const {
   return dlc_apps_params().find(app_id) != dlc_apps_params().end();
+}
+
+bool OmahaRequestParams::GetDlcId(const string& app_id, string* dlc_id) const {
+  auto itr = dlc_apps_params_.find(app_id);
+  if (itr == dlc_apps_params_.end())
+    return false;
+  *dlc_id = itr->second.name;
+  return true;
 }
 
 void OmahaRequestParams::SetDlcNoUpdate(const string& app_id) {

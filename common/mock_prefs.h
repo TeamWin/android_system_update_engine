@@ -41,6 +41,9 @@ class MockPrefs : public PrefsInterface {
 
   MOCK_CONST_METHOD1(Exists, bool(const std::string& key));
   MOCK_METHOD1(Delete, bool(const std::string& key));
+  MOCK_METHOD2(Delete,
+               bool(const std::string& key,
+                    const std::vector<std::string>& nss));
 
   MOCK_CONST_METHOD2(GetSubKeys,
                      bool(const std::string&, std::vector<std::string>*));

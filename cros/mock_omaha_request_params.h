@@ -27,8 +27,7 @@ namespace chromeos_update_engine {
 
 class MockOmahaRequestParams : public OmahaRequestParams {
  public:
-  explicit MockOmahaRequestParams(SystemState* system_state)
-      : OmahaRequestParams(system_state) {
+  MockOmahaRequestParams() : OmahaRequestParams() {
     // Delegate all calls to the parent instance by default. This helps the
     // migration from tests using the real RequestParams when they should have
     // use a fake or mock.

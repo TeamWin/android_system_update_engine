@@ -37,12 +37,9 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/dlcservice_interface.h"
-#include "update_engine/common/fake_clock.h"
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action.h"
 #include "update_engine/common/mock_action_processor.h"
 #include "update_engine/common/mock_http_fetcher.h"
-#include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/mock_service_observer.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs.h"
@@ -169,8 +166,7 @@ const char kRollbackVersion[] = "10575.39.2";
 // methods.
 class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
-  explicit UpdateAttempterUnderTest(SystemState* system_state)
-      : UpdateAttempter(system_state, nullptr) {}
+  UpdateAttempterUnderTest() : UpdateAttempter(nullptr) {}
 
   void Update(const UpdateCheckParams& params) override {
     update_called_ = true;
@@ -223,27 +219,25 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 
 class UpdateAttempterTest : public ::testing::Test {
  protected:
-  UpdateAttempterTest()
-      : certificate_checker_(fake_system_state_.mock_prefs(),
-                             &openssl_wrapper_) {
+  void SetUp() override {
     // Override system state members.
-    fake_system_state_.set_connection_manager(&mock_connection_manager);
-    fake_system_state_.set_update_attempter(&attempter_);
-    fake_system_state_.set_dlcservice(&mock_dlcservice_);
-    fake_system_state_.set_update_manager(&mock_update_manager_);
+    FakeSystemState::CreateInstance();
+    FakeSystemState::Get()->set_connection_manager(&mock_connection_manager);
+    FakeSystemState::Get()->set_update_attempter(&attempter_);
+    FakeSystemState::Get()->set_dlcservice(&mock_dlcservice_);
+    FakeSystemState::Get()->set_update_manager(&mock_update_manager_);
     loop_.SetAsCurrent();
 
-    certificate_checker_.Init();
+    prefs_ = FakeSystemState::Get()->fake_prefs();
+    certificate_checker_.reset(
+        new CertificateChecker(prefs_, &openssl_wrapper_));
+    certificate_checker_->Init();
 
     attempter_.set_forced_update_pending_callback(
         new base::Callback<void(bool, bool)>(base::Bind([](bool, bool) {})));
     // Finish initializing the attempter.
     attempter_.Init();
-  }
 
-  void SetUp() override {
-    EXPECT_NE(nullptr, attempter_.system_state_);
-    EXPECT_NE(nullptr, attempter_.system_state_->update_manager());
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(UpdateStatus::IDLE, attempter_.status_);
     EXPECT_EQ(0.0, attempter_.download_progress_);
@@ -252,21 +246,20 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_EQ(0ULL, attempter_.new_payload_size_);
     processor_ = new NiceMock<MockActionProcessor>();
     attempter_.processor_.reset(processor_);  // Transfers ownership.
-    prefs_ = fake_system_state_.mock_prefs();
 
     // Setup store/load semantics of P2P properties via the mock |PayloadState|.
     actual_using_p2p_for_downloading_ = false;
-    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+    EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
                 SetUsingP2PForDownloading(_))
         .WillRepeatedly(SaveArg<0>(&actual_using_p2p_for_downloading_));
-    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+    EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
                 GetUsingP2PForDownloading())
         .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_downloading_));
     actual_using_p2p_for_sharing_ = false;
-    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+    EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
                 SetUsingP2PForSharing(_))
         .WillRepeatedly(SaveArg<0>(&actual_using_p2p_for_sharing_));
-    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+    EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
                 GetUsingP2PForDownloading())
         .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_sharing_));
   }
@@ -292,12 +285,11 @@ class UpdateAttempterTest : public ::testing::Test {
   void SessionIdTestEnforceEmptyStrPingOmaha();
   void SessionIdTestConsistencyInUpdateFlow();
   void SessionIdTestInDownloadAction();
-  void UpdateToQuickFixBuildStart(bool set_token);
   void ResetRollbackHappenedStart(bool is_consumer,
                                   bool is_policy_available,
                                   bool expected_reset);
   // Staging related callbacks.
-  void SetUpStagingTest(const StagingSchedule& schedule, FakePrefs* prefs);
+  void SetUpStagingTest(const StagingSchedule& schedule);
   void CheckStagingOff();
   void StagingSetsPrefsAndTurnsOffScatteringStart();
   void StagingOffIfInteractiveStart();
@@ -320,17 +312,16 @@ class UpdateAttempterTest : public ::testing::Test {
   base::SingleThreadTaskExecutor base_loop_{base::MessagePumpType::IO};
   brillo::BaseMessageLoop loop_{base_loop_.task_runner()};
 
-  FakeSystemState fake_system_state_;
-  UpdateAttempterUnderTest attempter_{&fake_system_state_};
+  UpdateAttempterUnderTest attempter_;
   OpenSSLWrapper openssl_wrapper_;
-  CertificateChecker certificate_checker_;
+  std::unique_ptr<CertificateChecker> certificate_checker_;
   MockDlcService mock_dlcservice_;
   MockUpdateManager mock_update_manager_;
 
   NiceMock<MockActionProcessor>* processor_;
-  NiceMock<MockPrefs>*
-      prefs_;  // Shortcut to |fake_system_state_->mock_prefs()|.
   NiceMock<MockConnectionManager> mock_connection_manager;
+
+  FakePrefs* prefs_;
 
   // |CheckForUpdate()| test params.
   CheckForUpdateTestParams cfu_params_;
@@ -348,9 +339,9 @@ class UpdateAttempterTest : public ::testing::Test {
 void UpdateAttempterTest::TestCheckForUpdate() {
   // Setup
   attempter_.status_ = cfu_params_.status;
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(
       cfu_params_.is_official_build);
-  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(
+  FakeSystemState::Get()->fake_hardware()->SetAreDevFeaturesEnabled(
       cfu_params_.are_dev_features_enabled);
 
   // Invocation
@@ -508,11 +499,10 @@ TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   DownloadAction action(prefs_,
                         nullptr,
                         nullptr,
-                        nullptr,
                         fetcher.release(),
                         false /* interactive */);
-  EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
+  EXPECT_FALSE(prefs_->Exists(kPrefsDeltaUpdateFailures));
   EXPECT_EQ(UpdateStatus::FINALIZING, attempter_.status());
   EXPECT_EQ(0.0, attempter_.download_progress_);
   ASSERT_EQ(nullptr, attempter_.error_event_.get());
@@ -522,8 +512,6 @@ TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
   MockAction action;
   EXPECT_CALL(action, Type()).WillRepeatedly(Return("MockAction"));
   attempter_.status_ = UpdateStatus::DOWNLOADING;
-  EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
-      .WillOnce(Return(false));
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kError);
   ASSERT_NE(nullptr, attempter_.error_event_.get());
 }
@@ -610,15 +598,14 @@ TEST_F(UpdateAttempterTest, BroadcastCompleteDownloadTest) {
 TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(500);  // Sets the HTTP response code.
-  OmahaRequestAction action(
-      &fake_system_state_, nullptr, std::move(fetcher), false, "");
+  OmahaRequestAction action(nullptr, std::move(fetcher), false, "");
   ObjectCollectorAction<OmahaResponse> collector_action;
   BondActions(&action, &collector_action);
   OmahaResponse response;
   response.poll_interval = 234;
   action.SetOutputObject(response);
-  EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
+  EXPECT_FALSE(prefs_->Exists(kPrefsDeltaUpdateFailures));
   EXPECT_EQ(500, attempter_.http_response_code());
   EXPECT_EQ(UpdateStatus::IDLE, attempter_.status());
   EXPECT_EQ(234U, attempter_.server_dictated_poll_interval_);
@@ -626,11 +613,10 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
 }
 
 TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
-  FakePrefs fake_prefs;
   string boot_id;
   EXPECT_TRUE(utils::GetBootId(&boot_id));
-  fake_prefs.SetString(kPrefsUpdateCompletedOnBootId, boot_id);
-  fake_system_state_.set_prefs(&fake_prefs);
+  FakeSystemState::Get()->fake_prefs()->SetString(kPrefsUpdateCompletedOnBootId,
+                                                  boot_id);
   attempter_.Init();
   EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
 }
@@ -639,12 +625,10 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   EXPECT_EQ(ErrorCode::kSuccess,
             GetErrorCodeForAction(nullptr, ErrorCode::kSuccess));
 
-  FakeSystemState fake_system_state;
-  OmahaRequestAction omaha_request_action(
-      &fake_system_state, nullptr, nullptr, false, "");
+  OmahaRequestAction omaha_request_action(nullptr, nullptr, false, "");
   EXPECT_EQ(ErrorCode::kOmahaRequestError,
             GetErrorCodeForAction(&omaha_request_action, ErrorCode::kError));
-  OmahaResponseHandlerAction omaha_response_handler_action(&fake_system_state_);
+  OmahaResponseHandlerAction omaha_response_handler_action;
   EXPECT_EQ(
       ErrorCode::kOmahaResponseHandlerError,
       GetErrorCodeForAction(&omaha_response_handler_action, ErrorCode::kError));
@@ -654,7 +638,8 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
       ErrorCode::kFilesystemVerifierError,
       GetErrorCodeForAction(&filesystem_verifier_action, ErrorCode::kError));
   PostinstallRunnerAction postinstall_runner_action(
-      fake_system_state.fake_boot_control(), fake_system_state.fake_hardware());
+      FakeSystemState::Get()->fake_boot_control(),
+      FakeSystemState::Get()->fake_hardware());
   EXPECT_EQ(
       ErrorCode::kPostinstallRunnerError,
       GetErrorCodeForAction(&postinstall_runner_action, ErrorCode::kError));
@@ -666,59 +651,54 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
 
 TEST_F(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest) {
   attempter_.omaha_request_params_->set_delta_okay(true);
-  EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
-      .WillOnce(Return(false));
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_TRUE(attempter_.omaha_request_params_->delta_okay());
-  EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
-      .WillOnce(
-          DoAll(SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures - 1),
-                Return(true)));
+  prefs_->SetInt64(kPrefsDeltaUpdateFailures,
+                   UpdateAttempter::kMaxDeltaUpdateFailures - 1);
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_TRUE(attempter_.omaha_request_params_->delta_okay());
-  EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
-      .WillOnce(
-          DoAll(SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
-                Return(true)));
+  prefs_->SetInt64(kPrefsDeltaUpdateFailures,
+                   UpdateAttempter::kMaxDeltaUpdateFailures);
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_FALSE(attempter_.omaha_request_params_->delta_okay());
-  EXPECT_CALL(*prefs_, GetInt64(_, _)).Times(0);
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_FALSE(attempter_.omaha_request_params_->delta_okay());
 }
 
 TEST_F(UpdateAttempterTest, MarkDeltaUpdateFailureTest) {
-  EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
-      .WillOnce(Return(false))
-      .WillOnce(DoAll(SetArgPointee<1>(-1), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<1>(1), Return(true)))
-      .WillOnce(
-          DoAll(SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
-                Return(true)));
-  EXPECT_CALL(*prefs_, SetInt64(Ne(kPrefsDeltaUpdateFailures), _))
-      .WillRepeatedly(Return(true));
-  EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures, 1)).Times(2);
-  EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures, 2));
-  EXPECT_CALL(*prefs_,
-              SetInt64(kPrefsDeltaUpdateFailures,
-                       UpdateAttempter::kMaxDeltaUpdateFailures + 1));
-  for (int i = 0; i < 4; i++)
-    attempter_.MarkDeltaUpdateFailure();
+  attempter_.MarkDeltaUpdateFailure();
+
+  EXPECT_TRUE(prefs_->SetInt64(kPrefsDeltaUpdateFailures, -1));
+  attempter_.MarkDeltaUpdateFailure();
+  int64_t value = 0;
+  EXPECT_TRUE(prefs_->GetInt64(kPrefsDeltaUpdateFailures, &value));
+  EXPECT_EQ(value, 1);
+
+  attempter_.MarkDeltaUpdateFailure();
+  EXPECT_TRUE(prefs_->GetInt64(kPrefsDeltaUpdateFailures, &value));
+  EXPECT_EQ(value, 2);
+
+  EXPECT_TRUE(prefs_->SetInt64(kPrefsDeltaUpdateFailures,
+                               UpdateAttempter::kMaxDeltaUpdateFailures));
+  attempter_.MarkDeltaUpdateFailure();
+  EXPECT_TRUE(prefs_->GetInt64(kPrefsDeltaUpdateFailures, &value));
+  EXPECT_EQ(value, UpdateAttempter::kMaxDeltaUpdateFailures + 1);
 }
 
 TEST_F(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest) {
   EXPECT_CALL(*processor_, EnqueueAction(_)).Times(0);
   EXPECT_CALL(*processor_, StartProcessing()).Times(0);
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(), UpdateFailed(_))
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(), UpdateFailed(_))
       .Times(0);
   OmahaResponse response;
   string url1 = "http://url1";
   response.packages.push_back({.payload_urls = {url1, "https://url"}});
-  EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetCurrentUrl())
+  EXPECT_CALL(*(FakeSystemState::Get()->mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(url1));
-  fake_system_state_.mock_payload_state()->SetResponse(response);
+  FakeSystemState::Get()->mock_payload_state()->SetResponse(response);
   attempter_.ScheduleErrorEventAction();
-  EXPECT_EQ(url1, fake_system_state_.mock_payload_state()->GetCurrentUrl());
+  EXPECT_EQ(url1,
+            FakeSystemState::Get()->mock_payload_state()->GetCurrentUrl());
 }
 
 TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
@@ -727,7 +707,7 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
                   &AbstractAction::Type, OmahaRequestAction::StaticType()))));
   EXPECT_CALL(*processor_, StartProcessing());
   ErrorCode err = ErrorCode::kError;
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(), UpdateFailed(err));
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(), UpdateFailed(err));
   attempter_.error_event_.reset(new OmahaEvent(
       OmahaEvent::kTypeUpdateComplete, OmahaEvent::kResultError, err));
   attempter_.ScheduleErrorEventAction();
@@ -799,7 +779,7 @@ void UpdateAttempterTest::RollbackTestStart(bool enterprise_rollback,
   // Create a device policy so that we can change settings.
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
   if (enterprise_rollback) {
     // We return an empty owner as this is an enterprise.
     EXPECT_CALL(*device_policy, GetOwner(_))
@@ -818,8 +798,8 @@ void UpdateAttempterTest::RollbackTestStart(bool enterprise_rollback,
     BootControlInterface::Slot rollback_slot = 1;
     LOG(INFO) << "Test Mark Bootable: "
               << BootControlInterface::SlotName(rollback_slot);
-    fake_system_state_.fake_boot_control()->SetSlotBootable(rollback_slot,
-                                                            true);
+    FakeSystemState::Get()->fake_boot_control()->SetSlotBootable(rollback_slot,
+                                                                 true);
   }
 
   bool is_rollback_allowed = false;
@@ -944,7 +924,7 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
 
 TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenNotEnabled) {
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(0);
   attempter_.UpdateEngineStarted();
@@ -952,7 +932,7 @@ TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenNotEnabled) {
 
 TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenEnabledButNotSharing) {
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(0);
   attempter_.UpdateEngineStarted();
@@ -960,7 +940,7 @@ TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenEnabledButNotSharing) {
 
 TEST_F(UpdateAttempterTest, P2PStartedAtStartupWhenEnabledAndSharing) {
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetCountSharedFilesResult(1);
   EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning());
@@ -978,7 +958,7 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
   // If P2P is not enabled, check that we do not attempt housekeeping
   // and do not convey that P2P is to be used.
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
   attempter_.Update({});
@@ -998,7 +978,7 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   // If P2P is enabled, but starting it fails ensure we don't do
   // any housekeeping and do not convey that P2P should be used.
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(false);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
@@ -1021,7 +1001,7 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   // If P2P is enabled, starting it works but housekeeping fails, ensure
   // we do not convey P2P is to be used.
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
@@ -1041,7 +1021,7 @@ TEST_F(UpdateAttempterTest, P2PEnabled) {
 
 void UpdateAttempterTest::P2PEnabledStart() {
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   // If P2P is enabled and starting it works, check that we performed
   // housekeeping and that we convey P2P should be used.
   mock_p2p_manager.fake().SetP2PEnabled(true);
@@ -1063,7 +1043,7 @@ TEST_F(UpdateAttempterTest, P2PEnabledInteractive) {
 
 void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   MockP2PManager mock_p2p_manager;
-  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
+  FakeSystemState::Get()->set_p2p_manager(&mock_p2p_manager);
   // For an interactive check, if P2P is enabled and starting it
   // works, check that we performed housekeeping and that we convey
   // P2P should be used for sharing but NOT for downloading.
@@ -1092,7 +1072,7 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
 
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(
@@ -1119,18 +1099,16 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   // Tests that the scatter_factor_in_seconds value is properly fetched
   // from the device policy and is decremented if value > 0.
   int64_t initial_value = 5;
-  FakePrefs fake_prefs;
-  attempter_.prefs_ = &fake_prefs;
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
 
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
-
-  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
+  EXPECT_TRUE(fake_prefs->SetInt64(kPrefsUpdateCheckCount, initial_value));
 
   int64_t scatter_factor_in_seconds = 10;
 
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(
@@ -1143,10 +1121,10 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   // Make sure the file still exists.
-  EXPECT_TRUE(fake_prefs.Exists(kPrefsUpdateCheckCount));
+  EXPECT_TRUE(fake_prefs->Exists(kPrefsUpdateCheckCount));
 
   int64_t new_value;
-  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
+  EXPECT_TRUE(fake_prefs->GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value - 1, new_value);
 
   EXPECT_TRUE(
@@ -1154,10 +1132,10 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
 
   // However, if the count is already 0, it's not decremented. Test that.
   initial_value = 0;
-  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
+  EXPECT_TRUE(fake_prefs->SetInt64(kPrefsUpdateCheckCount, initial_value));
   attempter_.Update({});
-  EXPECT_TRUE(fake_prefs.Exists(kPrefsUpdateCheckCount));
-  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
+  EXPECT_TRUE(fake_prefs->Exists(kPrefsUpdateCheckCount));
+  EXPECT_TRUE(fake_prefs->GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value, new_value);
 
   ScheduleQuitMainLoop();
@@ -1176,15 +1154,12 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   // Tests that no scattering logic is enabled if the update check
   // is manually done (as opposed to a scheduled update check)
   int64_t initial_value = 8;
-  FakePrefs fake_prefs;
-  attempter_.prefs_ = &fake_prefs;
-
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
-  fake_system_state_.set_prefs(&fake_prefs);
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
 
   EXPECT_TRUE(
-      fake_prefs.SetInt64(kPrefsWallClockScatteringWaitPeriod, initial_value));
-  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
+      fake_prefs->SetInt64(kPrefsWallClockScatteringWaitPeriod, initial_value));
+  EXPECT_TRUE(fake_prefs->SetInt64(kPrefsUpdateCheckCount, initial_value));
 
   // make sure scatter_factor is non-zero as scattering is disabled
   // otherwise.
@@ -1192,7 +1167,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
 
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(
@@ -1209,29 +1184,25 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   // checks and all artifacts are removed.
   EXPECT_FALSE(
       attempter_.omaha_request_params_->wall_clock_based_wait_enabled());
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsWallClockScatteringWaitPeriod));
+  EXPECT_FALSE(fake_prefs->Exists(kPrefsWallClockScatteringWaitPeriod));
   EXPECT_EQ(0, attempter_.omaha_request_params_->waiting_period().InSeconds());
   EXPECT_FALSE(
       attempter_.omaha_request_params_->update_check_count_wait_enabled());
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsUpdateCheckCount));
+  EXPECT_FALSE(fake_prefs->Exists(kPrefsUpdateCheckCount));
 
   ScheduleQuitMainLoop();
 }
 
-void UpdateAttempterTest::SetUpStagingTest(const StagingSchedule& schedule,
-                                           FakePrefs* prefs) {
-  attempter_.prefs_ = prefs;
-  fake_system_state_.set_prefs(prefs);
-
+void UpdateAttempterTest::SetUpStagingTest(const StagingSchedule& schedule) {
   int64_t initial_value = 8;
   EXPECT_TRUE(
-      prefs->SetInt64(kPrefsWallClockScatteringWaitPeriod, initial_value));
-  EXPECT_TRUE(prefs->SetInt64(kPrefsUpdateCheckCount, initial_value));
+      prefs_->SetInt64(kPrefsWallClockScatteringWaitPeriod, initial_value));
+  EXPECT_TRUE(prefs_->SetInt64(kPrefsUpdateCheckCount, initial_value));
   attempter_.scatter_factor_ = TimeDelta::FromSeconds(20);
 
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
   EXPECT_CALL(*device_policy, GetDeviceUpdateStagingSchedule(_))
       .WillRepeatedly(DoAll(SetArgPointee<0>(schedule), Return(true)));
 
@@ -1250,17 +1221,17 @@ TEST_F(UpdateAttempterTest, StagingSetsPrefsAndTurnsOffScattering) {
 
 void UpdateAttempterTest::StagingSetsPrefsAndTurnsOffScatteringStart() {
   // Tests that staging sets its prefs properly and turns off scattering.
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
-  FakePrefs fake_prefs;
-  SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  SetUpStagingTest(kValidStagingSchedule);
 
   attempter_.Update({});
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
   // Check that prefs have the correct values.
   int64_t update_count;
-  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &update_count));
+  EXPECT_TRUE(fake_prefs->GetInt64(kPrefsUpdateCheckCount, &update_count));
   int64_t waiting_time_days;
-  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsWallClockStagingWaitPeriod,
-                                  &waiting_time_days));
+  EXPECT_TRUE(fake_prefs->GetInt64(kPrefsWallClockStagingWaitPeriod,
+                                   &waiting_time_days));
   EXPECT_GT(waiting_time_days, 0);
   // Update count should have been decremented.
   EXPECT_EQ(7, update_count);
@@ -1276,16 +1247,16 @@ void UpdateAttempterTest::StagingSetsPrefsAndTurnsOffScatteringStart() {
   EXPECT_EQ(kValidStagingSchedule, attempter_.staging_schedule_);
   // Check that scattering is turned off
   EXPECT_EQ(0, attempter_.scatter_factor_.InSeconds());
-  EXPECT_FALSE(fake_prefs.Exists(kPrefsWallClockScatteringWaitPeriod));
+  EXPECT_FALSE(fake_prefs->Exists(kPrefsWallClockScatteringWaitPeriod));
 
   ScheduleQuitMainLoop();
 }
 
 void UpdateAttempterTest::CheckStagingOff() {
   // Check that all prefs were removed.
-  EXPECT_FALSE(attempter_.prefs_->Exists(kPrefsUpdateCheckCount));
-  EXPECT_FALSE(attempter_.prefs_->Exists(kPrefsWallClockScatteringWaitPeriod));
-  EXPECT_FALSE(attempter_.prefs_->Exists(kPrefsWallClockStagingWaitPeriod));
+  EXPECT_FALSE(prefs_->Exists(kPrefsUpdateCheckCount));
+  EXPECT_FALSE(prefs_->Exists(kPrefsWallClockScatteringWaitPeriod));
+  EXPECT_FALSE(prefs_->Exists(kPrefsWallClockStagingWaitPeriod));
   // Check that the Omaha parameters have the correct value.
   EXPECT_EQ(0, attempter_.omaha_request_params_->waiting_period().InDays());
   EXPECT_EQ(attempter_.omaha_request_params_->waiting_period(),
@@ -1307,9 +1278,8 @@ TEST_F(UpdateAttempterTest, StagingOffIfInteractive) {
 
 void UpdateAttempterTest::StagingOffIfInteractiveStart() {
   // Tests that staging is turned off when an interactive update is requested.
-  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
-  FakePrefs fake_prefs;
-  SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  SetUpStagingTest(kValidStagingSchedule);
 
   attempter_.Update({.interactive = true});
   CheckStagingOff();
@@ -1326,10 +1296,9 @@ TEST_F(UpdateAttempterTest, StagingOffIfOobe) {
 
 void UpdateAttempterTest::StagingOffIfOobeStart() {
   // Tests that staging is turned off if OOBE hasn't been completed.
-  fake_system_state_.fake_hardware()->SetIsOOBEEnabled(true);
-  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
-  FakePrefs fake_prefs;
-  SetUpStagingTest(kValidStagingSchedule, &fake_prefs);
+  FakeSystemState::Get()->fake_hardware()->SetIsOOBEEnabled(true);
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
+  SetUpStagingTest(kValidStagingSchedule);
 
   attempter_.Update({.interactive = true});
   CheckStagingOff();
@@ -1339,14 +1308,9 @@ void UpdateAttempterTest::StagingOffIfOobeStart() {
 
 // Checks that we only report daily metrics at most every 24 hours.
 TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
-  FakeClock fake_clock;
-  FakePrefs fake_prefs;
-
-  fake_system_state_.set_clock(&fake_clock);
-  fake_system_state_.set_prefs(&fake_prefs);
-
+  auto* fake_clock = FakeSystemState::Get()->fake_clock();
   Time epoch = Time::FromInternalValue(0);
-  fake_clock.SetWallclockTime(epoch);
+  fake_clock->SetWallclockTime(epoch);
 
   // If there is no kPrefsDailyMetricsLastReportedAt state variable,
   // we should report.
@@ -1355,32 +1319,32 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 
   // We should not report if only 10 hours has passed.
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(10));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(10));
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 
   // We should not report if only 24 hours - 1 sec has passed.
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(24) -
-                              TimeDelta::FromSeconds(1));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(24) -
+                               TimeDelta::FromSeconds(1));
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 
   // We should report if 24 hours has passed.
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(24));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(24));
   EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
 
   // But then we should not report again..
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 
   // .. until another 24 hours has passed
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(47));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(47));
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(48));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(48));
   EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 
   // .. and another 24 hours
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(71));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(71));
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(72));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(72));
   EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 
@@ -1388,25 +1352,21 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   // negative, we report. This is in order to reset the timestamp and
   // avoid an edge condition whereby a distant point in the future is
   // in the state variable resulting in us never ever reporting again.
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(71));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(71));
   EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 
   // In this case we should not update until the clock reads 71 + 24 = 95.
   // Check that.
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(94));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(94));
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
-  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(95));
+  fake_clock->SetWallclockTime(epoch + TimeDelta::FromHours(95));
   EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
 }
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
-  FakeClock fake_clock;
-  fake_clock.SetBootTime(Time::FromTimeT(42));
-  fake_system_state_.set_clock(&fake_clock);
-  FakePrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
   attempter_.Init();
 
   Time boot_time;
@@ -1419,19 +1379,19 @@ TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
 }
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedUnofficial) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedOfficialDevmode) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(true);
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
+  FakeSystemState::Get()->fake_hardware()->SetAreDevFeaturesEnabled(true);
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
+  FakeSystemState::Get()->fake_hardware()->SetAreDevFeaturesEnabled(false);
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
@@ -1623,8 +1583,8 @@ TEST_F(UpdateAttempterTest, CheckForUpdateMissingForcedCallback2) {
 }
 
 TEST_F(UpdateAttempterTest, CheckForInstallTest) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
+  FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
+  FakeSystemState::Get()->fake_hardware()->SetAreDevFeaturesEnabled(false);
   attempter_.CheckForInstall({}, "autest");
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 
@@ -1662,19 +1622,21 @@ TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
   UpdateCheckParams params;
   attempter_.CalculateUpdateParams({.target_version_prefix = "1234"});
   EXPECT_EQ("1234",
-            fake_system_state_.request_params()->target_version_prefix());
+            FakeSystemState::Get()->request_params()->target_version_prefix());
 
   attempter_.CalculateUpdateParams({});
-  EXPECT_TRUE(
-      fake_system_state_.request_params()->target_version_prefix().empty());
+  EXPECT_TRUE(FakeSystemState::Get()
+                  ->request_params()
+                  ->target_version_prefix()
+                  .empty());
 }
 
 TEST_F(UpdateAttempterTest, TargetChannelHintSetAndReset) {
   attempter_.CalculateUpdateParams({.lts_tag = "hint"});
-  EXPECT_EQ("hint", fake_system_state_.request_params()->lts_tag());
+  EXPECT_EQ("hint", FakeSystemState::Get()->request_params()->lts_tag());
 
   attempter_.CalculateUpdateParams({});
-  EXPECT_TRUE(fake_system_state_.request_params()->lts_tag().empty());
+  EXPECT_TRUE(FakeSystemState::Get()->request_params()->lts_tag().empty());
 }
 
 TEST_F(UpdateAttempterTest, RollbackAllowedSetAndReset) {
@@ -1683,44 +1645,47 @@ TEST_F(UpdateAttempterTest, RollbackAllowedSetAndReset) {
       .rollback_allowed = true,
       .rollback_allowed_milestones = 4,
   });
-  EXPECT_TRUE(fake_system_state_.request_params()->rollback_allowed());
-  EXPECT_EQ(4,
-            fake_system_state_.request_params()->rollback_allowed_milestones());
+  EXPECT_TRUE(FakeSystemState::Get()->request_params()->rollback_allowed());
+  EXPECT_EQ(
+      4,
+      FakeSystemState::Get()->request_params()->rollback_allowed_milestones());
 
   attempter_.CalculateUpdateParams({
       .target_version_prefix = "1234",
       .rollback_allowed_milestones = 4,
   });
-  EXPECT_FALSE(fake_system_state_.request_params()->rollback_allowed());
-  EXPECT_EQ(4,
-            fake_system_state_.request_params()->rollback_allowed_milestones());
+  EXPECT_FALSE(FakeSystemState::Get()->request_params()->rollback_allowed());
+  EXPECT_EQ(
+      4,
+      FakeSystemState::Get()->request_params()->rollback_allowed_milestones());
 }
 
 TEST_F(UpdateAttempterTest, ChannelDowngradeNoRollback) {
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  FakeSystemState::Get()->request_params()->set_root(tempdir.GetPath().value());
   attempter_.CalculateUpdateParams({
       .target_channel = "stable-channel",
   });
-  EXPECT_FALSE(fake_system_state_.request_params()->is_powerwash_allowed());
+  EXPECT_FALSE(
+      FakeSystemState::Get()->request_params()->is_powerwash_allowed());
 }
 
 TEST_F(UpdateAttempterTest, ChannelDowngradeRollback) {
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  fake_system_state_.request_params()->set_root(tempdir.GetPath().value());
+  FakeSystemState::Get()->request_params()->set_root(tempdir.GetPath().value());
   attempter_.CalculateUpdateParams({
       .rollback_on_channel_downgrade = true,
       .target_channel = "stable-channel",
   });
-  EXPECT_TRUE(fake_system_state_.request_params()->is_powerwash_allowed());
+  EXPECT_TRUE(FakeSystemState::Get()->request_params()->is_powerwash_allowed());
 }
 
 TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
   // Construct an OmahaResponseHandlerAction that has processed an InstallPlan,
   // but the update is being deferred by the Policy.
-  OmahaResponseHandlerAction response_action(&fake_system_state_);
+  OmahaResponseHandlerAction response_action;
   response_action.install_plan_.version = "a.b.c.d";
   response_action.install_plan_.payloads.push_back(
       {.size = 1234ULL, .type = InstallPayloadType::kFull});
@@ -1781,14 +1746,14 @@ TEST_F(UpdateAttempterTest, RollbackNotAllowed) {
   UpdateCheckParams params = {.updates_enabled = true,
                               .rollback_allowed = false};
   attempter_.OnUpdateScheduled(EvalStatus::kSucceeded, params);
-  EXPECT_FALSE(fake_system_state_.request_params()->rollback_allowed());
+  EXPECT_FALSE(FakeSystemState::Get()->request_params()->rollback_allowed());
 }
 
 TEST_F(UpdateAttempterTest, RollbackAllowed) {
   UpdateCheckParams params = {.updates_enabled = true,
                               .rollback_allowed = true};
   attempter_.OnUpdateScheduled(EvalStatus::kSucceeded, params);
-  EXPECT_TRUE(fake_system_state_.request_params()->rollback_allowed());
+  EXPECT_TRUE(FakeSystemState::Get()->request_params()->rollback_allowed());
 }
 
 TEST_F(UpdateAttempterTest, InteractiveUpdateUsesPassedRestrictions) {
@@ -1815,7 +1780,8 @@ TEST_F(UpdateAttempterTest, NonInteractiveUpdateUsesSetRestrictions) {
 void UpdateAttempterTest::ResetRollbackHappenedStart(bool is_consumer,
                                                      bool is_policy_loaded,
                                                      bool expected_reset) {
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(), GetRollbackHappened())
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
+              GetRollbackHappened())
       .WillRepeatedly(Return(true));
   auto mock_policy_provider =
       std::make_unique<NiceMock<policy::MockPolicyProvider>>();
@@ -1826,7 +1792,7 @@ void UpdateAttempterTest::ResetRollbackHappenedStart(bool is_consumer,
   const policy::MockDevicePolicy device_policy;
   EXPECT_CALL(*mock_policy_provider, GetDevicePolicy())
       .WillRepeatedly(ReturnRef(device_policy));
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
               SetRollbackHappened(false))
       .Times(expected_reset ? 1 : 0);
   attempter_.policy_provider_ = std::move(mock_policy_provider);
@@ -1868,7 +1834,7 @@ TEST_F(UpdateAttempterTest, SetRollbackHappenedRollback) {
   attempter_.install_plan_.reset(new InstallPlan);
   attempter_.install_plan_->is_rollback = true;
 
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
               SetRollbackHappened(true))
       .Times(1);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
@@ -1878,7 +1844,7 @@ TEST_F(UpdateAttempterTest, SetRollbackHappenedNotRollback) {
   attempter_.install_plan_.reset(new InstallPlan);
   attempter_.install_plan_->is_rollback = false;
 
-  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
               SetRollbackHappened(true))
       .Times(0);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
@@ -1889,7 +1855,7 @@ TEST_F(UpdateAttempterTest, RollbackMetricsRollbackSuccess) {
   attempter_.install_plan_->is_rollback = true;
   attempter_.install_plan_->version = kRollbackVersion;
 
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(true, kRollbackVersion))
       .Times(1);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
@@ -1900,7 +1866,7 @@ TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackSuccess) {
   attempter_.install_plan_->is_rollback = false;
   attempter_.install_plan_->version = kRollbackVersion;
 
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(_, _))
       .Times(0);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
@@ -1911,7 +1877,7 @@ TEST_F(UpdateAttempterTest, RollbackMetricsRollbackFailure) {
   attempter_.install_plan_->is_rollback = true;
   attempter_.install_plan_->version = kRollbackVersion;
 
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(false, kRollbackVersion))
       .Times(1);
   MockAction action;
@@ -1924,7 +1890,7 @@ TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackFailure) {
   attempter_.install_plan_->is_rollback = false;
   attempter_.install_plan_->version = kRollbackVersion;
 
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseRollbackMetrics(_, _))
       .Times(0);
   MockAction action;
@@ -1933,7 +1899,7 @@ TEST_F(UpdateAttempterTest, RollbackMetricsNotRollbackFailure) {
 }
 
 TEST_F(UpdateAttempterTest, TimeToUpdateAppliedMetricFailure) {
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseUpdateSeenToDownloadDays(_, _))
       .Times(0);
   attempter_.ProcessingDone(nullptr, ErrorCode::kOmahaUpdateDeferredPerPolicy);
@@ -1941,12 +1907,12 @@ TEST_F(UpdateAttempterTest, TimeToUpdateAppliedMetricFailure) {
 
 TEST_F(UpdateAttempterTest, TimeToUpdateAppliedOnNonEnterprise) {
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
   // Make device policy return that this is not enterprise enrolled
   EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(false));
 
   // Ensure that the metric is not recorded.
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseUpdateSeenToDownloadDays(_, _))
       .Times(0);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
@@ -1956,27 +1922,22 @@ TEST_F(UpdateAttempterTest,
        TimeToUpdateAppliedWithTimeRestrictionMetricSuccess) {
   constexpr int kDaysToUpdate = 15;
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
   // Make device policy return that this is enterprise enrolled
   EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(true));
   // Pretend that there's a time restriction policy in place
   EXPECT_CALL(*device_policy, GetDisallowedTimeIntervals(_))
       .WillOnce(Return(true));
 
-  FakePrefs fake_prefs;
   Time update_first_seen_at = Time::Now();
-  fake_prefs.SetInt64(kPrefsUpdateFirstSeenAt,
-                      update_first_seen_at.ToInternalValue());
+  FakeSystemState::Get()->fake_prefs()->SetInt64(
+      kPrefsUpdateFirstSeenAt, update_first_seen_at.ToInternalValue());
 
-  FakeClock fake_clock;
   Time update_finished_at =
       update_first_seen_at + TimeDelta::FromDays(kDaysToUpdate);
-  fake_clock.SetWallclockTime(update_finished_at);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(update_finished_at);
 
-  fake_system_state_.set_clock(&fake_clock);
-  fake_system_state_.set_prefs(&fake_prefs);
-
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseUpdateSeenToDownloadDays(true, kDaysToUpdate))
       .Times(1);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
@@ -1986,27 +1947,22 @@ TEST_F(UpdateAttempterTest,
        TimeToUpdateAppliedWithoutTimeRestrictionMetricSuccess) {
   constexpr int kDaysToUpdate = 15;
   auto device_policy = std::make_unique<policy::MockDevicePolicy>();
-  fake_system_state_.set_device_policy(device_policy.get());
+  FakeSystemState::Get()->set_device_policy(device_policy.get());
   // Make device policy return that this is enterprise enrolled
   EXPECT_CALL(*device_policy, IsEnterpriseEnrolled()).WillOnce(Return(true));
   // Pretend that there's no time restriction policy in place
   EXPECT_CALL(*device_policy, GetDisallowedTimeIntervals(_))
       .WillOnce(Return(false));
 
-  FakePrefs fake_prefs;
   Time update_first_seen_at = Time::Now();
-  fake_prefs.SetInt64(kPrefsUpdateFirstSeenAt,
-                      update_first_seen_at.ToInternalValue());
+  FakeSystemState::Get()->fake_prefs()->SetInt64(
+      kPrefsUpdateFirstSeenAt, update_first_seen_at.ToInternalValue());
 
-  FakeClock fake_clock;
   Time update_finished_at =
       update_first_seen_at + TimeDelta::FromDays(kDaysToUpdate);
-  fake_clock.SetWallclockTime(update_finished_at);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(update_finished_at);
 
-  fake_system_state_.set_clock(&fake_clock);
-  fake_system_state_.set_prefs(&fake_prefs);
-
-  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
               ReportEnterpriseUpdateSeenToDownloadDays(false, kDaysToUpdate))
       .Times(1);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
@@ -2155,43 +2111,14 @@ TEST_F(UpdateAttempterTest, ProcessingDoneInstallError) {
   TestProcessingDone();
 }
 
-void UpdateAttempterTest::UpdateToQuickFixBuildStart(bool set_token) {
-  // Tests that checks if |device_quick_fix_build_token| arrives when
-  // policy is set and the device is enterprise enrolled based on |set_token|.
-  string token = set_token ? "some_token" : "";
-  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
-  fake_system_state_.set_device_policy(device_policy.get());
-  EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
+TEST_F(UpdateAttempterTest, QuickFixTokenWhenDeviceIsEnterpriseEnrolled) {
+  attempter_.CalculateUpdateParams({.quick_fix_build_token = "token"});
+  EXPECT_EQ("token",
+            FakeSystemState::Get()->request_params()->autoupdate_token());
 
-  if (set_token)
-    EXPECT_CALL(*device_policy, GetDeviceQuickFixBuildToken(_))
-        .WillOnce(DoAll(SetArgPointee<0>(token), Return(true)));
-  else
-    EXPECT_CALL(*device_policy, GetDeviceQuickFixBuildToken(_))
-        .WillOnce(Return(false));
-  attempter_.policy_provider_.reset(
-      new policy::PolicyProvider(std::move(device_policy)));
-  attempter_.Update({});
-
-  EXPECT_EQ(token, attempter_.omaha_request_params_->autoupdate_token());
-  ScheduleQuitMainLoop();
-}
-
-TEST_F(UpdateAttempterTest,
-       QuickFixTokenWhenDeviceIsEnterpriseEnrolledAndPolicyIsSet) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::UpdateToQuickFixBuildStart,
-                            base::Unretained(this),
-                            /*set_token=*/true));
-  loop_.Run();
-}
-
-TEST_F(UpdateAttempterTest, EmptyQuickFixToken) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::UpdateToQuickFixBuildStart,
-                            base::Unretained(this),
-                            /*set_token=*/false));
-  loop_.Run();
+  attempter_.CalculateUpdateParams({});
+  EXPECT_TRUE(
+      FakeSystemState::Get()->request_params()->autoupdate_token().empty());
 }
 
 TEST_F(UpdateAttempterTest, ScheduleUpdateSpamHandlerTest) {
@@ -2329,11 +2256,7 @@ TEST_F(UpdateAttempterTest, PowerwashInGetStatusTrueBecauseRollback) {
 
 TEST_F(UpdateAttempterTest, FutureEolTest) {
   EolDate eol_date = std::numeric_limits<int64_t>::max();
-  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(true));
-  EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
-      .WillOnce(
-          DoAll(SetArgPointee<1>(EolDateToString(eol_date)), Return(true)));
-
+  EXPECT_TRUE(prefs_->SetString(kPrefsOmahaEolDate, EolDateToString(eol_date)));
   UpdateEngineStatus status;
   attempter_.GetStatus(&status);
   EXPECT_EQ(eol_date, status.eol_date);
@@ -2341,29 +2264,13 @@ TEST_F(UpdateAttempterTest, FutureEolTest) {
 
 TEST_F(UpdateAttempterTest, PastEolTest) {
   EolDate eol_date = 1;
-  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(true));
-  EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
-      .WillOnce(
-          DoAll(SetArgPointee<1>(EolDateToString(eol_date)), Return(true)));
-
+  EXPECT_TRUE(prefs_->SetString(kPrefsOmahaEolDate, EolDateToString(eol_date)));
   UpdateEngineStatus status;
   attempter_.GetStatus(&status);
   EXPECT_EQ(eol_date, status.eol_date);
 }
 
-TEST_F(UpdateAttempterTest, FailedEolTest) {
-  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(true));
-  EXPECT_CALL(*prefs_, GetString(kPrefsOmahaEolDate, _))
-      .WillOnce(Return(false));
-
-  UpdateEngineStatus status;
-  attempter_.GetStatus(&status);
-  EXPECT_EQ(kEolDateInvalid, status.eol_date);
-}
-
 TEST_F(UpdateAttempterTest, MissingEolTest) {
-  EXPECT_CALL(*prefs_, Exists(kPrefsOmahaEolDate)).WillOnce(Return(false));
-
   UpdateEngineStatus status;
   attempter_.GetStatus(&status);
   EXPECT_EQ(kEolDateInvalid, status.eol_date);
@@ -2371,13 +2278,11 @@ TEST_F(UpdateAttempterTest, MissingEolTest) {
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
   string dlc_id = "dlc0";
-  FakePrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
   attempter_.is_install_ = true;
   attempter_.dlc_ids_ = {dlc_id};
   attempter_.CalculateDlcParams();
 
-  OmahaRequestParams* params = fake_system_state_.request_params();
+  OmahaRequestParams* params = FakeSystemState::Get()->request_params();
   EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
   OmahaRequestParams::AppParams dlc_app_params =
       params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
@@ -2387,16 +2292,14 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
   // the values sent by Omaha.
   auto last_active_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
-  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_active_key));
+  EXPECT_FALSE(FakeSystemState::Get()->prefs()->Exists(last_active_key));
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
-  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_rollcall_key));
+  EXPECT_FALSE(FakeSystemState::Get()->prefs()->Exists(last_rollcall_key));
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
   string dlc_id = "dlc0";
-  FakePrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
@@ -2404,7 +2307,7 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
   attempter_.is_install_ = false;
   attempter_.CalculateDlcParams();
 
-  OmahaRequestParams* params = fake_system_state_.request_params();
+  OmahaRequestParams* params = FakeSystemState::Get()->request_params();
   EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
   OmahaRequestParams::AppParams dlc_app_params =
       params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
@@ -2419,7 +2322,7 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
 TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
   string dlc_id = "dlc0";
   MemoryPrefs prefs;
-  fake_system_state_.set_prefs(&prefs);
+  FakeSystemState::Get()->set_prefs(&prefs);
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
@@ -2431,13 +2334,13 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
       {kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
-  fake_system_state_.prefs()->SetString(active_key, "z2yz");
-  fake_system_state_.prefs()->SetString(last_active_key, "z2yz");
-  fake_system_state_.prefs()->SetString(last_rollcall_key, "z2yz");
+  FakeSystemState::Get()->prefs()->SetString(active_key, "z2yz");
+  FakeSystemState::Get()->prefs()->SetString(last_active_key, "z2yz");
+  FakeSystemState::Get()->prefs()->SetString(last_rollcall_key, "z2yz");
   attempter_.is_install_ = false;
   attempter_.CalculateDlcParams();
 
-  OmahaRequestParams* params = fake_system_state_.request_params();
+  OmahaRequestParams* params = FakeSystemState::Get()->request_params();
   EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
   OmahaRequestParams::AppParams dlc_app_params =
       params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
@@ -2451,8 +2354,6 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
   string dlc_id = "dlc0";
-  MemoryPrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
@@ -2465,13 +2366,13 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
 
-  fake_system_state_.prefs()->SetInt64(active_key, 1);
-  fake_system_state_.prefs()->SetInt64(last_active_key, 78);
-  fake_system_state_.prefs()->SetInt64(last_rollcall_key, 99);
+  FakeSystemState::Get()->prefs()->SetInt64(active_key, 1);
+  FakeSystemState::Get()->prefs()->SetInt64(last_active_key, 78);
+  FakeSystemState::Get()->prefs()->SetInt64(last_rollcall_key, 99);
   attempter_.is_install_ = false;
   attempter_.CalculateDlcParams();
 
-  OmahaRequestParams* params = fake_system_state_.request_params();
+  OmahaRequestParams* params = FakeSystemState::Get()->request_params();
   EXPECT_EQ(1, params->dlc_apps_params().count(params->GetDlcAppId(dlc_id)));
   OmahaRequestParams::AppParams dlc_app_params =
       params->dlc_apps_params().at(params->GetDlcAppId(dlc_id));
@@ -2485,62 +2386,56 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata) {
   string dlc_id = "dlc0";
-  FakePrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
   auto active_key =
       PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
   auto last_active_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, dlc_id, kPrefsPingLastActive});
   auto last_rollcall_key = PrefsInterface::CreateSubKey(
       {kDlcPrefsSubDir, dlc_id, kPrefsPingLastRollcall});
-  fake_system_state_.prefs()->SetInt64(active_key, kPingInactiveValue);
-  fake_system_state_.prefs()->SetInt64(last_active_key, 0);
-  fake_system_state_.prefs()->SetInt64(last_rollcall_key, 0);
-  EXPECT_TRUE(fake_system_state_.prefs()->Exists(active_key));
-  EXPECT_TRUE(fake_system_state_.prefs()->Exists(last_active_key));
-  EXPECT_TRUE(fake_system_state_.prefs()->Exists(last_rollcall_key));
+  FakeSystemState::Get()->prefs()->SetInt64(active_key, kPingInactiveValue);
+  FakeSystemState::Get()->prefs()->SetInt64(last_active_key, 0);
+  FakeSystemState::Get()->prefs()->SetInt64(last_rollcall_key, 0);
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->Exists(active_key));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->Exists(last_active_key));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->Exists(last_rollcall_key));
 
   attempter_.dlc_ids_ = {dlc_id};
   attempter_.is_install_ = true;
   attempter_.CalculateDlcParams();
 
-  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_active_key));
-  EXPECT_FALSE(fake_system_state_.prefs()->Exists(last_rollcall_key));
+  EXPECT_FALSE(FakeSystemState::Get()->prefs()->Exists(last_active_key));
+  EXPECT_FALSE(FakeSystemState::Get()->prefs()->Exists(last_rollcall_key));
   // Active key is set on install.
-  EXPECT_TRUE(fake_system_state_.prefs()->Exists(active_key));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->Exists(active_key));
   int64_t temp_int;
-  EXPECT_TRUE(fake_system_state_.prefs()->GetInt64(active_key, &temp_int));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->GetInt64(active_key, &temp_int));
   EXPECT_EQ(temp_int, kPingActiveValue);
 }
 
 TEST_F(UpdateAttempterTest, SetDlcActiveValue) {
   string dlc_id = "dlc0";
-  FakePrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
   attempter_.SetDlcActiveValue(true, dlc_id);
   int64_t temp_int;
   auto active_key =
       PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsPingActive});
-  EXPECT_TRUE(fake_system_state_.prefs()->Exists(active_key));
-  EXPECT_TRUE(fake_system_state_.prefs()->GetInt64(active_key, &temp_int));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->Exists(active_key));
+  EXPECT_TRUE(FakeSystemState::Get()->prefs()->GetInt64(active_key, &temp_int));
   EXPECT_EQ(temp_int, kPingActiveValue);
 }
 
 TEST_F(UpdateAttempterTest, SetDlcInactive) {
   string dlc_id = "dlc0";
-  MemoryPrefs fake_prefs;
-  fake_system_state_.set_prefs(&fake_prefs);
   auto sub_keys = {
       kPrefsPingActive, kPrefsPingLastActive, kPrefsPingLastRollcall};
   for (auto& sub_key : sub_keys) {
     auto key = PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
-    fake_system_state_.prefs()->SetInt64(key, 1);
-    EXPECT_TRUE(fake_system_state_.prefs()->Exists(key));
+    FakeSystemState::Get()->prefs()->SetInt64(key, 1);
+    EXPECT_TRUE(FakeSystemState::Get()->prefs()->Exists(key));
   }
   attempter_.SetDlcActiveValue(false, dlc_id);
   for (auto& sub_key : sub_keys) {
     auto key = PrefsInterface::CreateSubKey({kDlcPrefsSubDir, dlc_id, sub_key});
-    EXPECT_FALSE(fake_system_state_.prefs()->Exists(key));
+    EXPECT_FALSE(FakeSystemState::Get()->prefs()->Exists(key));
   }
 }
 
@@ -2551,6 +2446,36 @@ TEST_F(UpdateAttempterTest, GetSuccessfulDlcIds) {
        {dlc_2, {.name = dlc_2}},
        {dlc_3, {.name = dlc_3, .updated = false}}});
   EXPECT_THAT(attempter_.GetSuccessfulDlcIds(), ElementsAre(dlc_2));
+}
+
+TEST_F(UpdateAttempterTest, MoveToPrefs) {
+  string key1 = kPrefsLastActivePingDay;
+  string key2 = kPrefsPingLastRollcall;
+
+  FakePrefs fake_prefs;
+  EXPECT_TRUE(fake_prefs.SetString(key2, "current-rollcall"));
+  FakeSystemState::Get()->set_prefs(&fake_prefs);
+
+  FakePrefs powerwash_safe_prefs;
+  EXPECT_TRUE(powerwash_safe_prefs.SetString(key1, "powerwash-last-active"));
+  EXPECT_TRUE(powerwash_safe_prefs.SetString(key2, "powerwash-last-rollcall"));
+  FakeSystemState::Get()->set_powerwash_safe_prefs(&powerwash_safe_prefs);
+
+  attempter_.Init();
+  attempter_.MoveToPrefs({key1, key2});
+
+  string pref_value_1;
+  fake_prefs.GetString(key1, &pref_value_1);
+  EXPECT_EQ(pref_value_1, "powerwash-last-active");
+  // Do not overwrite if value already exists.
+  string pref_value_2;
+  fake_prefs.GetString(key2, &pref_value_2);
+  EXPECT_EQ(pref_value_2, "current-rollcall");
+
+  // Make sure keys are deleted from powerwash safe prefs regardless of whether
+  // they are written to prefs.
+  EXPECT_FALSE(FakeSystemState::Get()->powerwash_safe_prefs()->Exists(key1));
+  EXPECT_FALSE(FakeSystemState::Get()->powerwash_safe_prefs()->Exists(key2));
 }
 
 }  // namespace chromeos_update_engine

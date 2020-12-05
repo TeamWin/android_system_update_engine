@@ -41,16 +41,14 @@ using std::string;
 namespace chromeos_update_engine {
 
 namespace connection_manager {
-std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
-    SystemState* system_state) {
+std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager() {
   return std::unique_ptr<ConnectionManagerInterface>(
-      new ConnectionManager(new ShillProxy(), system_state));
+      new ConnectionManager(new ShillProxy()));
 }
 }  // namespace connection_manager
 
-ConnectionManager::ConnectionManager(ShillProxyInterface* shill_proxy,
-                                     SystemState* system_state)
-    : shill_proxy_(shill_proxy), system_state_(system_state) {}
+ConnectionManager::ConnectionManager(ShillProxyInterface* shill_proxy)
+    : shill_proxy_(shill_proxy) {}
 
 bool ConnectionManager::IsUpdateAllowedOver(
     ConnectionType type, ConnectionTethering tethering) const {
@@ -64,15 +62,16 @@ bool ConnectionManager::IsUpdateAllowedOver(
         << "Current connection is confirmed tethered, using Cellular setting.";
   }
 
-  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  const policy::DevicePolicy* device_policy =
+      SystemState::Get()->device_policy();
 
   // The device_policy is loaded in a lazy way before an update check. Load
   // it now from the libbrillo cache if it wasn't already loaded.
   if (!device_policy) {
-    UpdateAttempter* update_attempter = system_state_->update_attempter();
+    UpdateAttempter* update_attempter = SystemState::Get()->update_attempter();
     if (update_attempter) {
       update_attempter->RefreshDevicePolicy();
-      device_policy = system_state_->device_policy();
+      device_policy = SystemState::Get()->device_policy();
     }
   }
 
@@ -109,7 +108,8 @@ bool ConnectionManager::IsUpdateAllowedOver(
 }
 
 bool ConnectionManager::IsAllowedConnectionTypesForUpdateSet() const {
-  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  const policy::DevicePolicy* device_policy =
+      SystemState::Get()->device_policy();
   if (!device_policy) {
     LOG(INFO) << "There's no device policy loaded yet.";
     return false;

@@ -24,6 +24,7 @@
 #include <shill/dbus-constants.h>
 #include <shill/dbus-proxies.h>
 
+using chromeos_update_engine::SystemState;
 using chromeos_update_engine::connection_utils::ParseConnectionType;
 using org::chromium::flimflam::ManagerProxyInterface;
 using org::chromium::flimflam::ServiceProxyInterface;
@@ -97,7 +98,8 @@ bool RealShillProvider::ProcessDefaultService(
   bool is_connected =
       (default_service_path_.IsValid() && default_service_path_.value() != "/");
   var_is_connected_.SetValue(is_connected);
-  var_conn_last_changed_.SetValue(clock_->GetWallclockTime());
+  var_conn_last_changed_.SetValue(
+      SystemState::Get()->clock()->GetWallclockTime());
 
   if (!is_connected) {
     var_conn_type_.UnsetValue();

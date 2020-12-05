@@ -34,7 +34,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/common/fake_clock.h"
+#include "update_engine/cros/fake_system_state.h"
 #include "update_engine/update_manager/default_policy.h"
 #include "update_engine/update_manager/fake_state.h"
 #include "update_engine/update_manager/mock_policy.h"
@@ -48,6 +48,7 @@ using brillo::MessageLoop;
 using brillo::MessageLoopRunMaxIterations;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
+using chromeos_update_engine::FakeSystemState;
 using std::pair;
 using std::string;
 using std::tuple;
@@ -80,11 +81,10 @@ class UmUpdateManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
+    FakeSystemState::CreateInstance();
     fake_state_ = new FakeState();
-    umut_.reset(new UpdateManager(&fake_clock_,
-                                  TimeDelta::FromSeconds(5),
-                                  TimeDelta::FromSeconds(1),
-                                  fake_state_));
+    umut_.reset(new UpdateManager(
+        TimeDelta::FromSeconds(5), TimeDelta::FromSeconds(1), fake_state_));
   }
 
   void TearDown() override { EXPECT_FALSE(loop_.PendingTasks()); }
@@ -92,7 +92,6 @@ class UmUpdateManagerTest : public ::testing::Test {
   base::SimpleTestClock test_clock_;
   brillo::FakeMessageLoop loop_{&test_clock_};
   FakeState* fake_state_;  // Owned by the umut_.
-  FakeClock fake_clock_;
   unique_ptr<UpdateManager> umut_;
 };
 
@@ -291,13 +290,14 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimeoutDoesNotFire) {
 }
 
 TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
+  auto* fake_clock = FakeSystemState::Get()->fake_clock();
   // Set up an async policy call to exceed its expiration timeout, make sure
   // that the default policy was not used (no callback) and that evaluation is
   // reattempted.
   int num_called = 0;
   umut_->set_policy(new DelayPolicy(
       0,
-      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(3),
+      fake_clock->GetWallclockTime() + TimeDelta::FromSeconds(3),
       &num_called));
 
   vector<pair<EvalStatus, UpdateCheckParams>> calls;
@@ -314,7 +314,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   // ensure that reevaluation occurred but callback was not invoked (i.e.
   // default policy was not consulted).
   test_clock_.Advance(TimeDelta::FromSeconds(2));
-  fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
+  fake_clock->SetWallclockTime(fake_clock->GetWallclockTime() +
                                TimeDelta::FromSeconds(2));
   MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(2, num_called);
@@ -322,7 +322,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   // Wait for reevaluation due to delay to happen, ensure that it occurs and
   // that the callback is invoked.
   test_clock_.Advance(TimeDelta::FromSeconds(2));
-  fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
+  fake_clock->SetWallclockTime(fake_clock->GetWallclockTime() +
                                TimeDelta::FromSeconds(2));
   MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(3, num_called);

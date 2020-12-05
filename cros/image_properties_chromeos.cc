@@ -86,7 +86,7 @@ void SetImagePropertiesRootPrefix(const char* test_root_prefix) {
 }
 }  // namespace test
 
-ImageProperties LoadImageProperties(SystemState* system_state) {
+ImageProperties LoadImageProperties() {
   ImageProperties result;
 
   brillo::KeyValueStore lsb_release;
@@ -97,7 +97,7 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   // In dev-mode and unofficial build we can override the image properties set
   // in the system image with the ones from the stateful partition, except the
   // channel of the current image.
-  HardwareInterface* const hardware = system_state->hardware();
+  HardwareInterface* const hardware = SystemState::Get()->hardware();
   if (!hardware->IsOfficialBuild() || !hardware->IsNormalBootMode())
     LoadLsbRelease(LsbReleaseSource::kStateful, &lsb_release);
 
@@ -124,7 +124,7 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   return result;
 }
 
-MutableImageProperties LoadMutableImageProperties(SystemState* system_state) {
+MutableImageProperties LoadMutableImageProperties() {
   MutableImageProperties result;
   brillo::KeyValueStore lsb_release;
   LoadLsbRelease(LsbReleaseSource::kSystem, &lsb_release);
@@ -137,8 +137,7 @@ MutableImageProperties LoadMutableImageProperties(SystemState* system_state) {
   return result;
 }
 
-bool StoreMutableImageProperties(SystemState* system_state,
-                                 const MutableImageProperties& properties) {
+bool StoreMutableImageProperties(const MutableImageProperties& properties) {
   brillo::KeyValueStore lsb_release;
   LoadLsbRelease(LsbReleaseSource::kStateful, &lsb_release);
   lsb_release.SetString(kLsbReleaseUpdateChannelKey, properties.target_channel);

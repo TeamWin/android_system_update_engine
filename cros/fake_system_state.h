@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_CROS_FAKE_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_CROS_FAKE_SYSTEM_STATE_H_
 
+#include <memory>
+
 #include <base/logging.h>
 #include <gmock/gmock.h>
 #include <policy/mock_device_policy.h>
@@ -25,6 +27,7 @@
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_metrics_reporter.h"
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/system_state.h"
@@ -42,7 +45,15 @@ namespace chromeos_update_engine {
 // OOBE is completed even when there's no such marker file, etc.
 class FakeSystemState : public SystemState {
  public:
-  FakeSystemState();
+  static void CreateInstance() {
+    static std::unique_ptr<FakeSystemState> system_state;
+    system_state.reset(new FakeSystemState());
+    g_pointer_ = system_state.get();
+  }
+
+  static FakeSystemState* Get() {
+    return reinterpret_cast<FakeSystemState*>(g_pointer_);
+  }
 
   // Base class overrides. All getters return the current implementation of
   // various members, either the default (fake/mock) or the one set to override
@@ -196,6 +207,16 @@ class FakeSystemState : public SystemState {
     return &fake_hardware_;
   }
 
+  inline FakePrefs* fake_prefs() {
+    CHECK(prefs_ == &fake_prefs_);
+    return &fake_prefs_;
+  }
+
+  inline FakePrefs* fake_powerwash_safe_prefs() {
+    CHECK(powerwash_safe_prefs_ == &fake_powerwash_safe_prefs_);
+    return &fake_powerwash_safe_prefs_;
+  }
+
   inline testing::NiceMock<MockMetricsReporter>* mock_metrics_reporter() {
     CHECK(metrics_reporter_ == &mock_metrics_reporter_);
     return &mock_metrics_reporter_;
@@ -237,11 +258,18 @@ class FakeSystemState : public SystemState {
   }
 
  private:
+  // Don't allow for direct initialization of this class.
+  FakeSystemState();
+
   // Default mock/fake implementations (owned).
+  chromeos_update_manager::FakeUpdateManager fake_update_manager_;
   FakeBootControl fake_boot_control_;
   FakeClock fake_clock_;
-  testing::NiceMock<MockConnectionManager> mock_connection_manager_;
   FakeHardware fake_hardware_;
+  FakePrefs fake_prefs_;
+  FakePrefs fake_powerwash_safe_prefs_;
+
+  testing::NiceMock<MockConnectionManager> mock_connection_manager_;
   testing::NiceMock<MockMetricsReporter> mock_metrics_reporter_;
   testing::NiceMock<MockPrefs> mock_prefs_;
   testing::NiceMock<MockPrefs> mock_powerwash_safe_prefs_;
@@ -249,7 +277,6 @@ class FakeSystemState : public SystemState {
   testing::NiceMock<MockUpdateAttempter> mock_update_attempter_;
   testing::NiceMock<MockOmahaRequestParams> mock_request_params_;
   testing::NiceMock<MockP2PManager> mock_p2p_manager_;
-  chromeos_update_manager::FakeUpdateManager fake_update_manager_;
   testing::NiceMock<MockPowerManager> mock_power_manager_;
 
   // Pointers to objects that client code can override. They are initialized to

@@ -32,21 +32,21 @@ class ClockInterface {
   virtual ~ClockInterface() = default;
 
   // Gets the current time e.g. similar to base::Time::Now().
-  virtual base::Time GetWallclockTime() = 0;
+  virtual base::Time GetWallclockTime() const = 0;
 
   // Returns monotonic time since some unspecified starting point. It
   // is not increased when the system is sleeping nor is it affected
   // by NTP or the user changing the time.
   //
   // (This is a simple wrapper around clock_gettime(2) / CLOCK_MONOTONIC_RAW.)
-  virtual base::Time GetMonotonicTime() = 0;
+  virtual base::Time GetMonotonicTime() const = 0;
 
   // Returns monotonic time since some unspecified starting point. It
   // is increased when the system is sleeping but it's not affected
   // by NTP or the user changing the time.
   //
   // (This is a simple wrapper around clock_gettime(2) / CLOCK_BOOTTIME.)
-  virtual base::Time GetBootTime() = 0;
+  virtual base::Time GetBootTime() const = 0;
 };
 
 }  // namespace chromeos_update_engine

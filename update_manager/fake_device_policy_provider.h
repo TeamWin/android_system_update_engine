@@ -104,6 +104,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_device_minimum_version_;
   }
 
+  FakeVariable<std::string>* var_quick_fix_build_token() override {
+    return &var_quick_fix_build_token_;
+  }
+
  private:
   FakeVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",
                                                   kVariableModePoll};
@@ -134,11 +138,13 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   FakeVariable<std::string> var_auto_launched_kiosk_app_id_{
       "auto_launched_kiosk_app_id", kVariableModePoll};
   FakeVariable<WeeklyTimeIntervalVector> var_disallowed_time_intervals_{
-      "disallowed_time_intervals", kVariableModePoll};
+      "disallowed_time_intervals", kVariableModeAsync};
   FakeVariable<ChannelDowngradeBehavior> var_channel_downgrade_behavior_{
       "channel_downgrade_behavior", kVariableModePoll};
   FakeVariable<base::Version> var_device_minimum_version_{
       "device_minimum_version", kVariableModePoll};
+  FakeVariable<std::string> var_quick_fix_build_token_{"quick_fix_build_token",
+                                                       kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeDevicePolicyProvider);
 };

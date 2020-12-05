@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <base/guid.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/cros/fake_system_state.h"
@@ -28,6 +29,10 @@
 using std::pair;
 using std::string;
 using std::vector;
+using testing::_;
+using testing::DoAll;
+using testing::Return;
+using testing::SetArgPointee;
 
 namespace chromeos_update_engine {
 
@@ -55,11 +60,15 @@ static size_t CountSubstringInString(const string& str, const string& substr) {
 
 class OmahaRequestBuilderXmlTest : public ::testing::Test {
  protected:
-  void SetUp() override {}
+  void SetUp() override {
+    FakeSystemState::CreateInstance();
+    FakeSystemState::Get()->set_request_params(&params_);
+  }
   void TearDown() override {}
 
-  FakeSystemState fake_system_state_;
   static constexpr size_t kGuidSize = 36;
+
+  OmahaRequestParams params_;
 };
 
 TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeTest) {
@@ -88,16 +97,13 @@ TEST_F(OmahaRequestBuilderXmlTest, XmlEncodeWithDefaultTest) {
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, PlatformGetAppTest) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_device_requisition("device requisition");
+  params_.set_device_requisition("device requisition");
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
   OmahaAppData dlc_app_data = {.id = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
                                .version = "",
@@ -112,16 +118,13 @@ TEST_F(OmahaRequestBuilderXmlTest, PlatformGetAppTest) {
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, DlcGetAppTest) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_device_requisition("device requisition");
+  params_.set_device_requisition("device requisition");
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
   OmahaAppData dlc_app_data = {
       .id = "_dlc_id", .version = "", .skip_update = false, .is_dlc = true};
@@ -134,20 +137,17 @@ TEST_F(OmahaRequestBuilderXmlTest, DlcGetAppTest) {
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
+  const string request_xml = omaha_request.GetRequest();
   const string key = "requestid";
   const string request_id =
-      FindAttributeKeyValueInXml(kRequestXml, key, kGuidSize);
+      FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
   // A valid |request_id| is either a GUID version 4 or empty string.
   if (!request_id.empty())
     EXPECT_TRUE(base::IsValidGUID(request_id));
@@ -155,20 +155,17 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
   const string gen_session_id = base::GenerateGUID();
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        gen_session_id};
-  const string kRequestXml = omaha_request.GetRequest();
+  const string request_xml = omaha_request.GetRequest();
   const string key = "sessionid";
   const string session_id =
-      FindAttributeKeyValueInXml(kRequestXml, key, kGuidSize);
+      FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
   // A valid |session_id| is either a GUID version 4 or empty string.
   if (!session_id.empty()) {
     EXPECT_TRUE(base::IsValidGUID(session_id));
@@ -177,123 +174,107 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateTest) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
-  EXPECT_EQ(1, CountSubstringInString(kRequestXml, "<updatecheck"))
-      << kRequestXml;
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "<updatecheck"))
+      << request_xml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateWithDlcsTest) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_dlc_apps_params(
-      {{omaha_request_params.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
-       {omaha_request_params.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}});
+  params_.set_dlc_apps_params(
+      {{params_.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
+       {params_.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}});
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
-  EXPECT_EQ(3, CountSubstringInString(kRequestXml, "<updatecheck"))
-      << kRequestXml;
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(3, CountSubstringInString(request_xml, "<updatecheck"))
+      << request_xml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcInstallationTest) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
   const std::map<std::string, OmahaRequestParams::AppParams> dlcs = {
-      {omaha_request_params.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
-      {omaha_request_params.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}};
-  omaha_request_params.set_dlc_apps_params(dlcs);
-  omaha_request_params.set_is_install(true);
+      {params_.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}},
+      {params_.GetDlcAppId("dlc_no_1"), {.name = "dlc_no_1"}}};
+  params_.set_dlc_apps_params(dlcs);
+  params_.set_is_install(true);
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
-  EXPECT_EQ(2, CountSubstringInString(kRequestXml, "<updatecheck"))
-      << kRequestXml;
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(2, CountSubstringInString(request_xml, "<updatecheck"))
+      << request_xml;
 
-  auto FindAppId = [kRequestXml](size_t pos) -> size_t {
-    return kRequestXml.find("<app appid", pos);
+  auto FindAppId = [request_xml](size_t pos) -> size_t {
+    return request_xml.find("<app appid", pos);
   };
   // Skip over the Platform AppID, which is always first.
   size_t pos = FindAppId(0);
   for (auto&& _ : dlcs) {
     (void)_;
-    EXPECT_NE(string::npos, (pos = FindAppId(pos + 1))) << kRequestXml;
+    EXPECT_NE(string::npos, (pos = FindAppId(pos + 1))) << request_xml;
     const string dlc_app_id_version = FindAttributeKeyValueInXml(
-        kRequestXml.substr(pos), "version", string(kNoVersion).size());
+        request_xml.substr(pos), "version", string(kNoVersion).size());
     EXPECT_EQ(kNoVersion, dlc_app_id_version);
 
     const string false_str = "false";
     const string dlc_app_id_delta_okay = FindAttributeKeyValueInXml(
-        kRequestXml.substr(pos), "delta_okay", false_str.length());
+        request_xml.substr(pos), "delta_okay", false_str.length());
     EXPECT_EQ(false_str, dlc_app_id_delta_okay);
   }
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcNoPing) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_dlc_apps_params(
-      {{omaha_request_params.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}}});
+  params_.set_dlc_apps_params(
+      {{params_.GetDlcAppId("dlc_no_0"), {.name = "dlc_no_0"}}});
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
-  EXPECT_EQ(0, CountSubstringInString(kRequestXml, "<ping")) << kRequestXml;
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "<ping")) << request_xml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallNoActive) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_dlc_apps_params(
-      {{omaha_request_params.GetDlcAppId("dlc_no_0"),
+  params_.set_dlc_apps_params(
+      {{params_.GetDlcAppId("dlc_no_0"),
         {.active_counting_type = OmahaRequestParams::kDateBased,
          .name = "dlc_no_0",
          .ping_date_last_active = 25,
          .ping_date_last_rollcall = 36,
          .send_ping = true}}});
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
-  EXPECT_EQ(1, CountSubstringInString(kRequestXml, "<ping rd=\"36\""))
-      << kRequestXml;
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "<ping rd=\"36\""))
+      << request_xml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallAndActive) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_dlc_apps_params(
-      {{omaha_request_params.GetDlcAppId("dlc_no_0"),
+  params_.set_dlc_apps_params(
+      {{params_.GetDlcAppId("dlc_no_0"),
         {.active_counting_type = OmahaRequestParams::kDateBased,
          .name = "dlc_no_0",
          .ping_active = 1,
@@ -301,101 +282,140 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcPingRollCallAndActive) {
          .ping_date_last_rollcall = 36,
          .send_ping = true}}});
   OmahaRequestBuilderXml omaha_request{nullptr,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
+  const string request_xml = omaha_request.GetRequest();
   EXPECT_EQ(1,
-            CountSubstringInString(kRequestXml,
+            CountSubstringInString(request_xml,
                                    "<ping active=\"1\" ad=\"25\" rd=\"36\""))
-      << kRequestXml;
+      << request_xml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlUpdateCompleteEvent) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
   OmahaEvent event(OmahaEvent::kTypeUpdateComplete);
   OmahaRequestBuilderXml omaha_request{&event,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
-  LOG(INFO) << kRequestXml;
+  const string request_xml = omaha_request.GetRequest();
+  LOG(INFO) << request_xml;
   EXPECT_EQ(
       1,
       CountSubstringInString(
-          kRequestXml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
-      << kRequestXml;
+          request_xml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
+      << request_xml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest,
        GetRequestXmlUpdateCompleteEventSomeDlcsExcluded) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_dlc_apps_params({
-      {omaha_request_params.GetDlcAppId("dlc_1"), {.updated = true}},
-      {omaha_request_params.GetDlcAppId("dlc_2"), {.updated = false}},
+  params_.set_dlc_apps_params({
+      {params_.GetDlcAppId("dlc_1"), {.updated = true}},
+      {params_.GetDlcAppId("dlc_2"), {.updated = false}},
   });
   OmahaEvent event(OmahaEvent::kTypeUpdateComplete);
   OmahaRequestBuilderXml omaha_request{&event,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
+  const string request_xml = omaha_request.GetRequest();
   EXPECT_EQ(
       2,
       CountSubstringInString(
-          kRequestXml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
-      << kRequestXml;
+          request_xml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
+      << request_xml;
   EXPECT_EQ(
       1,
       CountSubstringInString(
-          kRequestXml,
+          request_xml,
           "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"62\"></event>"))
-      << kRequestXml;
+      << request_xml;
 }
 
 TEST_F(OmahaRequestBuilderXmlTest,
        GetRequestXmlUpdateCompleteEventAllDlcsExcluded) {
-  OmahaRequestParams omaha_request_params{&fake_system_state_};
-  omaha_request_params.set_dlc_apps_params({
-      {omaha_request_params.GetDlcAppId("dlc_1"), {.updated = false}},
-      {omaha_request_params.GetDlcAppId("dlc_2"), {.updated = false}},
+  params_.set_dlc_apps_params({
+      {params_.GetDlcAppId("dlc_1"), {.updated = false}},
+      {params_.GetDlcAppId("dlc_2"), {.updated = false}},
   });
   OmahaEvent event(OmahaEvent::kTypeUpdateComplete);
   OmahaRequestBuilderXml omaha_request{&event,
-                                       &omaha_request_params,
                                        false,
                                        false,
                                        0,
                                        0,
                                        0,
-                                       fake_system_state_.prefs(),
                                        ""};
-  const string kRequestXml = omaha_request.GetRequest();
+  const string request_xml = omaha_request.GetRequest();
   EXPECT_EQ(
       1,
       CountSubstringInString(
-          kRequestXml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
-      << kRequestXml;
+          request_xml, "<event eventtype=\"3\" eventresult=\"1\"></event>"))
+      << request_xml;
   EXPECT_EQ(
       2,
       CountSubstringInString(
-          kRequestXml,
+          request_xml,
           "<event eventtype=\"3\" eventresult=\"0\" errorcode=\"62\"></event>"))
-      << kRequestXml;
+      << request_xml;
 }
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcCohortMissingCheck) {
+  constexpr char kDlcId[] = "test-dlc-id";
+  params_.set_dlc_apps_params(
+      {{params_.GetDlcAppId(kDlcId), {.name = kDlcId}}});
+  OmahaEvent event(OmahaEvent::kTypeUpdateDownloadStarted);
+  OmahaRequestBuilderXml omaha_request{&event, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+
+  // Check that no cohorts are in the request.
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "cohort=")) << request_xml;
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "cohortname="))
+      << request_xml;
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "cohorthint="))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcCohortCheck) {
+  const string kDlcId = "test-dlc-id";
+  params_.set_dlc_apps_params(
+      {{params_.GetDlcAppId(kDlcId), {.name = kDlcId}}});
+  auto* fake_prefs = FakeSystemState::Get()->fake_prefs();
+  OmahaEvent event(OmahaEvent::kTypeUpdateDownloadStarted);
+  OmahaRequestBuilderXml omaha_request{&event, false, false, 0, 0, 0, ""};
+  // DLC App ID Expectations.
+  const string dlc_cohort_key = PrefsInterface::CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohort});
+  const string kDlcCohortVal = "test-cohort";
+  EXPECT_TRUE(fake_prefs->SetString(dlc_cohort_key, kDlcCohortVal));
+  const string dlc_cohort_name_key = PrefsInterface::CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortName});
+  const string kDlcCohortNameVal = "test-cohortname";
+  EXPECT_TRUE(fake_prefs->SetString(dlc_cohort_name_key, kDlcCohortNameVal));
+  const string dlc_cohort_hint_key = PrefsInterface::CreateSubKey(
+      {kDlcPrefsSubDir, kDlcId, kPrefsOmahaCohortHint});
+  const string kDlcCohortHintVal = "test-cohortval";
+  EXPECT_TRUE(fake_prefs->SetString(dlc_cohort_hint_key, kDlcCohortHintVal));
+  const string request_xml = omaha_request.GetRequest();
+
+  EXPECT_EQ(1,
+            CountSubstringInString(
+                request_xml,
+                base::StringPrintf(
+                    "cohort=\"%s\" cohortname=\"%s\" cohorthint=\"%s\"",
+                    kDlcCohortVal.c_str(),
+                    kDlcCohortNameVal.c_str(),
+                    kDlcCohortHintVal.c_str())))
+      << request_xml;
+}
+
 }  // namespace chromeos_update_engine

@@ -48,6 +48,8 @@ class FakePrefs : public PrefsInterface {
 
   bool Exists(const std::string& key) const override;
   bool Delete(const std::string& key) override;
+  bool Delete(const std::string& key,
+              const std::vector<std::string>& nss) override;
 
   bool GetSubKeys(const std::string& ns,
                   std::vector<std::string>* keys) const override;

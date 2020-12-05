@@ -28,7 +28,7 @@ namespace chromeos_update_manager {
 class MockUpdateManager : public UpdateManager {
  public:
   MockUpdateManager()
-      : UpdateManager(nullptr, base::TimeDelta(), base::TimeDelta(), nullptr) {}
+      : UpdateManager(base::TimeDelta(), base::TimeDelta(), nullptr) {}
 
   MOCK_METHOD2(
       AsyncPolicyRequestUpdateCheckAllowed,

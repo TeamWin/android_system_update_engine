@@ -55,6 +55,8 @@ struct OmahaResponse {
     bool can_exclude = false;
     // The App ID associated with the package.
     std::string app_id;
+    // The unique fingerprint value associated with the package.
+    std::string fp;
   };
   std::vector<Package> packages;
 
