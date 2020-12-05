@@ -26,6 +26,7 @@
 #include "update_engine/common/action.h"
 #include "update_engine/common/cleanup_previous_update_action_delegate.h"
 #include "update_engine/common/error_code.h"
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -54,7 +55,6 @@ struct FeatureFlag {
 };
 
 class BootControlInterface;
-class PrefsInterface;
 
 class DynamicPartitionControlInterface {
  public:

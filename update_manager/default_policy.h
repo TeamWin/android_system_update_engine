@@ -22,7 +22,6 @@
 
 #include <base/time/time.h>
 
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/update_manager/policy.h"
 
 namespace chromeos_update_manager {
@@ -60,9 +59,8 @@ class DefaultPolicyState {
 // actual policy being used by the UpdateManager.
 class DefaultPolicy : public Policy {
  public:
-  explicit DefaultPolicy(chromeos_update_engine::ClockInterface* clock);
-  DefaultPolicy() : DefaultPolicy(nullptr) {}
-  ~DefaultPolicy() override {}
+  DefaultPolicy() : aux_state_(new DefaultPolicyState()) {}
+  ~DefaultPolicy() override = default;
 
   // Policy overrides.
   EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
@@ -83,11 +81,6 @@ class DefaultPolicy : public Policy {
                             UpdateDownloadParams* result,
                             UpdateState update_state) const override;
 
-  EvalStatus UpdateDownloadAllowed(EvaluationContext* ec,
-                                   State* state,
-                                   std::string* error,
-                                   bool* result) const override;
-
   EvalStatus P2PEnabled(EvaluationContext* ec,
                         State* state,
                         std::string* error,
@@ -104,9 +97,6 @@ class DefaultPolicy : public Policy {
   std::string PolicyName() const override { return "DefaultPolicy"; }
 
  private:
-  // A clock interface.
-  chromeos_update_engine::ClockInterface* clock_;
-
   // An auxiliary state object.
   std::unique_ptr<DefaultPolicyState> aux_state_;
 

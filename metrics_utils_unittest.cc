@@ -18,9 +18,6 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/common/fake_clock.h"
-#include "update_engine/common/fake_prefs.h"
-
 namespace chromeos_update_engine {
 namespace metrics_utils {
 

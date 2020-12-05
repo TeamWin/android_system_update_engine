@@ -138,8 +138,7 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsOnUpdateTerminated) {
   TimeDelta duration_uptime = up_time - Time::FromInternalValue(12345);
   EXPECT_CALL(
       *metrics_reporter_,
-      ReportUpdateAttemptMetrics(_,
-                                 2,
+      ReportUpdateAttemptMetrics(2,
                                  _,
                                  duration,
                                  duration_uptime,

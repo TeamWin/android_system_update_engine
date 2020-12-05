@@ -80,6 +80,12 @@ class PrefsInterface {
   // this key. Calling with non-existent keys does nothing.
   virtual bool Delete(const std::string& key) = 0;
 
+  // Deletes the pref key from platform and given namespace subdirectories.
+  // Keys are matched against end of pref keys in each namespace.
+  // Returns true if all deletes were successful.
+  virtual bool Delete(const std::string& pref_key,
+                      const std::vector<std::string>& nss) = 0;
+
   // Creates a key which is part of a sub preference.
   static std::string CreateSubKey(const std::vector<std::string>& ns_with_key);
 
@@ -98,6 +104,10 @@ class PrefsInterface {
   // anymore for future Set*() and Delete() method calls.
   virtual void RemoveObserver(const std::string& key,
                               ObserverInterface* observer) = 0;
+
+ protected:
+  // Key separator used to create sub key and get file names,
+  static const char kKeySeparator = '/';
 };
 
 }  // namespace chromeos_update_engine

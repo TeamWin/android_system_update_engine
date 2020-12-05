@@ -24,7 +24,6 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "update_engine/common/fake_prefs.h"
 #include "update_engine/cros/fake_system_state.h"
 #include "update_engine/cros/omaha_utils.h"
 
@@ -39,17 +38,14 @@ namespace chromeos_update_engine {
 
 class UpdateEngineServiceTest : public ::testing::Test {
  protected:
-  UpdateEngineServiceTest()
-      : mock_update_attempter_(fake_system_state_.mock_update_attempter()),
-        common_service_(&fake_system_state_) {}
+  UpdateEngineServiceTest() = default;
 
-  void SetUp() override { fake_system_state_.set_device_policy(nullptr); }
+  void SetUp() override {
+    FakeSystemState::CreateInstance();
+    FakeSystemState::Get()->set_device_policy(nullptr);
+    mock_update_attempter_ = FakeSystemState::Get()->mock_update_attempter();
+  }
 
-  // Fake/mock infrastructure.
-  FakeSystemState fake_system_state_;
-  policy::MockDevicePolicy mock_device_policy_;
-
-  // Shortcut for fake_system_state_.mock_update_attempter().
   MockUpdateAttempter* mock_update_attempter_;
 
   brillo::ErrorPtr error_;
@@ -119,7 +115,7 @@ TEST_F(UpdateEngineServiceTest, SetDlcActiveValueReturnsFalse) {
 TEST_F(UpdateEngineServiceTest, SetChannelWithNoPolicy) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
   // If SetTargetChannel is called it means the policy check passed.
-  EXPECT_CALL(*fake_system_state_.mock_request_params(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_request_params(),
               SetTargetChannel("stable-channel", true, _))
       .WillOnce(Return(true));
   EXPECT_TRUE(common_service_.SetChannel(&error_, "stable-channel", true));
@@ -129,10 +125,10 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithNoPolicy) {
 // When the policy is present, the delegated value should be checked.
 TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
   policy::MockDevicePolicy mock_device_policy;
-  fake_system_state_.set_device_policy(&mock_device_policy);
+  FakeSystemState::Get()->set_device_policy(&mock_device_policy);
   EXPECT_CALL(mock_device_policy, GetReleaseChannelDelegated(_))
       .WillOnce(DoAll(SetArgPointee<0>(true), Return(true)));
-  EXPECT_CALL(*fake_system_state_.mock_request_params(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_request_params(),
               SetTargetChannel("beta-channel", true, _))
       .WillOnce(Return(true));
 
@@ -144,7 +140,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
 // raised.
 TEST_F(UpdateEngineServiceTest, SetChannelWithInvalidChannel) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
-  EXPECT_CALL(*fake_system_state_.mock_request_params(),
+  EXPECT_CALL(*FakeSystemState::Get()->mock_request_params(),
               SetTargetChannel("foo-channel", true, _))
       .WillOnce(Return(false));
 
@@ -155,8 +151,8 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithInvalidChannel) {
 }
 
 TEST_F(UpdateEngineServiceTest, GetChannel) {
-  fake_system_state_.mock_request_params()->set_current_channel("current");
-  fake_system_state_.mock_request_params()->set_target_channel("target");
+  FakeSystemState::Get()->mock_request_params()->set_current_channel("current");
+  FakeSystemState::Get()->mock_request_params()->set_target_channel("target");
   string channel;
   EXPECT_TRUE(common_service_.GetChannel(
       &error_, true /* get_current_channel */, &channel));

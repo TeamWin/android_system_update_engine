@@ -36,7 +36,6 @@
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/mock_download_action.h"
 #include "update_engine/common/mock_http_fetcher.h"
-#include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/fake_p2p_manager_configuration.h"
@@ -57,7 +56,9 @@ using testing::InSequence;
 using testing::Return;
 using testing::SetArgPointee;
 
-class DownloadActionTest : public ::testing::Test {};
+class DownloadActionTest : public ::testing::Test {
+  void SetUp() { FakeSystemState::CreateInstance(); }
+};
 
 namespace {
 
@@ -128,9 +129,9 @@ void StartProcessorInRunLoop(ActionProcessor* processor,
 void TestWithData(const brillo::Blob& data,
                   int fail_write,
                   bool use_download_delegate) {
+  FakeSystemState::CreateInstance();
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
-  FakeSystemState fake_system_state;
 
   ScopedTempFile output_temp_file;
   TestDirectFileWriter writer;
@@ -149,9 +150,9 @@ void TestWithData(const brillo::Blob& data,
   install_plan.target_slot = 1;
   // We mark both slots as bootable. Only the target slot should be unbootable
   // after the download starts.
-  fake_system_state.fake_boot_control()->SetSlotBootable(
+  FakeSystemState::Get()->fake_boot_control()->SetSlotBootable(
       install_plan.source_slot, true);
-  fake_system_state.fake_boot_control()->SetSlotBootable(
+  FakeSystemState::Get()->fake_boot_control()->SetSlotBootable(
       install_plan.target_slot, true);
   auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
   feeder_action->set_obj(install_plan);
@@ -161,9 +162,8 @@ void TestWithData(const brillo::Blob& data,
   // takes ownership of passed in HttpFetcher
   auto download_action =
       std::make_unique<DownloadAction>(&prefs,
-                                       fake_system_state.boot_control(),
-                                       fake_system_state.hardware(),
-                                       &fake_system_state,
+                                       FakeSystemState::Get()->boot_control(),
+                                       FakeSystemState::Get()->hardware(),
                                        http_fetcher,
                                        false /* interactive */);
   download_action->SetTestFileWriter(&writer);
@@ -194,9 +194,9 @@ void TestWithData(const brillo::Blob& data,
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
 
-  EXPECT_TRUE(fake_system_state.fake_boot_control()->IsSlotBootable(
+  EXPECT_TRUE(FakeSystemState::Get()->fake_boot_control()->IsSlotBootable(
       install_plan.source_slot));
-  EXPECT_FALSE(fake_system_state.fake_boot_control()->IsSlotBootable(
+  EXPECT_FALSE(FakeSystemState::Get()->fake_boot_control()->IsSlotBootable(
       install_plan.target_slot));
 }
 }  // namespace
@@ -251,8 +251,7 @@ TEST(DownloadActionTest, MultiPayloadProgressTest) {
   payload_datas.emplace_back(2 * kMockHttpFetcherChunkSize);
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
-  FakeSystemState fake_system_state;
-  EXPECT_CALL(*fake_system_state.mock_payload_state(), NextPayload())
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(), NextPayload())
       .WillOnce(Return(true));
 
   MockFileWriter mock_file_writer;
@@ -277,9 +276,8 @@ TEST(DownloadActionTest, MultiPayloadProgressTest) {
   // takes ownership of passed in HttpFetcher
   auto download_action =
       std::make_unique<DownloadAction>(&prefs,
-                                       fake_system_state.boot_control(),
-                                       fake_system_state.hardware(),
-                                       &fake_system_state,
+                                       FakeSystemState::Get()->boot_control(),
+                                       FakeSystemState::Get()->hardware(),
                                        http_fetcher,
                                        false /* interactive */);
   download_action->SetTestFileWriter(&mock_file_writer);
@@ -346,6 +344,7 @@ void TerminateEarlyTestStarter(ActionProcessor* processor) {
 }
 
 void TestTerminateEarly(bool use_download_delegate) {
+  FakeSystemState::CreateInstance();
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
@@ -362,13 +361,12 @@ void TestTerminateEarly(bool use_download_delegate) {
     InstallPlan install_plan;
     install_plan.payloads.resize(1);
     feeder_action->set_obj(install_plan);
-    FakeSystemState fake_system_state_;
+
     MockPrefs prefs;
     auto download_action = std::make_unique<DownloadAction>(
         &prefs,
-        fake_system_state_.boot_control(),
-        fake_system_state_.hardware(),
-        &fake_system_state_,
+        FakeSystemState::Get()->boot_control(),
+        FakeSystemState::Get()->hardware(),
         new MockHttpFetcher(data.data(), data.size(), nullptr),
         false /* interactive */);
     download_action->SetTestFileWriter(&writer);
@@ -461,6 +459,7 @@ class PassObjectOutTestProcessorDelegate : public ActionProcessorDelegate {
 }  // namespace
 
 TEST(DownloadActionTest, PassObjectOutTest) {
+  FakeSystemState::CreateInstance();
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
@@ -475,12 +474,10 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   auto feeder_action = std::make_unique<ObjectFeederAction<InstallPlan>>();
   feeder_action->set_obj(install_plan);
   MockPrefs prefs;
-  FakeSystemState fake_system_state_;
   auto download_action =
       std::make_unique<DownloadAction>(&prefs,
-                                       fake_system_state_.boot_control(),
-                                       fake_system_state_.hardware(),
-                                       &fake_system_state_,
+                                       FakeSystemState::Get()->boot_control(),
+                                       FakeSystemState::Get()->hardware(),
                                        new MockHttpFetcher("x", 1, nullptr),
                                        false /* interactive */);
   download_action->SetTestFileWriter(&writer);
@@ -511,13 +508,15 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 // Test fixture for P2P tests.
 class P2PDownloadActionTest : public testing::Test {
  protected:
-  P2PDownloadActionTest()
-      : start_at_offset_(0), fake_um_(fake_system_state_.fake_clock()) {}
+  P2PDownloadActionTest() : start_at_offset_(0) {}
 
   ~P2PDownloadActionTest() override {}
 
   // Derived from testing::Test.
-  void SetUp() override { loop_.SetAsCurrent(); }
+  void SetUp() override {
+    loop_.SetAsCurrent();
+    FakeSystemState::CreateInstance();
+  }
 
   // Derived from testing::Test.
   void TearDown() override { EXPECT_FALSE(loop_.PendingTasks()); }
@@ -534,19 +533,18 @@ class P2PDownloadActionTest : public testing::Test {
     // Setup p2p.
     FakeP2PManagerConfiguration* test_conf = new FakeP2PManagerConfiguration();
     p2p_manager_.reset(P2PManager::Construct(test_conf,
-                                             nullptr,
                                              &fake_um_,
                                              "cros_au",
                                              3,
                                              base::TimeDelta::FromDays(5)));
-    fake_system_state_.set_p2p_manager(p2p_manager_.get());
+    FakeSystemState::Get()->set_p2p_manager(p2p_manager_.get());
   }
 
   // To be called by tests to perform the download. The
   // |use_p2p_to_share| parameter is used to indicate whether the
   // payload should be shared via p2p.
   void StartDownload(bool use_p2p_to_share) {
-    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+    EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
                 GetUsingP2PForSharing())
         .WillRepeatedly(Return(use_p2p_to_share));
 
@@ -564,9 +562,8 @@ class P2PDownloadActionTest : public testing::Test {
     // Note that DownloadAction takes ownership of the passed in HttpFetcher.
     auto download_action = std::make_unique<DownloadAction>(
         &prefs,
-        fake_system_state_.boot_control(),
-        fake_system_state_.hardware(),
-        &fake_system_state_,
+        FakeSystemState::Get()->boot_control(),
+        FakeSystemState::Get()->hardware(),
         new MockHttpFetcher(data_.c_str(), data_.length(), nullptr),
         false /* interactive */);
     auto http_fetcher = download_action->http_fetcher();
@@ -602,9 +599,6 @@ class P2PDownloadActionTest : public testing::Test {
 
   // The ActionProcessor used for running the actions.
   ActionProcessor processor_;
-
-  // A fake system state.
-  FakeSystemState fake_system_state_;
 
   // The data being downloaded.
   string data_;

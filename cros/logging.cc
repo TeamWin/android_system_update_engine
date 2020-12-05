@@ -46,7 +46,7 @@ void SetupLogSymlink(const string& symlink_path, const string& log_path) {
     base::ReplaceFile(
         base::FilePath(symlink_path), base::FilePath(log_path), nullptr);
   }
-  base::DeleteFile(base::FilePath(symlink_path), true);
+  base::DeletePathRecursively(base::FilePath(symlink_path));
   if (symlink(log_path.c_str(), symlink_path.c_str()) == -1) {
     PLOG(ERROR) << "Unable to create symlink " << symlink_path
                 << " pointing at " << log_path;

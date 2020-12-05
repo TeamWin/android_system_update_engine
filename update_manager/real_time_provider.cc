@@ -20,11 +20,11 @@
 
 #include <base/time/time.h>
 
-#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/system_state.h"
 
 using base::Time;
 using base::TimeDelta;
-using chromeos_update_engine::ClockInterface;
+using chromeos_update_engine::SystemState;
 using std::string;
 
 namespace chromeos_update_manager {
@@ -34,13 +34,13 @@ class CurrDateVariable : public Variable<Time> {
  public:
   // TODO(garnold) Turn this into an async variable with the needed callback
   // logic for when it value changes.
-  CurrDateVariable(const string& name, ClockInterface* clock)
-      : Variable<Time>(name, TimeDelta::FromHours(1)), clock_(clock) {}
+  explicit CurrDateVariable(const string& name)
+      : Variable<Time>(name, TimeDelta::FromHours(1)) {}
 
  protected:
   virtual const Time* GetValue(TimeDelta /* timeout */, string* /* errmsg */) {
     Time::Exploded now_exp;
-    clock_->GetWallclockTime().LocalExplode(&now_exp);
+    SystemState::Get()->clock()->GetWallclockTime().LocalExplode(&now_exp);
     now_exp.hour = now_exp.minute = now_exp.second = now_exp.millisecond = 0;
     Time* now = new Time();
     bool success = Time::FromLocalExploded(now_exp, now);
@@ -49,8 +49,6 @@ class CurrDateVariable : public Variable<Time> {
   }
 
  private:
-  ClockInterface* clock_;
-
   DISALLOW_COPY_AND_ASSIGN(CurrDateVariable);
 };
 
@@ -59,44 +57,40 @@ class CurrHourVariable : public Variable<int> {
  public:
   // TODO(garnold) Turn this into an async variable with the needed callback
   // logic for when it value changes.
-  CurrHourVariable(const string& name, ClockInterface* clock)
-      : Variable<int>(name, TimeDelta::FromMinutes(5)), clock_(clock) {}
+  explicit CurrHourVariable(const string& name)
+      : Variable<int>(name, TimeDelta::FromMinutes(5)) {}
 
  protected:
   virtual const int* GetValue(TimeDelta /* timeout */, string* /* errmsg */) {
     Time::Exploded exploded;
-    clock_->GetWallclockTime().LocalExplode(&exploded);
+    SystemState::Get()->clock()->GetWallclockTime().LocalExplode(&exploded);
     return new int(exploded.hour);
   }
 
  private:
-  ClockInterface* clock_;
-
   DISALLOW_COPY_AND_ASSIGN(CurrHourVariable);
 };
 
 class CurrMinuteVariable : public Variable<int> {
  public:
-  CurrMinuteVariable(const string& name, ClockInterface* clock)
-      : Variable<int>(name, TimeDelta::FromSeconds(15)), clock_(clock) {}
+  explicit CurrMinuteVariable(const string& name)
+      : Variable<int>(name, TimeDelta::FromSeconds(15)) {}
 
  protected:
   virtual const int* GetValue(TimeDelta /* timeout */, string* /* errmsg */) {
     Time::Exploded exploded;
-    clock_->GetWallclockTime().LocalExplode(&exploded);
+    SystemState::Get()->clock()->GetWallclockTime().LocalExplode(&exploded);
     return new int(exploded.minute);
   }
 
  private:
-  ClockInterface* clock_;
-
   DISALLOW_COPY_AND_ASSIGN(CurrMinuteVariable);
 };
 
 bool RealTimeProvider::Init() {
-  var_curr_date_.reset(new CurrDateVariable("curr_date", clock_));
-  var_curr_hour_.reset(new CurrHourVariable("curr_hour", clock_));
-  var_curr_minute_.reset(new CurrMinuteVariable("curr_minute", clock_));
+  var_curr_date_.reset(new CurrDateVariable("curr_date"));
+  var_curr_hour_.reset(new CurrHourVariable("curr_hour"));
+  var_curr_minute_.reset(new CurrMinuteVariable("curr_minute"));
   return true;
 }
 

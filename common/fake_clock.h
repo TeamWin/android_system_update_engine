@@ -26,11 +26,11 @@ class FakeClock : public ClockInterface {
  public:
   FakeClock() {}
 
-  base::Time GetWallclockTime() override { return wallclock_time_; }
+  base::Time GetWallclockTime() const override { return wallclock_time_; }
 
-  base::Time GetMonotonicTime() override { return monotonic_time_; }
+  base::Time GetMonotonicTime() const override { return monotonic_time_; }
 
-  base::Time GetBootTime() override { return boot_time_; }
+  base::Time GetBootTime() const override { return boot_time_; }
 
   void SetWallclockTime(const base::Time& time) { wallclock_time_ = time; }
 

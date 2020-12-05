@@ -34,14 +34,13 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/cpu_limiter.h"
+#include "update_engine/common/daemon_state_interface.h"
 #include "update_engine/common/download_action.h"
 #include "update_engine/common/excluder_interface.h"
 #include "update_engine/common/proxy_resolver.h"
 #include "update_engine/common/service_observer_interface.h"
 #include "update_engine/common/system_state.h"
-#if USE_CHROME_NETWORK_PROXY
 #include "update_engine/cros/chrome_browser_proxy_resolver.h"
-#endif  // USE_CHROME_NETWORK_PROXY
 #include "update_engine/cros/omaha_request_builder_xml.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/omaha_response_handler_action.h"
@@ -59,13 +58,14 @@ namespace chromeos_update_engine {
 class UpdateAttempter : public ActionProcessorDelegate,
                         public DownloadActionDelegate,
                         public CertificateChecker::Observer,
-                        public PostinstallRunnerAction::DelegateInterface {
+                        public PostinstallRunnerAction::DelegateInterface,
+                        public DaemonStateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
   using UpdateAttemptFlags = update_engine::UpdateAttemptFlags;
   static const int kMaxDeltaUpdateFailures;
 
-  UpdateAttempter(SystemState* system_state, CertificateChecker* cert_checker);
+  explicit UpdateAttempter(CertificateChecker* cert_checker);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
@@ -219,15 +219,15 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // 'cros flash' to function properly).
   bool IsAnyUpdateSourceAllowed() const;
 
-  // Add and remove a service observer.
-  void AddObserver(ServiceObserverInterface* observer) {
+  // |DaemonStateInterface| overrides.
+  bool StartUpdater() override;
+  void AddObserver(ServiceObserverInterface* observer) override {
     service_observers_.insert(observer);
   }
-  void RemoveObserver(ServiceObserverInterface* observer) {
+  void RemoveObserver(ServiceObserverInterface* observer) override {
     service_observers_.erase(observer);
   }
-
-  const std::set<ServiceObserverInterface*>& service_observers() {
+  const std::set<ServiceObserverInterface*>& service_observers() override {
     return service_observers_;
   }
 
@@ -289,6 +289,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
   FRIEND_TEST(UpdateAttempterTest, GetSuccessfulDlcIds);
+  FRIEND_TEST(UpdateAttempterTest, QuickFixTokenWhenDeviceIsEnterpriseEnrolled);
+  FRIEND_TEST(UpdateAttempterTest, MoveToPrefs);
 
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
@@ -339,10 +341,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void MarkDeltaUpdateFailure();
 
   ProxyResolver* GetProxyResolver() {
-#if USE_CHROME_NETWORK_PROXY
     if (obeying_proxies_)
       return &chrome_proxy_resolver_;
-#endif  // USE_CHROME_NETWORK_PROXY
     return &direct_proxy_resolver_;
   }
 
@@ -362,7 +362,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Calculates all the scattering related parameters (such as waiting period,
   // which type of scattering is enabled, etc.) and also updates/deletes
   // the corresponding prefs file used in scattering. Should be called
-  // only after the device policy has been loaded and set in the system_state_.
+  // only after the device policy has been loaded and set in the system state.
   void CalculateScatteringParams(bool interactive);
 
   // Sets a random value for the waiting period to wait for before downloading
@@ -387,6 +387,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // |use_p2p_to_download_| and |use_p2p_to_share_| parameters
   // on the |omaha_request_params_| object.
   void CalculateP2PParams(bool interactive);
+
+  // For each key, reads value from powerwash safe prefs and adds it to prefs
+  // if key doesnt already exist. Then deletes the powerwash safe keys.
+  void MoveToPrefs(const std::vector<std::string>& keys);
 
   // Starts P2P if it's enabled and there are files to actually share.
   // Called only at program startup. Returns true only if p2p was
@@ -431,6 +435,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Resets all the DLC prefs.
   bool ResetDlcPrefs(const std::string& dlc_id);
 
+  // Sets given pref key for DLC and platform.
+  void SetPref(const std::string& pref_key,
+               const std::string& pref_value,
+               const std::string& payload_id);
+
   // Get the integer values from the DLC metadata for |kPrefsPingLastActive|
   // or |kPrefsPingLastRollcall|.
   // The value is equal to -2 when the value cannot be read or is not numeric.
@@ -453,15 +462,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Our two proxy resolvers
   DirectProxyResolver direct_proxy_resolver_;
-#if USE_CHROME_NETWORK_PROXY
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
-#endif  // USE_CHROME_NETWORK_PROXY
 
   std::unique_ptr<ActionProcessor> processor_;
 
-  // External state of the system outside the update_engine process
-  // carved out separately to mock out easily in unit tests.
-  SystemState* system_state_;
+  ActionProcessor aux_processor_;
 
   // Pointer to the certificate checker instance to use.
   CertificateChecker* cert_checker_;
@@ -473,7 +478,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   std::unique_ptr<InstallPlan> install_plan_;
 
   // Pointer to the preferences store interface. This is just a cached
-  // copy of system_state->prefs() because it's used in many methods and
+  // copy of SystemState::Get()->prefs() because it's used in many methods and
   // is convenient this way.
   PrefsInterface* prefs_ = nullptr;
 

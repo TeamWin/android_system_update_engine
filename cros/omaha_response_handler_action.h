@@ -22,7 +22,6 @@
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/common/action.h"
-#include "update_engine/common/system_state.h"
 #include "update_engine/cros/omaha_request_action.h"
 #include "update_engine/payload_consumer/install_plan.h"
 
@@ -42,7 +41,7 @@ class ActionTraits<OmahaResponseHandlerAction> {
 
 class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
  public:
-  explicit OmahaResponseHandlerAction(SystemState* system_state);
+  OmahaResponseHandlerAction();
 
   typedef ActionTraits<OmahaResponseHandlerAction>::InputObjectType
       InputObjectType;
@@ -64,9 +63,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   // Returns true if payload hash checks are mandatory based on the state
   // of the system and the contents of the Omaha response. False otherwise.
   bool AreHashChecksMandatory(const OmahaResponse& response);
-
-  // Global system context.
-  SystemState* system_state_;
 
   // The install plan, if we have an update.
   InstallPlan install_plan_;

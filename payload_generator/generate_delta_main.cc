@@ -224,7 +224,6 @@ bool ApplyPayload(const string& payload_file,
       std::make_unique<DownloadAction>(&prefs,
                                        &fake_boot_control,
                                        &fake_hardware,
-                                       nullptr,
                                        new FileFetcher(),
                                        true /* interactive */);
   auto filesystem_verifier_action = std::make_unique<FilesystemVerifierAction>(

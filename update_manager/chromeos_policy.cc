@@ -223,6 +223,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
   result->rollback_allowed_milestones = -1;
   result->rollback_on_channel_downgrade = false;
   result->interactive = false;
+  result->quick_fix_build_token.clear();
 
   EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;
   EnterpriseDevicePolicyImpl enterprise_device_policy;
@@ -463,88 +464,6 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   // Update is good to go.
   result->update_can_start = true;
   return EvalStatus::kSucceeded;
-}
-
-// TODO(garnold) Logic in this method is based on
-// ConnectionManager::IsUpdateAllowedOver(); be sure to deprecate the latter.
-//
-// TODO(garnold) The current logic generally treats the list of allowed
-// connections coming from the device policy as an allowlist, meaning that it
-// can only be used for enabling connections, but not disable them. Further,
-// certain connection types cannot be enabled even by policy.
-// In effect, the only thing that device policy can change is to enable
-// updates over a cellular network (disabled by default). We may want to
-// revisit this semantics, allowing greater flexibility in defining specific
-// permissions over all types of networks.
-EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(EvaluationContext* ec,
-                                                 State* state,
-                                                 string* error,
-                                                 bool* result) const {
-  // Get the current connection type.
-  ShillProvider* const shill_provider = state->shill_provider();
-  const ConnectionType* conn_type_p =
-      ec->GetValue(shill_provider->var_conn_type());
-  POLICY_CHECK_VALUE_AND_FAIL(conn_type_p, error);
-  ConnectionType conn_type = *conn_type_p;
-
-  // If we're tethering, treat it as a cellular connection.
-  if (conn_type != ConnectionType::kCellular) {
-    const ConnectionTethering* conn_tethering_p =
-        ec->GetValue(shill_provider->var_conn_tethering());
-    POLICY_CHECK_VALUE_AND_FAIL(conn_tethering_p, error);
-    if (*conn_tethering_p == ConnectionTethering::kConfirmed)
-      conn_type = ConnectionType::kCellular;
-  }
-
-  // By default, we allow updates for all connection types, with exceptions as
-  // noted below. This also determines whether a device policy can override the
-  // default.
-  *result = true;
-  bool device_policy_can_override = false;
-  switch (conn_type) {
-    case ConnectionType::kCellular:
-      *result = false;
-      device_policy_can_override = true;
-      break;
-
-    case ConnectionType::kUnknown:
-      if (error)
-        *error = "Unknown connection type";
-      return EvalStatus::kFailed;
-
-    default:
-      break;  // Nothing to do.
-  }
-
-  // If update is allowed, we're done.
-  if (*result)
-    return EvalStatus::kSucceeded;
-
-  // Check whether the device policy specifically allows this connection.
-  if (device_policy_can_override) {
-    DevicePolicyProvider* const dp_provider = state->device_policy_provider();
-    const bool* device_policy_is_loaded_p =
-        ec->GetValue(dp_provider->var_device_policy_is_loaded());
-    if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
-      const set<ConnectionType>* allowed_conn_types_p =
-          ec->GetValue(dp_provider->var_allowed_connection_types_for_update());
-      if (allowed_conn_types_p) {
-        if (allowed_conn_types_p->count(conn_type)) {
-          *result = true;
-          return EvalStatus::kSucceeded;
-        }
-      } else if (conn_type == ConnectionType::kCellular) {
-        // Local user settings can allow updates over cellular iff a policy was
-        // loaded but no allowed connections were specified in it.
-        const bool* update_over_cellular_allowed_p =
-            ec->GetValue(state->updater_provider()->var_cellular_enabled());
-        if (update_over_cellular_allowed_p && *update_over_cellular_allowed_p)
-          *result = true;
-      }
-    }
-  }
-
-  return (*result ? EvalStatus::kSucceeded : EvalStatus::kAskMeAgainLater);
 }
 
 EvalStatus ChromeOSPolicy::P2PEnabled(EvaluationContext* ec,

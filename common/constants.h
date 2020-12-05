@@ -73,6 +73,7 @@ extern const char kPrefsTestUpdateCheckIntervalTimeout[];
 extern const char kPrefsPingActive[];
 extern const char kPrefsPingLastActive[];
 extern const char kPrefsPingLastRollcall[];
+extern const char kPrefsLastFp[];
 extern const char kPrefsPostInstallSucceeded[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];

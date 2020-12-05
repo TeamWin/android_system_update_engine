@@ -22,7 +22,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <metrics/metrics_library.h>
 
-#include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/system_state.h"
@@ -155,7 +154,6 @@ void MetricsReporterOmaha::ReportDailyMetrics(base::TimeDelta os_age) {
 }
 
 void MetricsReporterOmaha::ReportUpdateCheckMetrics(
-    SystemState* system_state,
     metrics::CheckResult result,
     metrics::CheckReaction reaction,
     metrics::DownloadErrorCode download_error_code) {
@@ -182,8 +180,7 @@ void MetricsReporterOmaha::ReportUpdateCheckMetrics(
   }
 
   base::TimeDelta time_since_last;
-  if (WallclockDurationHelper(system_state,
-                              kPrefsMetricsCheckLastReportingTime,
+  if (WallclockDurationHelper(kPrefsMetricsCheckLastReportingTime,
                               &time_since_last)) {
     metric = metrics::kMetricCheckTimeSinceLastCheckMinutes;
     metrics_lib_->SendToUMA(metric,
@@ -195,8 +192,7 @@ void MetricsReporterOmaha::ReportUpdateCheckMetrics(
 
   base::TimeDelta uptime_since_last;
   static int64_t uptime_since_last_storage = 0;
-  if (MonotonicDurationHelper(
-          system_state, &uptime_since_last_storage, &uptime_since_last)) {
+  if (MonotonicDurationHelper(&uptime_since_last_storage, &uptime_since_last)) {
     metric = metrics::kMetricCheckTimeSinceLastCheckUptimeMinutes;
     metrics_lib_->SendToUMA(metric,
                             uptime_since_last.InMinutes(),
@@ -206,14 +202,14 @@ void MetricsReporterOmaha::ReportUpdateCheckMetrics(
   }
 
   // First section of target version specified for the update.
-  if (system_state && system_state->request_params()) {
+  if (SystemState::Get()->request_params()) {
     string target_version =
-        system_state->request_params()->target_version_prefix();
+        SystemState::Get()->request_params()->target_version_prefix();
     value = utils::VersionPrefix(target_version);
     if (value != 0) {
       metric = metrics::kMetricCheckTargetVersion;
       metrics_lib_->SendSparseToUMA(metric, value);
-      if (system_state->request_params()->rollback_allowed()) {
+      if (SystemState::Get()->request_params()->rollback_allowed()) {
         metric = metrics::kMetricCheckRollbackTargetVersion;
         metrics_lib_->SendSparseToUMA(metric, value);
       }
@@ -233,7 +229,6 @@ void MetricsReporterOmaha::ReportAbnormallyTerminatedUpdateAttemptMetrics() {
 }
 
 void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
-    SystemState* system_state,
     int attempt_number,
     PayloadType payload_type,
     base::TimeDelta duration,
@@ -284,8 +279,7 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
   }
 
   base::TimeDelta time_since_last;
-  if (WallclockDurationHelper(system_state,
-                              kPrefsMetricsAttemptLastReportingTime,
+  if (WallclockDurationHelper(kPrefsMetricsAttemptLastReportingTime,
                               &time_since_last)) {
     metric = metrics::kMetricAttemptTimeSinceLastAttemptMinutes;
     metrics_lib_->SendToUMA(metric,
@@ -297,8 +291,7 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
 
   static int64_t uptime_since_last_storage = 0;
   base::TimeDelta uptime_since_last;
-  if (MonotonicDurationHelper(
-          system_state, &uptime_since_last_storage, &uptime_since_last)) {
+  if (MonotonicDurationHelper(&uptime_since_last_storage, &uptime_since_last)) {
     metric = metrics::kMetricAttemptTimeSinceLastAttemptUptimeMinutes;
     metrics_lib_->SendToUMA(metric,
                             uptime_since_last.InMinutes(),
@@ -557,13 +550,13 @@ void MetricsReporterOmaha::ReportEnterpriseUpdateSeenToDownloadDays(
 }
 
 bool MetricsReporterOmaha::WallclockDurationHelper(
-    SystemState* system_state,
     const std::string& state_variable_key,
     TimeDelta* out_duration) {
   bool ret = false;
-  Time now = system_state->clock()->GetWallclockTime();
+  Time now = SystemState::Get()->clock()->GetWallclockTime();
   int64_t stored_value;
-  if (system_state->prefs()->GetInt64(state_variable_key, &stored_value)) {
+  if (SystemState::Get()->prefs()->GetInt64(state_variable_key,
+                                            &stored_value)) {
     Time stored_time = Time::FromInternalValue(stored_value);
     if (stored_time > now) {
       LOG(ERROR) << "Stored time-stamp used for " << state_variable_key
@@ -574,19 +567,18 @@ bool MetricsReporterOmaha::WallclockDurationHelper(
     }
   }
 
-  if (!system_state->prefs()->SetInt64(state_variable_key,
-                                       now.ToInternalValue())) {
+  if (!SystemState::Get()->prefs()->SetInt64(state_variable_key,
+                                             now.ToInternalValue())) {
     LOG(ERROR) << "Error storing time-stamp in " << state_variable_key;
   }
 
   return ret;
 }
 
-bool MetricsReporterOmaha::MonotonicDurationHelper(SystemState* system_state,
-                                                   int64_t* storage,
+bool MetricsReporterOmaha::MonotonicDurationHelper(int64_t* storage,
                                                    TimeDelta* out_duration) {
   bool ret = false;
-  Time now = system_state->clock()->GetMonotonicTime();
+  Time now = SystemState::Get()->clock()->GetMonotonicTime();
   if (*storage != 0) {
     Time stored_time = Time::FromInternalValue(*storage);
     *out_duration = now - stored_time;

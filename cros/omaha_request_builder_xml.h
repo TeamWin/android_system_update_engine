@@ -33,7 +33,6 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
-#include "update_engine/common/system_state.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/omaha_response.h"
 
@@ -122,22 +121,18 @@ class OmahaRequestBuilder {
 class OmahaRequestBuilderXml : OmahaRequestBuilder {
  public:
   OmahaRequestBuilderXml(const OmahaEvent* event,
-                         OmahaRequestParams* params,
                          bool ping_only,
                          bool include_ping,
                          int ping_active_days,
                          int ping_roll_call_days,
                          int install_date_in_days,
-                         PrefsInterface* prefs,
                          const std::string& session_id)
       : event_(event),
-        params_(params),
         ping_only_(ping_only),
         include_ping_(include_ping),
         ping_active_days_(ping_active_days),
         ping_roll_call_days_(ping_roll_call_days),
         install_date_in_days_(install_date_in_days),
-        prefs_(prefs),
         session_id_(session_id) {}
 
   ~OmahaRequestBuilderXml() override = default;
@@ -168,9 +163,9 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
   // Returns the cohort* argument to include in the <app> tag for the passed
   // |arg_name| and |prefs_key|, if any. The return value is suitable to
   // concatenate to the list of arguments and includes a space at the end.
-  std::string GetCohortArg(const std::string arg_name,
-                           const std::string prefs_key,
-                           const std::string override_value = "") const;
+  std::string GetCohortArg(const std::string& arg_name,
+                           const std::string& prefs_key,
+                           const std::string& override_value = "") const;
 
   // Returns an XML ping element if any of the elapsed days need to be
   // sent, or an empty string otherwise.
@@ -182,13 +177,11 @@ class OmahaRequestBuilderXml : OmahaRequestBuilder {
       const OmahaRequestParams::AppParams& app_params) const;
 
   const OmahaEvent* event_;
-  OmahaRequestParams* params_;
   bool ping_only_;
   bool include_ping_;
   int ping_active_days_;
   int ping_roll_call_days_;
   int install_date_in_days_;
-  PrefsInterface* prefs_;
   std::string session_id_;
 
   DISALLOW_COPY_AND_ASSIGN(OmahaRequestBuilderXml);

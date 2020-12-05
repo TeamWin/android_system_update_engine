@@ -28,7 +28,7 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/constants.h"
-#include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/omaha_request_params.h"
 
@@ -144,20 +144,21 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
     }
     if (!ping_only_) {
       if (!app_data.skip_update) {
+        const auto* params = SystemState::Get()->request_params();
         app_body += "        <updatecheck";
-        if (!params_->target_version_prefix().empty()) {
+        if (!params->target_version_prefix().empty()) {
           app_body += base::StringPrintf(
               " targetversionprefix=\"%s\"",
-              XmlEncodeWithDefault(params_->target_version_prefix()).c_str());
+              XmlEncodeWithDefault(params->target_version_prefix()).c_str());
           // Rollback requires target_version_prefix set.
-          if (params_->rollback_allowed()) {
+          if (params->rollback_allowed()) {
             app_body += " rollback_allowed=\"true\"";
           }
         }
-        if (!params_->lts_tag().empty()) {
+        if (!params->lts_tag().empty()) {
           app_body += base::StringPrintf(
               " ltstag=\"%s\"",
-              XmlEncodeWithDefault(params_->lts_tag()).c_str());
+              XmlEncodeWithDefault(params->lts_tag()).c_str());
         }
         app_body += "></updatecheck>\n";
       }
@@ -170,8 +171,9 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
       // for ping-only requests because they come before the client has
       // rebooted. The previous version event is also not sent if it was already
       // sent for this new version with a previous updatecheck.
+      auto* prefs = SystemState::Get()->prefs();
       string prev_version;
-      if (!prefs_->GetString(kPrefsPreviousVersion, &prev_version)) {
+      if (!prefs->GetString(kPrefsPreviousVersion, &prev_version)) {
         prev_version = kNoVersion;
       }
       // We only store a non-empty previous version value after a successful
@@ -184,7 +186,7 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
             OmahaEvent::kTypeRebootedAfterUpdate,
             OmahaEvent::kResultSuccess,
             XmlEncodeWithDefault(prev_version, kNoVersion).c_str());
-        LOG_IF(WARNING, !prefs_->SetString(kPrefsPreviousVersion, ""))
+        LOG_IF(WARNING, !prefs->SetString(kPrefsPreviousVersion, ""))
             << "Unable to reset the previous version.";
       }
     }
@@ -215,9 +217,10 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
   return app_body;
 }
 
-string OmahaRequestBuilderXml::GetCohortArg(const string arg_name,
-                                            const string prefs_key,
-                                            const string override_value) const {
+string OmahaRequestBuilderXml::GetCohortArg(
+    const string& arg_name,
+    const string& prefs_key,
+    const string& override_value) const {
   string cohort_value;
   if (!override_value.empty()) {
     // |override_value| take precedence over pref value.
@@ -225,9 +228,10 @@ string OmahaRequestBuilderXml::GetCohortArg(const string arg_name,
   } else {
     // There's nothing wrong with not having a given cohort setting, so we check
     // existence first to avoid the warning log message.
-    if (!prefs_->Exists(prefs_key))
+    const auto* prefs = SystemState::Get()->prefs();
+    if (!prefs->Exists(prefs_key))
       return "";
-    if (!prefs_->GetString(prefs_key, &cohort_value) || cohort_value.empty())
+    if (!prefs->GetString(prefs_key, &cohort_value) || cohort_value.empty())
       return "";
   }
   // This is a validity check to avoid sending a huge XML file back to Ohama due
@@ -262,11 +266,12 @@ bool IsValidComponentID(const string& id) {
 string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
   string app_body = GetAppBody(app_data);
   string app_versions;
+  const auto* params = SystemState::Get()->request_params();
 
   // If we are downgrading to a more stable channel and we are allowed to do
   // powerwash, then pass 0.0.0.0 as the version. This is needed to get the
   // highest-versioned payload on the destination channel.
-  if (params_->ShouldPowerwash()) {
+  if (params->ShouldPowerwash()) {
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
     app_versions = "version=\"" + string(kNoVersion) + "\" from_version=\"" +
@@ -276,16 +281,16 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
                    XmlEncodeWithDefault(app_data.version, kNoVersion) + "\" ";
   }
 
-  string download_channel = params_->download_channel();
+  string download_channel = params->download_channel();
   string app_channels =
       "track=\"" + XmlEncodeWithDefault(download_channel) + "\" ";
-  if (params_->current_channel() != download_channel) {
+  if (params->current_channel() != download_channel) {
     app_channels += "from_track=\"" +
-                    XmlEncodeWithDefault(params_->current_channel()) + "\" ";
+                    XmlEncodeWithDefault(params->current_channel()) + "\" ";
   }
 
   string delta_okay_str =
-      params_->delta_okay() && !params_->is_install() ? "true" : "false";
+      params->delta_okay() && !params->is_install() ? "true" : "false";
 
   // If install_date_days is not set (e.g. its value is -1 ), don't
   // include the attribute.
@@ -296,30 +301,47 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
   }
 
   string app_cohort_args;
-  app_cohort_args += GetCohortArg("cohort", kPrefsOmahaCohort);
-  app_cohort_args += GetCohortArg("cohortname", kPrefsOmahaCohortName);
+  string cohort_key = kPrefsOmahaCohort;
+  string cohortname_key = kPrefsOmahaCohortName;
+  string cohorthint_key = kPrefsOmahaCohortHint;
 
+  // Override the cohort keys for DLC App IDs.
+  const auto& dlc_apps_params = params->dlc_apps_params();
+  auto itr = dlc_apps_params.find(app_data.id);
+  if (itr != dlc_apps_params.end()) {
+    auto dlc_id = itr->second.name;
+    const auto* prefs = SystemState::Get()->prefs();
+    cohort_key =
+        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohort});
+    cohortname_key =
+        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohortName});
+    cohorthint_key =
+        prefs->CreateSubKey({kDlcPrefsSubDir, dlc_id, kPrefsOmahaCohortHint});
+  }
+
+  app_cohort_args += GetCohortArg("cohort", cohort_key);
+  app_cohort_args += GetCohortArg("cohortname", cohortname_key);
   // Policy provided value overrides pref.
-  string autoupdate_token = params_->autoupdate_token();
-  app_cohort_args += GetCohortArg("cohorthint",
-                                  kPrefsOmahaCohortHint,
-                                  autoupdate_token /* override_value */);
+  app_cohort_args +=
+      GetCohortArg("cohorthint",
+                   cohorthint_key,
+                   params->autoupdate_token() /* override_value */);
 
   string fingerprint_arg;
-  if (!params_->os_build_fingerprint().empty()) {
+  if (!params->os_build_fingerprint().empty()) {
     fingerprint_arg = "fingerprint=\"" +
-                      XmlEncodeWithDefault(params_->os_build_fingerprint()) +
+                      XmlEncodeWithDefault(params->os_build_fingerprint()) +
                       "\" ";
   }
 
   string buildtype_arg;
-  if (!params_->os_build_type().empty()) {
+  if (!params->os_build_type().empty()) {
     buildtype_arg = "os_build_type=\"" +
-                    XmlEncodeWithDefault(params_->os_build_type()) + "\" ";
+                    XmlEncodeWithDefault(params->os_build_type()) + "\" ";
   }
 
   string product_components_args;
-  if (!params_->ShouldPowerwash() && !app_data.product_components.empty()) {
+  if (!params->ShouldPowerwash() && !app_data.product_components.empty()) {
     brillo::KeyValueStore store;
     if (store.LoadFromString(app_data.product_components)) {
       for (const string& key : store.GetKeys()) {
@@ -345,9 +367,9 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
   }
 
   string requisition_arg;
-  if (!params_->device_requisition().empty()) {
+  if (!params->device_requisition().empty()) {
     requisition_arg = "requisition=\"" +
-                      XmlEncodeWithDefault(params_->device_requisition()) +
+                      XmlEncodeWithDefault(params->device_requisition()) +
                       "\" ";
   }
 
@@ -360,14 +382,14 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
       product_components_args +
       fingerprint_arg +
       buildtype_arg +
-      "board=\"" + XmlEncodeWithDefault(params_->os_board()) + "\" " +
-      "hardware_class=\"" + XmlEncodeWithDefault(params_->hwid()) + "\" " +
+      "board=\"" + XmlEncodeWithDefault(params->os_board()) + "\" " +
+      "hardware_class=\"" + XmlEncodeWithDefault(params->hwid()) + "\" " +
       "delta_okay=\"" + delta_okay_str + "\" " +
       install_date_in_days_str +
 
       // DLC excluded for installs and updates.
       (app_data.is_dlc ? "" :
-      "lang=\"" + XmlEncodeWithDefault(params_->app_lang(), "en-US") + "\" " +
+      "lang=\"" + XmlEncodeWithDefault(params->app_lang(), "en-US") + "\" " +
       requisition_arg) +
 
       ">\n" +
@@ -378,18 +400,20 @@ string OmahaRequestBuilderXml::GetApp(const OmahaAppData& app_data) const {
 }
 
 string OmahaRequestBuilderXml::GetOs() const {
+  const auto* params = SystemState::Get()->request_params();
   string os_xml =
       "    <os "
       "version=\"" +
-      XmlEncodeWithDefault(params_->os_version()) + "\" " + "platform=\"" +
-      XmlEncodeWithDefault(params_->os_platform()) + "\" " + "sp=\"" +
-      XmlEncodeWithDefault(params_->os_sp()) +
+      XmlEncodeWithDefault(params->os_version()) + "\" " + "platform=\"" +
+      XmlEncodeWithDefault(params->os_platform()) + "\" " + "sp=\"" +
+      XmlEncodeWithDefault(params->os_sp()) +
       "\">"
       "</os>\n";
   return os_xml;
 }
 
 string OmahaRequestBuilderXml::GetRequest() const {
+  const auto* params = SystemState::Get()->request_params();
   string os_xml = GetOs();
   string app_xml = GetApps();
 
@@ -402,7 +426,7 @@ string OmahaRequestBuilderXml::GetRequest() const {
       session_id_.c_str(),
       constants::kOmahaUpdaterID,
       kOmahaUpdaterVersion,
-      params_->interactive() ? "ondemandupdate" : "scheduler",
+      params->interactive() ? "ondemandupdate" : "scheduler",
       os_xml.c_str(),
       app_xml.c_str());
 
@@ -410,22 +434,23 @@ string OmahaRequestBuilderXml::GetRequest() const {
 }
 
 string OmahaRequestBuilderXml::GetApps() const {
+  const auto* params = SystemState::Get()->request_params();
   string app_xml = "";
   OmahaAppData product_app = {
-      .id = params_->GetAppId(),
-      .version = params_->app_version(),
-      .product_components = params_->product_components(),
+      .id = params->GetAppId(),
+      .version = params->app_version(),
+      .product_components = params->product_components(),
       // Skips updatecheck for platform app in case of an install operation.
-      .skip_update = params_->is_install(),
+      .skip_update = params->is_install(),
       .is_dlc = false,
 
       .app_params = {.active_counting_type = OmahaRequestParams::kDayBased,
                      .send_ping = include_ping_}};
   app_xml += GetApp(product_app);
-  for (const auto& it : params_->dlc_apps_params()) {
+  for (const auto& it : params->dlc_apps_params()) {
     OmahaAppData dlc_app_data = {
         .id = it.first,
-        .version = params_->is_install() ? kNoVersion : params_->app_version(),
+        .version = params->is_install() ? kNoVersion : params->app_version(),
         .skip_update = false,
         .is_dlc = true,
         .app_params = it.second};

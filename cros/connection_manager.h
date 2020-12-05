@@ -35,8 +35,7 @@ class ConnectionManager : public ConnectionManagerInterface {
  public:
   // Constructs a new ConnectionManager object initialized with the
   // given system state.
-  ConnectionManager(ShillProxyInterface* shill_proxy,
-                    SystemState* system_state);
+  explicit ConnectionManager(ShillProxyInterface* shill_proxy);
   ~ConnectionManager() override = default;
 
   // ConnectionManagerInterface overrides.
@@ -57,9 +56,6 @@ class ConnectionManager : public ConnectionManagerInterface {
 
   // The mockable interface to access the shill DBus proxies.
   std::unique_ptr<ShillProxyInterface> shill_proxy_;
-
-  // The global context for update_engine.
-  SystemState* system_state_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectionManager);
 };

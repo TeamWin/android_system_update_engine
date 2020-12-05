@@ -19,7 +19,6 @@
 
 #include "update_engine/common/service_observer_interface.h"
 
-#include <memory>
 #include <set>
 
 namespace chromeos_update_engine {
@@ -42,6 +41,8 @@ class DaemonStateInterface {
 
  protected:
   DaemonStateInterface() = default;
+
+  DISALLOW_COPY_AND_ASSIGN(DaemonStateInterface);
 };
 
 }  // namespace chromeos_update_engine

@@ -29,7 +29,7 @@ class SystemState;
 // The Chrome OS implementation of the |ExcluderInterface|.
 class ExcluderChromeOS : public ExcluderInterface {
  public:
-  explicit ExcluderChromeOS(PrefsInterface* prefs);
+  ExcluderChromeOS() = default;
   ~ExcluderChromeOS() = default;
 
   // |ExcluderInterface| overrides.
@@ -42,9 +42,6 @@ class ExcluderChromeOS : public ExcluderInterface {
   ExcluderChromeOS& operator=(const ExcluderChromeOS&) = delete;
   ExcluderChromeOS(ExcluderChromeOS&&) = delete;
   ExcluderChromeOS& operator=(ExcluderChromeOS&&) = delete;
-
- private:
-  PrefsInterface* prefs_;
 };
 
 }  // namespace chromeos_update_engine
