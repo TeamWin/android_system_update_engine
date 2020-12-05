@@ -20,10 +20,7 @@ aidl_interface {
     name: "libupdate_engine_stable",
 
     // This header library is available to core and product modules.
-    // Right now, vendor_available is the only way to specify this.
-    // vendor modules should NOT use this library.
-    // TODO(b/150902910): change this to product_available.
-    vendor_available: true,
+    product_available: true,
 
     srcs: [
         "android/os/IUpdateEngineStable.aidl",
