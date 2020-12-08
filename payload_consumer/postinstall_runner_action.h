@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/files/file_descriptor_watcher_posix.h>
@@ -40,8 +41,7 @@ class BootControlInterface;
 class PostinstallRunnerAction : public InstallPlanAction {
  public:
   PostinstallRunnerAction(BootControlInterface* boot_control,
-                          HardwareInterface* hardware)
-      : boot_control_(boot_control), hardware_(hardware) {}
+                          HardwareInterface* hardware);
 
   // InstallPlanAction overrides.
   void PerformAction() override;
@@ -67,6 +67,9 @@ class PostinstallRunnerAction : public InstallPlanAction {
  private:
   friend class PostinstallRunnerActionTest;
   FRIEND_TEST(PostinstallRunnerActionTest, ProcessProgressLineTest);
+
+  // exposed for testing purposes only
+  void SetMountDir(std::string dir) { fs_mount_dir_ = std::move(dir); }
 
   void PerformPartitionPostinstall();
 
