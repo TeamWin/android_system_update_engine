@@ -45,6 +45,7 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/cros/download_action_chromeos.h"
 #include "update_engine/cros/fake_system_state.h"
 #include "update_engine/cros/mock_p2p_manager.h"
 #include "update_engine/cros/mock_payload_state.h"
@@ -472,8 +473,8 @@ void UpdateAttempterTest::SessionIdTestInDownloadAction() {
   // be enforced to be included in the HTTP header as X-Goog-Update-SessionId.
   string header_value;
   auto CheckSessionIdInDownloadAction = [&header_value](AbstractAction* aa) {
-    if (aa->Type() == DownloadAction::StaticType()) {
-      DownloadAction* da = static_cast<DownloadAction*>(aa);
+    if (aa->Type() == DownloadActionChromeos::StaticType()) {
+      DownloadActionChromeos* da = static_cast<DownloadActionChromeos*>(aa);
       EXPECT_TRUE(da->http_fetcher()->GetHeader(kXGoogleUpdateSessionId,
                                                 &header_value));
     }
@@ -496,11 +497,8 @@ TEST_F(UpdateAttempterTest, SessionIdTestInDownloadAction) {
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(503);  // Sets the HTTP response code.
-  DownloadAction action(prefs_,
-                        nullptr,
-                        nullptr,
-                        fetcher.release(),
-                        false /* interactive */);
+  DownloadActionChromeos action(
+      prefs_, nullptr, nullptr, fetcher.release(), false /* interactive */);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_FALSE(prefs_->Exists(kPrefsDeltaUpdateFailures));
   EXPECT_EQ(UpdateStatus::FINALIZING, attempter_.status());
@@ -721,7 +719,7 @@ vector<string> GetUpdateActionTypes() {
           OmahaResponseHandlerAction::StaticType(),
           UpdateBootFlagsAction::StaticType(),
           OmahaRequestAction::StaticType(),
-          DownloadAction::StaticType(),
+          DownloadActionChromeos::StaticType(),
           OmahaRequestAction::StaticType(),
           FilesystemVerifierAction::StaticType(),
           PostinstallRunnerAction::StaticType(),
