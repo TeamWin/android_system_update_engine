@@ -216,6 +216,9 @@ void PostinstallRunnerActionTest::RunPostinstallActionWithInstallPlan(
   auto runner_action = std::make_unique<PostinstallRunnerAction>(
       &fake_boot_control_, &fake_hardware_);
   postinstall_action_ = runner_action.get();
+  base::FilePath temp_dir;
+  TEST_AND_RETURN(base::CreateNewTempDirectory("postinstall", &temp_dir));
+  postinstall_action_->SetMountDir(temp_dir.value());
   runner_action->set_delegate(setup_action_delegate_);
   BondActions(feeder_action.get(), runner_action.get());
   auto collector_action =
