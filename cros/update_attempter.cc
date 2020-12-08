@@ -56,6 +56,7 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/cros/download_action_chromeos.h"
 #include "update_engine/cros/omaha_request_action.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/omaha_response_handler_action.h"
@@ -765,12 +766,12 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   if (interactive)
     download_fetcher->set_max_retry_count(kDownloadMaxRetryCountInteractive);
   download_fetcher->SetHeader(kXGoogleUpdateSessionId, session_id_);
-  auto download_action =
-      std::make_unique<DownloadAction>(prefs_,
-                                       SystemState::Get()->boot_control(),
-                                       SystemState::Get()->hardware(),
-                                       download_fetcher,  // passes ownership
-                                       interactive);
+  auto download_action = std::make_unique<DownloadActionChromeos>(
+      prefs_,
+      SystemState::Get()->boot_control(),
+      SystemState::Get()->hardware(),
+      download_fetcher,  // passes ownership
+      interactive);
   download_action->set_delegate(this);
 
   auto download_finished_action = std::make_unique<OmahaRequestAction>(
@@ -1248,9 +1249,10 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
   // actions (update download as well as the initial update check
   // actions).
   const string type = action->Type();
-  if (type == DownloadAction::StaticType()) {
+  if (type == DownloadActionChromeos::StaticType()) {
     download_progress_ = 0.0;
-    DownloadAction* download_action = static_cast<DownloadAction*>(action);
+    DownloadActionChromeos* download_action =
+        static_cast<DownloadActionChromeos*>(action);
     http_response_code_ = download_action->GetHTTPResponseCode();
   } else if (type == OmahaRequestAction::StaticType()) {
     OmahaRequestAction* omaha_request_action =
