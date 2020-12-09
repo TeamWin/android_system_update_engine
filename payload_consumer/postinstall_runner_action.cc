@@ -63,6 +63,8 @@ PostinstallRunnerAction::PostinstallRunnerAction(
   TEST_AND_RETURN(base::CreateNewTempDirectory("au_postint_mount", &temp_dir));
   fs_mount_dir_ = temp_dir.value();
 #endif  // __ANDROID__
+  CHECK(!fs_mount_dir_.empty());
+  LOG(INFO) << "postinstall mount point: " << fs_mount_dir_;
 }
 
 void PostinstallRunnerAction::PerformAction() {
@@ -315,7 +317,6 @@ void PostinstallRunnerAction::Cleanup() {
     PLOG(WARNING) << "Not removing temporary mountpoint " << fs_mount_dir_;
   }
 #endif
-  fs_mount_dir_.clear();
 
   progress_fd_ = -1;
   progress_controller_.reset();
