@@ -20,6 +20,8 @@
 #include <inttypes.h>
 #include <time.h>
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,6 +33,7 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <brillo/secure_blob.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
@@ -41,10 +44,12 @@
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/mock_download_action.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/fake_file_descriptor.h"
+#include "update_engine/payload_consumer/mock_partition_writer.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/payload_generator/bzip.h"
@@ -60,6 +65,8 @@ using std::vector;
 using test_utils::GetBuildArtifactsPath;
 using test_utils::kRandomString;
 using testing::_;
+using testing::Return;
+using ::testing::Sequence;
 
 extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;
@@ -274,7 +281,14 @@ class DeltaPerformerTest : public ::testing::Test {
                             const string& source_path,
                             bool expect_success) {
     return ApplyPayloadToData(
-        payload_data, source_path, brillo::Blob(), expect_success);
+        &performer_, payload_data, source_path, brillo::Blob(), expect_success);
+  }
+  brillo::Blob ApplyPayloadToData(const brillo::Blob& payload_data,
+                                  const string& source_path,
+                                  const brillo::Blob& target_data,
+                                  bool expect_success) {
+    return ApplyPayloadToData(
+        &performer_, payload_data, source_path, target_data, expect_success);
   }
 
   // Apply the payload provided in |payload_data| reading from the |source_path|
@@ -282,7 +296,8 @@ class DeltaPerformerTest : public ::testing::Test {
   // new target file are set to |target_data| before applying the payload.
   // Expect result of performer_.Write() to be |expect_success|.
   // Returns the result of the payload application.
-  brillo::Blob ApplyPayloadToData(const brillo::Blob& payload_data,
+  brillo::Blob ApplyPayloadToData(DeltaPerformer* delta_performer,
+                                  const brillo::Blob& payload_data,
                                   const string& source_path,
                                   const brillo::Blob& target_data,
                                   bool expect_success) {
@@ -302,7 +317,7 @@ class DeltaPerformerTest : public ::testing::Test {
         kPartitionNameKernel, install_plan_.source_slot, "/dev/null");
 
     EXPECT_EQ(expect_success,
-              performer_.Write(payload_data.data(), payload_data.size()));
+              delta_performer->Write(payload_data.data(), payload_data.size()));
     EXPECT_EQ(0, performer_.Close());
 
     brillo::Blob partition_data;
@@ -1093,6 +1108,93 @@ TEST_F(DeltaPerformerTest, FullPayloadCanResumeTest) {
   const std::string payload_id = "12345";
   prefs_.SetString(kPrefsUpdateCheckResponseHash, payload_id);
   ASSERT_TRUE(DeltaPerformer::CanResumeUpdate(&prefs_, payload_id));
+}
+
+class TestDeltaPerformer : public DeltaPerformer {
+ public:
+  using DeltaPerformer::DeltaPerformer;
+
+  std::unique_ptr<PartitionWriter> CreatePartitionWriter(
+      const PartitionUpdate& partition_update,
+      const InstallPlan::Partition& install_part,
+      DynamicPartitionControlInterface* dynamic_control,
+      size_t block_size,
+      bool is_interactive,
+      bool is_dynamic_partition) {
+    LOG(INFO) << __FUNCTION__ << ": " << install_part.name;
+    auto node = partition_writers_.extract(install_part.name);
+    return std::move(node.mapped());
+  }
+
+  bool ShouldCheckpoint() override { return true; }
+
+  std::map<std::string, std::unique_ptr<MockPartitionWriter>>
+      partition_writers_;
+};
+
+namespace {
+AnnotatedOperation GetSourceCopyOp(uint32_t src_block,
+                                   uint32_t dst_block,
+                                   const void* data,
+                                   size_t length) {
+  AnnotatedOperation aop;
+  *(aop.op.add_src_extents()) = ExtentForRange(0, 1);
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_type(InstallOperation::SOURCE_COPY);
+  brillo::Blob src_hash;
+  HashCalculator::RawHashOfBytes(data, length, &src_hash);
+  aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
+  return aop;
+}
+}  // namespace
+
+TEST_F(DeltaPerformerTest, SetNextOpIndex) {
+  TestDeltaPerformer delta_performer{&prefs_,
+                                     &fake_boot_control_,
+                                     &fake_hardware_,
+                                     &mock_delegate_,
+                                     &install_plan_,
+                                     &payload_,
+                                     false};
+  brillo::Blob expected_data(std::begin(kRandomString),
+                             std::end(kRandomString));
+  expected_data.resize(4096 * 2);  // block size
+  AnnotatedOperation aop;
+
+  ScopedTempFile source("Source-XXXXXX");
+  EXPECT_TRUE(test_utils::WriteFileVector(source.path(), expected_data));
+
+  PartitionConfig old_part(kPartitionNameRoot);
+  old_part.path = source.path();
+  old_part.size = expected_data.size();
+
+  delta_performer.partition_writers_[kPartitionNameRoot] =
+      std::make_unique<MockPartitionWriter>();
+  auto& writer1 = *delta_performer.partition_writers_[kPartitionNameRoot];
+
+  Sequence seq;
+  std::vector<size_t> indices;
+  EXPECT_CALL(writer1, CheckpointUpdateProgress(_))
+      .WillRepeatedly(
+          [&indices](size_t index) mutable { indices.emplace_back(index); });
+  EXPECT_CALL(writer1, Init(_, true, _)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(writer1, PerformSourceCopyOperation(_, _))
+      .Times(2)
+      .WillRepeatedly(Return(true));
+
+  brillo::Blob payload_data = GeneratePayload(
+      brillo::Blob(),
+      {GetSourceCopyOp(0, 0, expected_data.data(), 4096),
+       GetSourceCopyOp(1, 1, expected_data.data() + 4096, 4096)},
+      false,
+      &old_part);
+
+  ApplyPayloadToData(&delta_performer, payload_data, source.path(), {}, true);
+  ASSERT_TRUE(std::is_sorted(indices.begin(), indices.end()));
+  ASSERT_GT(indices.size(), 0UL);
+
+  // Should be equal to number of operations
+  ASSERT_EQ(indices[indices.size() - 1], 2UL);
 }
 
 }  // namespace chromeos_update_engine

@@ -240,13 +240,13 @@ bool DeltaPerformer::OpenCurrentPartition() {
   const InstallPlan::Partition& install_part =
       install_plan_->partitions[num_previous_partitions + current_partition_];
   auto dynamic_control = boot_control_->GetDynamicPartitionControl();
-  partition_writer_ = partition_writer::CreatePartitionWriter(
-      partition,
-      install_part,
-      dynamic_control,
-      block_size_,
-      interactive_,
-      IsDynamicPartition(install_part.name));
+  partition_writer_ =
+      CreatePartitionWriter(partition,
+                            install_part,
+                            dynamic_control,
+                            block_size_,
+                            interactive_,
+                            IsDynamicPartition(install_part.name));
   // Open source fds if we have a delta payload, or for partitions in the
   // partial update.
   bool source_may_exist = manifest_.partial_update() ||
@@ -1404,16 +1404,21 @@ bool DeltaPerformer::ResetUpdateProgress(
   return true;
 }
 
-bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
+bool DeltaPerformer::ShouldCheckpoint() {
   base::TimeTicks curr_time = base::TimeTicks::Now();
-  if (force || curr_time > update_checkpoint_time_) {
+  if (curr_time > update_checkpoint_time_) {
     update_checkpoint_time_ = curr_time + update_checkpoint_wait_;
-  } else {
+    return true;
+  }
+  return false;
+}
+
+bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
+  if (!force && !ShouldCheckpoint()) {
     return false;
   }
-
   Terminator::set_exit_blocked(true);
-  if (last_updated_buffer_offset_ != buffer_offset_) {
+  if (last_updated_operation_num_ != next_operation_num_) {
     // Resets the progress in case we die in the middle of the state update.
     ResetUpdateProgress(prefs_, true);
     TEST_AND_RETURN_FALSE(prefs_->SetString(
@@ -1423,12 +1428,13 @@ bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
                           signed_hash_calculator_.GetContext()));
     TEST_AND_RETURN_FALSE(
         prefs_->SetInt64(kPrefsUpdateStateNextDataOffset, buffer_offset_));
-    last_updated_buffer_offset_ = buffer_offset_;
+    last_updated_operation_num_ = next_operation_num_;
 
     if (next_operation_num_ < num_total_operations_) {
       size_t partition_index = current_partition_;
-      while (next_operation_num_ >= acc_num_operations_[partition_index])
+      while (next_operation_num_ >= acc_num_operations_[partition_index]) {
         partition_index++;
+      }
       const size_t partition_operation_num =
           next_operation_num_ -
           (partition_index ? acc_num_operations_[partition_index - 1] : 0);
@@ -1519,6 +1525,22 @@ bool DeltaPerformer::IsDynamicPartition(const std::string& part_name) {
   return std::find(dynamic_partitions_.begin(),
                    dynamic_partitions_.end(),
                    part_name) != dynamic_partitions_.end();
+}
+
+std::unique_ptr<PartitionWriter> DeltaPerformer::CreatePartitionWriter(
+    const PartitionUpdate& partition_update,
+    const InstallPlan::Partition& install_part,
+    DynamicPartitionControlInterface* dynamic_control,
+    size_t block_size,
+    bool is_interactive,
+    bool is_dynamic_partition) {
+  return partition_writer::CreatePartitionWriter(
+      partition_update,
+      install_part,
+      dynamic_control,
+      block_size_,
+      interactive_,
+      IsDynamicPartition(install_part.name));
 }
 
 }  // namespace chromeos_update_engine

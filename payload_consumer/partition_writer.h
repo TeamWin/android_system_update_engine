@@ -29,6 +29,7 @@
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/update_metadata.pb.h"
+
 namespace chromeos_update_engine {
 class PartitionWriter {
  public:
