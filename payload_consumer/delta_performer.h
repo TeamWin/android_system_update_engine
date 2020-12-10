@@ -202,6 +202,20 @@ class DeltaPerformer : public FileWriter {
       const std::string& update_check_response_hash,
       uint64_t* required_size);
 
+ protected:
+  // Exposed as virtual for testing purposes.
+  virtual std::unique_ptr<PartitionWriter> CreatePartitionWriter(
+      const PartitionUpdate& partition_update,
+      const InstallPlan::Partition& install_part,
+      DynamicPartitionControlInterface* dynamic_control,
+      size_t block_size,
+      bool is_interactive,
+      bool is_dynamic_partition);
+
+  // return true if it has been long enough and a checkpoint should be saved.
+  // Exposed for unittest purposes.
+  virtual bool ShouldCheckpoint();
+
  private:
   friend class DeltaPerformerTest;
   friend class DeltaPerformerIntegrationTest;
@@ -312,6 +326,7 @@ class DeltaPerformer : public FileWriter {
 
   // Check if partition `part_name` is a dynamic partition.
   bool IsDynamicPartition(const std::string& part_name);
+
   // Update Engine preference store.
   PrefsInterface* prefs_;
 
@@ -369,8 +384,8 @@ class DeltaPerformer : public FileWriter {
   // Offset of buffer_ in the binary blobs section of the update.
   uint64_t buffer_offset_{0};
 
-  // Last |buffer_offset_| value updated as part of the progress update.
-  uint64_t last_updated_buffer_offset_{std::numeric_limits<uint64_t>::max()};
+  // Last |next_operation_num_| value updated as part of the progress update.
+  uint64_t last_updated_operation_num_{std::numeric_limits<uint64_t>::max()};
 
   // The block size (parsed from the manifest).
   uint32_t block_size_{0};
