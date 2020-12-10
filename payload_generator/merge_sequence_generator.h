@@ -70,5 +70,9 @@ class MergeSequenceGenerator {
   std::vector<CowMergeOperation> operations_;
 };
 
+void SplitSelfOverlapping(const Extent& src_extent,
+                          const Extent& dst_extent,
+                          std::vector<CowMergeOperation>* sequence);
+
 }  // namespace chromeos_update_engine
 #endif

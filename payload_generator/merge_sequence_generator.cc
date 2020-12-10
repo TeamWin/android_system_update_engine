@@ -50,6 +50,31 @@ bool operator==(const CowMergeOperation& op1, const CowMergeOperation& op2) {
          op1.dst_extent() == op2.dst_extent();
 }
 
+template <typename T>
+constexpr T GetDifference(T first, T second) {
+  T abs_diff = (first > second) ? (first - second) : (second - first);
+  return abs_diff;
+}
+
+void SplitSelfOverlapping(const Extent& src_extent,
+                          const Extent& dst_extent,
+                          std::vector<CowMergeOperation>* sequence) {
+  CHECK_EQ(src_extent.num_blocks(), dst_extent.num_blocks());
+  if (src_extent.start_block() == dst_extent.start_block()) {
+    sequence->emplace_back(CreateCowMergeOperation(src_extent, dst_extent));
+    return;
+  }
+
+  const size_t diff =
+      GetDifference(src_extent.start_block(), dst_extent.start_block());
+  for (size_t i = 0; i < src_extent.num_blocks(); i += diff) {
+    auto num_blocks = std::min<size_t>(diff, src_extent.num_blocks() - i);
+    sequence->emplace_back(CreateCowMergeOperation(
+        ExtentForRange(i + src_extent.start_block(), num_blocks),
+        ExtentForRange(i + dst_extent.start_block(), num_blocks)));
+  }
+}
+
 std::unique_ptr<MergeSequenceGenerator> MergeSequenceGenerator::Create(
     const std::vector<AnnotatedOperation>& aops) {
   std::vector<CowMergeOperation> sequence;
@@ -75,7 +100,14 @@ std::unique_ptr<MergeSequenceGenerator> MergeSequenceGenerator::Create(
       Extent dst_extent =
           ExtentForRange(aop.op.dst_extents(0).start_block() + used_blocks,
                          src_extent.num_blocks());
-      sequence.emplace_back(CreateCowMergeOperation(src_extent, dst_extent));
+
+      // Self-overlapping SOURCE_COPY, must split into multiple non
+      // self-overlapping ops
+      if (ExtentRanges::ExtentsOverlap(src_extent, dst_extent)) {
+        SplitSelfOverlapping(src_extent, dst_extent, &sequence);
+      } else {
+        sequence.emplace_back(CreateCowMergeOperation(src_extent, dst_extent));
+      }
       used_blocks += src_extent.num_blocks();
     }
 
