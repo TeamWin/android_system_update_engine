@@ -122,6 +122,8 @@ struct BlockIterator {
   size_t block_offset_ = 0;
 };
 
+std::ostream& operator<<(std::ostream& out, const Extent& extent);
+
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_EXTENT_UTILS_H_

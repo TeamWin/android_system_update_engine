@@ -155,4 +155,10 @@ bool operator==(const Extent& a, const Extent& b) {
   return a.start_block() == b.start_block() && a.num_blocks() == b.num_blocks();
 }
 
+std::ostream& operator<<(std::ostream& out, const Extent& extent) {
+  out << "[" << extent.start_block() << " - "
+      << extent.start_block() + extent.num_blocks() - 1 << "]";
+  return out;
+}
+
 }  // namespace chromeos_update_engine

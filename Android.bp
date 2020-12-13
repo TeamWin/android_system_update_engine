@@ -82,6 +82,21 @@ cc_defaults {
 
 // libcow_operation_convert (type: library)
 // ========================================================
+cc_library_static {
+    name: "libpayload_extent_utils",
+    defaults: [
+        "ue_defaults",
+    ],
+    host_supported: true,
+    recovery_available: true,
+    srcs: [
+        "payload_generator/extent_utils.cc",
+    ],
+    static_libs: [
+        "update_metadata-protos",
+    ],
+}
+
 cc_library {
     name: "libcow_operation_convert",
     host_supported: true,
@@ -97,6 +112,7 @@ cc_library {
         "libsnapshot_cow",
         "update_metadata-protos",
         "libpayload_extent_ranges",
+        "libpayload_extent_utils",
         "libbrotli",
         "libz",
     ],
@@ -148,6 +164,7 @@ cc_defaults {
         "libbrotli",
         "libz",
         "libpayload_extent_ranges",
+        "libpayload_extent_utils",
         "libcow_operation_convert",
     ],
     shared_libs: [
@@ -497,6 +514,7 @@ cc_defaults {
         "libpuffdiff",
         "libverity_tree",
         "update_metadata-protos",
+        "libpayload_extent_utils",
     ],
     shared_libs: [
         "libbase",
@@ -542,7 +560,6 @@ cc_library_static {
         "payload_generator/delta_diff_utils.cc",
         "payload_generator/ext2_filesystem.cc",
         "payload_generator/extent_ranges.cc",
-        "payload_generator/extent_utils.cc",
         "payload_generator/full_update_generator.cc",
         "payload_generator/mapfile_filesystem.cc",
         "payload_generator/merge_sequence_generator.cc",
