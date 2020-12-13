@@ -43,29 +43,14 @@ std::vector<CowOperation> ConvertToCowOperations(
     merge_extents.AddExtent(merge_op.dst_extent());
     const auto& src_extent = merge_op.src_extent();
     const auto& dst_extent = merge_op.dst_extent();
-    // Add blocks in reverse order to avoid merge conflicts on self-overlapping
-    // Ops.
-    // For example: SOURCE_COPY [20 - 30] -> [25 - 35] If blocks are added in
-    // forward order, then 20->25 is performed first, destroying block 25, which
-    // is neede by a later operation.
-    if (src_extent.start_block() < dst_extent.start_block()) {
-      for (uint64_t i = src_extent.num_blocks(); i > 0; i--) {
-        auto src_block = src_extent.start_block() + i - 1;
-        auto dst_block = dst_extent.start_block() + i - 1;
-        CHECK(!modified_extents.ContainsBlock(src_block))
-            << "block " << src_block << " is modified by previous CowCopy";
-        converted.push_back({CowOperation::CowCopy, src_block, dst_block});
-        modified_extents.AddBlock(dst_block);
-      }
-    } else {
-      for (uint64_t i = 0; i < src_extent.num_blocks(); i++) {
-        auto src_block = src_extent.start_block() + i;
-        auto dst_block = dst_extent.start_block() + i;
-        CHECK(!modified_extents.ContainsBlock(src_block))
-            << "block " << src_block << " is modified by previous CowCopy";
-        converted.push_back({CowOperation::CowCopy, src_block, dst_block});
-        modified_extents.AddBlock(dst_block);
-      }
+    // Add blocks in reverse order, because snapused specifically prefers this
+    // ordering. Since we already eliminated all self-overlapping SOURCE_COPY
+    // during delta generation, this should be safe to do.
+    for (uint64_t i = src_extent.num_blocks(); i > 0; i--) {
+      auto src_block = src_extent.start_block() + i - 1;
+      auto dst_block = dst_extent.start_block() + i - 1;
+      converted.push_back({CowOperation::CowCopy, src_block, dst_block});
+      modified_extents.AddBlock(dst_block);
     }
   }
   // COW_REPLACE are added after COW_COPY, because replace might modify blocks

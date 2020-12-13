@@ -208,12 +208,6 @@ TEST_F(MergeSequenceGeneratorTest, GenerateSequenceMultipleCycles) {
   GenerateSequence(transfers, expected);
 }
 
-std::ostream& operator<<(std::ostream& out, const Extent& extent) {
-  out << "[" << extent.start_block() << " - "
-      << extent.start_block() + extent.num_blocks() - 1 << "]";
-  return out;
-}
-
 void ValidateSplitSequence(const Extent& src_extent, const Extent& dst_extent) {
   std::vector<CowMergeOperation> sequence;
   SplitSelfOverlapping(src_extent, dst_extent, &sequence);
