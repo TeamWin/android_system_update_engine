@@ -124,8 +124,11 @@ class Payload(object):
     if zipfile.is_zipfile(payload_file):
       with zipfile.ZipFile(payload_file) as zfp:
         with zfp.open("payload.bin") as payload_fp:
-          payload_file = io.BytesIO(payload_fp.read())
-    self.payload_file = payload_file
+          self.payload_file = io.BytesIO(payload_fp.read())
+    elif isinstance(payload_file, str):
+      self.payload_file = open(payload_file, "rb")
+    else:
+      self.payload_file = payload_file
     self.payload_file_offset = payload_file_offset
     self.manifest_hasher = None
     self.is_init = False
