@@ -47,7 +47,6 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       hardware_(hardware),
       http_fetcher_(new MultiRangeHttpFetcher(http_fetcher)),
       interactive_(interactive),
-      writer_(nullptr),
       code_(ErrorCode::kSuccess),
       delegate_(nullptr) {}
 
@@ -105,14 +104,11 @@ bool DownloadAction::LoadCachedManifest(int64_t manifest_size) {
     return false;
   }
 
-  if (writer_ && writer_ != delta_performer_.get()) {
-    LOG(INFO) << "Using writer for test.";
-  }
   ErrorCode error;
   const bool success =
-      writer_->Write(
+      delta_performer_->Write(
           cached_manifest_bytes.data(), cached_manifest_bytes.size(), &error) &&
-      writer_->IsManifestValid();
+      delta_performer_->IsManifestValid();
   if (success) {
     LOG(INFO) << "Successfully parsed cached manifest";
   } else {
@@ -127,7 +123,7 @@ void DownloadAction::StartDownloading() {
   download_active_ = true;
   http_fetcher_->ClearRanges();
 
-  if (writer_ && writer_ != delta_performer_.get()) {
+  if (delta_performer_ != nullptr) {
     LOG(INFO) << "Using writer for test.";
   } else {
     delta_performer_.reset(new DeltaPerformer(prefs_,
@@ -137,7 +133,6 @@ void DownloadAction::StartDownloading() {
                                               &install_plan_,
                                               payload_,
                                               interactive_));
-    writer_ = delta_performer_.get();
   }
 
   if (install_plan_.is_resume &&
@@ -159,7 +154,6 @@ void DownloadAction::StartDownloading() {
                                                             &install_plan_,
                                                             payload_,
                                                             interactive_);
-        writer_ = delta_performer_.get();
       }
       http_fetcher_->AddRange(base_offset_,
                               manifest_metadata_size + manifest_signature_size);
@@ -200,9 +194,9 @@ void DownloadAction::ResumeAction() {
 }
 
 void DownloadAction::TerminateProcessing() {
-  if (writer_) {
-    writer_->Close();
-    writer_ = nullptr;
+  if (delta_performer_) {
+    delta_performer_->Close();
+    delta_performer_.reset();
   }
   download_active_ = false;
   // Terminates the transfer. The action is terminated, if necessary, when the
@@ -223,7 +217,7 @@ bool DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
   if (delegate_ && download_active_) {
     delegate_->BytesReceived(length, bytes_downloaded_total, bytes_total_);
   }
-  if (writer_ && !writer_->Write(bytes, length, &code_)) {
+  if (delta_performer_ && !delta_performer_->Write(bytes, length, &code_)) {
     if (code_ != ErrorCode::kSuccess) {
       LOG(ERROR) << "Error " << utils::ErrorCodeToString(code_) << " (" << code_
                  << ") in DeltaPerformer's Write method when "
@@ -240,12 +234,9 @@ bool DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
 }
 
 void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
-  if (writer_) {
-    LOG_IF(WARNING, writer_->Close() != 0) << "Error closing the writer.";
-    if (delta_performer_.get() == writer_) {
-      // no delta_performer_ in tests, so leave the test writer in place
-      writer_ = nullptr;
-    }
+  if (delta_performer_) {
+    LOG_IF(WARNING, delta_performer_->Close() != 0)
+        << "Error closing the writer.";
   }
   download_active_ = false;
   ErrorCode code =
