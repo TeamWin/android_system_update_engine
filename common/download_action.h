@@ -106,29 +106,7 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
 
   HttpFetcher* http_fetcher() { return http_fetcher_.get(); }
 
-  // Returns the p2p file id for the file being written or the empty
-  // string if we're not writing to a p2p file.
-  std::string p2p_file_id() { return p2p_file_id_; }
-
  private:
-  // Closes the file descriptor for the p2p file being written and
-  // clears |p2p_file_id_| to indicate that we're no longer sharing
-  // the file. If |delete_p2p_file| is True, also deletes the file.
-  // If there is no p2p file descriptor, this method does nothing.
-  void CloseP2PSharingFd(bool delete_p2p_file);
-
-  // Starts sharing the p2p file. Must be called before
-  // WriteToP2PFile(). Returns True if this worked.
-  bool SetupP2PSharingFd();
-
-  // Writes |length| bytes of payload from |data| into |file_offset|
-  // of the p2p file. Also does validation checks; for example ensures we
-  // don't end up with a file with holes in it.
-  //
-  // This method does nothing if SetupP2PSharingFd() hasn't been
-  // called or if CloseP2PSharingFd() has been called.
-  void WriteToP2PFile(const void* data, size_t length, off_t file_offset);
-
   // Attempt to load cached manifest data from prefs
   // return true on success, false otherwise.
   bool LoadCachedManifest(int64_t manifest_size);
@@ -168,17 +146,6 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   uint64_t bytes_received_previous_payloads_{0};
   uint64_t bytes_total_{0};
   bool download_active_{false};
-
-  // The file-id for the file we're sharing or the empty string
-  // if we're not using p2p to share.
-  std::string p2p_file_id_;
-
-  // The file descriptor for the p2p file used for caching the payload or -1
-  // if we're not using p2p to share.
-  int p2p_sharing_fd_;
-
-  // Set to |false| if p2p file is not visible.
-  bool p2p_visible_;
 
   // Loaded from prefs before downloading any payload.
   size_t resume_payload_index_{0};
