@@ -172,9 +172,7 @@ bool PayloadVerifier::VerifyRawSignature(
       if (padded_hash_data == sig_hash_data) {
         return true;
       }
-    }
-
-    if (key_type == EVP_PKEY_EC) {
+    } else if (key_type == EVP_PKEY_EC) {
       EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key.get());
       TEST_AND_RETURN_FALSE(ec_key != nullptr);
       if (ECDSA_verify(0,
@@ -185,10 +183,10 @@ bool PayloadVerifier::VerifyRawSignature(
                        ec_key) == 1) {
         return true;
       }
+    } else {
+      LOG(ERROR) << "Unsupported key type " << key_type;
+      return false;
     }
-
-    LOG(ERROR) << "Unsupported key type " << key_type;
-    return false;
   }
   LOG(INFO) << "Failed to verify the signature with " << public_keys_.size()
             << " keys.";

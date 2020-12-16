@@ -105,11 +105,14 @@ bool DownloadAction::LoadCachedManifest(int64_t manifest_size) {
     return false;
   }
 
+  if (writer_ && writer_ != delta_performer_.get()) {
+    LOG(INFO) << "Using writer for test.";
+  }
   ErrorCode error;
   const bool success =
-      delta_performer_->Write(
+      writer_->Write(
           cached_manifest_bytes.data(), cached_manifest_bytes.size(), &error) &&
-      delta_performer_->IsManifestValid();
+      writer_->IsManifestValid();
   if (success) {
     LOG(INFO) << "Successfully parsed cached manifest";
   } else {
@@ -162,9 +165,9 @@ void DownloadAction::StartDownloading() {
                               manifest_metadata_size + manifest_signature_size);
     }
 
-    // If there're remaining unprocessed data blobs, fetch them. Be careful not
-    // to request data beyond the end of the payload to avoid 416 HTTP response
-    // error codes.
+    // If there're remaining unprocessed data blobs, fetch them. Be careful
+    // not to request data beyond the end of the payload to avoid 416 HTTP
+    // response error codes.
     int64_t next_data_offset = 0;
     prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
     uint64_t resume_offset =
