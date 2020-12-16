@@ -87,7 +87,7 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   std::string Type() const override { return StaticType(); }
 
   // Testing
-  void SetTestFileWriter(FileWriter* writer) { writer_ = writer; }
+  void SetTestFileWriter(DeltaPerformer* writer) { writer_ = writer; }
 
   int GetHTTPResponseCode() { return http_fetcher_->http_response_code(); }
 
@@ -131,8 +131,8 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   bool interactive_;
 
   // The FileWriter that downloaded data should be written to. It will
-  // either point to *decompressing_file_writer_ or *delta_performer_.
-  FileWriter* writer_;
+  // either point to a writer for unittest or *delta_performer_.
+  DeltaPerformer* writer_;
 
   std::unique_ptr<DeltaPerformer> delta_performer_;
 
