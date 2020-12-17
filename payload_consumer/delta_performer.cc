@@ -1418,7 +1418,7 @@ bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
     return false;
   }
   Terminator::set_exit_blocked(true);
-  if (last_updated_operation_num_ != next_operation_num_) {
+  if (last_updated_operation_num_ != next_operation_num_ || force) {
     // Resets the progress in case we die in the middle of the state update.
     ResetUpdateProgress(prefs_, true);
     TEST_AND_RETURN_FALSE(prefs_->SetString(
