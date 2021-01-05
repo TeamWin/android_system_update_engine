@@ -19,6 +19,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <base/files/file_path.h>
@@ -49,7 +50,7 @@ class PrefsBase : public PrefsInterface {
 
     // Set the value of the key named |key| to |value| regardless of the
     // previous value. Returns whether the operation succeeded.
-    virtual bool SetKey(const std::string& key, const std::string& value) = 0;
+    virtual bool SetKey(const std::string& key, std::string_view value) = 0;
 
     // Returns whether the key named |key| exists.
     virtual bool KeyExists(const std::string& key) const = 0;
@@ -66,7 +67,7 @@ class PrefsBase : public PrefsInterface {
 
   // PrefsInterface methods.
   bool GetString(const std::string& key, std::string* value) const override;
-  bool SetString(const std::string& key, const std::string& value) override;
+  bool SetString(const std::string& key, std::string_view value) override;
   bool GetInt64(const std::string& key, int64_t* value) const override;
   bool SetInt64(const std::string& key, const int64_t value) override;
   bool GetBoolean(const std::string& key, bool* value) const override;
@@ -123,7 +124,7 @@ class Prefs : public PrefsBase {
     bool GetKey(const std::string& key, std::string* value) const override;
     bool GetSubKeys(const std::string& ns,
                     std::vector<std::string>* keys) const override;
-    bool SetKey(const std::string& key, const std::string& value) override;
+    bool SetKey(const std::string& key, std::string_view value) override;
     bool KeyExists(const std::string& key) const override;
     bool DeleteKey(const std::string& key) override;
 
@@ -163,7 +164,7 @@ class MemoryPrefs : public PrefsBase {
     bool GetKey(const std::string& key, std::string* value) const override;
     bool GetSubKeys(const std::string& ns,
                     std::vector<std::string>* keys) const override;
-    bool SetKey(const std::string& key, const std::string& value) override;
+    bool SetKey(const std::string& key, std::string_view value) override;
     bool KeyExists(const std::string& key) const override;
     bool DeleteKey(const std::string& key) override;
 
