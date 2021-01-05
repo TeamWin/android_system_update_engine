@@ -55,7 +55,7 @@ bool PrefsBase::GetString(const string& key, string* value) const {
   return storage_->GetKey(key, value);
 }
 
-bool PrefsBase::SetString(const string& key, const string& value) {
+bool PrefsBase::SetString(const string& key, std::string_view value) {
   TEST_AND_RETURN_FALSE(storage_->SetKey(key, value));
   const auto observers_for_key = observers_.find(key);
   if (observers_for_key != observers_.end()) {
@@ -192,7 +192,7 @@ bool Prefs::FileStorage::GetSubKeys(const string& ns,
   return true;
 }
 
-bool Prefs::FileStorage::SetKey(const string& key, const string& value) {
+bool Prefs::FileStorage::SetKey(const string& key, std::string_view value) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
   if (!base::DirectoryExists(filename.DirName())) {
@@ -263,7 +263,7 @@ bool MemoryPrefs::MemoryStorage::GetSubKeys(const string& ns,
 }
 
 bool MemoryPrefs::MemoryStorage::SetKey(const string& key,
-                                        const string& value) {
+                                        std::string_view value) {
   values_[key] = value;
   return true;
 }

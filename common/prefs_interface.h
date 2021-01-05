@@ -52,7 +52,7 @@ class PrefsInterface {
 
   // Associates |key| with a string |value|. Returns true on success,
   // false otherwise.
-  virtual bool SetString(const std::string& key, const std::string& value) = 0;
+  virtual bool SetString(const std::string& key, std::string_view value) = 0;
 
   // Gets an int64_t |value| associated with |key|. Returns true on
   // success, false on failure (including when the |key| is not
