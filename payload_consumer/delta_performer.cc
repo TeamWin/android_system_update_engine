@@ -436,7 +436,8 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
       return false;
     manifest_valid_ = true;
     if (!install_plan_->is_resume) {
-      prefs_->SetString(kPrefsManifestBytes, {buffer_.begin(), buffer_.end()});
+      auto begin = reinterpret_cast<const char*>(buffer_.data());
+      prefs_->SetString(kPrefsManifestBytes, {begin, buffer_.size()});
     }
 
     // Clear the download buffer.
