@@ -156,15 +156,15 @@ TEST_F(DownloadActionTest, CacheManifestValid) {
       &prefs, &boot_control, nullptr, http_fetcher, false /* interactive */);
 
   FakeHardware hardware;
-  DeltaPerformer delta_performer(&prefs,
-                                 &boot_control,
-                                 &hardware,
-                                 nullptr,
-                                 &install_plan,
-                                 &payload,
-                                 false);
-  delta_performer.set_public_key_path(kUnittestPublicKeyPath);
-  download_action->SetTestFileWriter(&delta_performer);
+  auto delta_performer = std::make_unique<DeltaPerformer>(&prefs,
+                                                          &boot_control,
+                                                          &hardware,
+                                                          nullptr,
+                                                          &install_plan,
+                                                          &payload,
+                                                          false);
+  delta_performer->set_public_key_path(kUnittestPublicKeyPath);
+  download_action->SetTestFileWriter(std::move(delta_performer));
   download_action->set_in_pipe(action_pipe);
   MockActionProcessor mock_processor;
   download_action->SetProcessor(&mock_processor);

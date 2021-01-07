@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/boot_control_interface.h"
@@ -87,7 +88,9 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   std::string Type() const override { return StaticType(); }
 
   // Testing
-  void SetTestFileWriter(DeltaPerformer* writer) { writer_ = writer; }
+  void SetTestFileWriter(std::unique_ptr<DeltaPerformer> writer) {
+    delta_performer_ = std::move(writer);
+  }
 
   int GetHTTPResponseCode() { return http_fetcher_->http_response_code(); }
 
@@ -129,10 +132,6 @@ class DownloadAction : public InstallPlanAction, public HttpFetcherDelegate {
   // the |delta_performer_| can decide not to use O_DSYNC flag for faster
   // update.
   bool interactive_;
-
-  // The FileWriter that downloaded data should be written to. It will
-  // either point to a writer for unittest or *delta_performer_.
-  DeltaPerformer* writer_;
 
   std::unique_ptr<DeltaPerformer> delta_performer_;
 
