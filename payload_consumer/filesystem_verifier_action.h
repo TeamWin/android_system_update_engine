@@ -126,14 +126,8 @@ class FilesystemVerifierAction : public InstallPlanAction {
   size_t partition_index_{0};
 
   // If not null, the FileDescriptor used to read from the device.
-  // |read_fd_| and |write_fd_| will be initialized when we begin hashing a
-  // partition. They will be deallocated once we encounter an error or
-  // successfully finished hashing.
-  FileDescriptorPtr read_fd_;
-  // If not null, the FileDescriptor used to write to the device.
-  // For VABC, this will be different from |read_fd_|. For other cases
-  // this can be the same as |read_fd_|.
-  FileDescriptorPtr write_fd_;
+  // verity writer might attempt to write to this fd, if verity is enabled.
+  FileDescriptorPtr partition_fd_;
 
   // Buffer for storing data we read.
   brillo::Blob buffer_;
