@@ -58,6 +58,7 @@ class HardwareAndroid : public HardwareInterface {
   bool GetFirstActiveOmahaPingSent() const override;
   bool SetFirstActiveOmahaPingSent() override;
   void SetWarmReset(bool warm_reset) override;
+  void SetVbmetaDigestForInactiveSlot(bool reset) override;
   [[nodiscard]] std::string GetVersionForLogging(
       const std::string& partition_name) const override;
   [[nodiscard]] ErrorCode IsPartitionUpdateValid(

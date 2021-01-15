@@ -374,6 +374,8 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
       } else {
         // Schedules warm reset on next reboot, ignores the error.
         hardware_->SetWarmReset(true);
+        // Sets the vbmeta digest for the other slot to boot into.
+        hardware_->SetVbmetaDigestForInactiveSlot(false);
       }
     } else {
       error_code = ErrorCode::kUpdatedButNotActive;

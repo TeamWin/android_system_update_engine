@@ -307,9 +307,12 @@ cc_defaults {
     ],
 
     static_libs: [
+        "libavb",
+        "libavb_user",
         "gkiprops",
         "libpayload_consumer",
         "libupdate_engine_boot_control",
+        "PlatformProperties",
     ],
     shared_libs: [
         "libandroid_net",

@@ -62,6 +62,7 @@ class HardwareChromeOS final : public HardwareInterface {
   bool GetFirstActiveOmahaPingSent() const override;
   bool SetFirstActiveOmahaPingSent() override;
   void SetWarmReset(bool warm_reset) override;
+  void SetVbmetaDigestForInactiveSlot(bool reset) override;
   std::string GetVersionForLogging(
       const std::string& partition_name) const override;
   ErrorCode IsPartitionUpdateValid(
