@@ -176,6 +176,10 @@ bool ImageConfig::LoadDynamicPartitionMetadata(
   bool snapshot_enabled = false;
   store.GetBoolean("virtual_ab", &snapshot_enabled);
   metadata->set_snapshot_enabled(snapshot_enabled);
+  bool vabc_enabled = false;
+  if (store.GetBoolean("virtual_ab_compression", &vabc_enabled)) {
+    metadata->set_vabc_enabled(vabc_enabled);
+  }
 
   dynamic_partition_metadata = std::move(metadata);
   return true;
