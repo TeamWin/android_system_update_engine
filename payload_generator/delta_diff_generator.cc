@@ -127,6 +127,7 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
     for (const AnnotatedOperation& aop : *aops_) {
       *operations.Add() = aop.op;
     }
+    // TODO(177936022) Skip cow size estimation if VABC isn't enabled
     *cow_size_ = EstimateCowSize(
         source_fd,
         std::move(target_fd),
