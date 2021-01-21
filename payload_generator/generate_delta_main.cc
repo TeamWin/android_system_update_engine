@@ -425,6 +425,8 @@ int Main(int argc, char** argv) {
       disable_vabc,
       false,
       "Whether to disable Virtual AB Compression when installing the OTA");
+  DEFINE_string(
+      apex_info_file, "", "Path to META/apex_info.pb found in target build");
 
   brillo::FlagHelper::Init(
       argc,
@@ -530,6 +532,15 @@ int Main(int argc, char** argv) {
       FLAGS_major_version > kMaxSupportedMajorPayloadVersion) {
     LOG(FATAL) << "Unsupported major version " << FLAGS_major_version;
     return 1;
+  }
+
+  if (!FLAGS_apex_info_file.empty()) {
+    // apex_info_file should point to a regular file(or symlink to a regular
+    // file)
+    CHECK(utils::FileExists(FLAGS_apex_info_file.c_str()));
+    CHECK(utils::IsRegFile(FLAGS_apex_info_file.c_str()) ||
+          utils::IsSymlink(FLAGS_apex_info_file.c_str()));
+    payload_config.apex_info_file = FLAGS_apex_info_file;
   }
 
   if (!FLAGS_new_partitions.empty()) {
