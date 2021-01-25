@@ -348,6 +348,12 @@ message DynamicPartitionMetadata {
   // partitions if possible. If this is unset, the update_engine daemon MUST
   // NOT create snapshots for dynamic partitions.
   optional bool snapshot_enabled = 2;
+
+  // If this is set to false, update_engine should not use VABC regardless. If
+  // this is set to true, update_engine may choose to use VABC if device
+  // supports it, but not guaranteed.
+  // VABC stands for Virtual AB Compression
+  optional bool vabc_enabled = 3;
 }
 
 message DeltaArchiveManifest {
