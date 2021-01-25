@@ -967,7 +967,8 @@ bool DynamicPartitionControlAndroid::GetPartitionDevice(
     bool not_in_payload,
     std::string* device,
     bool* is_dynamic) {
-  auto partition_dev = GetPartitionDevice(partition_name, slot, current_slot);
+  auto partition_dev =
+      GetPartitionDevice(partition_name, slot, current_slot, not_in_payload);
   if (!partition_dev.has_value()) {
     return false;
   }
