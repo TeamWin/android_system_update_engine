@@ -76,7 +76,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
       const std::string& partition_name,
       uint32_t slot,
       uint32_t current_slot,
-      bool not_in_payload = false);
+      bool not_in_payload);
   // Deprecated, please use GetPartitionDevice(string, uint32_t, uint32_t);
   // TODO(zhangkelvin) Remove below deprecated APIs.
   bool GetPartitionDevice(const std::string& partition_name,
