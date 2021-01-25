@@ -425,7 +425,7 @@ TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePath) {
 
   // If VABC is disabled, mountable device path should be same as device path.
   auto device_info =
-      dynamicControl().GetPartitionDevice("system", target(), source());
+      dynamicControl().GetPartitionDevice("system", target(), source(), false);
   ASSERT_TRUE(device_info.has_value());
   ASSERT_EQ(device_info->mountable_device_path, device);
 }
@@ -465,7 +465,7 @@ TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePathVABC) {
   ASSERT_EQ("", device);
 
   auto device_info =
-      dynamicControl().GetPartitionDevice("system", target(), source());
+      dynamicControl().GetPartitionDevice("system", target(), source(), false);
   ASSERT_TRUE(device_info.has_value());
   ASSERT_EQ(device_info->mountable_device_path, GetDevice(T("system")));
 }
