@@ -349,6 +349,8 @@ bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
 
 void HardwareChromeOS::SetWarmReset(bool warm_reset) {}
 
+void HardwareChromeOS::SetVbmetaDigestForInactiveSlot(bool reset) {}
+
 std::string HardwareChromeOS::GetVersionForLogging(
     const std::string& partition_name) const {
   // TODO(zhangkelvin) Implement per-partition timestamp for Chrome OS.

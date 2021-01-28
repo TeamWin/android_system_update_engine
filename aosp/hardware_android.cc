@@ -23,15 +23,23 @@
 #include <string_view>
 
 #include <android/sysprop/GkiProperties.sysprop.h>
-#include <android-base/parseint.h>
 #include <android-base/properties.h>
 #include <base/files/file_util.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
 #include <bootloader_message/bootloader_message.h>
+#include <fstab/fstab.h>
+#include <libavb/libavb.h>
+#include <libavb_user/avb_ops_user.h>
 
 #include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/utils.h"
+
+#ifndef __ANDROID_RECOVERY__
+#include <android/sysprop/OtaProperties.sysprop.h>
+#endif
 
 using android::base::GetBoolProperty;
 using android::base::GetIntProperty;
@@ -66,6 +74,40 @@ ErrorCode IsTimestampNewerLogged(const std::string& partition_name,
                  << " Update timestamp: " << new_version;
   }
   return error_code;
+}
+
+void SetVbmetaDigestProp(const std::string& value) {
+#ifndef __ANDROID_RECOVERY__
+  if (!android::sysprop::OtaProperties::other_vbmeta_digest(value)) {
+    LOG(WARNING) << "Failed to set other vbmeta digest to " << value;
+  }
+#endif
+}
+
+std::string CalculateVbmetaDigestForInactiveSlot() {
+  AvbSlotVerifyData* avb_slot_data;
+
+  auto suffix = fs_mgr_get_other_slot_suffix();
+  const char* requested_partitions[] = {nullptr};
+  auto avb_ops = avb_ops_user_new();
+  auto verify_result = avb_slot_verify(avb_ops,
+                                       requested_partitions,
+                                       suffix.c_str(),
+                                       AVB_SLOT_VERIFY_FLAGS_NONE,
+                                       AVB_HASHTREE_ERROR_MODE_EIO,
+                                       &avb_slot_data);
+  if (verify_result != AVB_SLOT_VERIFY_RESULT_OK) {
+    LOG(WARNING) << "Failed to verify avb slot data: " << verify_result;
+    return "";
+  }
+
+  uint8_t vbmeta_digest[AVB_SHA256_DIGEST_SIZE];
+  avb_slot_verify_data_calculate_vbmeta_digest(
+      avb_slot_data, AVB_DIGEST_TYPE_SHA256, vbmeta_digest);
+
+  std::string encoded_digest =
+      base::HexEncode(vbmeta_digest, AVB_SHA256_DIGEST_SIZE);
+  return base::ToLowerASCII(encoded_digest);
 }
 
 }  // namespace
@@ -237,6 +279,30 @@ void HardwareAndroid::SetWarmReset(bool warm_reset) {
       LOG(WARNING) << "Failed to set prop " << warm_reset_prop;
     }
   }
+}
+
+void HardwareAndroid::SetVbmetaDigestForInactiveSlot(bool reset) {
+  if constexpr (constants::kIsRecovery) {
+    return;
+  }
+
+  if (android::base::GetProperty("ro.boot.avb_version", "").empty() &&
+      android::base::GetProperty("ro.boot.vbmeta.avb_version", "").empty()) {
+    LOG(INFO) << "Device doesn't use avb, skipping setting vbmeta digest";
+    return;
+  }
+
+  if (reset) {
+    SetVbmetaDigestProp("");
+    return;
+  }
+
+  std::string digest = CalculateVbmetaDigestForInactiveSlot();
+  if (digest.empty()) {
+    LOG(WARNING) << "Failed to calculate the vbmeta digest for the other slot";
+    return;
+  }
+  SetVbmetaDigestProp(digest);
 }
 
 string HardwareAndroid::GetVersionForLogging(

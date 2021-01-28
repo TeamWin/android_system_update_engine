@@ -194,6 +194,8 @@ class FakeHardware : public HardwareInterface {
 
   void SetWarmReset(bool warm_reset) override { warm_reset_ = warm_reset; }
 
+  void SetVbmetaDigestForInactiveSlot(bool reset) override {}
+
   // Getters to verify state.
   int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
 
