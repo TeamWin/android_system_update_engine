@@ -137,6 +137,10 @@ class HardwareInterface {
   // needed on the next reboot. Otherwise, clears the flag.
   virtual void SetWarmReset(bool warm_reset) = 0;
 
+  // If not reset, sets the vbmeta digest of the inactive slot as a sysprop.
+  // Otherwise, clears the sysprop.
+  virtual void SetVbmetaDigestForInactiveSlot(bool reset) = 0;
+
   // Return the version/timestamp for partition `partition_name`.
   // Don't make any assumption about the formatting of returned string.
   // Only used for logging/debugging purposes.
