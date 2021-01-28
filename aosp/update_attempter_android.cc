@@ -374,6 +374,9 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
       // Resets the warm reset property since we won't switch the slot.
       hardware_->SetWarmReset(false);
 
+      // Resets the vbmeta digest.
+      hardware_->SetVbmetaDigestForInactiveSlot(true /* reset */);
+
       // Remove update progress for DeltaPerformer and remove snapshots.
       if (!boot_control_->GetDynamicPartitionControl()->ResetUpdate(prefs_))
         ret_value = false;
