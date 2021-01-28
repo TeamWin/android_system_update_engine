@@ -320,7 +320,7 @@ cc_defaults {
         "libbrillo-binder",
         "libcurl",
         "libcutils",
-        "libupdate_engine_stable-cpp",
+        "libupdate_engine_stable-V1-cpp",
         "liblog",
         "libssl",
         "libstatslog",

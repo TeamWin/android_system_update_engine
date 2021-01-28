@@ -58,7 +58,7 @@ cc_binary {
     ],
     static_libs: [
         "libgflags",
-        "libupdate_engine_stable-ndk_platform",
+        "libupdate_engine_stable-V1-ndk_platform",
     ],
     srcs: [
         "update_engine_stable_client.cc",
