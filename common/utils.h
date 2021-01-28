@@ -23,6 +23,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <memory>
@@ -180,6 +181,10 @@ std::string MakePartitionName(const std::string& disk_name, int partition_num);
 // Set the read-only attribute on the block device |device| to the value passed
 // in |read_only|. Return whether the operation succeeded.
 bool SetBlockDeviceReadOnly(const std::string& device, bool read_only);
+
+// Reserve |size| bytes on space on |path| by creating a file at |path| and
+// write 0s into it. Return true iff both creation and writing succeed.
+[[nodiscard]] bool ReserveStorageSpace(const char* path, uint64_t size);
 
 // Synchronously mount or unmount a filesystem. Return true on success.
 // When mounting, it will attempt to mount the device as the passed filesystem

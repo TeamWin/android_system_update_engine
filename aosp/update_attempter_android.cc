@@ -71,6 +71,9 @@ using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
 
+// Don't change this path... apexd relies on it.
+constexpr const char* kApexReserveSpaceDir = "/data/apex/ota_reserved";
+
 namespace {
 
 // Minimum threshold to broadcast an status update in progress and time.
@@ -964,6 +967,28 @@ BootControlInterface::Slot UpdateAttempterAndroid::GetTargetSlot() const {
   return GetCurrentSlot() == 0 ? 1 : 0;
 }
 
+static uint64_t allocateSpaceForApex(const DeltaArchiveManifest& manifest) {
+  // TODO(b/178696931) call apexd's binder once there is one.
+  uint64_t size_required = 0;
+  for (const auto& apex_info : manifest.apex_info()) {
+    if (apex_info.is_compressed()) {
+      size_required += apex_info.decompressed_size();
+    }
+  }
+  if (size_required == 0) {
+    return 0;
+  }
+  base::FilePath path{kApexReserveSpaceDir};
+  // The filename is not important, it just needs to be under
+  // kApexReserveSpaceDir. We call it "full.tmp" because the current space
+  // estimation is simply adding up all decompressed sizes.
+  path = path.Append("full.tmp");
+  if (!utils::ReserveStorageSpace(path.value().c_str(), size_required)) {
+    return size_required;
+  }
+  return 0;
+}
+
 uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
     const std::string& metadata_filename,
     const vector<string>& key_value_pair_headers,
@@ -993,6 +1018,11 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
                  << " bytes";
       return required_size;
     }
+  }
+  const auto apex_size = allocateSpaceForApex(manifest);
+  if (apex_size != 0) {
+    LOG(ERROR) << "Insufficient space for apex decompression: " << apex_size;
+    return required_size + apex_size;
   }
 
   LOG(INFO) << "Successfully allocated space for payload.";
