@@ -144,6 +144,9 @@ bool FileExists(const char* path);
 // Returns true if |path| exists and is a symbolic link.
 bool IsSymlink(const char* path);
 
+// Return true iff |path| exists and is a regular file
+bool IsRegFile(const char* path);
+
 // If |base_filename_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or
 // "../"), then it is prepended the system's temporary directory. On success,
