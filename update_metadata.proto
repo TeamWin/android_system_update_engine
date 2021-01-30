@@ -359,16 +359,10 @@ message DynamicPartitionMetadata {
 // Definition has been duplicated from
 // $ANDROID_BUILD_TOP/build/tools/releasetools/ota_metadata.proto. Keep in sync.
 message ApexInfo {
-  optional string package_name = 1;
-  optional int64 version = 2;
-  optional bool is_compressed = 3;
-  optional int64 decompressed_size = 4;
-}
-
-// Definition has been duplicated from
-// $ANDROID_BUILD_TOP/build/tools/releasetools/ota_metadata.proto. Keep in sync.
-message ApexMetadata {
-  repeated ApexInfo apex_info = 1;
+  required string package_name = 1;
+  required int64 version = 2;
+  required bool is_compressed = 3;
+  required int64 decompressed_size = 4;
 }
 
 message DeltaArchiveManifest {

@@ -492,11 +492,6 @@ bool IsSymlink(const char* path) {
   return lstat(path, &stbuf) == 0 && S_ISLNK(stbuf.st_mode) != 0;
 }
 
-bool IsRegFile(const char* path) {
-  struct stat stbuf;
-  return lstat(path, &stbuf) == 0 && S_ISREG(stbuf.st_mode) != 0;
-}
-
 bool MakeTempFile(const string& base_filename_template,
                   string* filename,
                   int* fd) {
