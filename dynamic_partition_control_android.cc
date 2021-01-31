@@ -783,12 +783,12 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
   // If applying downgrade from Virtual A/B to non-Virtual A/B, the left-over
   // COW group needs to be deleted to ensure there are enough space to create
   // target partitions.
-#ifndef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
   builder->RemoveGroupAndPartitions(android::snapshot::kCowGroupName);
-#endif
 
   const std::string target_suffix = SlotSuffixForSlotNumber(target_slot);
+#ifndef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
   DeleteGroupsWithSuffix(builder, target_suffix);
+#endif
 
   uint64_t total_size = 0;
   for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
