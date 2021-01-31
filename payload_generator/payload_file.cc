@@ -25,7 +25,6 @@
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/common/hash_calculator.h"
-#include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/file_writer.h"
 #include "update_engine/payload_consumer/payload_constants.h"
@@ -74,20 +73,6 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
 
   if (config.is_partial_update) {
     manifest_.set_partial_update(true);
-  }
-
-  if (!config.apex_info_file.empty()) {
-    ApexMetadata apex_metadata;
-    int fd = open(config.apex_info_file.c_str(), O_RDONLY);
-    if (fd < 0) {
-      PLOG(FATAL) << "Failed to open " << config.apex_info_file << " for read.";
-    }
-    ScopedFdCloser closer{&fd};
-    CHECK(apex_metadata.ParseFromFileDescriptor(fd));
-    if (apex_metadata.apex_info_size() > 0) {
-      *manifest_.mutable_apex_info() =
-          std::move(*apex_metadata.mutable_apex_info());
-    }
   }
   return true;
 }

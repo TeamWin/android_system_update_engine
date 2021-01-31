@@ -230,9 +230,6 @@ struct PayloadGenerationConfig {
 
   // The maximum timestamp of the OS allowed to apply this payload.
   int64_t max_timestamp = 0;
-
-  // Path to apex_info.pb, extracted from target_file.zip
-  std::string apex_info_file;
 };
 
 }  // namespace chromeos_update_engine
