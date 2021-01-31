@@ -858,6 +858,7 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
   }
 #else
   for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
+    auto group_name_suffix = group.name() + target_suffix;
     for (const auto& partition_name : group.partition_names()) {
       auto partition_sizes_it = partition_sizes.find(partition_name);
       if (partition_sizes_it == partition_sizes.end()) {
@@ -873,8 +874,14 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
       auto partition_name_suffix = partition_name + target_suffix;
       Partition* p = builder->FindPartition(partition_name_suffix);
       if (!p) {
-        LOG(ERROR) << "Cannot find partition " << partition_name_suffix;
-        return false;
+        LOG(ERROR) << "Cannot find partition " << partition_name_suffix << " will add it";
+        p = builder->AddPartition(partition_name_suffix, group_name_suffix, LP_PARTITION_ATTR_READONLY);
+        if (!p) {
+            LOG(ERROR) << "Cannot add partition " << partition_name_suffix
+                   << " to group " << group_name_suffix;
+            return false;
+        }
+        LOG(ERROR) << "Added partition " << partition_name_suffix;
       }
       if (!builder->ResizePartition(p, partition_size)) {
         LOG(ERROR) << "Cannot resize partition " << partition_name_suffix
