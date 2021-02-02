@@ -106,6 +106,10 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
     if (!snapshot_enabled || !IsDynamicPartition(new_part_.name)) {
       return;
     }
+    // Skip cow size estimation if VABC isn't enabled
+    if (!config_.target.dynamic_partition_metadata->vabc_enabled()) {
+      return;
+    }
     if (!old_part_.path.empty()) {
       auto generator = MergeSequenceGenerator::Create(*aops_);
       if (!generator || !generator->Generate(cow_merge_sequence_)) {
@@ -127,7 +131,6 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
     for (const AnnotatedOperation& aop : *aops_) {
       *operations.Add() = aop.op;
     }
-    // TODO(177936022) Skip cow size estimation if VABC isn't enabled
     *cow_size_ = EstimateCowSize(
         source_fd,
         std::move(target_fd),
