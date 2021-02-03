@@ -106,6 +106,11 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
     }
   }
 
+  bool vab_compression_enabled = android::base::GetBoolProperty(
+      "ro.virtual_ab.compression.enabled", false);
+  bool vab_compression_used =
+      dynamic_partition_control_->UpdateUsesSnapshotCompression();
+
   android::util::stats_write(
       android::util::UPDATE_ENGINE_UPDATE_ATTEMPT_REPORTED,
       attempt_number,
@@ -118,7 +123,9 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
       android::base::GetProperty("ro.build.fingerprint", "").c_str(),
       super_partition_size_bytes,
       slot_size_bytes,
-      super_free_space);
+      super_free_space,
+      vab_compression_enabled,
+      vab_compression_used);
 }
 
 void MetricsReporterAndroid::ReportUpdateAttemptDownloadMetrics(

@@ -457,6 +457,13 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
   bool vab_retrofit = boot_control_->GetDynamicPartitionControl()
                           ->GetVirtualAbFeatureFlag()
                           .IsRetrofit();
+  bool vab_compression_enabled = boot_control_->GetDynamicPartitionControl()
+                                     ->GetVirtualAbCompressionFeatureFlag()
+                                     .IsEnabled();
+  // The snapshot has been merged, so we can no longer call
+  // DynamicPartitionControlInterface::UpdateUsesSnapshotCompression.
+  // However, we have saved the flag in the snapshot report.
+  bool vab_compression_used = report.compression_enabled();
 
   LOG(INFO) << "Reporting merge stats: "
             << android::snapshot::UpdateState_Name(report.state()) << " in "
@@ -468,7 +475,9 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
                              static_cast<int64_t>(passed_ms.count()),
                              static_cast<int32_t>(report.resume_count()),
                              vab_retrofit,
-                             static_cast<int64_t>(report.cow_file_size()));
+                             static_cast<int64_t>(report.cow_file_size()),
+                             vab_compression_enabled,
+                             vab_compression_used);
 #endif
 }
 
