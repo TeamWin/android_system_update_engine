@@ -356,6 +356,15 @@ message DynamicPartitionMetadata {
   optional bool vabc_enabled = 3;
 }
 
+// Definition has been duplicated from
+// $ANDROID_BUILD_TOP/build/tools/releasetools/ota_metadata.proto. Keep in sync.
+message ApexInfo {
+  optional string package_name = 1;
+  optional int64 version = 2;
+  optional bool is_compressed = 3;
+  optional int64 decompressed_size = 4;
+}
+
 message DeltaArchiveManifest {
   // Only present in major version = 1. List of install operations for the
   // kernel and rootfs partitions. For major version = 2 see the |partitions|
@@ -407,4 +416,8 @@ message DeltaArchiveManifest {
 
   // If the payload only updates a subset of partitions on the device.
   optional bool partial_update = 16;
+
+  // Information on compressed APEX to figure out how much space is required for
+  // their decompression
+  repeated ApexInfo apex_info = 17;
 }
