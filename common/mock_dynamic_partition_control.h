@@ -79,6 +79,7 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
               (uint32_t, uint32_t, const std::vector<std::string>&),
               (override));
   MOCK_METHOD(bool, IsDynamicPartition, (const std::string&), (override));
+  MOCK_METHOD(bool, UpdateUsesSnapshotCompression, (), (override));
 };
 
 }  // namespace chromeos_update_engine

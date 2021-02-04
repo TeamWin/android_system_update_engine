@@ -1339,4 +1339,8 @@ bool DynamicPartitionControlAndroid::IsDynamicPartition(
                    partition_name) != dynamic_partition_list_.end();
 }
 
+bool DynamicPartitionControlAndroid::UpdateUsesSnapshotCompression() {
+  return snapshot_->UpdateUsesCompression();
+}
+
 }  // namespace chromeos_update_engine
