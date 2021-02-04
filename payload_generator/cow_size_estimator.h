@@ -14,10 +14,12 @@
 // limitations under the License.
 //
 #include <cstddef>
+#include <string>
 
 #include <update_engine/update_metadata.pb.h>
 
 #include "update_engine/payload_consumer/file_descriptor.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
 
 namespace chromeos_update_engine {
 // Given file descriptor to the source image, target image, and list of
@@ -31,6 +33,7 @@ size_t EstimateCowSize(
     const google::protobuf::RepeatedPtrField<InstallOperation>& operations,
     const google::protobuf::RepeatedPtrField<CowMergeOperation>&
         merge_operations,
-    size_t block_size);
+    size_t block_size,
+    std::string compression);
 
 }  // namespace chromeos_update_engine

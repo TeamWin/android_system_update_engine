@@ -16,12 +16,13 @@
 
 #include "update_engine/payload_generator/cow_size_estimator.h"
 
+#include <string>
 #include <utility>
 #include <vector>
 
+#include <android-base/unique_fd.h>
 #include <libsnapshot/cow_writer.h>
 
-#include "android-base/unique_fd.h"
 #include "update_engine/common/cow_operation_convert.h"
 #include "update_engine/payload_consumer/vabc_partition_writer.h"
 #include "update_engine/update_metadata.pb.h"
@@ -64,9 +65,11 @@ size_t EstimateCowSize(
     const google::protobuf::RepeatedPtrField<InstallOperation>& operations,
     const google::protobuf::RepeatedPtrField<CowMergeOperation>&
         merge_operations,
-    size_t block_size) {
+    size_t block_size,
+    std::string compression) {
   android::snapshot::CowWriter cow_writer{
-      {.block_size = static_cast<uint32_t>(block_size), .compression = "gz"}};
+      {.block_size = static_cast<uint32_t>(block_size),
+       .compression = std::move(compression)}};
   // CowWriter treats -1 as special value, will discard all the data but still
   // reports Cow size. Good for estimation purposes
   cow_writer.Initialize(android::base::borrowed_fd{-1});
