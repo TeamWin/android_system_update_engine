@@ -63,13 +63,13 @@ class UpdateAttempterAndroidTest : public ::testing::Test {
         std::move(payload));
   }
 
-  UpdateAttempterAndroid update_attempter_android_{
-      &daemon_state_, &prefs_, &boot_control_, &hardware_};
-
   DaemonStateAndroid daemon_state_;
   FakePrefs prefs_;
   FakeBootControl boot_control_;
   FakeHardware hardware_;
+
+  UpdateAttempterAndroid update_attempter_android_{
+      &daemon_state_, &prefs_, &boot_control_, &hardware_};
 
   FakeClock* clock_;
   testing::NiceMock<MockMetricsReporter>* metrics_reporter_;
