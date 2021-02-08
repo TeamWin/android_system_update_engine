@@ -153,17 +153,23 @@ std::unique_ptr<ExtentWriter> VABCPartitionWriter::CreateBaseExtentWriter() {
 void VABCPartitionWriter::CheckpointUpdateProgress(size_t next_op_index) {
   // No need to call fsync/sync, as CowWriter flushes after a label is added
   // added.
+  // if cow_writer_ failed, that means Init() failed. This function shouldn't be
+  // called if Init() fails.
+  TEST_AND_RETURN(cow_writer_ != nullptr);
   cow_writer_->AddLabel(next_op_index);
 }
 
 [[nodiscard]] bool VABCPartitionWriter::FinishedInstallOps() {
   // Add a hardcoded magic label to indicate end of all install ops. This label
   // is needed by filesystem verification, don't remove.
+  TEST_AND_RETURN_FALSE(cow_writer_ != nullptr);
   return cow_writer_->AddLabel(kEndOfInstallLabel);
 }
 
 VABCPartitionWriter::~VABCPartitionWriter() {
-  cow_writer_->Finalize();
+  if (cow_writer_) {
+    cow_writer_->Finalize();
+  }
 }
 
 }  // namespace chromeos_update_engine
