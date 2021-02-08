@@ -270,10 +270,11 @@ void CleanupPreviousUpdateAction::ScheduleWaitForMerge() {
 void CleanupPreviousUpdateAction::WaitForMergeOrSchedule() {
   AcknowledgeTaskExecuted();
   TEST_AND_RETURN(running_);
+  auto update_uses_compression = snapshot_->UpdateUsesCompression();
   auto state = snapshot_->ProcessUpdateState(
       std::bind(&CleanupPreviousUpdateAction::OnMergePercentageUpdate, this),
       std::bind(&CleanupPreviousUpdateAction::BeforeCancel, this));
-  merge_stats_->set_state(state);
+  merge_stats_->set_state(state, update_uses_compression);
 
   switch (state) {
     case UpdateState::None: {
@@ -403,7 +404,7 @@ void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
 
   LOG(WARNING) << "InitiateMerge failed.";
   auto state = snapshot_->GetUpdateState();
-  merge_stats_->set_state(state);
+  merge_stats_->set_state(state, snapshot_->UpdateUsesCompression());
   if (state == UpdateState::Unverified) {
     // We are stuck at unverified state. This can happen if the update has
     // been applied, but it has not even been attempted yet (in libsnapshot,
