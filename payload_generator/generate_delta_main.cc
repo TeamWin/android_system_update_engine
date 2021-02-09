@@ -421,6 +421,10 @@ int Main(int argc, char** argv) {
               false,
               "The payload only targets a subset of partitions on the device,"
               "e.g. generic kernel image update.");
+  DEFINE_bool(
+      disable_vabc,
+      false,
+      "Whether to disable Virtual AB Compression when installing the OTA");
 
   brillo::FlagHelper::Init(
       argc,
@@ -584,6 +588,7 @@ int Main(int argc, char** argv) {
   if (FLAGS_is_partial_update) {
     payload_config.is_partial_update = true;
   }
+  payload_config.disable_vabc = FLAGS_disable_vabc;
 
   if (!FLAGS_in_file.empty()) {
     return ApplyPayload(FLAGS_in_file, payload_config) ? 0 : 1;
