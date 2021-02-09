@@ -33,8 +33,7 @@ class FakeExtentWriter : public ExtentWriter {
   ~FakeExtentWriter() override = default;
 
   // ExtentWriter overrides.
-  bool Init(FileDescriptorPtr /* fd */,
-            const google::protobuf::RepeatedPtrField<Extent>& /* extents */,
+  bool Init(const google::protobuf::RepeatedPtrField<Extent>& /* extents */,
             uint32_t /* block_size */) override {
     init_called_ = true;
     return true;

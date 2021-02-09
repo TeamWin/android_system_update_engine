@@ -87,7 +87,7 @@ class XzExtentWriterTest : public ::testing::Test {
   }
 
   void WriteAll(const brillo::Blob& compressed) {
-    EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
+    EXPECT_TRUE(xz_writer_->Init({}, 1024));
     EXPECT_TRUE(xz_writer_->Write(compressed.data(), compressed.size()));
 
     EXPECT_TRUE(fake_extent_writer_->InitCalled());
@@ -130,7 +130,7 @@ TEST_F(XzExtentWriterTest, CompressedDataBiggerThanTheBuffer) {
 }
 
 TEST_F(XzExtentWriterTest, GarbageDataRejected) {
-  EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
+  EXPECT_TRUE(xz_writer_->Init({}, 1024));
   // The sample_data_ is an uncompressed string.
   EXPECT_FALSE(xz_writer_->Write(sample_data_.data(), sample_data_.size()));
 }
@@ -138,7 +138,7 @@ TEST_F(XzExtentWriterTest, GarbageDataRejected) {
 TEST_F(XzExtentWriterTest, PartialDataIsKept) {
   brillo::Blob compressed(std::begin(kCompressed30KiBofA),
                           std::end(kCompressed30KiBofA));
-  EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
+  EXPECT_TRUE(xz_writer_->Init({}, 1024));
   for (uint8_t byte : compressed) {
     EXPECT_TRUE(xz_writer_->Write(&byte, 1));
   }

@@ -107,7 +107,7 @@ void AddExtent(google::protobuf::RepeatedPtrField<Extent>* extents,
 TEST_F(SnapshotExtentWriterTest, BufferWrites) {
   google::protobuf::RepeatedPtrField<Extent> extents;
   AddExtent(&extents, 123, 1);
-  writer_.Init(nullptr, extents, kBlockSize);
+  writer_.Init(extents, kBlockSize);
 
   std::vector<uint8_t> buf(kBlockSize, 0);
   buf[123] = 231;
@@ -130,7 +130,7 @@ TEST_F(SnapshotExtentWriterTest, NonBufferedWrites) {
   google::protobuf::RepeatedPtrField<Extent> extents;
   AddExtent(&extents, 123, 1);
   AddExtent(&extents, 125, 1);
-  writer_.Init(nullptr, extents, kBlockSize);
+  writer_.Init(extents, kBlockSize);
 
   std::vector<uint8_t> buf(kBlockSize * 2, 0);
   buf[123] = 231;
@@ -153,7 +153,7 @@ TEST_F(SnapshotExtentWriterTest, WriteAcrossBlockBoundary) {
   google::protobuf::RepeatedPtrField<Extent> extents;
   AddExtent(&extents, 123, 1);
   AddExtent(&extents, 125, 2);
-  writer_.Init(nullptr, extents, kBlockSize);
+  writer_.Init(extents, kBlockSize);
 
   std::vector<uint8_t> buf(kBlockSize * 3);
   std::memset(buf.data(), 0, buf.size());

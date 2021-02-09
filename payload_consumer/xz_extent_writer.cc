@@ -57,12 +57,11 @@ XzExtentWriter::~XzExtentWriter() {
   TEST_AND_RETURN(input_buffer_.empty());
 }
 
-bool XzExtentWriter::Init(FileDescriptorPtr fd,
-                          const RepeatedPtrField<Extent>& extents,
+bool XzExtentWriter::Init(const RepeatedPtrField<Extent>& extents,
                           uint32_t block_size) {
   stream_ = xz_dec_init(XZ_DYNALLOC, kXzMaxDictSize);
   TEST_AND_RETURN_FALSE(stream_ != nullptr);
-  return underlying_writer_->Init(fd, extents, block_size);
+  return underlying_writer_->Init(extents, block_size);
 }
 
 bool XzExtentWriter::Write(const void* bytes, size_t count) {
