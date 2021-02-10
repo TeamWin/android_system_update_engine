@@ -105,6 +105,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   bool IsDynamicPartition(const std::string& part_name) override;
 
+  bool UpdateUsesSnapshotCompression() override;
+
  protected:
   // These functions are exposed for testing.
 
