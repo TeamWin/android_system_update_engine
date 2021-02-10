@@ -171,6 +171,16 @@ class DynamicPartitionControlInterface {
   virtual bool MapAllPartitions() = 0;
   // Unmap virtual block devices for all partitions.
   virtual bool UnmapAllPartitions() = 0;
+
+  // Return if snapshot compression is enabled for this update.
+  // This function should only be called after preparing for an update
+  // (PreparePartitionsForUpdate), and before merging
+  // (see GetCleanupPreviousUpdateAction and CleanupPreviousUpdateAction) or
+  // resetting it (ResetUpdate).
+  //
+  // To know if the device supports snapshot compression by itself, use
+  // GetVirtualAbCompressionFeatureFlag
+  virtual bool UpdateUsesSnapshotCompression() = 0;
 };
 
 }  // namespace chromeos_update_engine

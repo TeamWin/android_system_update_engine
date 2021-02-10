@@ -116,4 +116,8 @@ bool DynamicPartitionControlStub::IsDynamicPartition(
   return false;
 }
 
+bool DynamicPartitionControlStub::UpdateUsesSnapshotCompression() {
+  return false;
+}
+
 }  // namespace chromeos_update_engine
