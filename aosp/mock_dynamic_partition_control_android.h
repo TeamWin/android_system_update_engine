@@ -101,6 +101,7 @@ class MockDynamicPartitionControlAndroid
   MOCK_METHOD(bool, MapAllPartitions, (), (override));
   MOCK_METHOD(bool, UnmapAllPartitions, (), (override));
   MOCK_METHOD(bool, IsDynamicPartition, (const std::string&), (override));
+  MOCK_METHOD(bool, UpdateUsesSnapshotCompression, (), (override));
 
   void set_fake_mapped_devices(const std::set<std::string>& fake) override {
     DynamicPartitionControlAndroid::set_fake_mapped_devices(fake);
