@@ -103,7 +103,7 @@ class BootControlInterface {
   // Check if |slot| is marked boot successfully.
   virtual bool IsSlotMarkedSuccessful(Slot slot) const = 0;
 
-  // Return the dynamic partition control interface.
+  // Return the dynamic partition control interface. Never null.
   virtual DynamicPartitionControlInterface* GetDynamicPartitionControl() = 0;
 
   // Return a human-readable slot name used for logging.
