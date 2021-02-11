@@ -286,6 +286,9 @@ POSTINSTALL_CONFIG_FILE=""
 # Path to the dynamic partition info file in target image if exists.
 DYNAMIC_PARTITION_INFO_FILE=""
 
+# Path to the META/apex_info.pb found in target build
+APEX_INFO_FILE=""
+
 # read_option_int <file.txt> <option_key> [default_value]
 #
 # Reads the unsigned integer value associated with |option_key| in a key=value
@@ -569,6 +572,13 @@ Disabling deltas for this source version."
         "${dynamic_partitions_info}"
       DYNAMIC_PARTITION_INFO_FILE="${dynamic_partitions_info}"
     fi
+    local apex_info=$(create_tempfile "apex_info.XXXXXX")
+    CLEANUP_FILES+=("${apex_info}")
+    if unzip -l "${image}" "META/apex_info.pb" > /dev/null; then
+      extract_file "${image}" "META/apex_info.pb" \
+        "${apex_info}"
+      APEX_INFO_FILE="${apex_info}"
+    fi
   fi
 
   local part
@@ -734,6 +744,11 @@ cmd_generate() {
   if [[ -n "{DYNAMIC_PARTITION_INFO_FILE}" ]]; then
     GENERATOR_ARGS+=(
       --dynamic_partition_info_file="${DYNAMIC_PARTITION_INFO_FILE}"
+    )
+  fi
+  if [[ -n "{APEX_INFO_FILE}" ]]; then
+    GENERATOR_ARGS+=(
+      --apex_info_file="${APEX_INFO_FILE}"
     )
   fi
 
