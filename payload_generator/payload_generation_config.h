@@ -235,6 +235,9 @@ struct PayloadGenerationConfig {
   // support VABC in order to use it. If this is set to false, device must not
   // use VABC regardless.
   bool disable_vabc = false;
+
+  // Path to apex_info.pb, extracted from target_file.zip
+  std::string apex_info_file;
 };
 
 }  // namespace chromeos_update_engine
