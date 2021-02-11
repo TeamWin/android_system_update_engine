@@ -22,7 +22,8 @@ namespace chromeos_update_engine {
 
 namespace metrics {
 
-std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
+std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter(
+    DynamicPartitionControlInterface* dynamic_partition_control) {
   return std::make_unique<MetricsReporterStub>();
 }
 
