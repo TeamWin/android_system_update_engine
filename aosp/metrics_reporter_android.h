@@ -27,7 +27,9 @@ namespace chromeos_update_engine {
 
 class MetricsReporterAndroid : public MetricsReporterInterface {
  public:
-  MetricsReporterAndroid() = default;
+  explicit MetricsReporterAndroid(
+      DynamicPartitionControlInterface* dynamic_partition_control)
+      : dynamic_partition_control_(dynamic_partition_control) {}
 
   ~MetricsReporterAndroid() override = default;
 
@@ -91,6 +93,8 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
       bool has_time_restriction_policy, int time_to_update_days) override {}
 
  private:
+  DynamicPartitionControlInterface* dynamic_partition_control_;
+
   DISALLOW_COPY_AND_ASSIGN(MetricsReporterAndroid);
 };
 
