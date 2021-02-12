@@ -135,7 +135,8 @@ const char kMetricInstallDateProvisioningSource[] =
     "UpdateEngine.InstallDateProvisioningSource";
 const char kMetricTimeToRebootMinutes[] = "UpdateEngine.TimeToRebootMinutes";
 
-std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
+std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter(
+    DynamicPartitionControlInterface* dynamic_partition_control) {
   return std::make_unique<MetricsReporterOmaha>();
 }
 

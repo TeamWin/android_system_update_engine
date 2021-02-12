@@ -140,7 +140,8 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       hardware_(hardware),
       processor_(new ActionProcessor()),
       clock_(new Clock()) {
-  metrics_reporter_ = metrics::CreateMetricsReporter();
+  metrics_reporter_ = metrics::CreateMetricsReporter(
+      boot_control_->GetDynamicPartitionControl());
   network_selector_ = network::CreateNetworkSelector();
 }
 

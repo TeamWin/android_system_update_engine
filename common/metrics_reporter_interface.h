@@ -23,6 +23,7 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/dynamic_partition_control_interface.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/metrics_constants.h"
 
@@ -235,7 +236,8 @@ class MetricsReporterInterface {
 
 namespace metrics {
 
-std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter();
+std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter(
+    DynamicPartitionControlInterface* dynamic_partition_control);
 
 }  // namespace metrics
 
