@@ -26,6 +26,7 @@
 #include <android-base/unique_fd.h>
 #include <base/time/time.h>
 
+#include "update_engine/aosp/apex_handler_interface.h"
 #include "update_engine/aosp/service_delegate_android_interface.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
@@ -57,7 +58,8 @@ class UpdateAttempterAndroid
   UpdateAttempterAndroid(DaemonStateInterface* daemon_state,
                          PrefsInterface* prefs,
                          BootControlInterface* boot_control_,
-                         HardwareInterface* hardware_);
+                         HardwareInterface* hardware_,
+                         std::unique_ptr<ApexHandlerInterface> apex_handler);
   ~UpdateAttempterAndroid() override;
 
   // Further initialization to be done post construction.
@@ -204,6 +206,8 @@ class UpdateAttempterAndroid
   PrefsInterface* prefs_;
   BootControlInterface* boot_control_;
   HardwareInterface* hardware_;
+
+  std::unique_ptr<ApexHandlerInterface> apex_handler_android_;
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is

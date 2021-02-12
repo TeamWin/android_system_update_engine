@@ -69,7 +69,7 @@ class UpdateAttempterAndroidTest : public ::testing::Test {
   FakeHardware hardware_;
 
   UpdateAttempterAndroid update_attempter_android_{
-      &daemon_state_, &prefs_, &boot_control_, &hardware_};
+      &daemon_state_, &prefs_, &boot_control_, &hardware_, nullptr};
 
   FakeClock* clock_;
   testing::NiceMock<MockMetricsReporter>* metrics_reporter_;

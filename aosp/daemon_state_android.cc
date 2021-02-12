@@ -18,6 +18,7 @@
 
 #include <base/logging.h>
 
+#include "update_engine/aosp/apex_handler_android.h"
 #include "update_engine/aosp/update_attempter_android.h"
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
@@ -64,8 +65,12 @@ bool DaemonStateAndroid::Initialize() {
   certificate_checker_->Init();
 
   // Initialize the UpdateAttempter before the UpdateManager.
-  update_attempter_.reset(new UpdateAttempterAndroid(
-      this, prefs_.get(), boot_control_.get(), hardware_.get()));
+  update_attempter_.reset(
+      new UpdateAttempterAndroid(this,
+                                 prefs_.get(),
+                                 boot_control_.get(),
+                                 hardware_.get(),
+                                 std::make_unique<ApexHandlerAndroid>()));
 
   return true;
 }
