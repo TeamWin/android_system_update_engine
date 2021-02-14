@@ -1200,22 +1200,32 @@ bool DynamicPartitionControlAndroid::ResetUpdate(PrefsInterface* prefs) {
 }
 
 bool DynamicPartitionControlAndroid::ListDynamicPartitionsForSlot(
-    uint32_t current_slot, std::vector<std::string>* partitions) {
-  if (!GetDynamicPartitionsFeatureFlag().IsEnabled()) {
-    LOG(ERROR) << "Dynamic partition is not enabled";
-    return false;
+    uint32_t slot,
+    uint32_t current_slot,
+    std::vector<std::string>* partitions) {
+  bool slot_enables_dynamic_partitions =
+      GetDynamicPartitionsFeatureFlag().IsEnabled();
+  // Check if the target slot has dynamic partitions, this may happen when
+  // applying a retrofit package.
+  if (slot != current_slot) {
+    slot_enables_dynamic_partitions =
+        slot_enables_dynamic_partitions && is_target_dynamic_;
+  }
+
+  if (!slot_enables_dynamic_partitions) {
+    LOG(INFO) << "Dynamic partition is not enabled for slot " << slot;
+    return true;
   }
 
   std::string device_dir_str;
   TEST_AND_RETURN_FALSE(GetDeviceDir(&device_dir_str));
   base::FilePath device_dir(device_dir_str);
-  auto super_device =
-      device_dir.Append(GetSuperPartitionName(current_slot)).value();
-  auto builder = LoadMetadataBuilder(super_device, current_slot);
+  auto super_device = device_dir.Append(GetSuperPartitionName(slot)).value();
+  auto builder = LoadMetadataBuilder(super_device, slot);
   TEST_AND_RETURN_FALSE(builder != nullptr);
 
   std::vector<std::string> result;
-  auto suffix = SlotSuffixForSlotNumber(current_slot);
+  auto suffix = SlotSuffixForSlotNumber(slot);
   for (const auto& group : builder->ListGroups()) {
     for (const auto& partition : builder->ListPartitionsInGroup(group)) {
       std::string_view partition_name = partition->name();
@@ -1332,7 +1342,9 @@ bool DynamicPartitionControlAndroid::IsDynamicPartition(
     const std::string& partition_name) {
   if (dynamic_partition_list_.empty() &&
       GetDynamicPartitionsFeatureFlag().IsEnabled()) {
-    CHECK(ListDynamicPartitionsForSlot(source_slot_, &dynamic_partition_list_));
+    // Use the DAP config of the target slot.
+    CHECK(ListDynamicPartitionsForSlot(
+        target_slot_, source_slot_, &dynamic_partition_list_));
   }
   return std::find(dynamic_partition_list_.begin(),
                    dynamic_partition_list_.end(),

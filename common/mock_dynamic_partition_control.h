@@ -72,8 +72,9 @@ class MockDynamicPartitionControl : public DynamicPartitionControlInterface {
               (override));
   MOCK_METHOD(bool,
               ListDynamicPartitionsForSlot,
-              (uint32_t, std::vector<std::string>*),
+              (uint32_t, uint32_t, std::vector<std::string>*),
               (override));
+
   MOCK_METHOD(bool,
               VerifyExtentsForUntouchedPartitions,
               (uint32_t, uint32_t, const std::vector<std::string>&),
