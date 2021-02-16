@@ -426,9 +426,9 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABC) {
       .Times(AtLeast(1));
   EXPECT_CALL(dynamic_control, OpenCowReader(part.name, {part.source_path}, _))
       .Times(1);
-  EXPECT_CALL(dynamic_control, ListDynamicPartitionsForSlot(_, _))
+  EXPECT_CALL(dynamic_control, ListDynamicPartitionsForSlot(_, _, _))
       .WillRepeatedly(
-          DoAll(SetArgPointee<1, std::vector<std::string>>({part.name}),
+          DoAll(SetArgPointee<2, std::vector<std::string>>({part.name}),
                 Return(true)));
 
   BuildActions(install_plan, &dynamic_control);
