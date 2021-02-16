@@ -436,8 +436,6 @@ class DeltaPerformer : public FileWriter {
 
   std::unique_ptr<PartitionWriter> partition_writer_;
 
-  // List of dynamic partitions on device.
-  std::vector<std::string> dynamic_partitions_;
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };
 
