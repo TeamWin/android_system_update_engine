@@ -134,11 +134,13 @@ class DynamicPartitionControlInterface {
   // allocated space for snapshot updates.
   virtual bool ResetUpdate(PrefsInterface* prefs) = 0;
 
-  // Reads the dynamic partitions metadata from the current slot, and puts the
+  // Reads the dynamic partitions metadata from the given slot, and puts the
   // name of the dynamic partitions with the current suffix to |partitions|.
   // Returns true on success.
   virtual bool ListDynamicPartitionsForSlot(
-      uint32_t current_slot, std::vector<std::string>* partitions) = 0;
+      uint32_t slot,
+      uint32_t current_slot,
+      std::vector<std::string>* partitions) = 0;
 
   // Finds a possible location that list all block devices by name; and puts
   // the result in |path|. Returns true on success.

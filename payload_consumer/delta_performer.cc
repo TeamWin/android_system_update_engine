@@ -644,11 +644,6 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     }
   }
 
-  auto dynamic_control = boot_control_->GetDynamicPartitionControl();
-  CHECK_NE(dynamic_control, nullptr);
-  TEST_AND_RETURN_FALSE(dynamic_control->ListDynamicPartitionsForSlot(
-      install_plan_->target_slot, &dynamic_partitions_));
-
   // Partitions in manifest are no longer needed after preparing partitions.
   manifest_.clear_partitions();
   // TODO(xunchang) TBD: allow partial update only on devices with dynamic
@@ -676,6 +671,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     std::vector<std::string> dynamic_partitions;
     if (!boot_control_->GetDynamicPartitionControl()
              ->ListDynamicPartitionsForSlot(install_plan_->source_slot,
+                                            boot_control_->GetCurrentSlot(),
                                             &dynamic_partitions)) {
       LOG(ERROR) << "Failed to load dynamic partitions from slot "
                  << install_plan_->source_slot;
@@ -1527,9 +1523,8 @@ bool DeltaPerformer::PrimeUpdateState() {
 }
 
 bool DeltaPerformer::IsDynamicPartition(const std::string& part_name) {
-  return std::find(dynamic_partitions_.begin(),
-                   dynamic_partitions_.end(),
-                   part_name) != dynamic_partitions_.end();
+  return boot_control_->GetDynamicPartitionControl()->IsDynamicPartition(
+      part_name);
 }
 
 std::unique_ptr<PartitionWriter> DeltaPerformer::CreatePartitionWriter(
