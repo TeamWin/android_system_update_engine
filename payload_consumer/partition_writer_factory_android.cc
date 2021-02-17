@@ -30,8 +30,7 @@ std::unique_ptr<PartitionWriter> CreatePartitionWriter(
     size_t block_size,
     bool is_interactive,
     bool is_dynamic_partition) {
-  if (dynamic_control &&
-      dynamic_control->GetVirtualAbCompressionFeatureFlag().IsEnabled() &&
+  if (dynamic_control && dynamic_control->UpdateUsesSnapshotCompression() &&
       is_dynamic_partition) {
     LOG(INFO)
         << "Virtual AB Compression Enabled, using VABC Partition Writer for `"

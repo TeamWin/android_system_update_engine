@@ -59,7 +59,8 @@ class DynamicPartitionControlAndroidTest : public ::testing::Test {
         .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
     ON_CALL(dynamicControl(), GetVirtualAbCompressionFeatureFlag())
         .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
-
+    ON_CALL(dynamicControl(), UpdateUsesSnapshotCompression())
+        .WillByDefault(Return(false));
     ON_CALL(dynamicControl(), GetDeviceDir(_))
         .WillByDefault(Invoke([](auto path) {
           *path = kFakeDevicePath;
@@ -399,6 +400,8 @@ TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePath) {
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ON_CALL(dynamicControl(), GetVirtualAbCompressionFeatureFlag())
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
+  ON_CALL(dynamicControl(), UpdateUsesSnapshotCompression())
+      .WillByDefault(Return(false));
   ON_CALL(dynamicControl(), IsDynamicPartition(_)).WillByDefault(Return(true));
 
   EXPECT_CALL(dynamicControl(),
@@ -437,6 +440,8 @@ TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePathVABC) {
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ON_CALL(dynamicControl(), GetVirtualAbCompressionFeatureFlag())
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  ON_CALL(dynamicControl(), UpdateUsesSnapshotCompression())
+      .WillByDefault(Return(true));
   EXPECT_CALL(dynamicControl(), IsDynamicPartition(_))
       .Times(AtLeast(1))
       .WillRepeatedly(Return(true));

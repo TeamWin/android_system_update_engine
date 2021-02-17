@@ -76,7 +76,7 @@ void PostinstallRunnerAction::PerformAction() {
   CHECK(dynamic_control);
 
   // Mount snapshot partitions for Virtual AB Compression Compression.
-  if (dynamic_control->GetVirtualAbCompressionFeatureFlag().IsEnabled()) {
+  if (dynamic_control->UpdateUsesSnapshotCompression()) {
     // Before calling MapAllPartitions to map snapshot devices, all CowWriters
     // must be closed, and MapAllPartitions() should be called.
     dynamic_control->UnmapAllPartitions();

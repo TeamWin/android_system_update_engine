@@ -167,7 +167,7 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   LOG(INFO) << "Hashing partition " << partition_index_ << " ("
             << partition.name << ") on device " << part_path;
   auto success = false;
-  if (dynamic_control_->GetVirtualAbCompressionFeatureFlag().IsEnabled() &&
+  if (dynamic_control_->UpdateUsesSnapshotCompression() &&
       dynamic_control_->IsDynamicPartition(partition.name) &&
       verifier_step_ == VerifierStep::kVerifyTargetHash) {
     success = InitializeFdVABC();
