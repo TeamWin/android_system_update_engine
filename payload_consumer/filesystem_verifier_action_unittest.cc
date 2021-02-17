@@ -415,14 +415,14 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABC) {
 
   ON_CALL(dynamic_control, GetDynamicPartitionsFeatureFlag())
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
-  ON_CALL(dynamic_control, GetVirtualAbCompressionFeatureFlag())
-      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  ON_CALL(dynamic_control, UpdateUsesSnapshotCompression())
+      .WillByDefault(Return(true));
   ON_CALL(dynamic_control, OpenCowReader(_, _, _))
       .WillByDefault(Return(nullptr));
   ON_CALL(dynamic_control, IsDynamicPartition(part.name))
       .WillByDefault(Return(true));
 
-  EXPECT_CALL(dynamic_control, GetVirtualAbCompressionFeatureFlag())
+  EXPECT_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .Times(AtLeast(1));
   EXPECT_CALL(dynamic_control, OpenCowReader(part.name, {part.source_path}, _))
       .Times(1);
