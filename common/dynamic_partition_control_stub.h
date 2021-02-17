@@ -50,7 +50,9 @@ class DynamicPartitionControlStub : public DynamicPartitionControlInterface {
   bool ResetUpdate(PrefsInterface* prefs) override;
 
   bool ListDynamicPartitionsForSlot(
-      uint32_t current_slot, std::vector<std::string>* partitions) override;
+      uint32_t slot,
+      uint32_t current_slot,
+      std::vector<std::string>* partitions) override;
   bool GetDeviceDir(std::string* path) override;
 
   bool VerifyExtentsForUntouchedPartitions(
