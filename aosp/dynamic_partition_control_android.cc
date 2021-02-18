@@ -1013,8 +1013,8 @@ DynamicPartitionControlAndroid::GetPartitionDevice(
   // target slot.
   const auto& partition_name_suffix =
       partition_name + SlotSuffixForSlotNumber(slot);
-  if (GetVirtualAbCompressionFeatureFlag().IsEnabled() &&
-      IsDynamicPartition(partition_name) && slot != current_slot) {
+  if (UpdateUsesSnapshotCompression() && IsDynamicPartition(partition_name) &&
+      slot != current_slot) {
     return {{.mountable_device_path =
                  GetStaticDevicePath(device_dir, partition_name_suffix),
              .is_dynamic = true}};
