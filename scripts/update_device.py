@@ -29,6 +29,7 @@ import socket
 import subprocess
 import sys
 import struct
+import tempfile
 import threading
 import xml.etree.ElementTree
 import zipfile
@@ -405,6 +406,9 @@ def main():
                       help='Update with the secondary payload in the package.')
   parser.add_argument('--no-slot-switch', action='store_true',
                       help='Do not perform slot switch after the update.')
+  parser.add_argument('--allocate_only', action='store_true',
+                      help='Allocate space for this OTA, instead of actually \
+                        applying the OTA.')
   args = parser.parse_args()
   logging.basicConfig(
       level=logging.WARNING if args.no_verbose else logging.INFO)
@@ -421,6 +425,34 @@ def main():
 
   help_cmd = ['shell', 'su', '0', 'update_engine_client', '--help']
   use_omaha = 'omaha' in dut.adb_output(help_cmd)
+
+  if args.allocate_only:
+    metadata_path = "/data/ota_package/metadata"
+    payload = update_payload.Payload(args.otafile)
+    payload.Init()
+    with tempfile.TemporaryDirectory() as tmpdir:
+      with zipfile.ZipFile(args.otafile, "r") as zfp:
+        extracted_path = os.path.join(tmpdir, "payload.bin")
+        with zfp.open("payload.bin") as payload_fp, \
+             open(extracted_path, "wb") as output_fp:
+          # Only extract the first |data_offset| bytes from the payload.
+          # This is because allocateSpaceForPayload only needs to see
+          # the manifest, not the entire payload.
+          # Extracting the entire payload works, but is slow for full
+          # OTA.
+          output_fp.write(payload_fp.read(payload.data_offset))
+
+        dut.adb([
+            "push",
+            extracted_path,
+            metadata_path
+        ])
+        dut.adb([
+            "shell", "update_engine_client", "--allocate",
+            "--metadata={}".format(metadata_path)])
+    # Return 0, as we are executing ADB commands here, no work needed after
+    # this point
+    return 0
 
   if args.no_slot_switch:
     args.extra_headers += "\nSWITCH_SLOT_ON_REBOOT=0"
