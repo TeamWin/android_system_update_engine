@@ -61,6 +61,9 @@ using test_utils::kRandomString;
 using test_utils::ScopedLoopMounter;
 using test_utils::System;
 using testing::_;
+using testing::IsEmpty;
+using testing::NiceMock;
+using testing::Not;
 using testing::Return;
 
 extern const char* kUnittestPrivateKeyPath;
@@ -717,7 +720,24 @@ static void ApplyDeltaFile(bool full_kernel,
     EXPECT_FALSE(rootfs_part.new_partition_info().hash().empty());
   }
 
-  MockPrefs prefs;
+  NiceMock<MockPrefs> prefs;
+  ON_CALL(prefs, SetInt64(kPrefsManifestMetadataSize, -1))
+      .WillByDefault(Return(true));
+  ON_CALL(prefs, SetInt64(kPrefsUpdateCheckResponseHash, -1))
+      .WillByDefault(Return(true));
+  ON_CALL(prefs, GetString(kPrefsUpdateCheckResponseHash, _))
+      .WillByDefault(Return(true));
+  ON_CALL(prefs, GetString(kPrefsDynamicPartitionMetadataUpdated, _))
+      .WillByDefault(Return(true));
+
+  // Set default expectation to ignore uninteresting calls to
+  // SetString/SetInt64. When starting an update delta_performer might reset
+  // update checkpoints, which results in a lot of calls with empty string or
+  // integer -1. Ignore these.
+  EXPECT_CALL(prefs, SetString(_, IsEmpty())).WillRepeatedly(Return(true));
+  EXPECT_CALL(prefs, SetInt64(_, -1)).WillRepeatedly(Return(true));
+  EXPECT_CALL(prefs, SetInt64(_, 0)).WillRepeatedly(Return(true));
+
   EXPECT_CALL(prefs, SetInt64(kPrefsManifestMetadataSize, state->metadata_size))
       .WillOnce(Return(true));
   EXPECT_CALL(
@@ -744,8 +764,9 @@ static void ApplyDeltaFile(bool full_kernel,
                                         state->metadata_size)))
       .WillRepeatedly(Return(true));
   if (op_hash_test == kValidOperationData && signature_test != kSignatureNone) {
-    EXPECT_CALL(prefs, SetString(kPrefsUpdateStateSignatureBlob, _))
-        .WillOnce(Return(true));
+    EXPECT_CALL(prefs,
+                SetString(kPrefsUpdateStateSignatureBlob, Not(IsEmpty())))
+        .WillRepeatedly(Return(true));
   }
 
   EXPECT_CALL(state->mock_delegate_, ShouldCancel(_))
