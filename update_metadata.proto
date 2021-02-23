@@ -354,6 +354,11 @@ message DynamicPartitionMetadata {
   // supports it, but not guaranteed.
   // VABC stands for Virtual AB Compression
   optional bool vabc_enabled = 3;
+
+  // The compression algorithm used by VABC. Available ones are "gz", "brotli".
+  // See system/core/fs_mgr/libsnapshot/cow_writer.cpp for available options,
+  // as this parameter is ultimated forwarded to libsnapshot's CowWriter
+  optional string vabc_compression_param = 4;
 }
 
 // Definition has been duplicated from
