@@ -71,9 +71,6 @@ using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
 
-// Don't change this path... apexd relies on it.
-constexpr const char* kApexReserveSpaceDir = "/data/apex/ota_reserved";
-
 namespace {
 
 // Minimum threshold to broadcast an status update in progress and time.
@@ -136,11 +133,13 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
     DaemonStateInterface* daemon_state,
     PrefsInterface* prefs,
     BootControlInterface* boot_control,
-    HardwareInterface* hardware)
+    HardwareInterface* hardware,
+    std::unique_ptr<ApexHandlerInterface> apex_handler)
     : daemon_state_(daemon_state),
       prefs_(prefs),
       boot_control_(boot_control),
       hardware_(hardware),
+      apex_handler_android_(std::move(apex_handler)),
       processor_(new ActionProcessor()),
       clock_(new Clock()) {
   metrics_reporter_ = metrics::CreateMetricsReporter(
@@ -967,28 +966,6 @@ BootControlInterface::Slot UpdateAttempterAndroid::GetTargetSlot() const {
   return GetCurrentSlot() == 0 ? 1 : 0;
 }
 
-static uint64_t allocateSpaceForApex(const DeltaArchiveManifest& manifest) {
-  // TODO(b/178696931) call apexd's binder once there is one.
-  uint64_t size_required = 0;
-  for (const auto& apex_info : manifest.apex_info()) {
-    if (apex_info.is_compressed()) {
-      size_required += apex_info.decompressed_size();
-    }
-  }
-  if (size_required == 0) {
-    return 0;
-  }
-  base::FilePath path{kApexReserveSpaceDir};
-  // The filename is not important, it just needs to be under
-  // kApexReserveSpaceDir. We call it "full.tmp" because the current space
-  // estimation is simply adding up all decompressed sizes.
-  path = path.Append("full.tmp");
-  if (!utils::ReserveStorageSpace(path.value().c_str(), size_required)) {
-    return size_required;
-  }
-  return 0;
-}
-
 uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
     const std::string& metadata_filename,
     const vector<string>& key_value_pair_headers,
@@ -1000,6 +977,13 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
   std::map<string, string> headers;
   if (!ParseKeyValuePairHeaders(key_value_pair_headers, &headers, error)) {
     return 0;
+  }
+
+  std::vector<ApexInfo> apex_infos(manifest.apex_info().begin(),
+                                   manifest.apex_info().end());
+  uint64_t apex_size_required = 0;
+  if (apex_handler_android_ != nullptr) {
+    apex_size_required = apex_handler_android_->CalculateSize(apex_infos);
   }
 
   string payload_id = GetPayloadId(headers);
@@ -1015,14 +999,17 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
       return 0;
     } else {
       LOG(ERROR) << "Insufficient space for payload: " << required_size
+                 << " bytes, apex decompression: " << apex_size_required
                  << " bytes";
-      return required_size;
+      return required_size + apex_size_required;
     }
   }
-  const auto apex_size = allocateSpaceForApex(manifest);
-  if (apex_size != 0) {
-    LOG(ERROR) << "Insufficient space for apex decompression: " << apex_size;
-    return required_size + apex_size;
+
+  if (apex_size_required > 0 && apex_handler_android_ != nullptr &&
+      !apex_handler_android_->AllocateSpace(apex_size_required)) {
+    LOG(ERROR) << "Insufficient space for apex decompression: "
+               << apex_size_required << " bytes";
+    return apex_size_required;
   }
 
   LOG(INFO) << "Successfully allocated space for payload.";

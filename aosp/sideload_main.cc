@@ -154,8 +154,11 @@ bool ApplyUpdatePayload(const string& payload,
     return false;
   }
 
-  UpdateAttempterAndroid update_attempter(
-      &sideload_daemon_state, &prefs, boot_control.get(), hardware.get());
+  UpdateAttempterAndroid update_attempter(&sideload_daemon_state,
+                                          &prefs,
+                                          boot_control.get(),
+                                          hardware.get(),
+                                          nullptr);
   update_attempter.Init();
 
   TEST_AND_RETURN_FALSE(update_attempter.ApplyPayload(
