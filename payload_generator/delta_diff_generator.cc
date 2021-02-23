@@ -132,11 +132,12 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
       *operations.Add() = aop.op;
     }
     *cow_size_ = EstimateCowSize(
-        source_fd,
+        std::move(source_fd),
         std::move(target_fd),
-        operations,
+        std::move(operations),
         {cow_merge_sequence_->begin(), cow_merge_sequence_->end()},
-        config_.block_size);
+        config_.block_size,
+        config_.target.dynamic_partition_metadata->vabc_compression_param());
     LOG(INFO) << "Estimated COW size for partition: " << new_part_.name << " "
               << *cow_size_;
   }
