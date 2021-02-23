@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
@@ -543,6 +544,31 @@ bool SetBlockDeviceReadOnly(const string& device, bool read_only) {
     PLOG(ERROR) << "Marking block device " << device
                 << " as read_only=" << expected_flag;
     return false;
+  }
+  return true;
+}
+
+bool ReserveStorageSpace(const char* path, uint64_t size) {
+  int fd = HANDLE_EINTR(open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600));
+
+  TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
+  ScopedFdCloser closer1{&fd};
+  if (ftruncate(fd, size) < 0) {
+    PLOG(WARNING) << "Failed to ftruncate " << path;
+  }
+  // 1MB buffer
+  std::vector<unsigned char> buffer(1 << 20);
+
+  while (size > 0) {
+    uint64_t bytes_to_write = std::min(size, (uint64_t)buffer.size());
+    if (!utils::WriteAll(fd, buffer.data(), bytes_to_write)) {
+      auto off = lseek64(fd, 0, SEEK_CUR);
+      PLOG(ERROR) << "Failed to write 0 to " << path << "offset: " << off
+                  << " size: " << size;
+      unlink(path);
+      return false;
+    }
+    size -= bytes_to_write;
   }
   return true;
 }
