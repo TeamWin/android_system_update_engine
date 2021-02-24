@@ -180,7 +180,10 @@ bool ImageConfig::LoadDynamicPartitionMetadata(
   if (store.GetBoolean("virtual_ab_compression", &vabc_enabled)) {
     metadata->set_vabc_enabled(vabc_enabled);
   }
-
+  // We use "gz" compression by default for VABC.
+  if (metadata->vabc_enabled()) {
+    metadata->set_vabc_compression_param("gz");
+  }
   dynamic_partition_metadata = std::move(metadata);
   return true;
 }

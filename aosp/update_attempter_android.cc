@@ -133,11 +133,13 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
     DaemonStateInterface* daemon_state,
     PrefsInterface* prefs,
     BootControlInterface* boot_control,
-    HardwareInterface* hardware)
+    HardwareInterface* hardware,
+    std::unique_ptr<ApexHandlerInterface> apex_handler)
     : daemon_state_(daemon_state),
       prefs_(prefs),
       boot_control_(boot_control),
       hardware_(hardware),
+      apex_handler_android_(std::move(apex_handler)),
       processor_(new ActionProcessor()),
       clock_(new Clock()) {
   metrics_reporter_ = metrics::CreateMetricsReporter(
@@ -977,6 +979,13 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
     return 0;
   }
 
+  std::vector<ApexInfo> apex_infos(manifest.apex_info().begin(),
+                                   manifest.apex_info().end());
+  uint64_t apex_size_required = 0;
+  if (apex_handler_android_ != nullptr) {
+    apex_size_required = apex_handler_android_->CalculateSize(apex_infos);
+  }
+
   string payload_id = GetPayloadId(headers);
   uint64_t required_size = 0;
   if (!DeltaPerformer::PreparePartitionsForUpdate(prefs_,
@@ -990,9 +999,17 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
       return 0;
     } else {
       LOG(ERROR) << "Insufficient space for payload: " << required_size
+                 << " bytes, apex decompression: " << apex_size_required
                  << " bytes";
-      return required_size;
+      return required_size + apex_size_required;
     }
+  }
+
+  if (apex_size_required > 0 && apex_handler_android_ != nullptr &&
+      !apex_handler_android_->AllocateSpace(apex_size_required)) {
+    LOG(ERROR) << "Insufficient space for apex decompression: "
+               << apex_size_required << " bytes";
+    return apex_size_required;
   }
 
   LOG(INFO) << "Successfully allocated space for payload.";

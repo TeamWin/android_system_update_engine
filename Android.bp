@@ -332,6 +332,7 @@ cc_defaults {
         "PlatformProperties",
     ],
     shared_libs: [
+        "apex_aidl_interface-cpp",
         "libandroid_net",
         "libbase",
         "libbinder",
@@ -367,6 +368,7 @@ cc_library_static {
     srcs: [
         ":libupdate_engine_aidl",
         "common/system_state.cc",
+        "aosp/apex_handler_android.cc",
         "aosp/binder_service_android.cc",
         "aosp/binder_service_stable_android.cc",
         "aosp/daemon_android.cc",
@@ -740,6 +742,7 @@ cc_test {
     test_suites: ["device-tests"],
 
     srcs: [
+        "aosp/apex_handler_android_unittest.cc",
         "aosp/dynamic_partition_control_android_unittest.cc",
         "aosp/update_attempter_android_unittest.cc",
         "certificate_checker_unittest.cc",
