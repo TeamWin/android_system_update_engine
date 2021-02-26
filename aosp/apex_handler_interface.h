@@ -19,6 +19,8 @@
 
 #include <vector>
 
+#include <android-base/result.h>
+
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -26,9 +28,9 @@ namespace chromeos_update_engine {
 class ApexHandlerInterface {
  public:
   virtual ~ApexHandlerInterface() = default;
-  virtual uint64_t CalculateSize(
+  virtual android::base::Result<uint64_t> CalculateSize(
       const std::vector<ApexInfo>& apex_infos) const = 0;
-  virtual bool AllocateSpace(const uint64_t size_required) const = 0;
+  virtual bool AllocateSpace(const std::vector<ApexInfo>& apex_infos) const = 0;
 };
 
 }  // namespace chromeos_update_engine

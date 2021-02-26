@@ -23,32 +23,15 @@
 
 namespace chromeos_update_engine {
 
-// Don't change this path... apexd relies on it.
-constexpr const char* kApexReserveSpaceDir = "/data/apex/ota_reserved";
+namespace {
 
-uint64_t ApexHandlerAndroid::CalculateSize(
-    const std::vector<ApexInfo>& apex_infos) const {
-  return CalculateSize(apex_infos, GetApexService());
-}
-
-uint64_t ApexHandlerAndroid::CalculateSize(
-    const std::vector<ApexInfo>& apex_infos,
-    android::sp<android::apex::IApexService> apex_service) const {
-  // The safest option is to allocate space for every compressed APEX
-  uint64_t size_required_default = 0;
-
-  // We might not need to decompress every APEX. Communicate with apexd to get
-  // accurate requirement.
-  int64_t size_from_apexd;
+android::apex::CompressedApexInfoList CreateCompressedApexInfoList(
+    const std::vector<ApexInfo>& apex_infos) {
   android::apex::CompressedApexInfoList compressed_apex_info_list;
-
   for (const auto& apex_info : apex_infos) {
     if (!apex_info.is_compressed()) {
       continue;
     }
-
-    size_required_default += apex_info.decompressed_size();
-
     android::apex::CompressedApexInfo compressed_apex_info;
     compressed_apex_info.moduleName = apex_info.package_name();
     compressed_apex_info.versionCode = apex_info.version();
@@ -56,33 +39,41 @@ uint64_t ApexHandlerAndroid::CalculateSize(
     compressed_apex_info_list.apexInfos.emplace_back(
         std::move(compressed_apex_info));
   }
-  if (size_required_default == 0 || apex_service == nullptr) {
-    return size_required_default;
+  return compressed_apex_info_list;
+}
+
+}  // namespace
+
+android::base::Result<uint64_t> ApexHandlerAndroid::CalculateSize(
+    const std::vector<ApexInfo>& apex_infos) const {
+  // We might not need to decompress every APEX. Communicate with apexd to get
+  // accurate requirement.
+  auto apex_service = GetApexService();
+  if (apex_service == nullptr) {
+    return android::base::Error() << "Failed to get hold of apexservice";
   }
 
+  auto compressed_apex_info_list = CreateCompressedApexInfoList(apex_infos);
+  int64_t size_from_apexd;
   auto result = apex_service->calculateSizeForCompressedApex(
       compressed_apex_info_list, &size_from_apexd);
   if (!result.isOk()) {
-    return size_required_default;
+    return android::base::Error()
+           << "Failed to get size required from apexservice";
   }
   return size_from_apexd;
 }
 
-bool ApexHandlerAndroid::AllocateSpace(const uint64_t size_required) const {
-  return AllocateSpace(size_required, kApexReserveSpaceDir);
-}
-
-bool ApexHandlerAndroid::AllocateSpace(const uint64_t size_required,
-                                       const std::string& dir_path) const {
-  if (size_required == 0) {
-    return true;
+bool ApexHandlerAndroid::AllocateSpace(
+    const std::vector<ApexInfo>& apex_infos) const {
+  auto apex_service = GetApexService();
+  if (apex_service == nullptr) {
+    return false;
   }
-  base::FilePath path{dir_path};
-  // The filename is not important, it just needs to be under
-  // kApexReserveSpaceDir. We call it "full.tmp" because the current space
-  // estimation is simply adding up all decompressed sizes.
-  path = path.Append("full.tmp");
-  return utils::ReserveStorageSpace(path.value().c_str(), size_required);
+  auto compressed_apex_info_list = CreateCompressedApexInfoList(apex_infos);
+  auto result =
+      apex_service->reserveSpaceForCompressedApex(compressed_apex_info_list);
+  return result.isOk();
 }
 
 android::sp<android::apex::IApexService> ApexHandlerAndroid::GetApexService()
