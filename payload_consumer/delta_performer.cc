@@ -802,6 +802,7 @@ bool DeltaPerformer::PreparePartitionsForUpdate(
   } else {
     LOG(INFO) << "Preparing partitions for new update. last hash = "
               << last_hash << ", new hash = " << update_check_response_hash;
+    ResetUpdateProgress(prefs, false);
   }
 
   if (!boot_control->GetDynamicPartitionControl()->PreparePartitionsForUpdate(
