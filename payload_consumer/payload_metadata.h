@@ -56,6 +56,9 @@ class PayloadMetadata {
   // the payload.
   MetadataParseResult ParsePayloadHeader(const brillo::Blob& payload,
                                          ErrorCode* error);
+  MetadataParseResult ParsePayloadHeader(const unsigned char* payload,
+                                         size_t size,
+                                         ErrorCode* error);
   // Simpler version of the above, returns true on success.
   bool ParsePayloadHeader(const brillo::Blob& payload);
 
@@ -86,6 +89,10 @@ class PayloadMetadata {
   // Set |*out_manifest| to the manifest in |payload|.
   // Returns true on success.
   bool GetManifest(const brillo::Blob& payload,
+                   DeltaArchiveManifest* out_manifest) const;
+
+  bool GetManifest(const unsigned char* payload,
+                   size_t size,
                    DeltaArchiveManifest* out_manifest) const;
 
   // Parses a payload file |payload_path| and prepares the metadata properties,
