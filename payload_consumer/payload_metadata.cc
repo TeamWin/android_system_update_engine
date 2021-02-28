@@ -50,12 +50,17 @@ uint64_t PayloadMetadata::GetManifestOffset() const {
 
 MetadataParseResult PayloadMetadata::ParsePayloadHeader(
     const brillo::Blob& payload, ErrorCode* error) {
+  return ParsePayloadHeader(payload.data(), payload.size(), error);
+}
+
+MetadataParseResult PayloadMetadata::ParsePayloadHeader(
+    const unsigned char* payload, size_t size, ErrorCode* error) {
   // Ensure we have data to cover the major payload version.
-  if (payload.size() < kDeltaManifestSizeOffset)
+  if (size < kDeltaManifestSizeOffset)
     return MetadataParseResult::kInsufficientData;
 
   // Validate the magic string.
-  if (memcmp(payload.data(), kDeltaMagic, sizeof(kDeltaMagic)) != 0) {
+  if (memcmp(payload, kDeltaMagic, sizeof(kDeltaMagic)) != 0) {
     LOG(ERROR) << "Bad payload format -- invalid delta magic: "
                << base::StringPrintf("%02x%02x%02x%02x",
                                      payload[0],
@@ -74,7 +79,7 @@ MetadataParseResult PayloadMetadata::ParsePayloadHeader(
 
   uint64_t manifest_offset = GetManifestOffset();
   // Check again with the manifest offset.
-  if (payload.size() < manifest_offset)
+  if (size < manifest_offset)
     return MetadataParseResult::kInsufficientData;
 
   // Extract the payload version from the metadata.
@@ -136,8 +141,14 @@ bool PayloadMetadata::ParsePayloadHeader(const brillo::Blob& payload) {
 
 bool PayloadMetadata::GetManifest(const brillo::Blob& payload,
                                   DeltaArchiveManifest* out_manifest) const {
+  return GetManifest(payload.data(), payload.size(), out_manifest);
+}
+
+bool PayloadMetadata::GetManifest(const unsigned char* payload,
+                                  size_t size,
+                                  DeltaArchiveManifest* out_manifest) const {
   uint64_t manifest_offset = GetManifestOffset();
-  CHECK_GE(payload.size(), manifest_offset + manifest_size_);
+  CHECK_GE(size, manifest_offset + manifest_size_);
   return out_manifest->ParseFromArray(&payload[manifest_offset],
                                       manifest_size_);
 }
