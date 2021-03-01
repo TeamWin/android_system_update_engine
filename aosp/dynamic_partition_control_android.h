@@ -20,6 +20,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <base/files/file_util.h>
@@ -33,6 +34,10 @@ namespace chromeos_update_engine {
 
 class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
  public:
+  // A directory where all partitions mapped by VABC is expected to be found.
+  // Per earlier discussion with VAB team, this directory is unlikely to change.
+  // So we declare it as a constant here.
+  static constexpr std::string_view VABC_DEVICE_DIR = "/dev/block/mapper/";
   DynamicPartitionControlAndroid();
   ~DynamicPartitionControlAndroid();
 
