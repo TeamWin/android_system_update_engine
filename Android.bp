@@ -537,6 +537,7 @@ cc_defaults {
         "libverity_tree",
         "update_metadata-protos",
         "libpayload_extent_utils",
+        "libcow_size_estimator",
     ],
     shared_libs: [
         "libbase",
@@ -560,6 +561,25 @@ cc_library_static {
 }
 
 cc_library_static {
+    name: "libcow_size_estimator",
+    defaults: [
+        "ue_defaults",
+        "update_metadata-protos_exports"
+    ],
+    host_supported: true,
+    recovery_available: true,
+    srcs: [
+        "payload_generator/cow_size_estimator.cc",
+    ],
+    static_libs: [
+        "update_metadata-protos",
+        "libbase",
+        "libsnapshot_cow",
+        "libcow_operation_convert",
+    ],
+}
+
+cc_library_static {
     name: "libpayload_generator",
     defaults: [
         "ue_defaults",
@@ -576,7 +596,6 @@ cc_library_static {
         "payload_generator/block_mapping.cc",
         "payload_generator/boot_img_filesystem.cc",
         "payload_generator/bzip.cc",
-        "payload_generator/cow_size_estimator.cc",
         "payload_generator/deflate_utils.cc",
         "payload_generator/delta_diff_generator.cc",
         "payload_generator/delta_diff_utils.cc",
@@ -851,4 +870,28 @@ cc_library_headers {
             enabled: false,
         },
     }
+}
+
+cc_binary_host {
+    name: "cow_converter",
+    defaults: [
+        "ue_defaults",
+        "libpayload_consumer_exports",
+    ],
+    srcs: [
+        "aosp/cow_converter.cc",
+    ],
+    static_libs: [
+        "liblog",
+        "libbrotli",
+        "libbase",
+        "libcow_operation_convert",
+        "libcow_size_estimator",
+        "libpayload_consumer",
+        "libpayload_extent_ranges",
+        "libpayload_extent_utils",
+        "libsnapshot_cow",
+        "libz",
+        "update_metadata-protos",
+    ],
 }
