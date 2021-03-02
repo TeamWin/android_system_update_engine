@@ -132,7 +132,6 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
       *operations.Add() = aop.op;
     }
     *cow_size_ = EstimateCowSize(
-        std::move(source_fd),
         std::move(target_fd),
         std::move(operations),
         {cow_merge_sequence_->begin(), cow_merge_sequence_->end()},

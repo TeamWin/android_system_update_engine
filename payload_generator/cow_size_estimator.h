@@ -16,24 +16,33 @@
 #include <cstddef>
 #include <string>
 
+#include <libsnapshot/cow_writer.h>
 #include <update_engine/update_metadata.pb.h>
 
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 
 namespace chromeos_update_engine {
-// Given file descriptor to the source image, target image, and list of
+// Given file descriptor to the target image, and list of
 // operations, estimate the size of COW image if the operations are applied on
 // Virtual AB Compression enabled device. This is intended to be used by update
 // generators to put an estimate cow size in OTA payload. When installing an OTA
 // update, libsnapshot will take this estimate as a hint to allocate spaces.
 size_t EstimateCowSize(
-    FileDescriptorPtr source_fd,
     FileDescriptorPtr target_fd,
     const google::protobuf::RepeatedPtrField<InstallOperation>& operations,
     const google::protobuf::RepeatedPtrField<CowMergeOperation>&
         merge_operations,
     size_t block_size,
     std::string compression);
+
+// Convert InstallOps to CowOps and apply the converted cow op to |cow_writer|
+bool CowDryRun(
+    FileDescriptorPtr target_fd,
+    const google::protobuf::RepeatedPtrField<InstallOperation>& operations,
+    const google::protobuf::RepeatedPtrField<CowMergeOperation>&
+        merge_operations,
+    size_t block_size,
+    android::snapshot::CowWriter* cow_writer);
 
 }  // namespace chromeos_update_engine
