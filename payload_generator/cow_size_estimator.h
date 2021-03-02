@@ -20,7 +20,6 @@
 #include <update_engine/update_metadata.pb.h>
 
 #include "update_engine/payload_consumer/file_descriptor.h"
-#include "update_engine/payload_generator/delta_diff_generator.h"
 
 namespace chromeos_update_engine {
 // Given file descriptor to the target image, and list of
