@@ -231,11 +231,6 @@ struct PayloadGenerationConfig {
   // The maximum timestamp of the OS allowed to apply this payload.
   int64_t max_timestamp = 0;
 
-  // Permit use of VABC by default. Even if this is set to true, the device must
-  // support VABC in order to use it. If this is set to false, device must not
-  // use VABC regardless.
-  bool disable_vabc = false;
-
   // Path to apex_info.pb, extracted from target_file.zip
   std::string apex_info_file;
 };
