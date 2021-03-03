@@ -1015,9 +1015,11 @@ DynamicPartitionControlAndroid::GetPartitionDevice(
       partition_name + SlotSuffixForSlotNumber(slot);
   if (UpdateUsesSnapshotCompression() && IsDynamicPartition(partition_name) &&
       slot != current_slot) {
-    return {{.mountable_device_path =
-                 GetStaticDevicePath(device_dir, partition_name_suffix),
-             .is_dynamic = true}};
+    return {
+        {.mountable_device_path = base::FilePath{std::string{VABC_DEVICE_DIR}}
+                                      .Append(partition_name_suffix)
+                                      .value(),
+         .is_dynamic = true}};
   }
 
   // When looking up target partition devices, treat them as static if the
