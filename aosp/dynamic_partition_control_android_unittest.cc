@@ -472,7 +472,10 @@ TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePathVABC) {
   auto device_info =
       dynamicControl().GetPartitionDevice("system", target(), source(), false);
   ASSERT_TRUE(device_info.has_value());
-  ASSERT_EQ(device_info->mountable_device_path, GetDevice(T("system")));
+  base::FilePath vabc_device_dir{
+      std::string{DynamicPartitionControlAndroid::VABC_DEVICE_DIR}};
+  ASSERT_EQ(device_info->mountable_device_path,
+            vabc_device_dir.Append(T("system")).value());
 }
 
 TEST_P(DynamicPartitionControlAndroidTestP,
@@ -1102,7 +1105,8 @@ TEST_P(SnapshotPartitionTestP, RecoveryErrorShouldDeleteSource) {
   SetMetadata(
       source(), {{S("system"), 2_GiB}, {S("vendor"), 1_GiB}}, 0, super_size);
   ExpectUnmap({T("system"), T("vendor")});
-  // Expect that the source partitions aren't present in target super metadata.
+  // Expect that the source partitions aren't present in target super
+  // metadata.
   ExpectStoreMetadata({{T("system"), 3_GiB}, {T("vendor"), 1_GiB}});
 
   uint64_t required_size = 0;
