@@ -116,6 +116,7 @@ size_t EstimateCowSize(
   cow_writer.Initialize(android::base::borrowed_fd{-1});
   CHECK(CowDryRun(
       target_fd, operations, merge_operations, block_size, &cow_writer));
+  CHECK(cow_writer.Finalize());
   return cow_writer.GetCowSize();
 }
 
