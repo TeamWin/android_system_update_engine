@@ -409,6 +409,8 @@ def main():
   parser.add_argument('--allocate_only', action='store_true',
                       help='Allocate space for this OTA, instead of actually \
                         applying the OTA.')
+  parser.add_argument('--no_care_map', action='store_true',
+                      help='Do not push care_map.pb to device.')
   args = parser.parse_args()
   logging.basicConfig(
       level=logging.WARNING if args.no_verbose else logging.INFO)
@@ -434,7 +436,7 @@ def main():
       with zipfile.ZipFile(args.otafile, "r") as zfp:
         extracted_path = os.path.join(tmpdir, "payload.bin")
         with zfp.open("payload.bin") as payload_fp, \
-             open(extracted_path, "wb") as output_fp:
+                open(extracted_path, "wb") as output_fp:
           # Only extract the first |data_offset| bytes from the payload.
           # This is because allocateSpaceForPayload only needs to see
           # the manifest, not the entire payload.
@@ -456,6 +458,17 @@ def main():
 
   if args.no_slot_switch:
     args.extra_headers += "\nSWITCH_SLOT_ON_REBOOT=0"
+
+  with zipfile.ZipFile(args.otafile) as zfp:
+    CARE_MAP_ENTRY_NAME = "care_map.pb"
+    if CARE_MAP_ENTRY_NAME in zfp.namelist() and not args.no_care_map:
+      # Need root permission to push to /data
+      dut.adb(["root"])
+      with tempfile.NamedTemporaryFile("w+") as care_map_fp:
+        care_map_fp.write(zfp.read(CARE_MAP_ENTRY_NAME))
+        care_map_fp.flush()
+        dut.adb(["push", care_map_fp.name,
+                 "/data/ota_package/" + CARE_MAP_ENTRY_NAME])
 
   if args.file:
     # Update via pushing a file to /data.
