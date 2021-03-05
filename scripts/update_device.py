@@ -464,7 +464,7 @@ def main():
     if CARE_MAP_ENTRY_NAME in zfp.namelist() and not args.no_care_map:
       # Need root permission to push to /data
       dut.adb(["root"])
-      with tempfile.NamedTemporaryFile("w+") as care_map_fp:
+      with tempfile.NamedTemporaryFile() as care_map_fp:
         care_map_fp.write(zfp.read(CARE_MAP_ENTRY_NAME))
         care_map_fp.flush()
         dut.adb(["push", care_map_fp.name,
