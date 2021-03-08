@@ -240,13 +240,13 @@ bool DeltaPerformer::OpenCurrentPartition() {
   const InstallPlan::Partition& install_part =
       install_plan_->partitions[num_previous_partitions + current_partition_];
   auto dynamic_control = boot_control_->GetDynamicPartitionControl();
-  partition_writer_ =
-      CreatePartitionWriter(partition,
-                            install_part,
-                            dynamic_control,
-                            block_size_,
-                            interactive_,
-                            IsDynamicPartition(install_part.name));
+  partition_writer_ = CreatePartitionWriter(
+      partition,
+      install_part,
+      dynamic_control,
+      block_size_,
+      interactive_,
+      IsDynamicPartition(install_part.name, install_plan_->target_slot));
   // Open source fds if we have a delta payload, or for partitions in the
   // partial update.
   bool source_may_exist = manifest_.partial_update() ||
@@ -1520,9 +1520,10 @@ bool DeltaPerformer::PrimeUpdateState() {
   return true;
 }
 
-bool DeltaPerformer::IsDynamicPartition(const std::string& part_name) {
+bool DeltaPerformer::IsDynamicPartition(const std::string& part_name,
+                                        uint32_t slot) {
   return boot_control_->GetDynamicPartitionControl()->IsDynamicPartition(
-      part_name);
+      part_name, slot);
 }
 
 std::unique_ptr<PartitionWriter> DeltaPerformer::CreatePartitionWriter(
@@ -1538,7 +1539,7 @@ std::unique_ptr<PartitionWriter> DeltaPerformer::CreatePartitionWriter(
       dynamic_control,
       block_size_,
       interactive_,
-      IsDynamicPartition(install_part.name));
+      IsDynamicPartition(install_part.name, install_plan_->target_slot));
 }
 
 }  // namespace chromeos_update_engine

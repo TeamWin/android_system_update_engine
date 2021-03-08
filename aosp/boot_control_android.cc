@@ -67,7 +67,8 @@ bool BootControlAndroid::Init() {
 
   LOG(INFO) << "Loaded boot control hidl hal.";
 
-  dynamic_control_ = std::make_unique<DynamicPartitionControlAndroid>();
+  dynamic_control_ =
+      std::make_unique<DynamicPartitionControlAndroid>(GetCurrentSlot());
 
   return true;
 }
