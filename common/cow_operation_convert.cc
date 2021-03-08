@@ -20,6 +20,7 @@
 
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
+#include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
 
@@ -40,6 +41,9 @@ std::vector<CowOperation> ConvertToCowOperations(
   // This loop handles CowCopy blocks within SOURCE_COPY, and the next loop
   // converts the leftover blocks to CowReplace?
   for (const auto& merge_op : merge_operations) {
+    if (merge_op.type() != CowMergeOperation::COW_COPY) {
+      continue;
+    }
     merge_extents.AddExtent(merge_op.dst_extent());
     const auto& src_extent = merge_op.src_extent();
     const auto& dst_extent = merge_op.dst_extent();
