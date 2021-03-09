@@ -385,6 +385,28 @@ class AdbHost(object):
     return subprocess.check_output(command, universal_newlines=True)
 
 
+def PushMetadata(dut, otafile, metadata_path):
+  payload = update_payload.Payload(otafile)
+  payload.Init()
+  with tempfile.TemporaryDirectory() as tmpdir:
+    with zipfile.ZipFile(otafile, "r") as zfp:
+      extracted_path = os.path.join(tmpdir, "payload.bin")
+      with zfp.open("payload.bin") as payload_fp, \
+              open(extracted_path, "wb") as output_fp:
+          # Only extract the first |data_offset| bytes from the payload.
+          # This is because allocateSpaceForPayload only needs to see
+          # the manifest, not the entire payload.
+          # Extracting the entire payload works, but is slow for full
+          # OTA.
+        output_fp.write(payload_fp.read(payload.data_offset))
+
+      return dut.adb([
+          "push",
+          extracted_path,
+          metadata_path
+      ]) == 0
+
+
 def main():
   parser = argparse.ArgumentParser(description='Android A/B OTA helper.')
   parser.add_argument('otafile', metavar='PAYLOAD', type=str,
@@ -409,6 +431,8 @@ def main():
   parser.add_argument('--allocate_only', action='store_true',
                       help='Allocate space for this OTA, instead of actually \
                         applying the OTA.')
+  parser.add_argument('--verify_only', action='store_true',
+                      help='Verify metadata then exit, instead of applying the OTA.')
   parser.add_argument('--no_care_map', action='store_true',
                       help='Do not push care_map.pb to device.')
   args = parser.parse_args()
@@ -428,30 +452,20 @@ def main():
   help_cmd = ['shell', 'su', '0', 'update_engine_client', '--help']
   use_omaha = 'omaha' in dut.adb_output(help_cmd)
 
+  metadata_path = "/data/ota_package/metadata"
   if args.allocate_only:
-    metadata_path = "/data/ota_package/metadata"
-    payload = update_payload.Payload(args.otafile)
-    payload.Init()
-    with tempfile.TemporaryDirectory() as tmpdir:
-      with zipfile.ZipFile(args.otafile, "r") as zfp:
-        extracted_path = os.path.join(tmpdir, "payload.bin")
-        with zfp.open("payload.bin") as payload_fp, \
-                open(extracted_path, "wb") as output_fp:
-          # Only extract the first |data_offset| bytes from the payload.
-          # This is because allocateSpaceForPayload only needs to see
-          # the manifest, not the entire payload.
-          # Extracting the entire payload works, but is slow for full
-          # OTA.
-          output_fp.write(payload_fp.read(payload.data_offset))
-
-        dut.adb([
-            "push",
-            extracted_path,
-            metadata_path
-        ])
-        dut.adb([
-            "shell", "update_engine_client", "--allocate",
-            "--metadata={}".format(metadata_path)])
+    if PushMetadata(dut, args.otafile, metadata_path):
+      dut.adb([
+          "shell", "update_engine_client", "--allocate",
+          "--metadata={}".format(metadata_path)])
+    # Return 0, as we are executing ADB commands here, no work needed after
+    # this point
+    return 0
+  if args.verify_only:
+    if PushMetadata(dut, args.otafile, metadata_path):
+      dut.adb([
+          "shell", "update_engine_client", "--verify",
+          "--metadata={}".format(metadata_path)])
     # Return 0, as we are executing ADB commands here, no work needed after
     # this point
     return 0

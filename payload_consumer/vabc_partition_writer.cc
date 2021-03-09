@@ -102,11 +102,11 @@ bool VABCPartitionWriter::WriteAllCowOps(
   std::vector<uint8_t> buffer(block_size);
 
   for (const auto& cow_op : converted) {
-    if (cow_op.src_block == cow_op.dst_block) {
-      continue;
-    }
     switch (cow_op.op) {
       case CowOperation::CowCopy:
+        if (cow_op.src_block == cow_op.dst_block) {
+          continue;
+        }
         TEST_AND_RETURN_FALSE(
             cow_writer->AddCopy(cow_op.dst_block, cow_op.src_block));
         break;
