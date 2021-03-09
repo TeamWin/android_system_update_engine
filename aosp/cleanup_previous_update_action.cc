@@ -395,9 +395,9 @@ void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
     return;
   }
 
-  uint64_t cow_file_size;
-  if (snapshot_->InitiateMerge(&cow_file_size)) {
-    merge_stats_->set_cow_file_size(cow_file_size);
+  snapshot_->UpdateCowStats(merge_stats_);
+
+  if (snapshot_->InitiateMerge()) {
     WaitForMergeOrSchedule();
     return;
   }
