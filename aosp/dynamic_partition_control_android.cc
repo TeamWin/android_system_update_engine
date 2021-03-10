@@ -939,6 +939,12 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
                    << " to size " << partition_size << ". Not enough space?";
         return false;
       }
+      if (p->size() < partition_size) {
+        LOG(ERROR) << "Partition " << partition_name_suffix
+                   << " was expected to have size " << partition_size
+                   << ", but instead has size " << p->size();
+        return false;
+      }
       LOG(INFO) << "Added partition " << partition_name_suffix << " to group "
                 << group_name_suffix << " with size " << partition_size;
     }
