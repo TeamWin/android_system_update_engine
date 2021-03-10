@@ -177,7 +177,9 @@ bool ImageConfig::LoadDynamicPartitionMetadata(
   store.GetBoolean("virtual_ab", &snapshot_enabled);
   metadata->set_snapshot_enabled(snapshot_enabled);
   bool vabc_enabled = false;
-  if (store.GetBoolean("virtual_ab_compression", &vabc_enabled)) {
+  if (store.GetBoolean("virtual_ab_compression", &vabc_enabled) &&
+      vabc_enabled) {
+    LOG(INFO) << "Target build supports VABC";
     metadata->set_vabc_enabled(vabc_enabled);
   }
   // We use "gz" compression by default for VABC.

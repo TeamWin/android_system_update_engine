@@ -72,11 +72,6 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
     *(manifest_.mutable_dynamic_partition_metadata()) =
         *(config.target.dynamic_partition_metadata);
 
-  if (config.disable_vabc) {
-    manifest_.mutable_dynamic_partition_metadata()->set_vabc_enabled(false);
-    manifest_.mutable_dynamic_partition_metadata()->set_vabc_compression_param(
-        "");
-  }
   if (config.is_partial_update) {
     manifest_.set_partial_update(true);
   }
