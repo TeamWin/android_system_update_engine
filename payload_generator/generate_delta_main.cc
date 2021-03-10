@@ -599,7 +599,6 @@ int Main(int argc, char** argv) {
   if (FLAGS_is_partial_update) {
     payload_config.is_partial_update = true;
   }
-  payload_config.disable_vabc = FLAGS_disable_vabc;
 
   if (!FLAGS_in_file.empty()) {
     return ApplyPayload(FLAGS_in_file, payload_config) ? 0 : 1;
@@ -627,6 +626,12 @@ int Main(int argc, char** argv) {
     CHECK(store.Load(base::FilePath(FLAGS_dynamic_partition_info_file)));
     CHECK(payload_config.target.LoadDynamicPartitionMetadata(store));
     CHECK(payload_config.target.ValidateDynamicPartitionMetadata());
+    if (FLAGS_disable_vabc) {
+      LOG(INFO) << "Disabling VABC";
+      payload_config.target.dynamic_partition_metadata->set_vabc_enabled(false);
+      payload_config.target.dynamic_partition_metadata
+          ->set_vabc_compression_param("");
+    }
   }
 
   CHECK(!FLAGS_out_file.empty());

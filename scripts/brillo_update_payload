@@ -708,10 +708,11 @@ cmd_generate() {
       GENERATOR_ARGS+=(
         --disable_verity_computation="${FLAGS_disable_verity_computation}" )
     fi
-    if [[ -n "${FLAGS_disable_vabc}" ]]; then
-      GENERATOR_ARGS+=(
-        --disable_vabc="${FLAGS_disable_vabc}" )
-    fi
+  fi
+
+  if [[ -n "${FLAGS_disable_vabc}" ]]; then
+    GENERATOR_ARGS+=(
+      --disable_vabc="${FLAGS_disable_vabc}" )
   fi
 
   # minor version is set only for delta or partial payload.
