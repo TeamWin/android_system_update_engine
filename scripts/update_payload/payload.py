@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import hashlib
 import io
+import mmap
 import struct
 import zipfile
 
@@ -123,10 +124,11 @@ class Payload(object):
     """
     if zipfile.is_zipfile(payload_file):
       with zipfile.ZipFile(payload_file) as zfp:
-        with zfp.open("payload.bin") as payload_fp:
-          self.payload_file = io.BytesIO(payload_fp.read())
+        self.payload_file = zfp.open("payload.bin", "r")
     elif isinstance(payload_file, str):
-      self.payload_file = open(payload_file, "rb")
+      payload_fp = open(payload_file, "rb")
+      payload_bytes = mmap.mmap(payload_fp.fileno(), 0, access=mmap.ACCESS_READ)
+      self.payload_file = io.BytesIO(payload_bytes)
     else:
       self.payload_file = payload_file
     self.payload_file_offset = payload_file_offset
