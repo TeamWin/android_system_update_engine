@@ -861,7 +861,7 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest) {
   // Check preconditions.
-  CHECK(!GetVirtualAbFeatureFlag().IsEnabled() || IsRecovery())
+  LOG_IF(WARNING, !GetVirtualAbFeatureFlag().IsEnabled() || IsRecovery())
       << "UpdatePartitionMetadata is called on a Virtual A/B device "
          "but source partitions is not deleted. This is not allowed.";
 
