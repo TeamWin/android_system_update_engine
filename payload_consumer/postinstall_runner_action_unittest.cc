@@ -403,12 +403,21 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootAbsolutePathNotAllowedTest) {
 }
 
 #ifdef __ANDROID__
-// Check that the postinstall file is relabeled to the postinstall label.
+// Check that the postinstall file is labeled to the postinstall_exec label.
 // SElinux labels are only set on Android.
 TEST_F(PostinstallRunnerActionTest, RunAsRootCheckFileContextsTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPostinstallAction(
       loop.dev(), "bin/self_check_context", false, false, false);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
+}
+
+// Check that the postinstall file is relabeled to the default postinstall
+// label. SElinux labels are only set on Android.
+TEST_F(PostinstallRunnerActionTest, RunAsRootCheckDefaultFileContextsTest) {
+  ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
+  RunPostinstallAction(
+      loop.dev(), "bin/self_check_default_context", false, false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 #endif  // __ANDROID__

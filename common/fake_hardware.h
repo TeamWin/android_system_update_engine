@@ -216,6 +216,17 @@ class FakeHardware : public HardwareInterface {
     return utils::IsTimestampNewer(old_version, new_version);
   }
 
+  const char* GetPartitionMountOptions(
+      const std::string& partition_name) const override {
+#ifdef __ANDROID__
+    // TODO(allight): This matches the declaration in hardware_android.cc but
+    // ideally shouldn't be duplicated.
+    return "defcontext=u:object_r:postinstall_file:s0";
+#else
+    return "";
+#endif
+  }
+
  private:
   bool is_official_build_{true};
   bool is_normal_boot_mode_{true};

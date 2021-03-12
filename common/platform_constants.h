@@ -54,10 +54,6 @@ extern const char kOmahaResponseDeadlineFile[];
 // The stateful directory used by update_engine.
 extern const char kNonVolatileDirectory[];
 
-// Options passed to the filesystem when mounting the new partition during
-// postinstall.
-extern const char kPostinstallMountOptions[];
-
 #ifdef __ANDROID_RECOVERY__
 constexpr bool kIsRecovery = true;
 #else
