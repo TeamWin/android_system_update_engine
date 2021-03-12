@@ -346,4 +346,30 @@ ErrorCode HardwareAndroid::IsPartitionUpdateValid(
   return error_code;
 }
 
+// Mount options for non-system partitions. This option causes selinux treat
+// every file in the mounted filesystem as having the 'postinstall_file'
+// context, regardless of what the filesystem itself records. See "SELinux
+// User's and Administrator's Guide" for more information on this option.
+constexpr const char* kDefaultPostinstallMountOptions =
+    "context=u:object_r:postinstall_file:s0";
+
+// Mount options for system partitions. This option causes selinux to use the
+// 'postinstall_file' context as a fallback if there are no other selinux
+// contexts associated with the file in the mounted partition. See "SELinux
+// User's and Administrator's Guide" for more information on this option.
+constexpr const char* kSystemPostinstallMountOptions =
+    "defcontext=u:object_r:postinstall_file:s0";
+
+// Name of the system-partition
+constexpr std::string_view kSystemPartitionName = "system";
+
+const char* HardwareAndroid::GetPartitionMountOptions(
+    const std::string& partition_name) const {
+  if (partition_name == kSystemPartitionName) {
+    return kSystemPostinstallMountOptions;
+  } else {
+    return kDefaultPostinstallMountOptions;
+  }
+}
+
 }  // namespace chromeos_update_engine
