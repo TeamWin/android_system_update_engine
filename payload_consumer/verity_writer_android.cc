@@ -29,6 +29,7 @@ extern "C" {
 }
 
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/cached_file_descriptor.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 
 namespace chromeos_update_engine {
@@ -40,16 +41,7 @@ std::unique_ptr<VerityWriterInterface> CreateVerityWriter() {
 }  // namespace verity_writer
 
 bool VerityWriterAndroid::Init(const InstallPlan::Partition& partition) {
-  auto read_fd = FileDescriptorPtr(new EintrSafeFileDescriptor());
-  TEST_AND_RETURN_FALSE(read_fd->Open(partition.target_path.c_str(), O_RDWR));
-  return Init(partition, read_fd, read_fd);
-}
-bool VerityWriterAndroid::Init(const InstallPlan::Partition& partition,
-                               FileDescriptorPtr read_fd,
-                               FileDescriptorPtr write_fd) {
   partition_ = &partition;
-  read_fd_ = read_fd;
-  write_fd_ = write_fd;
 
   if (partition_->hash_tree_size != 0 || partition_->fec_size != 0) {
     utils::SetBlockDeviceReadOnly(partition_->target_path, false);
@@ -82,47 +74,57 @@ bool VerityWriterAndroid::Update(uint64_t offset,
                                  const uint8_t* buffer,
                                  size_t size) {
   if (partition_->hash_tree_size != 0) {
-    uint64_t hash_tree_data_end =
+    const uint64_t hash_tree_data_end =
         partition_->hash_tree_data_offset + partition_->hash_tree_data_size;
-    uint64_t start_offset = std::max(offset, partition_->hash_tree_data_offset);
-    uint64_t end_offset = std::min(offset + size, hash_tree_data_end);
+    const uint64_t start_offset =
+        std::max(offset, partition_->hash_tree_data_offset);
+    if (offset + size > hash_tree_data_end) {
+      LOG(WARNING)
+          << "Reading past hash_tree_data_end, something is probably "
+             "wrong, might cause incorrect hash of partitions. offset: "
+          << offset << " size: " << size
+          << " hash_tree_data_end: " << hash_tree_data_end;
+    }
+    const uint64_t end_offset = std::min(offset + size, hash_tree_data_end);
     if (start_offset < end_offset) {
       TEST_AND_RETURN_FALSE(hash_tree_builder_->Update(
           buffer + start_offset - offset, end_offset - start_offset));
 
       if (end_offset == hash_tree_data_end) {
-        // All hash tree data blocks has been hashed, write hash tree to disk.
-        LOG(INFO) << "Writing verity hash tree to " << partition_->target_path;
-        TEST_AND_RETURN_FALSE(hash_tree_builder_->BuildHashTree());
-        TEST_AND_RETURN_FALSE_ERRNO(
-            write_fd_->Seek(partition_->hash_tree_offset, SEEK_SET));
-        auto success = hash_tree_builder_->WriteHashTree(
-            [write_fd_(this->write_fd_)](auto data, auto size) {
-              return utils::WriteAll(write_fd_, data, size);
-            });
-        // hashtree builder already prints error messages.
-        if (!success) {
-          return false;
-        }
-        hash_tree_builder_.reset();
+        LOG(INFO)
+            << "Read everything before hash tree. Ready to write hash tree.";
       }
     }
   }
+
+  return true;
+}
+
+bool VerityWriterAndroid::Finalize(FileDescriptorPtr read_fd,
+                                   FileDescriptorPtr write_fd) {
+  // All hash tree data blocks has been hashed, write hash tree to disk.
+  LOG(INFO) << "Writing verity hash tree to " << partition_->target_path;
+  TEST_AND_RETURN_FALSE(hash_tree_builder_->BuildHashTree());
+  TEST_AND_RETURN_FALSE_ERRNO(
+      write_fd->Seek(partition_->hash_tree_offset, SEEK_SET));
+  auto success =
+      hash_tree_builder_->WriteHashTree([write_fd](auto data, auto size) {
+        return utils::WriteAll(write_fd, data, size);
+      });
+  // hashtree builder already prints error messages.
+  TEST_AND_RETURN_FALSE(success);
+  hash_tree_builder_.reset();
   if (partition_->fec_size != 0) {
-    uint64_t fec_data_end =
-        partition_->fec_data_offset + partition_->fec_data_size;
-    if (offset < fec_data_end && offset + size >= fec_data_end) {
-      LOG(INFO) << "Writing verity FEC to " << partition_->target_path;
-      TEST_AND_RETURN_FALSE(EncodeFEC(read_fd_,
-                                      write_fd_,
-                                      partition_->fec_data_offset,
-                                      partition_->fec_data_size,
-                                      partition_->fec_offset,
-                                      partition_->fec_size,
-                                      partition_->fec_roots,
-                                      partition_->block_size,
-                                      false /* verify_mode */));
-    }
+    LOG(INFO) << "Writing verity FEC to " << partition_->target_path;
+    TEST_AND_RETURN_FALSE(EncodeFEC(read_fd,
+                                    write_fd,
+                                    partition_->fec_data_offset,
+                                    partition_->fec_data_size,
+                                    partition_->fec_offset,
+                                    partition_->fec_size,
+                                    partition_->fec_roots,
+                                    partition_->block_size,
+                                    false /* verify_mode */));
   }
   return true;
 }
@@ -147,6 +149,10 @@ bool VerityWriterAndroid::EncodeFEC(FileDescriptorPtr read_fd,
       init_rs_char(FEC_PARAMS(fec_roots)), &free_rs_char);
   TEST_AND_RETURN_FALSE(rs_char != nullptr);
 
+  // Cache at most 1MB of fec data, in VABC, we need to re-open fd if we
+  // perform a read() operation after write(). So reduce the number of writes
+  // can save unnecessary re-opens.
+  write_fd = std::make_shared<CachedFileDescriptor>(write_fd, 1 * (1 << 20));
   for (size_t i = 0; i < rounds; i++) {
     // Encodes |block_size| number of rs blocks each round so that we can read
     // one block each time instead of 1 byte to increase random read
@@ -190,14 +196,15 @@ bool VerityWriterAndroid::EncodeFEC(FileDescriptorPtr read_fd,
       TEST_AND_RETURN_FALSE(fec == fec_read);
     } else {
       CHECK(write_fd);
-      if (!utils::PWriteAll(write_fd, fec.data(), fec.size(), fec_offset)) {
+      write_fd->Seek(fec_offset, SEEK_SET);
+      if (!utils::WriteAll(write_fd, fec.data(), fec.size())) {
         PLOG(ERROR) << "EncodeFEC write() failed";
         return false;
       }
     }
     fec_offset += fec.size();
   }
-
+  write_fd->Flush();
   return true;
 }
 
