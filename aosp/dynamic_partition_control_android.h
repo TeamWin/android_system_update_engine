@@ -38,7 +38,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   // Per earlier discussion with VAB team, this directory is unlikely to change.
   // So we declare it as a constant here.
   static constexpr std::string_view VABC_DEVICE_DIR = "/dev/block/mapper/";
-  DynamicPartitionControlAndroid();
+  explicit DynamicPartitionControlAndroid(uint32_t source_slot);
   ~DynamicPartitionControlAndroid();
 
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
@@ -110,7 +110,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   bool UnmapAllPartitions() override;
 
-  bool IsDynamicPartition(const std::string& part_name) override;
+  bool IsDynamicPartition(const std::string& part_name, uint32_t slot) override;
 
   bool UpdateUsesSnapshotCompression() override;
 
@@ -329,7 +329,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   uint32_t source_slot_ = UINT32_MAX;
   uint32_t target_slot_ = UINT32_MAX;
-  std::vector<std::string> dynamic_partition_list_;
+  std::vector<std::vector<std::string>> dynamic_partition_list_{2UL};
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };
