@@ -114,7 +114,7 @@ bool DynamicPartitionControlStub::UnmapAllPartitions() {
 }
 
 bool DynamicPartitionControlStub::IsDynamicPartition(
-    const std::string& part_name) {
+    const std::string& part_name, uint32_t slot) {
   return false;
 }
 
