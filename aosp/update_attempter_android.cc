@@ -321,7 +321,8 @@ bool UpdateAttempterAndroid::ApplyPayload(
     const vector<string>& key_value_pair_headers,
     brillo::ErrorPtr* error) {
   // update_engine state must be checked before modifying payload_fd_ otherwise
-  // already running update will be terminated (existing file descriptor will be closed)
+  // already running update will be terminated (existing file descriptor will be
+  // closed)
   if (status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
     return LogAndSetError(
         error, FROM_HERE, "An update already applied, waiting for reboot");
@@ -983,7 +984,14 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
                                    manifest.apex_info().end());
   uint64_t apex_size_required = 0;
   if (apex_handler_android_ != nullptr) {
-    apex_size_required = apex_handler_android_->CalculateSize(apex_infos);
+    auto result = apex_handler_android_->CalculateSize(apex_infos);
+    if (!result.ok()) {
+      LogAndSetError(error,
+                     FROM_HERE,
+                     "Failed to calculate size required for compressed APEX");
+      return 0;
+    }
+    apex_size_required = *result;
   }
 
   string payload_id = GetPayloadId(headers);
@@ -1006,7 +1014,7 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
   }
 
   if (apex_size_required > 0 && apex_handler_android_ != nullptr &&
-      !apex_handler_android_->AllocateSpace(apex_size_required)) {
+      !apex_handler_android_->AllocateSpace(apex_infos)) {
     LOG(ERROR) << "Insufficient space for apex decompression: "
                << apex_size_required << " bytes";
     return apex_size_required;
