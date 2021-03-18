@@ -168,8 +168,9 @@ void FilesystemVerifierAction::StartPartitionHashing() {
             << partition.name << ") on device " << part_path;
   auto success = false;
   if (dynamic_control_->UpdateUsesSnapshotCompression() &&
-      dynamic_control_->IsDynamicPartition(partition.name) &&
-      verifier_step_ == VerifierStep::kVerifyTargetHash) {
+      verifier_step_ == VerifierStep::kVerifyTargetHash &&
+      dynamic_control_->IsDynamicPartition(partition.name,
+                                           install_plan_.target_slot)) {
     success = InitializeFdVABC();
   } else {
     if (part_path.empty()) {

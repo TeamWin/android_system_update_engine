@@ -170,7 +170,8 @@ class DynamicPartitionControlInterface {
       const std::optional<std::string>&,
       bool is_append = false) = 0;
 
-  virtual bool IsDynamicPartition(const std::string& part_name) = 0;
+  virtual bool IsDynamicPartition(const std::string& part_name,
+                                  uint32_t slot) = 0;
 
   // Create virtual block devices for all partitions.
   virtual bool MapAllPartitions() = 0;
