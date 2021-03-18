@@ -40,6 +40,37 @@
 using brillo::data_encoding::Base64Encode;
 using std::string;
 
+// On a partition with verity enabled, we expect to see the following format:
+// ===================================================
+//              Normal Filesystem Data
+// (this should take most of the space, like over 90%)
+// ===================================================
+//                  Hash tree
+//         ~0.8% (e.g. 16M for 2GB image)
+// ===================================================
+//                  FEC data
+//                    ~0.8%
+// ===================================================
+//                   Footer
+//                     4K
+// ===================================================
+
+// For OTA that doesn't do on device verity computation, hash tree and fec data
+// are written during DownloadAction as a regular InstallOp, so no special
+// handling needed, we can just read the entire partition in 1 go.
+
+// Verity enabled case: Only Normal FS data is written during download action.
+// When hasing the entire partition, we will need to build the hash tree, write
+// it to disk, then build FEC, and write it to disk. Therefore, it is important
+// that we finish writing hash tree before we attempt to read & hash it. The
+// same principal applies to FEC data.
+
+// |verity_writer_| handles building and
+// writing of FEC/HashTree, we just need to be careful when reading.
+// Specifically, we must stop at beginning of Hash tree, let |verity_writer_|
+// write both hash tree and FEC, then continue reading the remaining part of
+// partition.
+
 namespace chromeos_update_engine {
 
 namespace {
@@ -197,15 +228,23 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   hasher_ = std::make_unique<HashCalculator>();
 
   offset_ = 0;
+  filesystem_data_end_ = partition_size_;
+  CHECK_LE(partition.hash_tree_offset, partition.fec_offset)
+      << " Hash tree is expected to come before FEC data";
+  if (partition.hash_tree_offset != 0) {
+    filesystem_data_end_ = partition.hash_tree_offset;
+  } else if (partition.fec_offset != 0) {
+    filesystem_data_end_ = partition.fec_offset;
+  }
   if (ShouldWriteVerity()) {
-    if (!verity_writer_->Init(partition, read_fd_, write_fd_)) {
+    if (!verity_writer_->Init(partition)) {
       Cleanup(ErrorCode::kVerityCalculationError);
       return;
     }
   }
 
   // Start the first read.
-  ScheduleRead();
+  ScheduleFileSystemRead();
 }
 
 bool FilesystemVerifierAction::ShouldWriteVerity() {
@@ -216,24 +255,45 @@ bool FilesystemVerifierAction::ShouldWriteVerity() {
          (partition.hash_tree_size > 0 || partition.fec_size > 0);
 }
 
-void FilesystemVerifierAction::ScheduleRead() {
-  const InstallPlan::Partition& partition =
-      install_plan_.partitions[partition_index_];
+void FilesystemVerifierAction::ReadVerityAndFooter() {
+  if (ShouldWriteVerity()) {
+    if (!verity_writer_->Finalize(read_fd_, write_fd_)) {
+      LOG(ERROR) << "Failed to write hashtree/FEC data.";
+      Cleanup(ErrorCode::kFilesystemVerifierError);
+      return;
+    }
+  }
+  auto bytes_to_read = partition_size_ - filesystem_data_end_;
+  // Since we handed our |read_fd_| to verity_writer_ during |Finalize()| call,
+  // fd's position could have been changed. Re-seek.
+  read_fd_->Seek(filesystem_data_end_, SEEK_SET);
+  while (bytes_to_read > 0) {
+    const auto read_size = std::min<size_t>(buffer_.size(), bytes_to_read);
+    auto bytes_read = read_fd_->Read(buffer_.data(), read_size);
+    if (bytes_read <= 0) {
+      PLOG(ERROR) << "Failed to read hash tree " << bytes_read;
+      Cleanup(ErrorCode::kFilesystemVerifierError);
+      return;
+    }
+    if (!hasher_->Update(buffer_.data(), bytes_read)) {
+      LOG(ERROR) << "Unable to update the hash.";
+      Cleanup(ErrorCode::kError);
+      return;
+    }
+    bytes_to_read -= bytes_read;
+  }
+  FinishPartitionHashing();
+}
 
+void FilesystemVerifierAction::ScheduleFileSystemRead() {
   // We can only start reading anything past |hash_tree_offset| after we have
   // already read all the data blocks that the hash tree covers. The same
   // applies to FEC.
-  uint64_t read_end = partition_size_;
-  if (partition.hash_tree_size != 0 &&
-      offset_ < partition.hash_tree_data_offset + partition.hash_tree_data_size)
-    read_end = std::min(read_end, partition.hash_tree_offset);
-  if (partition.fec_size != 0 &&
-      offset_ < partition.fec_data_offset + partition.fec_data_size)
-    read_end = std::min(read_end, partition.fec_offset);
-  size_t bytes_to_read =
-      std::min(static_cast<uint64_t>(buffer_.size()), read_end - offset_);
+
+  size_t bytes_to_read = std::min(static_cast<uint64_t>(buffer_.size()),
+                                  filesystem_data_end_ - offset_);
   if (!bytes_to_read) {
-    FinishPartitionHashing();
+    ReadVerityAndFooter();
     return;
   }
 
@@ -279,19 +339,19 @@ void FilesystemVerifierAction::OnReadDone(size_t bytes_read) {
       install_plan_.partitions.size());
   if (ShouldWriteVerity()) {
     if (!verity_writer_->Update(offset_, buffer_.data(), bytes_read)) {
+      LOG(ERROR) << "Unable to update verity";
       Cleanup(ErrorCode::kVerityCalculationError);
       return;
     }
   }
 
   offset_ += bytes_read;
-
-  if (offset_ == partition_size_) {
-    FinishPartitionHashing();
+  if (offset_ == filesystem_data_end_) {
+    ReadVerityAndFooter();
     return;
   }
 
-  ScheduleRead();
+  ScheduleFileSystemRead();
 }
 
 void FilesystemVerifierAction::FinishPartitionHashing() {
