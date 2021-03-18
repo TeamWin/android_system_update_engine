@@ -26,10 +26,9 @@ class VerityWriterStub : public VerityWriterInterface {
   VerityWriterStub() = default;
   ~VerityWriterStub() override = default;
 
-  bool Init(const InstallPlan::Partition& partition,
-            FileDescriptorPtr read_fd,
-            FileDescriptorPtr write_fd) override;
+  bool Init(const InstallPlan::Partition& partition) override;
   bool Update(uint64_t offset, const uint8_t* buffer, size_t size) override;
+  bool Finalize(FileDescriptorPtr read_fd, FileDescriptorPtr write_fd) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(VerityWriterStub);

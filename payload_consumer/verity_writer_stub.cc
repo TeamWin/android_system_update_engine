@@ -26,15 +26,18 @@ std::unique_ptr<VerityWriterInterface> CreateVerityWriter() {
 }
 }  // namespace verity_writer
 
-bool VerityWriterStub::Init(const InstallPlan::Partition& partition,
-                            FileDescriptorPtr read_fd,
-                            FileDescriptorPtr write_fd) {
+bool VerityWriterStub::Init(const InstallPlan::Partition& partition) {
   return partition.hash_tree_size == 0 && partition.fec_size == 0;
 }
 
 bool VerityWriterStub::Update(uint64_t offset,
                               const uint8_t* buffer,
                               size_t size) {
+  return true;
+}
+
+bool VerityWriterStub::Finalize(FileDescriptorPtr read_fd,
+                                FileDescriptorPtr write_fd) {
   return true;
 }
 
