@@ -91,8 +91,12 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();
 
-  // Schedules the asynchronous read of the filesystem.
-  void ScheduleRead();
+  // Schedules the asynchronous read of the filesystem part of this
+  // partition(not including hashtree/verity).
+  void ScheduleFileSystemRead();
+
+  // Read the verity part of this partition.(hash tree and FEC)
+  void ReadVerityAndFooter();
 
   // Called from the main loop when a single read from |src_stream_| succeeds or
   // fails, calling OnReadDoneCallback() and OnReadErrorCallback() respectively.
@@ -154,6 +158,9 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // The byte offset that we are reading in the current partition.
   uint64_t offset_{0};
+
+  // The end offset of filesystem data, first byte position of hashtree.
+  uint64_t filesystem_data_end_{0};
 
   // An observer that observes progress updates of this action.
   FilesystemVerifyDelegate* delegate_{};

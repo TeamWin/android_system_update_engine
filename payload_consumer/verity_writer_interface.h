@@ -31,15 +31,16 @@ class VerityWriterInterface {
  public:
   virtual ~VerityWriterInterface() = default;
 
-  virtual bool Init(const InstallPlan::Partition& partition,
-                    FileDescriptorPtr read_fd,
-                    FileDescriptorPtr write_fd) = 0;
   virtual bool Init(const InstallPlan::Partition& partition) = 0;
   // Update partition data at [offset : offset + size) stored in |buffer|.
   // Data not in |hash_tree_data_extent| or |fec_data_extent| is ignored.
   // Will write verity data to the target partition once all the necessary
   // blocks has passed.
   virtual bool Update(uint64_t offset, const uint8_t* buffer, size_t size) = 0;
+
+  // Write hash tree && FEC data to underlying fd, if they are present
+  virtual bool Finalize(FileDescriptorPtr read_fd,
+                        FileDescriptorPtr write_fd) = 0;
 
  protected:
   VerityWriterInterface() = default;
