@@ -30,17 +30,12 @@ namespace chromeos_update_engine {
 
 class ApexHandlerAndroid : virtual public ApexHandlerInterface {
  public:
-  uint64_t CalculateSize(const std::vector<ApexInfo>& apex_infos) const;
-  bool AllocateSpace(const uint64_t size_required) const;
+  android::base::Result<uint64_t> CalculateSize(
+      const std::vector<ApexInfo>& apex_infos) const;
+  bool AllocateSpace(const std::vector<ApexInfo>& apex_infos) const;
 
  private:
-  friend class ApexHandlerAndroidTest;
   android::sp<android::apex::IApexService> GetApexService() const;
-  uint64_t CalculateSize(
-      const std::vector<ApexInfo>& apex_infos,
-      android::sp<android::apex::IApexService> apex_service) const;
-  bool AllocateSpace(const uint64_t size_required,
-                     const std::string& dir_path) const;
 };
 
 }  // namespace chromeos_update_engine
