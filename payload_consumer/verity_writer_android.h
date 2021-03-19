@@ -32,11 +32,9 @@ class VerityWriterAndroid : public VerityWriterInterface {
   VerityWriterAndroid() = default;
   ~VerityWriterAndroid() override = default;
 
-  bool Init(const InstallPlan::Partition& partition,
-            FileDescriptorPtr read_fd,
-            FileDescriptorPtr write_fd) override;
   bool Init(const InstallPlan::Partition& partition);
   bool Update(uint64_t offset, const uint8_t* buffer, size_t size) override;
+  bool Finalize(FileDescriptorPtr read_fd, FileDescriptorPtr write_fd) override;
 
   // Read [data_offset : data_offset + data_size) from |path| and encode FEC
   // data, if |verify_mode|, then compare the encoded FEC with the one in
@@ -65,10 +63,7 @@ class VerityWriterAndroid : public VerityWriterInterface {
  private:
   const InstallPlan::Partition* partition_ = nullptr;
 
-  FileDescriptorPtr read_fd_;
-  FileDescriptorPtr write_fd_;
   std::unique_ptr<HashTreeBuilder> hash_tree_builder_;
-
   DISALLOW_COPY_AND_ASSIGN(VerityWriterAndroid);
 };
 

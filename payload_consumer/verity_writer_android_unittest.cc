@@ -16,11 +16,14 @@
 
 #include "update_engine/payload_consumer/verity_writer_android.h"
 
+#include <fcntl.h>
+
 #include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/file_descriptor.h"
 
 namespace chromeos_update_engine {
 
@@ -35,10 +38,13 @@ class VerityWriterAndroidTest : public ::testing::Test {
     partition_.hash_tree_size = 4096;
     partition_.hash_tree_algorithm = "sha1";
     partition_.fec_roots = 2;
+    partition_fd_ = std::make_shared<EintrSafeFileDescriptor>();
+    partition_fd_->Open(partition_.target_path.c_str(), O_RDWR);
   }
 
   VerityWriterAndroid verity_writer_;
   InstallPlan::Partition partition_;
+  FileDescriptorPtr partition_fd_;
   ScopedTempFile temp_file_;
 };
 
@@ -46,8 +52,9 @@ TEST_F(VerityWriterAndroidTest, SimpleTest) {
   brillo::Blob part_data(8192);
   test_utils::WriteFileVector(partition_.target_path, part_data);
   ASSERT_TRUE(verity_writer_.Init(partition_));
-  EXPECT_TRUE(verity_writer_.Update(0, part_data.data(), 4096));
-  EXPECT_TRUE(verity_writer_.Update(4096, part_data.data() + 4096, 4096));
+  ASSERT_TRUE(verity_writer_.Update(0, part_data.data(), 4096));
+  ASSERT_TRUE(verity_writer_.Update(4096, part_data.data() + 4096, 4096));
+  ASSERT_TRUE(verity_writer_.Finalize(partition_fd_, partition_fd_));
   brillo::Blob actual_part;
   utils::ReadFile(partition_.target_path, &actual_part);
   // dd if=/dev/zero bs=4096 count=1 2>/dev/null | sha1sum | xxd -r -p |
@@ -56,7 +63,7 @@ TEST_F(VerityWriterAndroidTest, SimpleTest) {
                        0x1d, 0xf3, 0xbf, 0xb2, 0x6b, 0x4f, 0xb7,
                        0xcd, 0x95, 0xfb, 0x7b, 0xff, 0x1d};
   memcpy(part_data.data() + 4096, hash.data(), hash.size());
-  EXPECT_EQ(part_data, actual_part);
+  ASSERT_EQ(part_data, actual_part);
 }
 
 TEST_F(VerityWriterAndroidTest, NoOpTest) {
@@ -64,19 +71,19 @@ TEST_F(VerityWriterAndroidTest, NoOpTest) {
   partition_.hash_tree_size = 0;
   brillo::Blob part_data(4096);
   ASSERT_TRUE(verity_writer_.Init(partition_));
-  EXPECT_TRUE(verity_writer_.Update(0, part_data.data(), part_data.size()));
-  EXPECT_TRUE(verity_writer_.Update(4096, part_data.data(), part_data.size()));
-  EXPECT_TRUE(verity_writer_.Update(8192, part_data.data(), part_data.size()));
+  ASSERT_TRUE(verity_writer_.Update(0, part_data.data(), part_data.size()));
+  ASSERT_TRUE(verity_writer_.Update(4096, part_data.data(), part_data.size()));
+  ASSERT_TRUE(verity_writer_.Update(8192, part_data.data(), part_data.size()));
 }
 
 TEST_F(VerityWriterAndroidTest, InvalidHashAlgorithmTest) {
   partition_.hash_tree_algorithm = "sha123";
-  EXPECT_FALSE(verity_writer_.Init(partition_));
+  ASSERT_FALSE(verity_writer_.Init(partition_));
 }
 
 TEST_F(VerityWriterAndroidTest, WrongHashTreeSizeTest) {
   partition_.hash_tree_size = 8192;
-  EXPECT_FALSE(verity_writer_.Init(partition_));
+  ASSERT_FALSE(verity_writer_.Init(partition_));
 }
 
 TEST_F(VerityWriterAndroidTest, SHA256Test) {
@@ -84,8 +91,9 @@ TEST_F(VerityWriterAndroidTest, SHA256Test) {
   brillo::Blob part_data(8192);
   test_utils::WriteFileVector(partition_.target_path, part_data);
   ASSERT_TRUE(verity_writer_.Init(partition_));
-  EXPECT_TRUE(verity_writer_.Update(0, part_data.data(), 4096));
-  EXPECT_TRUE(verity_writer_.Update(4096, part_data.data() + 4096, 4096));
+  ASSERT_TRUE(verity_writer_.Update(0, part_data.data(), 4096));
+  ASSERT_TRUE(verity_writer_.Update(4096, part_data.data() + 4096, 4096));
+  ASSERT_TRUE(verity_writer_.Finalize(partition_fd_, partition_fd_));
   brillo::Blob actual_part;
   utils::ReadFile(partition_.target_path, &actual_part);
   // dd if=/dev/zero bs=4096 count=1 2>/dev/null | sha256sum | xxd -r -p |
@@ -95,7 +103,7 @@ TEST_F(VerityWriterAndroidTest, SHA256Test) {
                        0x4f, 0x58, 0x05, 0xff, 0x7c, 0xb4, 0x7c, 0x7a,
                        0x85, 0xda, 0xbd, 0x8b, 0x48, 0x89, 0x2c, 0xa7};
   memcpy(part_data.data() + 4096, hash.data(), hash.size());
-  EXPECT_EQ(part_data, actual_part);
+  ASSERT_EQ(part_data, actual_part);
 }
 
 TEST_F(VerityWriterAndroidTest, FECTest) {
@@ -106,7 +114,8 @@ TEST_F(VerityWriterAndroidTest, FECTest) {
   brillo::Blob part_data(3 * 4096, 0x1);
   test_utils::WriteFileVector(partition_.target_path, part_data);
   ASSERT_TRUE(verity_writer_.Init(partition_));
-  EXPECT_TRUE(verity_writer_.Update(0, part_data.data(), part_data.size()));
+  ASSERT_TRUE(verity_writer_.Update(0, part_data.data(), part_data.size()));
+  ASSERT_TRUE(verity_writer_.Finalize(partition_fd_, partition_fd_));
   brillo::Blob actual_part;
   utils::ReadFile(partition_.target_path, &actual_part);
   // Write FEC data.
@@ -114,7 +123,7 @@ TEST_F(VerityWriterAndroidTest, FECTest) {
     part_data[i] = 0x8e;
     part_data[i + 1] = 0x8f;
   }
-  EXPECT_EQ(part_data, actual_part);
+  ASSERT_EQ(part_data, actual_part);
 }
 
 }  // namespace chromeos_update_engine
