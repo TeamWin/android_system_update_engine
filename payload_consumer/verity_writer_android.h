@@ -64,6 +64,7 @@ class VerityWriterAndroid : public VerityWriterInterface {
   const InstallPlan::Partition* partition_ = nullptr;
 
   std::unique_ptr<HashTreeBuilder> hash_tree_builder_;
+  uint64_t total_offset_ = 0;
   DISALLOW_COPY_AND_ASSIGN(VerityWriterAndroid);
 };
 
