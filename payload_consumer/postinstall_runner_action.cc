@@ -400,6 +400,10 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   if (HasOutputPipe()) {
     SetOutputObject(install_plan_);
   }
+  auto dynamic_control = boot_control_->GetDynamicPartitionControl();
+  CHECK(dynamic_control);
+  dynamic_control->UnmapAllPartitions();
+  LOG(INFO) << "Unmapped all partitions.";
 }
 
 void PostinstallRunnerAction::SuspendAction() {
