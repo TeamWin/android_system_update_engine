@@ -76,6 +76,15 @@ TEST_F(VerityWriterAndroidTest, NoOpTest) {
   ASSERT_TRUE(verity_writer_.Update(8192, part_data.data(), part_data.size()));
 }
 
+TEST_F(VerityWriterAndroidTest, DiscontinuedRead) {
+  partition_.hash_tree_data_size = 8192;
+  partition_.hash_tree_size = 4096;
+  brillo::Blob part_data(4096);
+  ASSERT_TRUE(verity_writer_.Init(partition_));
+  ASSERT_TRUE(verity_writer_.Update(0, part_data.data(), part_data.size()));
+  ASSERT_FALSE(verity_writer_.Update(8192, part_data.data(), part_data.size()));
+}
+
 TEST_F(VerityWriterAndroidTest, InvalidHashAlgorithmTest) {
   partition_.hash_tree_algorithm = "sha123";
   ASSERT_FALSE(verity_writer_.Init(partition_));
@@ -103,6 +112,32 @@ TEST_F(VerityWriterAndroidTest, SHA256Test) {
                        0x4f, 0x58, 0x05, 0xff, 0x7c, 0xb4, 0x7c, 0x7a,
                        0x85, 0xda, 0xbd, 0x8b, 0x48, 0x89, 0x2c, 0xa7};
   memcpy(part_data.data() + 4096, hash.data(), hash.size());
+  ASSERT_EQ(part_data, actual_part);
+}
+
+TEST_F(VerityWriterAndroidTest, NonZeroOffsetSHA256Test) {
+  partition_.hash_tree_algorithm = "sha256";
+  partition_.hash_tree_data_offset = 100;
+  partition_.hash_tree_offset =
+      partition_.hash_tree_data_offset + partition_.hash_tree_data_size;
+  brillo::Blob part_data(8192 + partition_.hash_tree_data_offset);
+  test_utils::WriteFileVector(partition_.target_path, part_data);
+  ASSERT_TRUE(verity_writer_.Init(partition_));
+  ASSERT_TRUE(verity_writer_.Update(0, part_data.data(), 4096));
+  ASSERT_TRUE(verity_writer_.Update(4096, part_data.data() + 4096, 4096));
+  ASSERT_TRUE(verity_writer_.Update(
+      8192, part_data.data() + 8192, partition_.hash_tree_data_offset));
+  ASSERT_TRUE(verity_writer_.Finalize(partition_fd_, partition_fd_));
+  brillo::Blob actual_part;
+  utils::ReadFile(partition_.target_path, &actual_part);
+  // dd if=/dev/zero bs=4096 count=1 2>/dev/null | sha256sum | xxd -r -p |
+  //     hexdump -v -e '/1 "0x%02x, "'
+  brillo::Blob hash = {0xad, 0x7f, 0xac, 0xb2, 0x58, 0x6f, 0xc6, 0xe9,
+                       0x66, 0xc0, 0x04, 0xd7, 0xd1, 0xd1, 0x6b, 0x02,
+                       0x4f, 0x58, 0x05, 0xff, 0x7c, 0xb4, 0x7c, 0x7a,
+                       0x85, 0xda, 0xbd, 0x8b, 0x48, 0x89, 0x2c, 0xa7};
+  memcpy(
+      part_data.data() + partition_.hash_tree_offset, hash.data(), hash.size());
   ASSERT_EQ(part_data, actual_part);
 }
 

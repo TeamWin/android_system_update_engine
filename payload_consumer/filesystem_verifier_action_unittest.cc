@@ -33,6 +33,7 @@
 #include "update_engine/common/mock_dynamic_partition_control.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/fake_file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
 
 using brillo::MessageLoop;
@@ -251,8 +252,8 @@ TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
   processor_.set_delegate(&delegate);
 
   processor_.StartProcessing();
-  EXPECT_FALSE(processor_.IsRunning());
-  EXPECT_TRUE(delegate.ran_);
+  ASSERT_FALSE(processor_.IsRunning());
+  ASSERT_TRUE(delegate.ran_);
   EXPECT_EQ(ErrorCode::kError, delegate.code_);
 }
 
@@ -397,12 +398,12 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
           base::Unretained(&processor_)));
   loop_.Run();
 
-  EXPECT_FALSE(processor_.IsRunning());
-  EXPECT_TRUE(delegate.ran());
-  EXPECT_EQ(ErrorCode::kSuccess, delegate.code());
+  ASSERT_FALSE(processor_.IsRunning());
+  ASSERT_TRUE(delegate.ran());
+  ASSERT_EQ(ErrorCode::kSuccess, delegate.code());
 }
 
-TEST_F(FilesystemVerifierActionTest, RunWithVABC) {
+TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
   InstallPlan install_plan;
   InstallPlan::Partition& part = install_plan.partitions.emplace_back();
   part.name = "fake_part";
@@ -410,15 +411,20 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABC) {
   part.target_size = 4096 * 4096;
   part.block_size = 4096;
   part.source_path = "/dev/fake_source_path";
+  part.fec_size = 0;
+  part.hash_tree_size = 0;
+  part.target_hash.clear();
+  part.source_hash.clear();
 
   NiceMock<MockDynamicPartitionControl> dynamic_control;
+  auto fake_fd = std::make_shared<FakeFileDescriptor>();
 
   ON_CALL(dynamic_control, GetDynamicPartitionsFeatureFlag())
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ON_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .WillByDefault(Return(true));
   ON_CALL(dynamic_control, OpenCowReader(_, _, _))
-      .WillByDefault(Return(nullptr));
+      .WillByDefault(Return(fake_fd));
   ON_CALL(dynamic_control, IsDynamicPartition(part.name, _))
       .WillByDefault(Return(true));
 
@@ -443,10 +449,18 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABC) {
           base::Unretained(&processor_)));
   loop_.Run();
 
-  EXPECT_FALSE(processor_.IsRunning());
-  EXPECT_TRUE(delegate.ran());
-  // Filesystem verifier will fail, because we returned nullptr as CowReader
-  EXPECT_EQ(ErrorCode::kFilesystemVerifierError, delegate.code());
+  ASSERT_FALSE(processor_.IsRunning());
+  ASSERT_TRUE(delegate.ran());
+  // Filesystem verifier will fail, because we set an empty hash
+  ASSERT_EQ(ErrorCode::kNewRootfsVerificationError, delegate.code());
+  const auto& read_pos = fake_fd->GetReadOps();
+  size_t expected_offset = 0;
+  for (const auto& [off, size] : read_pos) {
+    ASSERT_EQ(off, expected_offset);
+    expected_offset += size;
+  }
+  const auto actual_read_size = expected_offset;
+  ASSERT_EQ(actual_read_size, part.target_size);
 }
 
 }  // namespace chromeos_update_engine

@@ -283,6 +283,7 @@ bool DynamicPartitionControlAndroid::UnmapPartitionOnDeviceMapper(
 }
 
 bool DynamicPartitionControlAndroid::UnmapAllPartitions() {
+  snapshot_->UnmapAllSnapshots();
   if (mapped_devices_.empty()) {
     return false;
   }
