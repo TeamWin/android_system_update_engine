@@ -224,6 +224,7 @@ cc_library_static {
         "payload_consumer/bzip_extent_writer.cc",
         "payload_consumer/cached_file_descriptor.cc",
         "payload_consumer/certificate_parser_android.cc",
+        "payload_consumer/cow_writer_file_descriptor.cc",
         "payload_consumer/delta_performer.cc",
         "payload_consumer/extent_reader.cc",
         "payload_consumer/extent_writer.cc",
