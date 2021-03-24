@@ -104,9 +104,9 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
       const std::string& unsuffixed_partition_name,
       const std::optional<std::string>& source_path,
       bool is_append) override;
-  FileDescriptorPtr OpenCowReader(const std::string& unsuffixed_partition_name,
-                                  const std::optional<std::string>&,
-                                  bool is_append = false) override;
+  FileDescriptorPtr OpenCowFd(const std::string& unsuffixed_partition_name,
+                              const std::optional<std::string>&,
+                              bool is_append = false) override;
 
   bool UnmapAllPartitions() override;
 

@@ -129,8 +129,8 @@ bool FilesystemVerifierAction::InitializeFdVABC() {
   const InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
 
-  read_fd_ = dynamic_control_->OpenCowReader(
-      partition.name, partition.source_path, true);
+  read_fd_ =
+      dynamic_control_->OpenCowFd(partition.name, partition.source_path, true);
   if (!read_fd_) {
     LOG(ERROR) << "OpenCowReader(" << partition.name << ", "
                << partition.source_path << ") failed.";
