@@ -49,6 +49,7 @@
 #include "update_engine/common/dynamic_partition_control_interface.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/cow_writer_file_descriptor.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 
 using android::base::GetBoolProperty;
@@ -1329,7 +1330,7 @@ DynamicPartitionControlAndroid::OpenCowWriter(
   return snapshot_->OpenSnapshotWriter(params, std::move(source_path));
 }  // namespace chromeos_update_engine
 
-FileDescriptorPtr DynamicPartitionControlAndroid::OpenCowReader(
+FileDescriptorPtr DynamicPartitionControlAndroid::OpenCowFd(
     const std::string& unsuffixed_partition_name,
     const std::optional<std::string>& source_path,
     bool is_append) {
@@ -1338,8 +1339,10 @@ FileDescriptorPtr DynamicPartitionControlAndroid::OpenCowReader(
   if (cow_writer == nullptr) {
     return nullptr;
   }
-  cow_writer->InitializeAppend(kEndOfInstallLabel);
-  return cow_writer->OpenReader();
+  if (!cow_writer->InitializeAppend(kEndOfInstallLabel)) {
+    return nullptr;
+  }
+  return std::make_shared<CowWriterFileDescriptor>(std::move(cow_writer));
 }
 
 std::optional<base::FilePath> DynamicPartitionControlAndroid::GetSuperDevice() {

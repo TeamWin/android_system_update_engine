@@ -423,14 +423,13 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ON_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .WillByDefault(Return(true));
-  ON_CALL(dynamic_control, OpenCowReader(_, _, _))
-      .WillByDefault(Return(fake_fd));
+  ON_CALL(dynamic_control, OpenCowFd(_, _, _)).WillByDefault(Return(fake_fd));
   ON_CALL(dynamic_control, IsDynamicPartition(part.name, _))
       .WillByDefault(Return(true));
 
   EXPECT_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .Times(AtLeast(1));
-  EXPECT_CALL(dynamic_control, OpenCowReader(part.name, {part.source_path}, _))
+  EXPECT_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
       .Times(1);
   EXPECT_CALL(dynamic_control, ListDynamicPartitionsForSlot(_, _, _))
       .WillRepeatedly(
