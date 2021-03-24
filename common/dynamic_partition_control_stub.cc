@@ -98,13 +98,6 @@ DynamicPartitionControlStub::OpenCowWriter(
   return nullptr;
 }
 
-FileDescriptorPtr DynamicPartitionControlStub::OpenCowReader(
-    const std::string& unsuffixed_partition_name,
-    const std::optional<std::string>&,
-    bool /*is_append */) {
-  return nullptr;
-}
-
 bool DynamicPartitionControlStub::MapAllPartitions() {
   return false;
 }

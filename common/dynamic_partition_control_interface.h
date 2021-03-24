@@ -165,7 +165,9 @@ class DynamicPartitionControlInterface {
       const std::string& unsuffixed_partition_name,
       const std::optional<std::string>&,
       bool is_append = false) = 0;
-  virtual FileDescriptorPtr OpenCowReader(
+  // Open a general purpose FD capable to reading and writing to COW. Note that
+  // writes must be block aligned.
+  virtual FileDescriptorPtr OpenCowFd(
       const std::string& unsuffixed_partition_name,
       const std::optional<std::string>&,
       bool is_append = false) = 0;
