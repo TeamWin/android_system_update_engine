@@ -43,9 +43,6 @@ std::unique_ptr<VerityWriterInterface> CreateVerityWriter() {
 bool VerityWriterAndroid::Init(const InstallPlan::Partition& partition) {
   partition_ = &partition;
 
-  if (partition_->hash_tree_size != 0 || partition_->fec_size != 0) {
-    utils::SetBlockDeviceReadOnly(partition_->target_path, false);
-  }
   if (partition_->hash_tree_size != 0) {
     auto hash_function =
         HashTreeBuilder::HashFunction(partition_->hash_tree_algorithm);
