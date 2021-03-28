@@ -584,6 +584,11 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
     CheckpointUpdateProgress(false);
   }
 
+  if (partition_writer_) {
+    TEST_AND_RETURN_FALSE(partition_writer_->FinishedInstallOps());
+  }
+  CloseCurrentPartition();
+
   // In major version 2, we don't add unused operation to the payload.
   // If we already extracted the signature we should skip this step.
   if (manifest_.has_signatures_offset() && manifest_.has_signatures_size() &&
