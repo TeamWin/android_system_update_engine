@@ -137,6 +137,12 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
         {cow_merge_sequence_->begin(), cow_merge_sequence_->end()},
         config_.block_size,
         config_.target.dynamic_partition_metadata->vabc_compression_param());
+    if (!new_part_.disable_fec_computation) {
+      *cow_size_ +=
+          new_part_.verity.fec_extent.num_blocks() * config_.block_size;
+    }
+    *cow_size_ +=
+        new_part_.verity.hash_tree_extent.num_blocks() * config_.block_size;
     LOG(INFO) << "Estimated COW size for partition: " << new_part_.name << " "
               << *cow_size_;
   }

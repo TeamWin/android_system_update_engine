@@ -36,6 +36,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_generator/annotated_operation.h"
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_generator/payload_signer.h"
 
@@ -149,13 +150,16 @@ TEST_F(DownloadActionTest, CacheManifestValid) {
   payload.size = data.size();
   payload.payload_urls.emplace_back("http://fake_url.invalid");
   install_plan.is_resume = true;
+  auto& install_part = install_plan.partitions.emplace_back();
+  install_part.source_path = partition_file.path();
+  install_part.target_path = partition_file.path();
   action_pipe->set_contents(install_plan);
 
+  FakeHardware hardware;
   // takes ownership of passed in HttpFetcher
   auto download_action = std::make_unique<DownloadAction>(
-      &prefs, &boot_control, nullptr, http_fetcher, false /* interactive */);
+      &prefs, &boot_control, &hardware, http_fetcher, false /* interactive */);
 
-  FakeHardware hardware;
   auto delta_performer = std::make_unique<DeltaPerformer>(&prefs,
                                                           &boot_control,
                                                           &hardware,
