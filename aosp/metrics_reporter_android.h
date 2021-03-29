@@ -22,14 +22,17 @@
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/metrics_constants.h"
 #include "update_engine/common/metrics_reporter_interface.h"
+#include "update_engine/payload_consumer/install_plan.h"
 
 namespace chromeos_update_engine {
 
 class MetricsReporterAndroid : public MetricsReporterInterface {
  public:
   explicit MetricsReporterAndroid(
-      DynamicPartitionControlInterface* dynamic_partition_control)
-      : dynamic_partition_control_(dynamic_partition_control) {}
+      DynamicPartitionControlInterface* dynamic_partition_control,
+      const InstallPlan* install_plan)
+      : dynamic_partition_control_(dynamic_partition_control),
+        install_plan_(install_plan) {}
 
   ~MetricsReporterAndroid() override = default;
 
@@ -93,7 +96,8 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
       bool has_time_restriction_policy, int time_to_update_days) override {}
 
  private:
-  DynamicPartitionControlInterface* dynamic_partition_control_;
+  DynamicPartitionControlInterface* dynamic_partition_control_{};
+  const InstallPlan* install_plan_{};
 
   DISALLOW_COPY_AND_ASSIGN(MetricsReporterAndroid);
 };

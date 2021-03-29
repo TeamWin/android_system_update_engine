@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+#include <any>
 #include <memory>
 #include <string>
 
@@ -30,6 +32,7 @@
 #include <statslog.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/payload_consumer/install_plan.h"
 
 using android::fs_mgr::GetPartitionGroupName;
 using android::fs_mgr::LpMetadata;
@@ -48,6 +51,22 @@ constexpr auto kMetricsReporterEnumOffset = 10000;
 int32_t GetStatsdEnumValue(int32_t value) {
   return kMetricsReporterEnumOffset + value;
 }
+
+bool IsHashTreeEnabled(
+    const chromeos_update_engine::InstallPlan* install_plan) {
+  return std::any_of(
+      install_plan->partitions.begin(),
+      install_plan->partitions.end(),
+      [](const auto& partition) { return partition.hash_tree_size > 0; });
+}
+
+bool IsFECEnabled(const chromeos_update_engine::InstallPlan* install_plan) {
+  return std::any_of(
+      install_plan->partitions.begin(),
+      install_plan->partitions.end(),
+      [](const auto& partition) { return partition.fec_size > 0; });
+}
+
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -55,8 +74,10 @@ namespace chromeos_update_engine {
 namespace metrics {
 
 std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter(
-    DynamicPartitionControlInterface* dynamic_partition_control) {
-  return std::make_unique<MetricsReporterAndroid>(dynamic_partition_control);
+    DynamicPartitionControlInterface* dynamic_partition_control,
+    const InstallPlan* install_plan) {
+  return std::make_unique<MetricsReporterAndroid>(dynamic_partition_control,
+                                                  install_plan);
 }
 
 }  // namespace metrics
@@ -164,7 +185,9 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
       static_cast<int32_t>(total_bytes_downloaded),
       static_cast<int32_t>(download_overhead_percentage),
       static_cast<int32_t>(total_duration.InMinutes()),
-      static_cast<int32_t>(reboot_count));
+      static_cast<int32_t>(reboot_count),
+      IsHashTreeEnabled(install_plan_),
+      IsFECEnabled(install_plan_));
 }
 
 void MetricsReporterAndroid::ReportAbnormallyTerminatedUpdateAttemptMetrics() {

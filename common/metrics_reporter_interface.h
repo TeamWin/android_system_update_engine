@@ -26,6 +26,7 @@
 #include "update_engine/common/dynamic_partition_control_interface.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/metrics_constants.h"
+#include "update_engine/payload_consumer/install_plan.h"
 
 namespace chromeos_update_engine {
 
@@ -237,7 +238,8 @@ class MetricsReporterInterface {
 namespace metrics {
 
 std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter(
-    DynamicPartitionControlInterface* dynamic_partition_control);
+    DynamicPartitionControlInterface* dynamic_partition_control,
+    const InstallPlan* install_plan);
 
 }  // namespace metrics
 
