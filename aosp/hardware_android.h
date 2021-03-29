@@ -64,6 +64,8 @@ class HardwareAndroid : public HardwareInterface {
   [[nodiscard]] ErrorCode IsPartitionUpdateValid(
       const std::string& partition_name,
       const std::string& new_version) const override;
+  [[nodiscard]] const char* GetPartitionMountOptions(
+      const std::string& partition_name) const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HardwareAndroid);
