@@ -160,6 +160,9 @@ class HardwareInterface {
   virtual ErrorCode IsPartitionUpdateValid(
       const std::string& partition_name,
       const std::string& new_version) const = 0;
+
+  virtual const char* GetPartitionMountOptions(
+      const std::string& partition_name) const = 0;
 };
 
 }  // namespace chromeos_update_engine
