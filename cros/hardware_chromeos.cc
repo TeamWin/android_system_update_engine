@@ -363,4 +363,9 @@ ErrorCode HardwareChromeOS::IsPartitionUpdateValid(
   return ErrorCode::kSuccess;
 }
 
+const char* HardwareChromeOS::GetPartitionMountOptions(
+    const std::string& partition_name) const {
+  return "";
+}
+
 }  // namespace chromeos_update_engine

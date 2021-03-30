@@ -186,13 +186,26 @@ echo global_progress 1.0 >&3
 exit 0
 EOF
 
+  # An unlabeled postinstall bash program.
+  sudo tee "${mntdir}"/bin/self_check_default_context >/dev/null <<EOF
+#!/etc/../bin/sh
+echo "This is my context:"
+ls -lZ "\$0"
+ls -lZ "\$0" | grep -F ' u:object_r:postinstall_file:s0 ' || exit 5
+exit 0
+EOF
+
   # A postinstall bash program.
   sudo tee "${mntdir}"/bin/self_check_context >/dev/null <<EOF
 #!/etc/../bin/sh
 echo "This is my context:"
-ls -lZ "\$0" | grep -F ' u:object_r:postinstall_file:s0 ' || exit 5
+ls -lZ "\$0"
+ls -lZ "\$0" | grep -F ' u:object_r:postinstall_exec:s0 ' || exit 5
 exit 0
 EOF
+
+  # Give the test function the context we expect the postinstall-executable to have.
+  sudo setfattr -n security.selinux -v u:object_r:postinstall_exec:s0 "${mntdir}"/bin/self_check_context
 
   sudo tee "${mntdir}"/postinst >/dev/null <<EOF
 #!/etc/../bin/sh
