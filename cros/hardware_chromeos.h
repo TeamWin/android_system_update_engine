@@ -68,6 +68,8 @@ class HardwareChromeOS final : public HardwareInterface {
   ErrorCode IsPartitionUpdateValid(
       const std::string& partition_name,
       const std::string& new_version) const override;
+  const char* GetPartitionMountOptions(
+      const std::string& partition_name) const override;
 
  private:
   friend class HardwareChromeOSTest;
