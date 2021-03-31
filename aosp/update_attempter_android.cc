@@ -64,7 +64,6 @@ using base::Bind;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
-using std::shared_ptr;
 using std::string;
 using std::vector;
 using update_engine::UpdateEngineStatus;
@@ -143,7 +142,7 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       processor_(new ActionProcessor()),
       clock_(new Clock()) {
   metrics_reporter_ = metrics::CreateMetricsReporter(
-      boot_control_->GetDynamicPartitionControl());
+      boot_control_->GetDynamicPartitionControl(), &install_plan_);
   network_selector_ = network::CreateNetworkSelector();
 }
 
