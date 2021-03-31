@@ -26,8 +26,8 @@
 #include <brillo/message_loops/message_loop_utils.h>
 #include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
+#include <libsnapshot/snapshot_writer.h>
 
-#include "gmock/gmock-actions.h"
 #include "update_engine/common/dynamic_partition_control_stub.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/mock_dynamic_partition_control.h"
@@ -461,6 +461,28 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
   }
   const auto actual_read_size = expected_offset;
   ASSERT_EQ(actual_read_size, part.target_size);
+}
+
+TEST_F(FilesystemVerifierActionTest, ReadAfterWrite) {
+  constexpr auto BLOCK_SIZE = 4096;
+  ScopedTempFile cow_device_file("cow_device.XXXXXX", true);
+  android::snapshot::CompressedSnapshotWriter snapshot_writer{
+      {.block_size = BLOCK_SIZE}};
+  snapshot_writer.SetCowDevice(android::base::unique_fd{cow_device_file.fd()});
+  snapshot_writer.Initialize();
+  std::vector<unsigned char> buffer;
+  buffer.resize(BLOCK_SIZE);
+  std::fill(buffer.begin(), buffer.end(), 123);
+
+  ASSERT_TRUE(snapshot_writer.AddRawBlocks(0, buffer.data(), buffer.size()));
+  ASSERT_TRUE(snapshot_writer.Finalize());
+  auto cow_reader = snapshot_writer.OpenReader();
+  ASSERT_NE(cow_reader, nullptr);
+  ASSERT_TRUE(snapshot_writer.AddRawBlocks(1, buffer.data(), buffer.size()));
+  ASSERT_TRUE(snapshot_writer.AddRawBlocks(2, buffer.data(), buffer.size()));
+  ASSERT_TRUE(snapshot_writer.Finalize());
+  cow_reader = snapshot_writer.OpenReader();
+  ASSERT_NE(cow_reader, nullptr);
 }
 
 }  // namespace chromeos_update_engine
