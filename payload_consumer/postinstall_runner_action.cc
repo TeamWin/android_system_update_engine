@@ -383,6 +383,11 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
     }
   }
 
+  auto dynamic_control = boot_control_->GetDynamicPartitionControl();
+  CHECK(dynamic_control);
+  dynamic_control->UnmapAllPartitions();
+  LOG(INFO) << "Unmapped all partitions.";
+
   ScopedActionCompleter completer(processor_, this);
   completer.set_code(error_code);
 
@@ -401,10 +406,6 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   if (HasOutputPipe()) {
     SetOutputObject(install_plan_);
   }
-  auto dynamic_control = boot_control_->GetDynamicPartitionControl();
-  CHECK(dynamic_control);
-  dynamic_control->UnmapAllPartitions();
-  LOG(INFO) << "Unmapped all partitions.";
 }
 
 void PostinstallRunnerAction::SuspendAction() {
