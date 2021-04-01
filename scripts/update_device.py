@@ -428,6 +428,8 @@ def main():
                       help='Update with the secondary payload in the package.')
   parser.add_argument('--no-slot-switch', action='store_true',
                       help='Do not perform slot switch after the update.')
+  parser.add_argument('--no-postinstall', action='store_true',
+                      help='Do not execute postinstall scripts after the update.')
   parser.add_argument('--allocate_only', action='store_true',
                       help='Allocate space for this OTA, instead of actually \
                         applying the OTA.')
@@ -472,6 +474,8 @@ def main():
 
   if args.no_slot_switch:
     args.extra_headers += "\nSWITCH_SLOT_ON_REBOOT=0"
+  if args.no_postinstall:
+    args.extra_headers += "\nRUN_POST_INSTALL=0"
 
   with zipfile.ZipFile(args.otafile) as zfp:
     CARE_MAP_ENTRY_NAME = "care_map.pb"
