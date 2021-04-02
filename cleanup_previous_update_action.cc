@@ -153,6 +153,7 @@ void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
   if (!kIsRecovery &&
       !boot_control_->IsSlotMarkedSuccessful(boot_control_->GetCurrentSlot())) {
     ScheduleWaitMarkBootSuccessful();
+    return;
   }
 
   if (metadata_device_ == nullptr) {
