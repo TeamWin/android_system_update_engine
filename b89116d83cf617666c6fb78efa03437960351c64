@@ -1,4 +1,22 @@
 {
   "pushCert": "certificate version 0.1\npusher 02AC01A7795EEEB8 1617826079 -0400\npushee ssh://gerrit.twrp.me:29418/android_system_update_engine\nnonce 1617826080-8DA40A18B33E9382D0DAB8571E2564D5B00302E0\n\n0000000000000000000000000000000000000000 b89116d83cf617666c6fb78efa03437960351c64 refs/for/android-10.0\n-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEwl4aGFhPbHPCDtvWAqwBp3le7rgFAmBuER8ACgkQAqwBp3le\n7rhWZQ/+PRc5SVMAZJBH2NSZJPfWfcTX/j9EI4O+4Vv4sgBwcGgqcQzGNsbCSS6X\nSWtRgYKs/DX78sXyg4esuZ9XmkYnOvEwrguVfjCzRNpYmEG+mVkl27bKeO3Qdomt\nUxm/zVpXmH1YGyr9dugfICXs+fsaXjMQTqFcQqZW9jsJ/2rqRul3lS4VD5AzDBy9\nyqHnjuEgQzST9Svm67BJhOAkCd8Sxh7EIS5aRd/ZJohH7iHP014pyL9q8n+/42TQ\nzTKAOWRlMEPFJZ7EXAZ8ZRr2CvxuY0AsFJFeGVkLGiia/LGNdOouZLv+qWkLuSoU\nXOtP0i+6l/qOjHZIoSuvzK2kykqAwXxeESVhuT/8nK/q4gtmTRuEjDy4eSR4Wqfl\nE2t+giBKvUJ6svo9FVfONKNhcL5ZQkXG+gE287FQR0G66sk1bte12ASS/mtNtTgq\nZNdvk5hci8WEltG4ZAuDK3cpyRkvF2HCp1M2EGp03YrrYaQUdm2EIHbcKuQ18sOZ\njr7Ze0BqWH2lbOn1er2GnSGHFxrcyky8EVeIP1n8x8wNKlFBJSk8Qw46XwNCBbu5\ndxjoQRJCqM6cPCknAv2VXa/Z236OfXqaJnxmxbbVzkJxG070A4x0XapyTm4FTVZr\n3xEb9/Ype4hSUOVt5XAnPaDrpbHiKgE4vWVlQrZejEEC7CvLfW0\u003d\n\u003dfJWr\n-----END PGP SIGNATURE-----\n",
-  "comments": []
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "971a642f_11bef189",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2021-04-07T20:09:21Z",
+      "side": 1,
+      "message": "This is important for my devices that shipped with A10 and need to flash A11 ROMs. Otherwise the update fails.",
+      "revId": "b89116d83cf617666c6fb78efa03437960351c64",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
 }
