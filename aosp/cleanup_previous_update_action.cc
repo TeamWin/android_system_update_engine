@@ -488,7 +488,11 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
                              vab_retrofit,
                              static_cast<int64_t>(report.cow_file_size()),
                              vab_compression_enabled,
-                             vab_compression_used);
+                             vab_compression_used,
+                             report.total_cow_size_bytes(),
+                             report.estimated_cow_size_bytes(),
+                             report.boot_complete_time_ms(),
+                             report.boot_complete_to_merge_start_time_ms());
 #endif
 }
 
