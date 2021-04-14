@@ -430,12 +430,12 @@ def main():
                       help='Do not perform slot switch after the update.')
   parser.add_argument('--no-postinstall', action='store_true',
                       help='Do not execute postinstall scripts after the update.')
-  parser.add_argument('--allocate_only', action='store_true',
+  parser.add_argument('--allocate-only', action='store_true',
                       help='Allocate space for this OTA, instead of actually \
                         applying the OTA.')
-  parser.add_argument('--verify_only', action='store_true',
+  parser.add_argument('--verify-only', action='store_true',
                       help='Verify metadata then exit, instead of applying the OTA.')
-  parser.add_argument('--no_care_map', action='store_true',
+  parser.add_argument('--no-care-map', action='store_true',
                       help='Do not push care_map.pb to device.')
   args = parser.parse_args()
   logging.basicConfig(
@@ -486,7 +486,7 @@ def main():
         care_map_fp.write(zfp.read(CARE_MAP_ENTRY_NAME))
         care_map_fp.flush()
         dut.adb(["push", care_map_fp.name,
-                 "/data/ota_package/" + CARE_MAP_ENTRY_NAME])
+                "/data/ota_package/" + CARE_MAP_ENTRY_NAME])
 
   if args.file:
     # Update via pushing a file to /data.
