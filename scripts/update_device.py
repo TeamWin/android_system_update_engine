@@ -350,7 +350,7 @@ class AdbHost(object):
     if self._device_serial:
       self._command_prefix += ['-s', self._device_serial]
 
-  def adb(self, command):
+  def adb(self, command, timeout_seconds: float = None):
     """Run an ADB command like "adb push".
 
     Args:
@@ -365,7 +365,7 @@ class AdbHost(object):
     command = self._command_prefix + command
     logging.info('Running: %s', ' '.join(str(x) for x in command))
     p = subprocess.Popen(command, universal_newlines=True)
-    p.wait()
+    p.wait(timeout_seconds)
     return p.returncode
 
   def adb_output(self, command):
@@ -546,7 +546,7 @@ def main():
     if server_thread:
       server_thread.StopServer()
     for cmd in finalize_cmds:
-      dut.adb(cmd)
+      dut.adb(cmd, 5)
 
   return 0
 
