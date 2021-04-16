@@ -969,9 +969,16 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest) {
   // Check preconditions.
-  LOG_IF(WARNING, !GetVirtualAbFeatureFlag().IsEnabled() || IsRecovery())
-      << "UpdatePartitionMetadata is called on a Virtual A/B device "
-         "but source partitions is not deleted. This is not allowed.";
+  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    CHECK(!target_supports_snapshot_ || IsRecovery())
+        << "Must use snapshot on VAB device when target build supports VAB and "
+           "not sideloading.";
+    LOG_IF(INFO, !target_supports_snapshot_)
+        << "Not using snapshot on VAB device because target build does not "
+           "support snapshot. Secondary or downgrade OTA?";
+    LOG_IF(INFO, IsRecovery())
+        << "Not using snapshot on VAB device because sideloading.";
+  }
 
   // If applying downgrade from Virtual A/B to non-Virtual A/B, the left-over
   // COW group needs to be deleted to ensure there are enough space to create
