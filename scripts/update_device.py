@@ -350,7 +350,7 @@ class AdbHost(object):
     if self._device_serial:
       self._command_prefix += ['-s', self._device_serial]
 
-  def adb(self, command):
+  def adb(self, command, timeout_seconds: float = None):
     """Run an ADB command like "adb push".
 
     Args:
@@ -365,7 +365,7 @@ class AdbHost(object):
     command = self._command_prefix + command
     logging.info('Running: %s', ' '.join(str(x) for x in command))
     p = subprocess.Popen(command, universal_newlines=True)
-    p.wait()
+    p.wait(timeout_seconds)
     return p.returncode
 
   def adb_output(self, command):
@@ -430,12 +430,12 @@ def main():
                       help='Do not perform slot switch after the update.')
   parser.add_argument('--no-postinstall', action='store_true',
                       help='Do not execute postinstall scripts after the update.')
-  parser.add_argument('--allocate_only', action='store_true',
+  parser.add_argument('--allocate-only', action='store_true',
                       help='Allocate space for this OTA, instead of actually \
                         applying the OTA.')
-  parser.add_argument('--verify_only', action='store_true',
+  parser.add_argument('--verify-only', action='store_true',
                       help='Verify metadata then exit, instead of applying the OTA.')
-  parser.add_argument('--no_care_map', action='store_true',
+  parser.add_argument('--no-care-map', action='store_true',
                       help='Do not push care_map.pb to device.')
   args = parser.parse_args()
   logging.basicConfig(
@@ -486,7 +486,7 @@ def main():
         care_map_fp.write(zfp.read(CARE_MAP_ENTRY_NAME))
         care_map_fp.flush()
         dut.adb(["push", care_map_fp.name,
-                 "/data/ota_package/" + CARE_MAP_ENTRY_NAME])
+                "/data/ota_package/" + CARE_MAP_ENTRY_NAME])
 
   if args.file:
     # Update via pushing a file to /data.
@@ -546,7 +546,7 @@ def main():
     if server_thread:
       server_thread.StopServer()
     for cmd in finalize_cmds:
-      dut.adb(cmd)
+      dut.adb(cmd, 5)
 
   return 0
 
