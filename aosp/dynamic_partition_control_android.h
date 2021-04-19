@@ -258,6 +258,18 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                           const DeltaArchiveManifest& manifest,
                                           uint64_t* required_size);
 
+  enum SpaceLimit {
+    // Most restricted: if sum(groups) > super / 2, error
+    ERROR_IF_EXCEEDED_HALF_OF_SUPER,
+    // Implies ERROR_IF_EXCEEDED_SUPER; then, if sum(groups) > super / 2, warn
+    WARN_IF_EXCEEDED_HALF_OF_SUPER,
+    // Least restricted: if sum(groups) > super, error
+    ERROR_IF_EXCEEDED_SUPER,
+  };
+  // Helper of CheckSuperPartitionAllocatableSpace. Determine limit for groups
+  // and partitions.
+  SpaceLimit GetSpaceLimit(bool use_snapshot);
+
   // Returns true if the allocatable space in super partition is larger than
   // the size of dynamic partition groups in the manifest.
   bool CheckSuperPartitionAllocatableSpace(
