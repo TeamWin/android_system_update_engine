@@ -29,8 +29,7 @@ BzipExtentWriter::~BzipExtentWriter() {
   TEST_AND_RETURN(input_buffer_.empty());
 }
 
-bool BzipExtentWriter::Init(FileDescriptorPtr fd,
-                            const RepeatedPtrField<Extent>& extents,
+bool BzipExtentWriter::Init(const RepeatedPtrField<Extent>& extents,
                             uint32_t block_size) {
   // Init bzip2 stream
   int rc = BZ2_bzDecompressInit(&stream_,
@@ -39,7 +38,7 @@ bool BzipExtentWriter::Init(FileDescriptorPtr fd,
 
   TEST_AND_RETURN_FALSE(rc == BZ_OK);
 
-  return next_->Init(fd, extents, block_size);
+  return next_->Init(extents, block_size);
 }
 
 bool BzipExtentWriter::Write(const void* bytes, size_t count) {

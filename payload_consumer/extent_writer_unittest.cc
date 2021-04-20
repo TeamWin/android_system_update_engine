@@ -65,9 +65,8 @@ class ExtentWriterTest : public ::testing::Test {
 TEST_F(ExtentWriterTest, SimpleTest) {
   vector<Extent> extents = {ExtentForRange(1, 1)};
   const string bytes = "1234";
-  DirectExtentWriter direct_writer;
-  EXPECT_TRUE(
-      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
+  DirectExtentWriter direct_writer{fd_};
+  EXPECT_TRUE(direct_writer.Init({extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(bytes.data(), bytes.size()));
 
   EXPECT_EQ(static_cast<off_t>(kBlockSize + bytes.size()),
@@ -84,9 +83,8 @@ TEST_F(ExtentWriterTest, SimpleTest) {
 
 TEST_F(ExtentWriterTest, ZeroLengthTest) {
   vector<Extent> extents = {ExtentForRange(1, 1)};
-  DirectExtentWriter direct_writer;
-  EXPECT_TRUE(
-      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
+  DirectExtentWriter direct_writer{fd_};
+  EXPECT_TRUE(direct_writer.Init({extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(nullptr, 0));
 }
 
@@ -109,9 +107,8 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   brillo::Blob data(kBlockSize * 3);
   test_utils::FillWithData(&data);
 
-  DirectExtentWriter direct_writer;
-  EXPECT_TRUE(
-      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
+  DirectExtentWriter direct_writer{fd_};
+  EXPECT_TRUE(direct_writer.Init({extents.begin(), extents.end()}, kBlockSize));
 
   size_t bytes_written = 0;
   while (bytes_written < data.size()) {
@@ -150,9 +147,8 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   brillo::Blob data(17);
   test_utils::FillWithData(&data);
 
-  DirectExtentWriter direct_writer;
-  EXPECT_TRUE(
-      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
+  DirectExtentWriter direct_writer{fd_};
+  EXPECT_TRUE(direct_writer.Init({extents.begin(), extents.end()}, kBlockSize));
 
   size_t bytes_written = 0;
   while (bytes_written < (block_count * kBlockSize)) {

@@ -36,7 +36,6 @@ SnapshotExtentWriter::~SnapshotExtentWriter() {
 }
 
 bool SnapshotExtentWriter::Init(
-    FileDescriptorPtr /*fd*/,
     const google::protobuf::RepeatedPtrField<Extent>& extents,
     uint32_t block_size) {
   extents_ = extents;
