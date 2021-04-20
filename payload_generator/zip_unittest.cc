@@ -33,7 +33,6 @@
 using chromeos_update_engine::test_utils::kRandomString;
 using google::protobuf::RepeatedPtrField;
 using std::string;
-using std::vector;
 
 namespace chromeos_update_engine {
 
@@ -50,8 +49,7 @@ class MemoryExtentWriter : public ExtentWriter {
   }
   ~MemoryExtentWriter() override = default;
 
-  bool Init(FileDescriptorPtr fd,
-            const RepeatedPtrField<Extent>& extents,
+  bool Init(const RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override {
     return true;
   }
@@ -72,7 +70,7 @@ bool DecompressWithWriter(const brillo::Blob& in, brillo::Blob* out) {
   std::unique_ptr<ExtentWriter> writer(
       new W(std::make_unique<MemoryExtentWriter>(out)));
   // Init() parameters are ignored by the testing MemoryExtentWriter.
-  bool ok = writer->Init(nullptr, {}, 1);
+  bool ok = writer->Init({}, 1);
   ok = writer->Write(in.data(), in.size()) && ok;
   return ok;
 }
