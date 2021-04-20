@@ -39,8 +39,7 @@ class XzExtentWriter : public ExtentWriter {
       : underlying_writer_(std::move(underlying_writer)) {}
   ~XzExtentWriter() override;
 
-  bool Init(FileDescriptorPtr fd,
-            const google::protobuf::RepeatedPtrField<Extent>& extents,
+  bool Init(const google::protobuf::RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override;
   bool Write(const void* bytes, size_t count) override;
 

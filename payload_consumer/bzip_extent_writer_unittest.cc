@@ -29,7 +29,6 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 
-using google::protobuf::RepeatedPtrField;
 using std::min;
 using std::string;
 using std::vector;
@@ -64,9 +63,8 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
       0x22, 0x9c, 0x28, 0x48, 0x66, 0x61, 0xb8, 0xea, 0x00,
   };
 
-  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
-  EXPECT_TRUE(
-      bzip_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
+  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>(fd_));
+  EXPECT_TRUE(bzip_writer.Init({extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
 
   brillo::Blob buf;
@@ -97,9 +95,8 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
 
   vector<Extent> extents = {ExtentForBytes(kBlockSize, 0, kDecompressedLength)};
 
-  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
-  EXPECT_TRUE(
-      bzip_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
+  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>(fd_));
+  EXPECT_TRUE(bzip_writer.Init({extents.begin(), extents.end()}, kBlockSize));
 
   brillo::Blob original_compressed_data = compressed_data;
   for (brillo::Blob::size_type i = 0; i < compressed_data.size();

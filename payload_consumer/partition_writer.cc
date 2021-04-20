@@ -326,8 +326,7 @@ bool PartitionWriter::PerformReplaceOperation(const InstallOperation& operation,
     writer.reset(new XzExtentWriter(std::move(writer)));
   }
 
-  TEST_AND_RETURN_FALSE(
-      writer->Init(target_fd_, operation.dst_extents(), block_size_));
+  TEST_AND_RETURN_FALSE(writer->Init(operation.dst_extents(), block_size_));
   TEST_AND_RETURN_FALSE(writer->Write(data, operation.data_length()));
 
   return true;
@@ -377,7 +376,7 @@ bool PartitionWriter::PerformSourceCopyOperation(
   const auto& partition_control = dynamic_control_;
 
   InstallOperation buf;
-  bool should_optimize = partition_control->OptimizeOperation(
+  const bool should_optimize = partition_control->OptimizeOperation(
       partition.partition_name(), operation, &buf);
   const InstallOperation& optimized = should_optimize ? buf : operation;
 
@@ -493,8 +492,7 @@ bool PartitionWriter::PerformSourceBsdiffOperation(
       utils::BlocksInExtents(operation.src_extents()) * block_size_);
 
   auto writer = CreateBaseExtentWriter();
-  TEST_AND_RETURN_FALSE(
-      writer->Init(target_fd_, operation.dst_extents(), block_size_));
+  TEST_AND_RETURN_FALSE(writer->Init(operation.dst_extents(), block_size_));
   auto dst_file = std::make_unique<BsdiffExtentFile>(
       std::move(writer),
       utils::BlocksInExtents(operation.dst_extents()) * block_size_);
@@ -522,8 +520,7 @@ bool PartitionWriter::PerformPuffDiffOperation(
       utils::BlocksInExtents(operation.src_extents()) * block_size_));
 
   auto writer = CreateBaseExtentWriter();
-  TEST_AND_RETURN_FALSE(
-      writer->Init(target_fd_, operation.dst_extents(), block_size_));
+  TEST_AND_RETURN_FALSE(writer->Init(operation.dst_extents(), block_size_));
   puffin::UniqueStreamPtr dst_stream(new PuffinExtentStream(
       std::move(writer),
       utils::BlocksInExtents(operation.dst_extents()) * block_size_));
@@ -658,7 +655,7 @@ void PartitionWriter::CheckpointUpdateProgress(size_t next_op_index) {
 }
 
 std::unique_ptr<ExtentWriter> PartitionWriter::CreateBaseExtentWriter() {
-  return std::make_unique<DirectExtentWriter>();
+  return std::make_unique<DirectExtentWriter>(target_fd_);
 }
 
 }  // namespace chromeos_update_engine

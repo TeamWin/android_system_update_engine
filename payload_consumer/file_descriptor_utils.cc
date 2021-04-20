@@ -82,8 +82,8 @@ bool CopyAndHashExtents(FileDescriptorPtr source,
                         const RepeatedPtrField<Extent>& tgt_extents,
                         uint64_t block_size,
                         brillo::Blob* hash_out) {
-  DirectExtentWriter writer;
-  TEST_AND_RETURN_FALSE(writer.Init(target, tgt_extents, block_size));
+  DirectExtentWriter writer{target};
+  TEST_AND_RETURN_FALSE(writer.Init(tgt_extents, block_size));
   TEST_AND_RETURN_FALSE(utils::BlocksInExtents(src_extents) ==
                         utils::BlocksInExtents(tgt_extents));
   TEST_AND_RETURN_FALSE(
