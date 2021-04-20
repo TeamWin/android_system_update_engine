@@ -32,6 +32,7 @@
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <bootloader_message/bootloader_message.h>
 #include <fs_mgr.h>
 #include <fs_mgr_dm_linear.h>
@@ -70,6 +71,7 @@ using android::snapshot::Return;
 using android::snapshot::SnapshotManager;
 using android::snapshot::SnapshotManagerStub;
 using android::snapshot::UpdateState;
+using base::StringPrintf;
 
 namespace chromeos_update_engine {
 
@@ -830,33 +832,90 @@ bool DynamicPartitionControlAndroid::PrepareDynamicPartitionsForUpdate(
   return StoreMetadata(target_device, builder.get(), target_slot);
 }
 
+DynamicPartitionControlAndroid::SpaceLimit
+DynamicPartitionControlAndroid::GetSpaceLimit(bool use_snapshot) {
+  // On device retrofitting dynamic partitions, allocatable_space = "super",
+  // where "super" is the sum of all block devices for that slot. Since block
+  // devices are dedicated for the corresponding slot, there's no need to halve
+  // the allocatable space.
+  if (GetDynamicPartitionsFeatureFlag().IsRetrofit())
+    return SpaceLimit::ERROR_IF_EXCEEDED_SUPER;
+
+  // On device launching dynamic partitions w/o VAB, regardless of recovery
+  // sideload, super partition must be big enough to hold both A and B slots of
+  // groups. Hence,
+  // allocatable_space = super / 2
+  if (!GetVirtualAbFeatureFlag().IsEnabled())
+    return SpaceLimit::ERROR_IF_EXCEEDED_HALF_OF_SUPER;
+
+  // Source build supports VAB. Super partition must be big enough to hold
+  // one slot of groups (ERROR_IF_EXCEEDED_SUPER). However, there are cases
+  // where additional warning messages needs to be written.
+
+  // If using snapshot updates, implying that target build also uses VAB,
+  // allocatable_space = super
+  if (use_snapshot)
+    return SpaceLimit::ERROR_IF_EXCEEDED_SUPER;
+
+  // Source build supports VAB but not using snapshot updates. There are
+  // several cases, as listed below.
+  // Sideloading: allocatable_space = super.
+  if (IsRecovery())
+    return SpaceLimit::ERROR_IF_EXCEEDED_SUPER;
+
+  // On launch VAB device, this implies secondary payload.
+  // Technically, we don't have to check anything, but sum(groups) < super
+  // still applies.
+  if (!GetVirtualAbFeatureFlag().IsRetrofit())
+    return SpaceLimit::ERROR_IF_EXCEEDED_SUPER;
+
+  // On retrofit VAB device, either of the following:
+  // - downgrading: allocatable_space = super / 2
+  // - secondary payload: don't check anything
+  // These two cases are indistinguishable,
+  // hence emit warning if sum(groups) > super / 2
+  return SpaceLimit::WARN_IF_EXCEEDED_HALF_OF_SUPER;
+}
+
 bool DynamicPartitionControlAndroid::CheckSuperPartitionAllocatableSpace(
     android::fs_mgr::MetadataBuilder* builder,
     const DeltaArchiveManifest& manifest,
     bool use_snapshot) {
-  uint64_t total_size = 0;
+  uint64_t sum_groups = 0;
   for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
-    total_size += group.size();
+    sum_groups += group.size();
   }
 
-  std::string expr;
-  uint64_t allocatable_space = builder->AllocatableSpace();
-  // On device retrofitting dynamic partitions, allocatable_space = super.
-  // On device launching dynamic partitions w/o VAB,
-  //   allocatable_space = super / 2.
-  // On device launching dynamic partitions with VAB, allocatable_space = super.
-  // For recovery sideload, allocatable_space = super.
-  if (!GetDynamicPartitionsFeatureFlag().IsRetrofit() && !use_snapshot &&
-      !IsRecovery()) {
-    allocatable_space /= 2;
-    expr = "half of ";
-  }
-  if (total_size > allocatable_space) {
-    LOG(ERROR) << "The maximum size of all groups for the target slot"
-               << " (" << total_size << ") has exceeded " << expr
-               << "allocatable space for dynamic partitions "
-               << allocatable_space << ".";
-    return false;
+  uint64_t full_space = builder->AllocatableSpace();
+  uint64_t half_space = full_space / 2;
+  constexpr const char* fmt =
+      "The maximum size of all groups for the target slot (%" PRIu64
+      ") has exceeded %sallocatable space for dynamic partitions %" PRIu64 ".";
+  switch (GetSpaceLimit(use_snapshot)) {
+    case SpaceLimit::ERROR_IF_EXCEEDED_HALF_OF_SUPER: {
+      if (sum_groups > half_space) {
+        LOG(ERROR) << StringPrintf(fmt, sum_groups, "HALF OF ", half_space);
+        return false;
+      }
+      // If test passes, it implies that the following two conditions also pass.
+      break;
+    }
+    case SpaceLimit::WARN_IF_EXCEEDED_HALF_OF_SUPER: {
+      if (sum_groups > half_space) {
+        LOG(WARNING) << StringPrintf(fmt, sum_groups, "HALF OF ", half_space)
+                     << " This is allowed for downgrade or secondary OTA on "
+                        "retrofit VAB device.";
+      }
+      // still check sum(groups) < super
+      [[fallthrough]];
+    }
+    case SpaceLimit::ERROR_IF_EXCEEDED_SUPER: {
+      if (sum_groups > full_space) {
+        LOG(ERROR) << base::StringPrintf(fmt, sum_groups, "", full_space);
+        return false;
+      }
+      break;
+    }
   }
 
   return true;
@@ -910,9 +969,16 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest) {
   // Check preconditions.
-  LOG_IF(WARNING, !GetVirtualAbFeatureFlag().IsEnabled() || IsRecovery())
-      << "UpdatePartitionMetadata is called on a Virtual A/B device "
-         "but source partitions is not deleted. This is not allowed.";
+  if (GetVirtualAbFeatureFlag().IsEnabled()) {
+    CHECK(!target_supports_snapshot_ || IsRecovery())
+        << "Must use snapshot on VAB device when target build supports VAB and "
+           "not sideloading.";
+    LOG_IF(INFO, !target_supports_snapshot_)
+        << "Not using snapshot on VAB device because target build does not "
+           "support snapshot. Secondary or downgrade OTA?";
+    LOG_IF(INFO, IsRecovery())
+        << "Not using snapshot on VAB device because sideloading.";
+  }
 
   // If applying downgrade from Virtual A/B to non-Virtual A/B, the left-over
   // COW group needs to be deleted to ensure there are enough space to create
