@@ -82,10 +82,10 @@ class PartitionWriterTest : public testing::Test {
   brillo::Blob PerformSourceCopyOp(const InstallOperation& op,
                                    const brillo::Blob blob_data) {
     ScopedTempFile source_partition("Blob-XXXXXX");
-    DirectExtentWriter extent_writer;
     FileDescriptorPtr fd(new EintrSafeFileDescriptor());
+    DirectExtentWriter extent_writer{fd};
     EXPECT_TRUE(fd->Open(source_partition.path().c_str(), O_RDWR));
-    EXPECT_TRUE(extent_writer.Init(fd, op.src_extents(), kBlockSize));
+    EXPECT_TRUE(extent_writer.Init(op.src_extents(), kBlockSize));
     EXPECT_TRUE(extent_writer.Write(blob_data.data(), blob_data.size()));
 
     ScopedTempFile target_partition("Blob-XXXXXX");

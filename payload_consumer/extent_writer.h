@@ -38,8 +38,7 @@ class ExtentWriter {
   virtual ~ExtentWriter() = default;
 
   // Returns true on success.
-  virtual bool Init(FileDescriptorPtr fd,
-                    const google::protobuf::RepeatedPtrField<Extent>& extents,
+  virtual bool Init(const google::protobuf::RepeatedPtrField<Extent>& extents,
                     uint32_t block_size) = 0;
 
   // Returns true on success.
@@ -51,13 +50,11 @@ class ExtentWriter {
 
 class DirectExtentWriter : public ExtentWriter {
  public:
-  DirectExtentWriter() = default;
+  explicit DirectExtentWriter(FileDescriptorPtr fd) : fd_(fd) {}
   ~DirectExtentWriter() override = default;
 
-  bool Init(FileDescriptorPtr fd,
-            const google::protobuf::RepeatedPtrField<Extent>& extents,
+  bool Init(const google::protobuf::RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override {
-    fd_ = fd;
     block_size_ = block_size;
     extents_ = extents;
     cur_extent_ = extents_.begin();
