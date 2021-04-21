@@ -493,7 +493,8 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
                              report.total_cow_size_bytes(),
                              report.estimated_cow_size_bytes(),
                              report.boot_complete_time_ms(),
-                             report.boot_complete_to_merge_start_time_ms());
+                             report.boot_complete_to_merge_start_time_ms(),
+                             static_cast<int32_t>(report.merge_failure_code()));
 #endif
 }
 
