@@ -66,7 +66,7 @@ cc_defaults {
     ],
     include_dirs: ["system"],
     local_include_dirs: ["client_library/include"],
-    static_libs: ["libgtest_prod"],
+    header_libs: ["libgtest_prod_headers"],
     shared_libs: [
         "libbrillo-stream",
         "libbrillo",
@@ -426,6 +426,7 @@ cc_binary {
     // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
     // out of the DBus interface.
     include_dirs: ["external/cros/system_api/dbus"],
+    header_libs: ["libgtest_prod_headers"],
 
     srcs: [
         "aosp/hardware_android.cc",
@@ -460,7 +461,6 @@ cc_binary {
         "gkiprops",
         "libevent",
         "libmodpb64",
-        "libgtest_prod",
         "libprotobuf-cpp-lite",
         "libbrillo-stream",
         "libbrillo",
