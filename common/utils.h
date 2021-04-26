@@ -399,12 +399,18 @@ class ScopedTempFile {
 
   // If |open_fd| is true, a writable file descriptor will be opened for this
   // file.
-  explicit ScopedTempFile(const std::string& pattern, bool open_fd = false) {
+  // If |truncate_size| is non-zero, truncate file to that size on creation.
+  explicit ScopedTempFile(const std::string& pattern,
+                          bool open_fd = false,
+                          size_t truncate_size = 0) {
     CHECK(utils::MakeTempFile(pattern, &path_, open_fd ? &fd_ : nullptr));
     unlinker_.reset(new ScopedPathUnlinker(path_));
     if (open_fd) {
       CHECK_GE(fd_, 0);
       fd_closer_.reset(new ScopedFdCloser(&fd_));
+    }
+    if (truncate_size > 0) {
+      CHECK_EQ(0, truncate(path_.c_str(), truncate_size));
     }
   }
   virtual ~ScopedTempFile() = default;
