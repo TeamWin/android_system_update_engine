@@ -14,6 +14,9 @@
 // limitations under the License.
 //
 
+#ifndef UPDATE_ENGINE_SNAPSHOT_EXTENT_WRITER_H_
+#define UPDATE_ENGINE_SNAPSHOT_EXTENT_WRITER_H_
+
 #include <cstdint>
 #include <vector>
 
@@ -52,3 +55,5 @@ class SnapshotExtentWriter : public chromeos_update_engine::ExtentWriter {
 };
 
 }  // namespace chromeos_update_engine
+
+#endif
