@@ -1470,7 +1470,8 @@ bool DynamicPartitionControlAndroid::IsDynamicPartition(
 }
 
 bool DynamicPartitionControlAndroid::UpdateUsesSnapshotCompression() {
-  return snapshot_->UpdateUsesCompression();
+  return GetVirtualAbFeatureFlag().IsEnabled() &&
+         snapshot_->UpdateUsesCompression();
 }
 
 }  // namespace chromeos_update_engine
