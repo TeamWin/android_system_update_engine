@@ -65,12 +65,11 @@ bool DaemonStateAndroid::Initialize() {
   certificate_checker_->Init();
 
   // Initialize the UpdateAttempter before the UpdateManager.
-  update_attempter_.reset(
-      new UpdateAttempterAndroid(this,
-                                 prefs_.get(),
-                                 boot_control_.get(),
-                                 hardware_.get(),
-                                 std::make_unique<ApexHandlerAndroid>()));
+  update_attempter_.reset(new UpdateAttempterAndroid(this,
+                                                     prefs_.get(),
+                                                     boot_control_.get(),
+                                                     hardware_.get(),
+                                                     CreateApexHandler()));
 
   return true;
 }
