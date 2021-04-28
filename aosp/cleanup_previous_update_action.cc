@@ -324,6 +324,7 @@ void CleanupPreviousUpdateAction::WaitForMergeOrSchedule() {
 
     case UpdateState::MergeFailed: {
       LOG(ERROR) << "Merge failed. Device may be corrupted.";
+      merge_stats_->set_merge_failure_code(snapshot_->ReadMergeFailureCode());
       processor_->ActionComplete(this, ErrorCode::kDeviceCorrupted);
       return;
     }
