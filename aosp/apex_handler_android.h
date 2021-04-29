@@ -17,6 +17,7 @@
 #ifndef SYSTEM_UPDATE_ENGINE_AOSP_APEX_HANDLER_ANDROID_H_
 #define SYSTEM_UPDATE_ENGINE_AOSP_APEX_HANDLER_ANDROID_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,8 @@
 
 namespace chromeos_update_engine {
 
+std::unique_ptr<ApexHandlerInterface> CreateApexHandler();
+
 class ApexHandlerAndroid : virtual public ApexHandlerInterface {
  public:
   android::base::Result<uint64_t> CalculateSize(
@@ -36,6 +39,13 @@ class ApexHandlerAndroid : virtual public ApexHandlerInterface {
 
  private:
   android::sp<android::apex::IApexService> GetApexService() const;
+};
+
+class FlattenedApexHandlerAndroid : virtual public ApexHandlerInterface {
+ public:
+  android::base::Result<uint64_t> CalculateSize(
+      const std::vector<ApexInfo>& apex_infos) const;
+  bool AllocateSpace(const std::vector<ApexInfo>& apex_infos) const;
 };
 
 }  // namespace chromeos_update_engine

@@ -41,7 +41,7 @@ ApexInfo CreateApexInfo(const std::string& package_name,
   return std::move(result);
 }
 
-TEST(ApexHandlerAndroidTest, CalculateSize) {
+TEST(ApexHandlerAndroidTest, CalculateSizeUpdatableApex) {
   ApexHandlerAndroid apex_handler;
   std::vector<ApexInfo> apex_infos;
   ApexInfo compressed_apex_1 = CreateApexInfo("sample1", 1, true, 1);
@@ -52,10 +52,10 @@ TEST(ApexHandlerAndroidTest, CalculateSize) {
   apex_infos.push_back(uncompressed_apex);
   auto result = apex_handler.CalculateSize(apex_infos);
   ASSERT_TRUE(result.ok());
-  EXPECT_EQ(*result, 3u);
+  ASSERT_EQ(*result, 3u);
 }
 
-TEST(ApexHandlerAndroidTest, AllocateSpace) {
+TEST(ApexHandlerAndroidTest, AllocateSpaceUpdatableApex) {
   ApexHandlerAndroid apex_handler;
   std::vector<ApexInfo> apex_infos;
   ApexInfo compressed_apex_1 = CreateApexInfo("sample1", 1, true, 1);
@@ -64,10 +64,39 @@ TEST(ApexHandlerAndroidTest, AllocateSpace) {
   apex_infos.push_back(compressed_apex_1);
   apex_infos.push_back(compressed_apex_2);
   apex_infos.push_back(uncompressed_apex);
-  EXPECT_TRUE(apex_handler.AllocateSpace(apex_infos));
+  ASSERT_TRUE(apex_handler.AllocateSpace(apex_infos));
 
   // Should be able to pass empty list
-  EXPECT_TRUE(apex_handler.AllocateSpace({}));
+  ASSERT_TRUE(apex_handler.AllocateSpace({}));
+}
+
+TEST(ApexHandlerAndroidTest, CalculateSizeFlattenedApex) {
+  FlattenedApexHandlerAndroid apex_handler;
+  std::vector<ApexInfo> apex_infos;
+  ApexInfo compressed_apex_1 = CreateApexInfo("sample1", 1, true, 1);
+  ApexInfo compressed_apex_2 = CreateApexInfo("sample2", 2, true, 2);
+  ApexInfo uncompressed_apex = CreateApexInfo("uncompressed", 1, false, 4);
+  apex_infos.push_back(compressed_apex_1);
+  apex_infos.push_back(compressed_apex_2);
+  apex_infos.push_back(uncompressed_apex);
+  auto result = apex_handler.CalculateSize(apex_infos);
+  ASSERT_TRUE(result.ok());
+  ASSERT_EQ(*result, 0u);
+}
+
+TEST(ApexHandlerAndroidTest, AllocateSpaceFlattenedApex) {
+  FlattenedApexHandlerAndroid apex_handler;
+  std::vector<ApexInfo> apex_infos;
+  ApexInfo compressed_apex_1 = CreateApexInfo("sample1", 1, true, 1);
+  ApexInfo compressed_apex_2 = CreateApexInfo("sample2", 2, true, 2);
+  ApexInfo uncompressed_apex = CreateApexInfo("uncompressed", 1, false, 4);
+  apex_infos.push_back(compressed_apex_1);
+  apex_infos.push_back(compressed_apex_2);
+  apex_infos.push_back(uncompressed_apex);
+  ASSERT_TRUE(apex_handler.AllocateSpace(apex_infos));
+
+  // Should be able to pass empty list
+  ASSERT_TRUE(apex_handler.AllocateSpace({}));
 }
 
 }  // namespace chromeos_update_engine
