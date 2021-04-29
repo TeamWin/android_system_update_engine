@@ -14,9 +14,12 @@
 // limitations under the License.
 //
 
+#include <memory>
 #include <utility>
 
 #include <base/files/file_util.h>
+
+#include <ApexProperties.sysprop.h>
 
 #include "update_engine/aosp/apex_handler_android.h"
 #include "update_engine/common/utils.h"
@@ -43,6 +46,14 @@ android::apex::CompressedApexInfoList CreateCompressedApexInfoList(
 }
 
 }  // namespace
+
+std::unique_ptr<ApexHandlerInterface> CreateApexHandler() {
+  if (android::sysprop::ApexProperties::updatable().value_or(false)) {
+    return std::make_unique<ApexHandlerAndroid>();
+  } else {
+    return std::make_unique<FlattenedApexHandlerAndroid>();
+  }
+}
 
 android::base::Result<uint64_t> ApexHandlerAndroid::CalculateSize(
     const std::vector<ApexInfo>& apex_infos) const {
@@ -84,6 +95,16 @@ android::sp<android::apex::IApexService> ApexHandlerAndroid::GetApexService()
     return nullptr;
   }
   return android::interface_cast<android::apex::IApexService>(binder);
+}
+
+android::base::Result<uint64_t> FlattenedApexHandlerAndroid::CalculateSize(
+    const std::vector<ApexInfo>& apex_infos) const {
+  return 0;
+}
+
+bool FlattenedApexHandlerAndroid::AllocateSpace(
+    const std::vector<ApexInfo>& apex_infos) const {
+  return true;
 }
 
 }  // namespace chromeos_update_engine
