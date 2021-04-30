@@ -23,6 +23,7 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <brillo/strings/string_utils.h>
+#include <libsnapshot/cow_format.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/delta_performer.h"
@@ -185,6 +186,7 @@ bool ImageConfig::LoadDynamicPartitionMetadata(
   // We use "gz" compression by default for VABC.
   if (metadata->vabc_enabled()) {
     metadata->set_vabc_compression_param("gz");
+    metadata->set_cow_version(android::snapshot::kCowVersionManifest);
   }
   dynamic_partition_metadata = std::move(metadata);
   return true;
