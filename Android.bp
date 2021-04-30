@@ -348,6 +348,9 @@ cc_defaults {
         "libstatslog",
         "libutils",
     ],
+    whole_static_libs: [
+        "com.android.sysprop.apex",
+    ],
 }
 
 cc_library_static {
