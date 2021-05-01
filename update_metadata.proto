@@ -359,6 +359,10 @@ message DynamicPartitionMetadata {
   // See system/core/fs_mgr/libsnapshot/cow_writer.cpp for available options,
   // as this parameter is ultimated forwarded to libsnapshot's CowWriter
   optional string vabc_compression_param = 4;
+
+  // COW version used by VABC. The represents the major version in the COW
+  // header
+  optional uint32 cow_version = 5;
 }
 
 // Definition has been duplicated from
