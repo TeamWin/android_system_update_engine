@@ -38,6 +38,7 @@ TEST(InstallPlanTest, Dump) {
           .source_path = "foo-source-path",
           .source_hash = {0xb1, 0xb2},
           .target_path = "foo-target-path",
+          .readonly_target_path = "mountable-device",
           .target_hash = {0xb3, 0xb4},
           .postinstall_path = "foo-path",
           .filesystem_type = "foo-type",
@@ -66,6 +67,7 @@ Partition: foo-partition_name
   target_hash: B3B4
   run_postinstall: false
   postinstall_path: foo-path
+  readonly_target_path: mountable-device
   filesystem_type: foo-type
 Payload: 0
   urls: (url1,url2)

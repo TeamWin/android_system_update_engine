@@ -1116,9 +1116,9 @@ DynamicPartitionControlAndroid::GetPartitionDevice(
   if (UpdateUsesSnapshotCompression() && slot != current_slot &&
       IsDynamicPartition(partition_name, slot)) {
     return {
-        {.mountable_device_path = base::FilePath{std::string{VABC_DEVICE_DIR}}
-                                      .Append(partition_name_suffix)
-                                      .value(),
+        {.readonly_device_path = base::FilePath{std::string{VABC_DEVICE_DIR}}
+                                     .Append(partition_name_suffix)
+                                     .value(),
          .is_dynamic = true}};
   }
 
@@ -1137,7 +1137,7 @@ DynamicPartitionControlAndroid::GetPartitionDevice(
                                       &device)) {
       case DynamicPartitionDeviceStatus::SUCCESS:
         return {{.rw_device_path = device,
-                 .mountable_device_path = device,
+                 .readonly_device_path = device,
                  .is_dynamic = true}};
 
       case DynamicPartitionDeviceStatus::TRY_STATIC:
@@ -1155,7 +1155,7 @@ DynamicPartitionControlAndroid::GetPartitionDevice(
   }
 
   return {{.rw_device_path = static_path,
-           .mountable_device_path = static_path,
+           .readonly_device_path = static_path,
            .is_dynamic = false}};
 }
 
