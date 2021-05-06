@@ -140,7 +140,7 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   const InstallPlan::Partition& partition =
       install_plan_.partitions[current_partition_];
 
-  const string mountable_device = partition.postinstall_mount_device;
+  const string mountable_device = partition.readonly_target_path;
   if (mountable_device.empty()) {
     LOG(ERROR) << "Cannot make mountable device from " << partition.target_path;
     return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
