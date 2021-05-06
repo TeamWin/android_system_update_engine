@@ -39,7 +39,7 @@ namespace chromeos_update_engine {
 
 struct PartitionDevice {
   std::string rw_device_path;
-  std::string mountable_device_path;
+  std::string readonly_device_path;
   bool is_dynamic;
 };
 

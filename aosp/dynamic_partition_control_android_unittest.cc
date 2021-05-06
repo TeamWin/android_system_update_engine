@@ -431,7 +431,7 @@ TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePath) {
   auto device_info =
       dynamicControl().GetPartitionDevice("system", target(), source(), false);
   ASSERT_TRUE(device_info.has_value());
-  ASSERT_EQ(device_info->mountable_device_path, device);
+  ASSERT_EQ(device_info->readonly_device_path, device);
 }
 
 TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePathVABC) {
@@ -475,7 +475,7 @@ TEST_P(DynamicPartitionControlAndroidTestP, GetMountableDevicePathVABC) {
   ASSERT_TRUE(device_info.has_value());
   base::FilePath vabc_device_dir{
       std::string{DynamicPartitionControlAndroid::VABC_DEVICE_DIR}};
-  ASSERT_EQ(device_info->mountable_device_path,
+  ASSERT_EQ(device_info->readonly_device_path,
             vabc_device_dir.Append(T("system")).value());
 }
 
