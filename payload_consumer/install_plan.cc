@@ -122,6 +122,7 @@ string InstallPlan::ToString() const {
                              partition.target_hash.size())},
             {"run_postinstall", utils::ToString(partition.run_postinstall)},
             {"postinstall_path", partition.postinstall_path},
+            {"readonly_target_path", partition.readonly_target_path},
             {"filesystem_type", partition.filesystem_type},
         },
         "\n  "));
@@ -165,7 +166,7 @@ bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
           partition.name, target_slot, source_slot);
       TEST_AND_RETURN_FALSE(device.has_value());
       partition.target_path = device->rw_device_path;
-      partition.postinstall_mount_device = device->mountable_device_path;
+      partition.readonly_target_path = device->readonly_device_path;
     } else {
       partition.target_path.clear();
     }

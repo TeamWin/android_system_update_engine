@@ -137,7 +137,7 @@ class FakeBootControl : public BootControlInterface {
     PartitionDevice device;
     device.is_dynamic = false;
     device.rw_device_path = device_path->second;
-    device.mountable_device_path = device.rw_device_path;
+    device.readonly_device_path = device.rw_device_path;
     return device;
   }
 
