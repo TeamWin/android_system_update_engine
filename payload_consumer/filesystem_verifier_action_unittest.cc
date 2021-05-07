@@ -488,7 +488,6 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
 }
 
 TEST_F(FilesystemVerifierActionTest, ReadAfterWrite) {
-  constexpr auto BLOCK_SIZE = 4096;
   ScopedTempFile cow_device_file("cow_device.XXXXXX", true);
   android::snapshot::CompressedSnapshotWriter snapshot_writer{
       {.block_size = BLOCK_SIZE}};
@@ -507,6 +506,12 @@ TEST_F(FilesystemVerifierActionTest, ReadAfterWrite) {
   ASSERT_TRUE(snapshot_writer.Finalize());
   cow_reader = snapshot_writer.OpenReader();
   ASSERT_NE(cow_reader, nullptr);
+  std::vector<unsigned char> read_back;
+  read_back.resize(buffer.size());
+  cow_reader->Seek(BLOCK_SIZE, SEEK_SET);
+  const auto bytes_read = cow_reader->Read(read_back.data(), read_back.size());
+  ASSERT_EQ((size_t)(bytes_read), BLOCK_SIZE);
+  ASSERT_EQ(read_back, buffer);
 }
 
 }  // namespace chromeos_update_engine
