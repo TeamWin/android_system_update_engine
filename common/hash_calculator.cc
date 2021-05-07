@@ -95,6 +95,11 @@ bool HashCalculator::RawHashOfData(const brillo::Blob& data,
   return RawHashOfBytes(data.data(), data.size(), out_hash);
 }
 
+bool HashCalculator::RawHashOfFile(const string& name, brillo::Blob* out_hash) {
+  const auto file_size = utils::FileSize(name);
+  return RawHashOfFile(name, file_size, out_hash) == file_size;
+}
+
 off_t HashCalculator::RawHashOfFile(const string& name,
                                     off_t length,
                                     brillo::Blob* out_hash) {

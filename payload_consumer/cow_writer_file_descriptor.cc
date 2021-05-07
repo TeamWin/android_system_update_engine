@@ -28,7 +28,10 @@ namespace chromeos_update_engine {
 CowWriterFileDescriptor::CowWriterFileDescriptor(
     std::unique_ptr<android::snapshot::ISnapshotWriter> cow_writer)
     : cow_writer_(std::move(cow_writer)),
-      cow_reader_(cow_writer_->OpenReader()) {}
+      cow_reader_(cow_writer_->OpenReader()) {
+  CHECK_NE(cow_writer_, nullptr);
+  CHECK_NE(cow_reader_, nullptr);
+}
 
 bool CowWriterFileDescriptor::Open(const char* path, int flags, mode_t mode) {
   LOG(ERROR) << "CowWriterFileDescriptor doesn't support Open()";
@@ -113,7 +116,17 @@ bool CowWriterFileDescriptor::Flush() {
 
 bool CowWriterFileDescriptor::Close() {
   if (cow_writer_) {
-    TEST_AND_RETURN_FALSE(cow_writer_->Finalize());
+    // b/186196758
+    // When calling
+    // InitializeAppend(kEndOfInstall), the SnapshotWriter only reads up to the
+    // given label. But OpenReader() completely disregards the resume label and
+    // reads all ops. Therefore, update_engine sees the verity data. However,
+    // when calling SnapshotWriter::Finalize(), data after resume label are
+    // discarded, therefore verity data is gone. To prevent phantom reads, don't
+    // call Finalize() unless we actually write something.
+    if (dirty_) {
+      TEST_AND_RETURN_FALSE(cow_writer_->Finalize());
+    }
     cow_writer_ = nullptr;
   }
   if (cow_reader_) {
