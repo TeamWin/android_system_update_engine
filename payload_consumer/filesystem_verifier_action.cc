@@ -112,6 +112,14 @@ void FilesystemVerifierAction::Cleanup(ErrorCode code) {
   // This memory is not used anymore.
   buffer_.clear();
 
+  // If we didn't write verity, partitions were maped. Releaase resource now.
+  if (!install_plan_.write_verity &&
+      dynamic_control_->UpdateUsesSnapshotCompression()) {
+    LOG(INFO) << "Not writing verity and VABC is enabled, unmapping all "
+                 "partitions";
+    dynamic_control_->UnmapAllPartitions();
+  }
+
   if (cancelled_)
     return;
   if (code == ErrorCode::kSuccess && HasOutputPipe())
@@ -129,6 +137,21 @@ void FilesystemVerifierAction::UpdateProgress(double progress) {
 bool FilesystemVerifierAction::InitializeFdVABC() {
   const InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
+
+  if (!ShouldWriteVerity()) {
+    // In VABC, if we are not writing verity, just map all partitions,
+    // and read using regular fd on |postinstall_mount_device| .
+    // All read will go through snapuserd, which provides a consistent
+    // view: device will use snapuserd to read partition during boot.
+    // b/186196758
+    // Call UnmapAllPartitions() first, because if we wrote verity before, these
+    // writes won't be visible to previously opened snapuserd daemon. To ensure
+    // that we will see the most up to date data from partitions, call Unmap()
+    // then Map() to re-spin daemon.
+    dynamic_control_->UnmapAllPartitions();
+    dynamic_control_->MapAllPartitions();
+    return InitializeFd(partition.readonly_target_path);
+  }
 
   // FilesystemVerifierAction need the read_fd_.
   partition_fd_ =
