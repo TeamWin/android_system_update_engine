@@ -197,8 +197,8 @@ cc_defaults {
     shared_libs: [
         "libbootloader_message",
         "libfs_mgr",
-        "libhwbinder",
         "libhidlbase",
+	"libhwbinder",
         "liblp",
         "libutils",
         "android.hardware.boot@1.0",
@@ -314,7 +314,7 @@ cc_binary {
         "libupdate_engine_boot_control_exports",
         "libpayload_consumer_exports",
     ],
-    recovery: true,
+    recovery_available: true,
 
     cflags: ["-D_UE_SIDELOAD"],
     // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
@@ -360,7 +360,6 @@ cc_binary {
         recovery: {
             exclude_shared_libs: [
                 "libprotobuf-cpp-lite",
-                "libhwbinder",
                 "libbrillo-stream",
                 "libbrillo",
                 "libchrome",
