@@ -109,7 +109,7 @@ struct InstallPlan {
     std::string target_path;
     // |mountable_target_device| is intended to be a path to block device which
     // can be used for mounting this block device's underlying filesystem.
-    std::string postinstall_mount_device;
+    std::string readonly_target_path;
     uint64_t target_size{0};
     brillo::Blob target_hash;
 

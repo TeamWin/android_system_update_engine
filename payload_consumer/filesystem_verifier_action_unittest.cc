@@ -48,8 +48,23 @@ using testing::SetArgPointee;
 namespace chromeos_update_engine {
 
 class FilesystemVerifierActionTest : public ::testing::Test {
+ public:
+  static constexpr size_t BLOCK_SIZE = 4096;
+  static constexpr size_t PARTITION_SIZE = BLOCK_SIZE * 1024;
+
  protected:
-  void SetUp() override { loop_.SetAsCurrent(); }
+  void SetUp() override {
+    brillo::Blob part_data(PARTITION_SIZE);
+    test_utils::FillWithData(&part_data);
+    ASSERT_TRUE(utils::WriteFile(
+        source_part.path().c_str(), part_data.data(), part_data.size()));
+    // FillWithData() will will with different data next call. We want
+    // source/target partitions to contain different data for testing.
+    test_utils::FillWithData(&part_data);
+    ASSERT_TRUE(utils::WriteFile(
+        target_part.path().c_str(), part_data.data(), part_data.size()));
+    loop_.SetAsCurrent();
+  }
 
   void TearDown() override {
     EXPECT_EQ(0, brillo::MessageLoopRunMaxIterations(&loop_, 1));
@@ -62,10 +77,33 @@ class FilesystemVerifierActionTest : public ::testing::Test {
   void BuildActions(const InstallPlan& install_plan,
                     DynamicPartitionControlInterface* dynamic_control);
 
+  InstallPlan::Partition* AddFakePartition(InstallPlan* install_plan,
+                                           std::string name = "fake_part") {
+    InstallPlan::Partition& part = install_plan->partitions.emplace_back();
+    part.name = name;
+    part.target_path = target_part.path();
+    part.readonly_target_path = part.target_path;
+    part.target_size = PARTITION_SIZE;
+    part.block_size = BLOCK_SIZE;
+    part.source_path = source_part.path();
+    EXPECT_TRUE(
+        HashCalculator::RawHashOfFile(source_part.path(), &part.source_hash));
+    EXPECT_TRUE(
+        HashCalculator::RawHashOfFile(target_part.path(), &part.target_hash));
+    return &part;
+  }
+
   brillo::FakeMessageLoop loop_{nullptr};
   ActionProcessor processor_;
   DynamicPartitionControlStub dynamic_control_stub_;
+  static ScopedTempFile source_part;
+  static ScopedTempFile target_part;
 };
+
+ScopedTempFile FilesystemVerifierActionTest::source_part{
+    "source_part.XXXXXX", false, PARTITION_SIZE};
+ScopedTempFile FilesystemVerifierActionTest::target_part{
+    "target_part.XXXXXX", false, PARTITION_SIZE};
 
 class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
  public:
@@ -406,32 +444,27 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
 
 TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
   InstallPlan install_plan;
-  InstallPlan::Partition& part = install_plan.partitions.emplace_back();
-  part.name = "fake_part";
-  part.target_path = "/dev/fake_target_path";
-  part.target_size = 4096 * 4096;
-  part.block_size = 4096;
-  part.source_path = "/dev/fake_source_path";
-  part.fec_size = 0;
-  part.hash_tree_size = 0;
-  part.target_hash.clear();
-  part.source_hash.clear();
+  auto part_ptr = AddFakePartition(&install_plan);
+  ASSERT_NE(part_ptr, nullptr);
+  InstallPlan::Partition& part = *part_ptr;
+  part.target_path = "Shouldn't attempt to open this path";
 
   NiceMock<MockDynamicPartitionControl> dynamic_control;
-  auto fake_fd = std::make_shared<FakeFileDescriptor>();
 
   ON_CALL(dynamic_control, GetDynamicPartitionsFeatureFlag())
       .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ON_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .WillByDefault(Return(true));
-  ON_CALL(dynamic_control, OpenCowFd(_, _, _)).WillByDefault(Return(fake_fd));
   ON_CALL(dynamic_control, IsDynamicPartition(part.name, _))
       .WillByDefault(Return(true));
 
   EXPECT_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .Times(AtLeast(1));
+  // Since we are not writing verity, we should not attempt to OpenCowFd()
+  // reads should go through regular file descriptors on mapped partitions.
   EXPECT_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
-      .Times(1);
+      .Times(0);
+  EXPECT_CALL(dynamic_control, MapAllPartitions()).Times(AtLeast(1));
   EXPECT_CALL(dynamic_control, ListDynamicPartitionsForSlot(_, _, _))
       .WillRepeatedly(
           DoAll(SetArgPointee<2, std::vector<std::string>>({part.name}),
@@ -451,20 +484,10 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
 
   ASSERT_FALSE(processor_.IsRunning());
   ASSERT_TRUE(delegate.ran());
-  // Filesystem verifier will fail, because we set an empty hash
-  ASSERT_EQ(ErrorCode::kNewRootfsVerificationError, delegate.code());
-  const auto& read_pos = fake_fd->GetReadOps();
-  size_t expected_offset = 0;
-  for (const auto& [off, size] : read_pos) {
-    ASSERT_EQ(off, expected_offset);
-    expected_offset += size;
-  }
-  const auto actual_read_size = expected_offset;
-  ASSERT_EQ(actual_read_size, part.target_size);
+  ASSERT_EQ(ErrorCode::kSuccess, delegate.code());
 }
 
 TEST_F(FilesystemVerifierActionTest, ReadAfterWrite) {
-  constexpr auto BLOCK_SIZE = 4096;
   ScopedTempFile cow_device_file("cow_device.XXXXXX", true);
   android::snapshot::CompressedSnapshotWriter snapshot_writer{
       {.block_size = BLOCK_SIZE}};
@@ -483,6 +506,12 @@ TEST_F(FilesystemVerifierActionTest, ReadAfterWrite) {
   ASSERT_TRUE(snapshot_writer.Finalize());
   cow_reader = snapshot_writer.OpenReader();
   ASSERT_NE(cow_reader, nullptr);
+  std::vector<unsigned char> read_back;
+  read_back.resize(buffer.size());
+  cow_reader->Seek(BLOCK_SIZE, SEEK_SET);
+  const auto bytes_read = cow_reader->Read(read_back.data(), read_back.size());
+  ASSERT_EQ((size_t)(bytes_read), BLOCK_SIZE);
+  ASSERT_EQ(read_back, buffer);
 }
 
 }  // namespace chromeos_update_engine

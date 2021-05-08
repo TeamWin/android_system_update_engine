@@ -792,6 +792,7 @@ cc_test {
         "libcurl_http_fetcher_unittest.cc",
         "payload_consumer/bzip_extent_writer_unittest.cc",
         "payload_consumer/cached_file_descriptor_unittest.cc",
+        "payload_consumer/cow_writer_file_descriptor_unittest.cc",
         "payload_consumer/certificate_parser_android_unittest.cc",
         "payload_consumer/delta_performer_integration_test.cc",
         "payload_consumer/delta_performer_unittest.cc",
