@@ -30,6 +30,7 @@
 #include <fec/ecc.h>
 #include <gtest/gtest.h>
 #include <libsnapshot/snapshot_writer.h>
+#include <sys/stat.h>
 
 #include "update_engine/common/dynamic_partition_control_stub.h"
 #include "update_engine/common/hash_calculator.h"
@@ -78,6 +79,13 @@ class FilesystemVerifierActionTest : public ::testing::Test {
 
     fec_data_.resize(fec_size);
     hash_tree_data_.resize(hash_tree_size);
+    // Globally readable writable, as we want to write data
+    ASSERT_EQ(0, fchmod(source_part_.fd(), 0666))
+        << " Failed to set " << source_part_.path() << " as writable "
+        << strerror(errno);
+    ASSERT_EQ(0, fchmod(target_part_.fd(), 0666))
+        << " Failed to set " << target_part_.path() << " as writable "
+        << strerror(errno);
     brillo::Blob part_data(PARTITION_SIZE);
     test_utils::FillWithData(&part_data);
     ASSERT_TRUE(utils::WriteFile(
@@ -193,9 +201,9 @@ class FilesystemVerifierActionTest : public ::testing::Test {
 };
 
 ScopedTempFile FilesystemVerifierActionTest::source_part_{
-    "source_part.XXXXXX", false, PARTITION_SIZE};
+    "source_part.XXXXXX", true, PARTITION_SIZE};
 ScopedTempFile FilesystemVerifierActionTest::target_part_{
-    "target_part.XXXXXX", false, PARTITION_SIZE};
+    "target_part.XXXXXX", true, PARTITION_SIZE};
 
 static void EnableVABC(MockDynamicPartitionControl* dynamic_control,
                        const std::string& part_name) {
@@ -295,16 +303,12 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
 
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(
-                     [](ActionProcessor* processor, bool terminate_early) {
-                       processor->StartProcessing();
-                       if (terminate_early) {
-                         processor->StopProcessing();
-                       }
-                     },
-                     base::Unretained(&processor_),
-                     terminate_early));
+  loop_.PostTask(base::Bind(&ActionProcessor::StartProcessing,
+                            base::Unretained(&processor_)));
+  if (terminate_early) {
+    loop_.PostTask(base::Bind(&ActionProcessor::StopProcessing,
+                              base::Unretained(&processor_)));
+  }
   loop_.Run();
 
   if (!terminate_early) {
@@ -560,21 +564,33 @@ void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
   NiceMock<MockDynamicPartitionControl> dynamic_control;
 
   EnableVABC(&dynamic_control, part.name);
+  auto open_cow = [part]() {
+    auto cow_fd = std::make_shared<EintrSafeFileDescriptor>();
+    EXPECT_TRUE(cow_fd->Open(part.readonly_target_path.c_str(), O_RDWR))
+        << "Failed to open part " << part.readonly_target_path
+        << strerror(errno);
+    return cow_fd;
+  };
 
   EXPECT_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .Times(AtLeast(1));
-  auto cow_fd = std::make_shared<EintrSafeFileDescriptor>();
-  ASSERT_TRUE(cow_fd->Open(part.readonly_target_path.c_str(), O_RDWR));
+  auto cow_fd = open_cow();
+  if (HasFailure()) {
+    return;
+  }
+
   if (enable_verity) {
     ON_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
-        .WillByDefault(Return(cow_fd));
+        .WillByDefault(open_cow);
     EXPECT_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
         .Times(AtLeast(1));
-    // If we are writing verity, fs verification shouldn't try to open fd
-    // against |postinstall_mount_device| or |target_path| at all. It should
-    // just use whatever file descriptor returned by OpenCowFd(). Therefore set
-    // a fake path to prevent fs verification from trying to open it.
-    part.readonly_target_path = "/dev/fake_postinstall_mount_device";
+
+    // fs verification isn't supposed to write to |readonly_target_path|. All
+    // writes should go through fd returned by |OpenCowFd|. Therefore we set
+    // target part as read-only to make sure.
+    ASSERT_EQ(0, chmod(part.readonly_target_path.c_str(), 0444))
+        << " Failed to set " << part.readonly_target_path << " as read-only "
+        << strerror(errno);
   } else {
     // Since we are not writing verity, we should not attempt to OpenCowFd()
     // reads should go through regular file descriptors on mapped partitions.
@@ -592,11 +608,9 @@ void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
 
-  loop_.PostTask(
-      FROM_HERE,
-      base::Bind(
-          [](ActionProcessor* processor) { processor->StartProcessing(); },
-          base::Unretained(&processor_)));
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&ActionProcessor::StartProcessing,
+                            base::Unretained(&processor_)));
   loop_.Run();
 
   ASSERT_FALSE(processor_.IsRunning());
