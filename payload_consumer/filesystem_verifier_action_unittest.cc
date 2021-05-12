@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 
+#include <algorithm>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -25,6 +27,7 @@
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
 #include <brillo/secure_blob.h>
+#include <fec/ecc.h>
 #include <gtest/gtest.h>
 #include <libsnapshot/snapshot_writer.h>
 
@@ -35,6 +38,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/fake_file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
+#include "update_engine/payload_consumer/verity_writer_android.h"
 
 using brillo::MessageLoop;
 using std::string;
@@ -50,15 +54,35 @@ namespace chromeos_update_engine {
 class FilesystemVerifierActionTest : public ::testing::Test {
  public:
   static constexpr size_t BLOCK_SIZE = 4096;
+  // We use SHA256 for testing, so hash size is 256bits / 8
+  static constexpr size_t HASH_SIZE = 256 / 8;
   static constexpr size_t PARTITION_SIZE = BLOCK_SIZE * 1024;
+  static constexpr size_t HASH_TREE_START_OFFSET = 800 * BLOCK_SIZE;
+  size_t hash_tree_size = 0;
+  size_t fec_start_offset = 0;
+  size_t fec_data_size = 0;
+  static constexpr size_t FEC_ROOTS = 2;
+  size_t fec_rounds = 0;
+  size_t fec_size = 0;
 
  protected:
   void SetUp() override {
+    hash_tree_size = HashTreeBuilder::CalculateSize(
+        HASH_TREE_START_OFFSET, BLOCK_SIZE, HASH_SIZE);
+    fec_start_offset = HASH_TREE_START_OFFSET + hash_tree_size;
+    fec_data_size = fec_start_offset;
+    static constexpr size_t FEC_ROOTS = 2;
+    fec_rounds =
+        utils::DivRoundUp(fec_data_size / BLOCK_SIZE, FEC_RSM - FEC_ROOTS);
+    fec_size = fec_rounds * FEC_ROOTS * BLOCK_SIZE;
+
+    fec_data.resize(fec_size);
+    hash_tree_data.resize(hash_tree_size);
     brillo::Blob part_data(PARTITION_SIZE);
     test_utils::FillWithData(&part_data);
     ASSERT_TRUE(utils::WriteFile(
         source_part.path().c_str(), part_data.data(), part_data.size()));
-    // FillWithData() will will with different data next call. We want
+    // FillWithData() will fill with different data next call. We want
     // source/target partitions to contain different data for testing.
     test_utils::FillWithData(&part_data);
     ASSERT_TRUE(utils::WriteFile(
@@ -69,6 +93,8 @@ class FilesystemVerifierActionTest : public ::testing::Test {
   void TearDown() override {
     EXPECT_EQ(0, brillo::MessageLoopRunMaxIterations(&loop_, 1));
   }
+
+  void DoTestVABC(bool clear_target_hash, bool enable_verity);
 
   // Returns true iff test has completed successfully.
   bool DoTest(bool terminate_early, bool hash_fail);
@@ -86,16 +112,81 @@ class FilesystemVerifierActionTest : public ::testing::Test {
     part.target_size = PARTITION_SIZE;
     part.block_size = BLOCK_SIZE;
     part.source_path = source_part.path();
+    part.source_size = PARTITION_SIZE;
     EXPECT_TRUE(
         HashCalculator::RawHashOfFile(source_part.path(), &part.source_hash));
     EXPECT_TRUE(
         HashCalculator::RawHashOfFile(target_part.path(), &part.target_hash));
     return &part;
   }
+  static void ZeroRange(FileDescriptorPtr fd,
+                        size_t start_block,
+                        size_t num_blocks) {
+    std::vector<unsigned char> buffer(BLOCK_SIZE);
+    ASSERT_EQ((ssize_t)(start_block * BLOCK_SIZE),
+              fd->Seek(start_block * BLOCK_SIZE, SEEK_SET));
+    for (size_t i = 0; i < num_blocks; i++) {
+      ASSERT_TRUE(utils::WriteAll(fd, buffer.data(), buffer.size()));
+    }
+  }
+
+  void SetHashWithVerity(InstallPlan::Partition* partition) {
+    partition->hash_tree_algorithm = "sha256";
+    partition->hash_tree_size = hash_tree_size;
+    partition->hash_tree_offset = HASH_TREE_START_OFFSET;
+    partition->hash_tree_data_offset = 0;
+    partition->hash_tree_data_size = HASH_TREE_START_OFFSET;
+    partition->fec_size = fec_size;
+    partition->fec_offset = fec_start_offset;
+    partition->fec_data_offset = 0;
+    partition->fec_data_size = fec_data_size;
+    partition->fec_roots = FEC_ROOTS;
+    VerityWriterAndroid verity_writer;
+    ASSERT_TRUE(verity_writer.Init(*partition));
+    LOG(INFO) << "Opening " << partition->readonly_target_path;
+    auto fd = std::make_shared<EintrSafeFileDescriptor>();
+    ASSERT_TRUE(fd->Open(partition->readonly_target_path.c_str(), O_RDWR))
+        << "Failed to open " << partition->target_path.c_str() << " "
+        << strerror(errno);
+    std::vector<unsigned char> buffer(BLOCK_SIZE);
+    // Only need to read up to hash tree
+    auto bytes_to_read = HASH_TREE_START_OFFSET;
+    auto offset = 0;
+    while (bytes_to_read > 0) {
+      const auto bytes_read = fd->Read(
+          buffer.data(), std::min<size_t>(buffer.size(), bytes_to_read));
+      ASSERT_GT(bytes_read, 0)
+          << "offset: " << offset << " bytes to read: " << bytes_to_read
+          << " error: " << strerror(errno);
+      ASSERT_TRUE(verity_writer.Update(offset, buffer.data(), bytes_read));
+      bytes_to_read -= bytes_read;
+      offset += bytes_read;
+    }
+    ASSERT_TRUE(verity_writer.Finalize(fd, fd));
+    ASSERT_TRUE(fd->IsOpen());
+    ASSERT_TRUE(HashCalculator::RawHashOfFile(target_part.path(),
+                                              &partition->target_hash));
+
+    ASSERT_TRUE(fd->Seek(HASH_TREE_START_OFFSET, SEEK_SET));
+    ASSERT_EQ(fd->Read(hash_tree_data.data(), hash_tree_data.size()),
+              static_cast<ssize_t>(hash_tree_data.size()))
+        << "Failed to read hashtree " << strerror(errno);
+    ASSERT_TRUE(fd->Seek(fec_start_offset, SEEK_SET));
+    ASSERT_EQ(fd->Read(fec_data.data(), fec_data.size()),
+              static_cast<ssize_t>(fec_data.size()))
+        << "Failed to read FEC " << strerror(errno);
+    // Fs verification action is expected to write them, so clear verity data to
+    // ensure that they are re-created correctly.
+    ZeroRange(
+        fd, HASH_TREE_START_OFFSET / BLOCK_SIZE, hash_tree_size / BLOCK_SIZE);
+    ZeroRange(fd, fec_start_offset / BLOCK_SIZE, fec_size / BLOCK_SIZE);
+  }
 
   brillo::FakeMessageLoop loop_{nullptr};
   ActionProcessor processor_;
   DynamicPartitionControlStub dynamic_control_stub_;
+  std::vector<unsigned char> fec_data;
+  std::vector<unsigned char> hash_tree_data;
   static ScopedTempFile source_part;
   static ScopedTempFile target_part;
 };
@@ -442,12 +533,26 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
   ASSERT_EQ(ErrorCode::kSuccess, delegate.code());
 }
 
-TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
+void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
+                                              bool enable_verity) {
   InstallPlan install_plan;
   auto part_ptr = AddFakePartition(&install_plan);
+  if (::testing::Test::HasFailure()) {
+    return;
+  }
   ASSERT_NE(part_ptr, nullptr);
   InstallPlan::Partition& part = *part_ptr;
   part.target_path = "Shouldn't attempt to open this path";
+  if (enable_verity) {
+    install_plan.write_verity = true;
+    SetHashWithVerity(&part);
+    if (::testing::Test::HasFailure()) {
+      return;
+    }
+  }
+  if (clear_target_hash) {
+    part.target_hash.clear();
+  }
 
   NiceMock<MockDynamicPartitionControl> dynamic_control;
 
@@ -460,11 +565,25 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
 
   EXPECT_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .Times(AtLeast(1));
-  // Since we are not writing verity, we should not attempt to OpenCowFd()
-  // reads should go through regular file descriptors on mapped partitions.
-  EXPECT_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
-      .Times(0);
-  EXPECT_CALL(dynamic_control, MapAllPartitions()).Times(AtLeast(1));
+  auto cow_fd = std::make_shared<EintrSafeFileDescriptor>();
+  ASSERT_TRUE(cow_fd->Open(part.readonly_target_path.c_str(), O_RDWR));
+  if (enable_verity) {
+    ON_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
+        .WillByDefault(Return(cow_fd));
+    EXPECT_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
+        .Times(AtLeast(1));
+    // If we are writing verity, fs verification shouldn't try to open fd
+    // against |postinstall_mount_device| or |target_path| at all. It should
+    // just use whatever file descriptor returned by OpenCowFd(). Therefore set
+    // a fake path to prevent fs verification from trying to open it.
+    part.readonly_target_path = "/dev/fake_postinstall_mount_device";
+  } else {
+    // Since we are not writing verity, we should not attempt to OpenCowFd()
+    // reads should go through regular file descriptors on mapped partitions.
+    EXPECT_CALL(dynamic_control, OpenCowFd(part.name, {part.source_path}, _))
+        .Times(0);
+    EXPECT_CALL(dynamic_control, MapAllPartitions()).Times(AtLeast(1));
+  }
   EXPECT_CALL(dynamic_control, ListDynamicPartitionsForSlot(_, _, _))
       .WillRepeatedly(
           DoAll(SetArgPointee<2, std::vector<std::string>>({part.name}),
@@ -484,34 +603,44 @@ TEST_F(FilesystemVerifierActionTest, RunWithVABCNoVerity) {
 
   ASSERT_FALSE(processor_.IsRunning());
   ASSERT_TRUE(delegate.ran());
-  ASSERT_EQ(ErrorCode::kSuccess, delegate.code());
+  if (enable_verity) {
+    std::vector<unsigned char> actual_fec(fec_size);
+    ssize_t bytes_read = 0;
+    ASSERT_TRUE(utils::PReadAll(cow_fd,
+                                actual_fec.data(),
+                                actual_fec.size(),
+                                fec_start_offset,
+                                &bytes_read));
+    ASSERT_EQ(actual_fec, fec_data);
+    std::vector<unsigned char> actual_hash_tree(hash_tree_size);
+    ASSERT_TRUE(utils::PReadAll(cow_fd,
+                                actual_hash_tree.data(),
+                                actual_hash_tree.size(),
+                                HASH_TREE_START_OFFSET,
+                                &bytes_read));
+    ASSERT_EQ(actual_hash_tree, hash_tree_data);
+  }
+  if (clear_target_hash) {
+    ASSERT_EQ(ErrorCode::kNewRootfsVerificationError, delegate.code());
+  } else {
+    ASSERT_EQ(ErrorCode::kSuccess, delegate.code());
+  }
 }
 
-TEST_F(FilesystemVerifierActionTest, ReadAfterWrite) {
-  ScopedTempFile cow_device_file("cow_device.XXXXXX", true);
-  android::snapshot::CompressedSnapshotWriter snapshot_writer{
-      {.block_size = BLOCK_SIZE}};
-  snapshot_writer.SetCowDevice(android::base::unique_fd{cow_device_file.fd()});
-  snapshot_writer.Initialize();
-  std::vector<unsigned char> buffer;
-  buffer.resize(BLOCK_SIZE);
-  std::fill(buffer.begin(), buffer.end(), 123);
+TEST_F(FilesystemVerifierActionTest, VABC_NoVerity_Success) {
+  DoTestVABC(false, false);
+}
 
-  ASSERT_TRUE(snapshot_writer.AddRawBlocks(0, buffer.data(), buffer.size()));
-  ASSERT_TRUE(snapshot_writer.Finalize());
-  auto cow_reader = snapshot_writer.OpenReader();
-  ASSERT_NE(cow_reader, nullptr);
-  ASSERT_TRUE(snapshot_writer.AddRawBlocks(1, buffer.data(), buffer.size()));
-  ASSERT_TRUE(snapshot_writer.AddRawBlocks(2, buffer.data(), buffer.size()));
-  ASSERT_TRUE(snapshot_writer.Finalize());
-  cow_reader = snapshot_writer.OpenReader();
-  ASSERT_NE(cow_reader, nullptr);
-  std::vector<unsigned char> read_back;
-  read_back.resize(buffer.size());
-  cow_reader->Seek(BLOCK_SIZE, SEEK_SET);
-  const auto bytes_read = cow_reader->Read(read_back.data(), read_back.size());
-  ASSERT_EQ((size_t)(bytes_read), BLOCK_SIZE);
-  ASSERT_EQ(read_back, buffer);
+TEST_F(FilesystemVerifierActionTest, VABC_NoVerity_Target_Mismatch) {
+  DoTestVABC(true, false);
+}
+
+TEST_F(FilesystemVerifierActionTest, VABC_Verity_Success) {
+  DoTestVABC(false, true);
+}
+
+TEST_F(FilesystemVerifierActionTest, VABC_Verity_Target_Mismatch) {
+  DoTestVABC(true, true);
 }
 
 }  // namespace chromeos_update_engine
