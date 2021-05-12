@@ -76,17 +76,17 @@ class FilesystemVerifierActionTest : public ::testing::Test {
         utils::DivRoundUp(fec_data_size / BLOCK_SIZE, FEC_RSM - FEC_ROOTS);
     fec_size = fec_rounds * FEC_ROOTS * BLOCK_SIZE;
 
-    fec_data.resize(fec_size);
-    hash_tree_data.resize(hash_tree_size);
+    fec_data_.resize(fec_size);
+    hash_tree_data_.resize(hash_tree_size);
     brillo::Blob part_data(PARTITION_SIZE);
     test_utils::FillWithData(&part_data);
     ASSERT_TRUE(utils::WriteFile(
-        source_part.path().c_str(), part_data.data(), part_data.size()));
+        source_part_.path().c_str(), part_data.data(), part_data.size()));
     // FillWithData() will fill with different data next call. We want
     // source/target partitions to contain different data for testing.
     test_utils::FillWithData(&part_data);
     ASSERT_TRUE(utils::WriteFile(
-        target_part.path().c_str(), part_data.data(), part_data.size()));
+        target_part_.path().c_str(), part_data.data(), part_data.size()));
     loop_.SetAsCurrent();
   }
 
@@ -107,16 +107,16 @@ class FilesystemVerifierActionTest : public ::testing::Test {
                                            std::string name = "fake_part") {
     InstallPlan::Partition& part = install_plan->partitions.emplace_back();
     part.name = name;
-    part.target_path = target_part.path();
+    part.target_path = target_part_.path();
     part.readonly_target_path = part.target_path;
     part.target_size = PARTITION_SIZE;
     part.block_size = BLOCK_SIZE;
-    part.source_path = source_part.path();
+    part.source_path = source_part_.path();
     part.source_size = PARTITION_SIZE;
     EXPECT_TRUE(
-        HashCalculator::RawHashOfFile(source_part.path(), &part.source_hash));
+        HashCalculator::RawHashOfFile(source_part_.path(), &part.source_hash));
     EXPECT_TRUE(
-        HashCalculator::RawHashOfFile(target_part.path(), &part.target_hash));
+        HashCalculator::RawHashOfFile(target_part_.path(), &part.target_hash));
     return &part;
   }
   static void ZeroRange(FileDescriptorPtr fd,
@@ -164,16 +164,16 @@ class FilesystemVerifierActionTest : public ::testing::Test {
     }
     ASSERT_TRUE(verity_writer.Finalize(fd, fd));
     ASSERT_TRUE(fd->IsOpen());
-    ASSERT_TRUE(HashCalculator::RawHashOfFile(target_part.path(),
+    ASSERT_TRUE(HashCalculator::RawHashOfFile(target_part_.path(),
                                               &partition->target_hash));
 
     ASSERT_TRUE(fd->Seek(HASH_TREE_START_OFFSET, SEEK_SET));
-    ASSERT_EQ(fd->Read(hash_tree_data.data(), hash_tree_data.size()),
-              static_cast<ssize_t>(hash_tree_data.size()))
+    ASSERT_EQ(fd->Read(hash_tree_data_.data(), hash_tree_data_.size()),
+              static_cast<ssize_t>(hash_tree_data_.size()))
         << "Failed to read hashtree " << strerror(errno);
     ASSERT_TRUE(fd->Seek(fec_start_offset, SEEK_SET));
-    ASSERT_EQ(fd->Read(fec_data.data(), fec_data.size()),
-              static_cast<ssize_t>(fec_data.size()))
+    ASSERT_EQ(fd->Read(fec_data_.data(), fec_data_.size()),
+              static_cast<ssize_t>(fec_data_.size()))
         << "Failed to read FEC " << strerror(errno);
     // Fs verification action is expected to write them, so clear verity data to
     // ensure that they are re-created correctly.
@@ -185,16 +185,27 @@ class FilesystemVerifierActionTest : public ::testing::Test {
   brillo::FakeMessageLoop loop_{nullptr};
   ActionProcessor processor_;
   DynamicPartitionControlStub dynamic_control_stub_;
-  std::vector<unsigned char> fec_data;
-  std::vector<unsigned char> hash_tree_data;
-  static ScopedTempFile source_part;
-  static ScopedTempFile target_part;
+  std::vector<unsigned char> fec_data_;
+  std::vector<unsigned char> hash_tree_data_;
+  static ScopedTempFile source_part_;
+  static ScopedTempFile target_part_;
+  InstallPlan install_plan_;
 };
 
-ScopedTempFile FilesystemVerifierActionTest::source_part{
+ScopedTempFile FilesystemVerifierActionTest::source_part_{
     "source_part.XXXXXX", false, PARTITION_SIZE};
-ScopedTempFile FilesystemVerifierActionTest::target_part{
+ScopedTempFile FilesystemVerifierActionTest::target_part_{
     "target_part.XXXXXX", false, PARTITION_SIZE};
+
+static void EnableVABC(MockDynamicPartitionControl* dynamic_control,
+                       const std::string& part_name) {
+  ON_CALL(*dynamic_control, GetDynamicPartitionsFeatureFlag())
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  ON_CALL(*dynamic_control, UpdateUsesSnapshotCompression())
+      .WillByDefault(Return(true));
+  ON_CALL(*dynamic_control, IsDynamicPartition(part_name, _))
+      .WillByDefault(Return(true));
+}
 
 class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
  public:
@@ -261,9 +272,8 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   bool success = true;
 
   // Set up the action objects
-  InstallPlan install_plan;
-  install_plan.source_slot = 0;
-  install_plan.target_slot = 1;
+  install_plan_.source_slot = 0;
+  install_plan_.target_slot = 1;
   InstallPlan::Partition part;
   part.name = "part";
   part.target_size = kLoopFileSize - (hash_fail ? 1 : 0);
@@ -278,9 +288,9 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
     ADD_FAILURE();
     success = false;
   }
-  install_plan.partitions = {part};
+  install_plan_.partitions = {part};
 
-  BuildActions(install_plan);
+  BuildActions(install_plan_);
 
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
@@ -323,7 +333,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   EXPECT_TRUE(is_a_file_reading_eq);
   success = success && is_a_file_reading_eq;
 
-  bool is_install_plan_eq = (*delegate.install_plan_ == install_plan);
+  bool is_install_plan_eq = (*delegate.install_plan_ == install_plan_);
   EXPECT_TRUE(is_install_plan_eq);
   success = success && is_install_plan_eq;
   return success;
@@ -388,14 +398,13 @@ TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
 }
 
 TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
-  InstallPlan install_plan;
   InstallPlan::Partition part;
   part.name = "nope";
   part.source_path = "/no/such/file";
   part.target_path = "/no/such/file";
-  install_plan.partitions = {part};
+  install_plan_.partitions = {part};
 
-  BuildActions(install_plan);
+  BuildActions(install_plan_);
 
   FilesystemVerifierActionTest2Delegate delegate;
   processor_.set_delegate(&delegate);
@@ -436,7 +445,6 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootWriteVerityTest) {
   test_utils::ScopedLoopbackDeviceBinder target_device(
       part_file.path(), true, &target_path);
 
-  InstallPlan install_plan;
   InstallPlan::Partition part;
   part.name = "part";
   part.target_path = target_path;
@@ -467,9 +475,9 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootWriteVerityTest) {
   part.hash_tree_salt = {0x9e, 0xcb, 0xf8, 0xd5, 0x0b, 0xb4, 0x43,
                          0x0a, 0x7a, 0x10, 0xad, 0x96, 0xd7, 0x15,
                          0x70, 0xba, 0xed, 0x27, 0xe2, 0xae};
-  install_plan.partitions = {part};
+  install_plan_.partitions = {part};
 
-  BuildActions(install_plan);
+  BuildActions(install_plan_);
 
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
@@ -498,8 +506,7 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
   test_utils::ScopedLoopbackDeviceBinder target_device(
       part_file.path(), true, &target_path);
 
-  InstallPlan install_plan;
-  install_plan.write_verity = false;
+  install_plan_.write_verity = false;
   InstallPlan::Partition part;
   part.name = "part";
   part.target_path = target_path;
@@ -514,9 +521,9 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
   part.fec_offset = part.fec_data_size;
   part.fec_size = 2 * 4096;
   EXPECT_TRUE(HashCalculator::RawHashOfData(part_data, &part.target_hash));
-  install_plan.partitions = {part};
+  install_plan_.partitions = {part};
 
-  BuildActions(install_plan);
+  BuildActions(install_plan_);
 
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
@@ -535,8 +542,7 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
 
 void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
                                               bool enable_verity) {
-  InstallPlan install_plan;
-  auto part_ptr = AddFakePartition(&install_plan);
+  auto part_ptr = AddFakePartition(&install_plan_);
   if (::testing::Test::HasFailure()) {
     return;
   }
@@ -544,11 +550,8 @@ void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
   InstallPlan::Partition& part = *part_ptr;
   part.target_path = "Shouldn't attempt to open this path";
   if (enable_verity) {
-    install_plan.write_verity = true;
-    SetHashWithVerity(&part);
-    if (::testing::Test::HasFailure()) {
-      return;
-    }
+    install_plan_.write_verity = true;
+    ASSERT_NO_FATAL_FAILURE(SetHashWithVerity(&part));
   }
   if (clear_target_hash) {
     part.target_hash.clear();
@@ -556,12 +559,7 @@ void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
 
   NiceMock<MockDynamicPartitionControl> dynamic_control;
 
-  ON_CALL(dynamic_control, GetDynamicPartitionsFeatureFlag())
-      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
-  ON_CALL(dynamic_control, UpdateUsesSnapshotCompression())
-      .WillByDefault(Return(true));
-  ON_CALL(dynamic_control, IsDynamicPartition(part.name, _))
-      .WillByDefault(Return(true));
+  EnableVABC(&dynamic_control, part.name);
 
   EXPECT_CALL(dynamic_control, UpdateUsesSnapshotCompression())
       .Times(AtLeast(1));
@@ -589,7 +587,7 @@ void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
           DoAll(SetArgPointee<2, std::vector<std::string>>({part.name}),
                 Return(true)));
 
-  BuildActions(install_plan, &dynamic_control);
+  BuildActions(install_plan_, &dynamic_control);
 
   FilesystemVerifierActionTestDelegate delegate;
   processor_.set_delegate(&delegate);
@@ -611,14 +609,14 @@ void FilesystemVerifierActionTest::DoTestVABC(bool clear_target_hash,
                                 actual_fec.size(),
                                 fec_start_offset,
                                 &bytes_read));
-    ASSERT_EQ(actual_fec, fec_data);
+    ASSERT_EQ(actual_fec, fec_data_);
     std::vector<unsigned char> actual_hash_tree(hash_tree_size);
     ASSERT_TRUE(utils::PReadAll(cow_fd,
                                 actual_hash_tree.data(),
                                 actual_hash_tree.size(),
                                 HASH_TREE_START_OFFSET,
                                 &bytes_read));
-    ASSERT_EQ(actual_hash_tree, hash_tree_data);
+    ASSERT_EQ(actual_hash_tree, hash_tree_data_);
   }
   if (clear_target_hash) {
     ASSERT_EQ(ErrorCode::kNewRootfsVerificationError, delegate.code());
@@ -637,6 +635,37 @@ TEST_F(FilesystemVerifierActionTest, VABC_NoVerity_Target_Mismatch) {
 
 TEST_F(FilesystemVerifierActionTest, VABC_Verity_Success) {
   DoTestVABC(false, true);
+}
+
+TEST_F(FilesystemVerifierActionTest, VABC_Verity_ReadAfterWrite) {
+  ASSERT_NO_FATAL_FAILURE(DoTestVABC(false, true));
+  // Run FS verification again, w/o writing verity. We have seen a bug where
+  // attempting to run fs again will cause previously written verity data to be
+  // dropped, so cover this scenario.
+  ASSERT_GE(install_plan_.partitions.size(), 1UL);
+  auto& part = install_plan_.partitions[0];
+  install_plan_.write_verity = false;
+  part.readonly_target_path = target_part_.path();
+  NiceMock<MockDynamicPartitionControl> dynamic_control;
+  EnableVABC(&dynamic_control, part.name);
+
+  // b/186196758 is only visible if we repeatedely run FS verification w/o
+  // writing verity
+  for (int i = 0; i < 3; i++) {
+    BuildActions(install_plan_, &dynamic_control);
+
+    FilesystemVerifierActionTestDelegate delegate;
+    processor_.set_delegate(&delegate);
+    loop_.PostTask(
+        FROM_HERE,
+        base::Bind(
+            [](ActionProcessor* processor) { processor->StartProcessing(); },
+            base::Unretained(&processor_)));
+    loop_.Run();
+    ASSERT_FALSE(processor_.IsRunning());
+    ASSERT_TRUE(delegate.ran());
+    ASSERT_EQ(ErrorCode::kSuccess, delegate.code());
+  }
 }
 
 TEST_F(FilesystemVerifierActionTest, VABC_Verity_Target_Mismatch) {
