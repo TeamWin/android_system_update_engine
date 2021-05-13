@@ -139,7 +139,9 @@ bool EintrSafeFileDescriptor::Flush() {
 }
 
 bool EintrSafeFileDescriptor::Close() {
-  CHECK_GE(fd_, 0);
+  if (fd_ < 0) {
+    return false;
+  }
   // https://stackoverflow.com/questions/705454/does-linux-guarantee-the-contents-of-a-file-is-flushed-to-disc-after-close
   // |close()| doesn't imply |fsync()|, we need to do it manually.
   fsync(fd_);
