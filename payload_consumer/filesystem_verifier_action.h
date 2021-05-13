@@ -22,12 +22,14 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/scoped_task_id.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/verity_writer_interface.h"
@@ -84,6 +86,16 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
  private:
   friend class FilesystemVerifierActionTestDelegate;
+  void WriteVerityAndHashPartition(FileDescriptorPtr fd,
+                                   const off64_t start_offset,
+                                   const off64_t end_offset,
+                                   void* buffer,
+                                   const size_t buffer_size);
+  void HashPartition(FileDescriptorPtr fd,
+                     const off64_t start_offset,
+                     const off64_t end_offset,
+                     void* buffer,
+                     const size_t buffer_size);
 
   // Return true if we need to write verity bytes.
   bool ShouldWriteVerity();
@@ -97,17 +109,6 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   size_t GetPartitionSize() const;
 
-  // Schedules the asynchronous read of the filesystem part of this
-  // partition(not including hashtree/verity).
-  void ScheduleFileSystemRead();
-
-  // Read the verity part of this partition.(hash tree and FEC)
-  void ReadVerityAndFooter();
-
-  // Called from the main loop when a single read from |src_stream_| succeeds or
-  // fails, calling OnReadDoneCallback() and OnReadErrorCallback() respectively.
-  void OnReadDone(size_t bytes_read);
-
   // When the read is done, finalize the hash checking of the current partition
   // and continue checking the next one.
   void FinishPartitionHashing();
@@ -120,9 +121,13 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Invoke delegate callback to report progress, if delegate is not null
   void UpdateProgress(double progress);
 
+  // Updates progress of current partition. |progress| should be in range [0,
+  // 1], and it will be scaled appropriately with # of partitions.
+  void UpdatePartitionProgress(double progress);
+
   // Initialize read_fd_ and write_fd_
   bool InitializeFd(const std::string& part_path);
-  bool InitializeFdVABC();
+  bool InitializeFdVABC(bool should_write_verity);
 
   // The type of the partition that we are verifying.
   VerifierStep verifier_step_ = VerifierStep::kVerifyTargetHash;
@@ -167,8 +172,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // Callback that should be cancelled on |TerminateProcessing|. Usually this
   // points to pending read callbacks from async stream.
-  brillo::MessageLoop::TaskId pending_task_id_{
-      brillo::MessageLoop::kTaskIdNull};
+  ScopedTaskId pending_task_id_;
 
   DISALLOW_COPY_AND_ASSIGN(FilesystemVerifierAction);
 };
