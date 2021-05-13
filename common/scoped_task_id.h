@@ -31,6 +31,10 @@ class ScopedTaskId {
   using MessageLoop = brillo::MessageLoop;
 
  public:
+  // Move only type similar to unique_ptr.
+  ScopedTaskId(const ScopedTaskId&) = delete;
+  ScopedTaskId& operator=(const ScopedTaskId&) = delete;
+
   constexpr ScopedTaskId() = default;
 
   constexpr ScopedTaskId(ScopedTaskId&& other) noexcept {
@@ -86,8 +90,6 @@ class ScopedTaskId {
   }
 
  private:
-  ScopedTaskId(const ScopedTaskId&) = delete;
-  ScopedTaskId& operator=(const ScopedTaskId&) = delete;
   template <typename Callable>
   [[nodiscard]] bool PostTask(const base::Location& from_here,
                               Callable&& callback,
