@@ -201,25 +201,13 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   }
   const InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
-  string part_path;
-  switch (verifier_step_) {
-    case VerifierStep::kVerifySourceHash:
-      part_path = partition.source_path;
-      partition_size_ = partition.source_size;
-      break;
-    case VerifierStep::kVerifyTargetHash:
-      part_path = partition.target_path;
-      partition_size_ = partition.target_size;
-      break;
-  }
+  const auto& part_path = GetPartitionPath();
+  partition_size_ = GetPartitionSize();
 
   LOG(INFO) << "Hashing partition " << partition_index_ << " ("
             << partition.name << ") on device " << part_path;
   auto success = false;
-  if (dynamic_control_->UpdateUsesSnapshotCompression() &&
-      verifier_step_ == VerifierStep::kVerifyTargetHash &&
-      dynamic_control_->IsDynamicPartition(partition.name,
-                                           install_plan_.target_slot)) {
+  if (IsVABC(partition)) {
     success = InitializeFdVABC();
   } else {
     if (part_path.empty()) {
@@ -266,6 +254,40 @@ void FilesystemVerifierAction::StartPartitionHashing() {
 
   // Start the first read.
   ScheduleFileSystemRead();
+}
+
+bool FilesystemVerifierAction::IsVABC(
+    const InstallPlan::Partition& partition) const {
+  return dynamic_control_->UpdateUsesSnapshotCompression() &&
+         verifier_step_ == VerifierStep::kVerifyTargetHash &&
+         dynamic_control_->IsDynamicPartition(partition.name,
+                                              install_plan_.target_slot);
+}
+
+const std::string& FilesystemVerifierAction::GetPartitionPath() const {
+  const InstallPlan::Partition& partition =
+      install_plan_.partitions[partition_index_];
+  switch (verifier_step_) {
+    case VerifierStep::kVerifySourceHash:
+      return partition.source_path;
+    case VerifierStep::kVerifyTargetHash:
+      if (IsVABC(partition)) {
+        return partition.readonly_target_path;
+      } else {
+        return partition.target_path;
+      }
+  }
+}
+
+size_t FilesystemVerifierAction::GetPartitionSize() const {
+  const InstallPlan::Partition& partition =
+      install_plan_.partitions[partition_index_];
+  switch (verifier_step_) {
+    case VerifierStep::kVerifySourceHash:
+      return partition.source_size;
+    case VerifierStep::kVerifyTargetHash:
+      return partition.target_size;
+  }
 }
 
 bool FilesystemVerifierAction::ShouldWriteVerity() {

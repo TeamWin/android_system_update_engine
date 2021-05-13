@@ -91,6 +91,12 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();
 
+  const std::string& GetPartitionPath() const;
+
+  bool IsVABC(const InstallPlan::Partition& partition) const;
+
+  size_t GetPartitionSize() const;
+
   // Schedules the asynchronous read of the filesystem part of this
   // partition(not including hashtree/verity).
   void ScheduleFileSystemRead();
