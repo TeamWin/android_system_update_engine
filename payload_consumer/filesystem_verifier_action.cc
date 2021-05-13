@@ -78,7 +78,7 @@ namespace chromeos_update_engine {
 
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
-constexpr float VERITY_PROGRESS_PERCENT = 0.6;
+constexpr float kVerityProgressPercent = 0.6;
 }  // namespace
 
 void FilesystemVerifierAction::PerformAction() {
@@ -136,9 +136,9 @@ void FilesystemVerifierAction::UpdateProgress(double progress) {
 }
 
 void FilesystemVerifierAction::UpdatePartitionProgress(double progress) {
-  // WE don't consider sizes of each partition. Every partition
+  // We don't consider sizes of each partition. Every partition
   // has the same length on progress bar.
-  // TODO(zhangkelvin) Take sizes of each partition into account
+  // TODO(b/186087589): Take sizes of each partition into account.
   UpdateProgress((progress + partition_index_) /
                  install_plan_.partitions.size());
 }
@@ -213,7 +213,7 @@ void FilesystemVerifierAction::WriteVerityAndHashPartition(
       return;
     }
     if (dynamic_control_->UpdateUsesSnapshotCompression()) {
-      // spin up snapuserd to read fs
+      // Spin up snapuserd to read fs.
       if (!InitializeFdVABC(false)) {
         LOG(ERROR) << "Failed to map all partitions";
         Cleanup(ErrorCode::kFilesystemVerifierError);
@@ -245,7 +245,7 @@ void FilesystemVerifierAction::WriteVerityAndHashPartition(
     return;
   }
   UpdatePartitionProgress((start_offset + bytes_read) * 1.0f / partition_size_ *
-                          VERITY_PROGRESS_PERCENT);
+                          kVerityProgressPercent);
   CHECK(pending_task_id_.PostTask(
       FROM_HERE,
       base::BindOnce(&FilesystemVerifierAction::WriteVerityAndHashPartition,
@@ -290,8 +290,8 @@ void FilesystemVerifierAction::HashPartition(FileDescriptorPtr fd,
     return;
   }
   const auto progress = (start_offset + bytes_read) * 1.0f / partition_size_;
-  UpdatePartitionProgress(progress * (1 - VERITY_PROGRESS_PERCENT) +
-                          VERITY_PROGRESS_PERCENT);
+  UpdatePartitionProgress(progress * (1 - kVerityProgressPercent) +
+                          kVerityProgressPercent);
   CHECK(pending_task_id_.PostTask(
       FROM_HERE,
       base::BindOnce(&FilesystemVerifierAction::HashPartition,
