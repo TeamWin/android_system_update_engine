@@ -76,6 +76,7 @@ extern const char kPrefsPingLastRollcall[];
 extern const char kPrefsLastFp[];
 extern const char kPrefsPostInstallSucceeded[];
 extern const char kPrefsPreviousVersion[];
+extern const char kPrefsPreviousSlot[];
 extern const char kPrefsResumedUpdateFailures[];
 extern const char kPrefsRollbackHappened[];
 extern const char kPrefsRollbackVersion[];

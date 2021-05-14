@@ -24,6 +24,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
+#include "common/constants.h"
 #include "update_engine/aosp/daemon_state_android.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_clock.h"
@@ -81,6 +82,8 @@ TEST_F(UpdateAttempterAndroidTest, UpdatePrefsSameBuildVersionOnInit) {
   prefs_.SetString(kPrefsPreviousVersion, build_version);
   prefs_.SetString(kPrefsBootId, "oldboot");
   prefs_.SetInt64(kPrefsNumReboots, 1);
+  prefs_.SetInt64(kPrefsPreviousSlot, 1);
+  boot_control_.SetCurrentSlot(1);
 
   EXPECT_CALL(*metrics_reporter_, ReportTimeToReboot(_)).Times(0);
   update_attempter_android_.Init();
@@ -88,15 +91,15 @@ TEST_F(UpdateAttempterAndroidTest, UpdatePrefsSameBuildVersionOnInit) {
   // Check that the boot_id and reboot_count are updated.
   std::string boot_id;
   utils::GetBootId(&boot_id);
-  EXPECT_TRUE(prefs_.Exists(kPrefsBootId));
+  ASSERT_TRUE(prefs_.Exists(kPrefsBootId));
   std::string prefs_boot_id;
-  EXPECT_TRUE(prefs_.GetString(kPrefsBootId, &prefs_boot_id));
-  EXPECT_EQ(boot_id, prefs_boot_id);
+  ASSERT_TRUE(prefs_.GetString(kPrefsBootId, &prefs_boot_id));
+  ASSERT_EQ(boot_id, prefs_boot_id);
 
-  EXPECT_TRUE(prefs_.Exists(kPrefsNumReboots));
+  ASSERT_TRUE(prefs_.Exists(kPrefsNumReboots));
   int64_t reboot_count;
-  EXPECT_TRUE(prefs_.GetInt64(kPrefsNumReboots, &reboot_count));
-  EXPECT_EQ(2, reboot_count);
+  ASSERT_TRUE(prefs_.GetInt64(kPrefsNumReboots, &reboot_count));
+  ASSERT_EQ(2, reboot_count);
 }
 
 TEST_F(UpdateAttempterAndroidTest, UpdatePrefsBuildVersionChangeOnInit) {

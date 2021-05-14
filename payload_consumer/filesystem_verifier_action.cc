@@ -35,6 +35,7 @@
 #include <brillo/secure_blob.h>
 #include <brillo/streams/file_stream.h>
 
+#include "common/error_code.h"
 #include "payload_generator/delta_diff_generator.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
@@ -77,6 +78,7 @@ namespace chromeos_update_engine {
 
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
+constexpr float kVerityProgressPercent = 0.6;
 }  // namespace
 
 void FilesystemVerifierAction::PerformAction() {
@@ -102,7 +104,6 @@ void FilesystemVerifierAction::PerformAction() {
 }
 
 void FilesystemVerifierAction::TerminateProcessing() {
-  brillo::MessageLoop::current()->CancelTask(pending_task_id_);
   cancelled_ = true;
   Cleanup(ErrorCode::kSuccess);  // error code is ignored if canceled_ is true.
 }
@@ -134,11 +135,29 @@ void FilesystemVerifierAction::UpdateProgress(double progress) {
   }
 }
 
-bool FilesystemVerifierAction::InitializeFdVABC() {
+void FilesystemVerifierAction::UpdatePartitionProgress(double progress) {
+  // We don't consider sizes of each partition. Every partition
+  // has the same length on progress bar.
+  // TODO(b/186087589): Take sizes of each partition into account.
+  UpdateProgress((progress + partition_index_) /
+                 install_plan_.partitions.size());
+}
+
+bool FilesystemVerifierAction::InitializeFdVABC(bool should_write_verity) {
   const InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
 
-  if (!ShouldWriteVerity()) {
+  if (!should_write_verity) {
+    // In VABC, we cannot map/unmap partitions w/o first closing ALL fds first.
+    // Since this function might be called inside a ScheduledTask, the closure
+    // might have a copy of partition_fd_ when executing this function. Which
+    // means even if we do |partition_fd_.reset()| here, there's a chance that
+    // underlying fd isn't closed until we return. This is unacceptable, we need
+    // to close |partition_fd| right away.
+    if (partition_fd_) {
+      partition_fd_->Close();
+      partition_fd_.reset();
+    }
     // In VABC, if we are not writing verity, just map all partitions,
     // and read using regular fd on |postinstall_mount_device| .
     // All read will go through snapuserd, which provides a consistent
@@ -152,8 +171,6 @@ bool FilesystemVerifierAction::InitializeFdVABC() {
     dynamic_control_->MapAllPartitions();
     return InitializeFd(partition.readonly_target_path);
   }
-
-  // FilesystemVerifierAction need the read_fd_.
   partition_fd_ =
       dynamic_control_->OpenCowFd(partition.name, partition.source_path, true);
   if (!partition_fd_) {
@@ -180,6 +197,112 @@ bool FilesystemVerifierAction::InitializeFd(const std::string& part_path) {
   return true;
 }
 
+void FilesystemVerifierAction::WriteVerityAndHashPartition(
+    FileDescriptorPtr fd,
+    const off64_t start_offset,
+    const off64_t end_offset,
+    void* buffer,
+    const size_t buffer_size) {
+  if (start_offset >= end_offset) {
+    LOG_IF(WARNING, start_offset > end_offset)
+        << "start_offset is greater than end_offset : " << start_offset << " > "
+        << end_offset;
+    if (!verity_writer_->Finalize(fd, fd)) {
+      LOG(ERROR) << "Failed to write verity data";
+      Cleanup(ErrorCode::kVerityCalculationError);
+      return;
+    }
+    if (dynamic_control_->UpdateUsesSnapshotCompression()) {
+      // Spin up snapuserd to read fs.
+      if (!InitializeFdVABC(false)) {
+        LOG(ERROR) << "Failed to map all partitions";
+        Cleanup(ErrorCode::kFilesystemVerifierError);
+        return;
+      }
+    }
+    HashPartition(partition_fd_, 0, partition_size_, buffer, buffer_size);
+    return;
+  }
+  const auto cur_offset = fd->Seek(start_offset, SEEK_SET);
+  if (cur_offset != start_offset) {
+    PLOG(ERROR) << "Failed to seek to offset: " << start_offset;
+    Cleanup(ErrorCode::kVerityCalculationError);
+    return;
+  }
+  const auto read_size =
+      std::min<size_t>(buffer_size, end_offset - start_offset);
+  const auto bytes_read = fd->Read(buffer, read_size);
+  if (bytes_read < 0 || static_cast<size_t>(bytes_read) != read_size) {
+    PLOG(ERROR) << "Failed to read offset " << start_offset << " expected "
+                << read_size << " bytes, actual: " << bytes_read;
+    Cleanup(ErrorCode::kVerityCalculationError);
+    return;
+  }
+  if (!verity_writer_->Update(
+          start_offset, static_cast<const uint8_t*>(buffer), read_size)) {
+    LOG(ERROR) << "VerityWriter::Update() failed";
+    Cleanup(ErrorCode::kVerityCalculationError);
+    return;
+  }
+  UpdatePartitionProgress((start_offset + bytes_read) * 1.0f / partition_size_ *
+                          kVerityProgressPercent);
+  CHECK(pending_task_id_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&FilesystemVerifierAction::WriteVerityAndHashPartition,
+                     base::Unretained(this),
+                     fd,
+                     start_offset + bytes_read,
+                     end_offset,
+                     buffer,
+                     buffer_size)));
+}
+
+void FilesystemVerifierAction::HashPartition(FileDescriptorPtr fd,
+                                             const off64_t start_offset,
+                                             const off64_t end_offset,
+                                             void* buffer,
+                                             const size_t buffer_size) {
+  if (start_offset >= end_offset) {
+    LOG_IF(WARNING, start_offset > end_offset)
+        << "start_offset is greater than end_offset : " << start_offset << " > "
+        << end_offset;
+    FinishPartitionHashing();
+    return;
+  }
+  const auto cur_offset = fd->Seek(start_offset, SEEK_SET);
+  if (cur_offset != start_offset) {
+    PLOG(ERROR) << "Failed to seek to offset: " << start_offset;
+    Cleanup(ErrorCode::kFilesystemVerifierError);
+    return;
+  }
+  const auto read_size =
+      std::min<size_t>(buffer_size, end_offset - start_offset);
+  const auto bytes_read = fd->Read(buffer, read_size);
+  if (bytes_read < 0 || static_cast<size_t>(bytes_read) != read_size) {
+    PLOG(ERROR) << "Failed to read offset " << start_offset << " expected "
+                << read_size << " bytes, actual: " << bytes_read;
+    Cleanup(ErrorCode::kFilesystemVerifierError);
+    return;
+  }
+  if (!hasher_->Update(buffer, read_size)) {
+    LOG(ERROR) << "Hasher updated failed on offset" << start_offset;
+    Cleanup(ErrorCode::kFilesystemVerifierError);
+    return;
+  }
+  const auto progress = (start_offset + bytes_read) * 1.0f / partition_size_;
+  UpdatePartitionProgress(progress * (1 - kVerityProgressPercent) +
+                          kVerityProgressPercent);
+  CHECK(pending_task_id_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&FilesystemVerifierAction::HashPartition,
+                     base::Unretained(this),
+                     fd,
+                     start_offset + bytes_read,
+                     end_offset,
+                     buffer,
+                     buffer_size)));
+}
+
 void FilesystemVerifierAction::StartPartitionHashing() {
   if (partition_index_ == install_plan_.partitions.size()) {
     if (!install_plan_.untouched_dynamic_partitions.empty()) {
@@ -201,26 +324,14 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   }
   const InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
-  string part_path;
-  switch (verifier_step_) {
-    case VerifierStep::kVerifySourceHash:
-      part_path = partition.source_path;
-      partition_size_ = partition.source_size;
-      break;
-    case VerifierStep::kVerifyTargetHash:
-      part_path = partition.target_path;
-      partition_size_ = partition.target_size;
-      break;
-  }
+  const auto& part_path = GetPartitionPath();
+  partition_size_ = GetPartitionSize();
 
   LOG(INFO) << "Hashing partition " << partition_index_ << " ("
             << partition.name << ") on device " << part_path;
   auto success = false;
-  if (dynamic_control_->UpdateUsesSnapshotCompression() &&
-      verifier_step_ == VerifierStep::kVerifyTargetHash &&
-      dynamic_control_->IsDynamicPartition(partition.name,
-                                           install_plan_.target_slot)) {
-    success = InitializeFdVABC();
+  if (IsVABC(partition)) {
+    success = InitializeFdVABC(ShouldWriteVerity());
   } else {
     if (part_path.empty()) {
       if (partition_size_ == 0) {
@@ -255,17 +366,53 @@ void FilesystemVerifierAction::StartPartitionHashing() {
     filesystem_data_end_ = partition.fec_offset;
   }
   if (ShouldWriteVerity()) {
+    LOG(INFO) << "Verity writes enabled on partition " << partition.name;
     if (!verity_writer_->Init(partition)) {
       LOG(INFO) << "Verity writes enabled on partition " << partition.name;
       Cleanup(ErrorCode::kVerityCalculationError);
       return;
     }
+    WriteVerityAndHashPartition(
+        partition_fd_, 0, filesystem_data_end_, buffer_.data(), buffer_.size());
   } else {
     LOG(INFO) << "Verity writes disabled on partition " << partition.name;
+    HashPartition(
+        partition_fd_, 0, partition_size_, buffer_.data(), buffer_.size());
   }
+}
 
-  // Start the first read.
-  ScheduleFileSystemRead();
+bool FilesystemVerifierAction::IsVABC(
+    const InstallPlan::Partition& partition) const {
+  return dynamic_control_->UpdateUsesSnapshotCompression() &&
+         verifier_step_ == VerifierStep::kVerifyTargetHash &&
+         dynamic_control_->IsDynamicPartition(partition.name,
+                                              install_plan_.target_slot);
+}
+
+const std::string& FilesystemVerifierAction::GetPartitionPath() const {
+  const InstallPlan::Partition& partition =
+      install_plan_.partitions[partition_index_];
+  switch (verifier_step_) {
+    case VerifierStep::kVerifySourceHash:
+      return partition.source_path;
+    case VerifierStep::kVerifyTargetHash:
+      if (IsVABC(partition)) {
+        return partition.readonly_target_path;
+      } else {
+        return partition.target_path;
+      }
+  }
+}
+
+size_t FilesystemVerifierAction::GetPartitionSize() const {
+  const InstallPlan::Partition& partition =
+      install_plan_.partitions[partition_index_];
+  switch (verifier_step_) {
+    case VerifierStep::kVerifySourceHash:
+      return partition.source_size;
+    case VerifierStep::kVerifyTargetHash:
+      return partition.target_size;
+  }
 }
 
 bool FilesystemVerifierAction::ShouldWriteVerity() {
@@ -274,106 +421,6 @@ bool FilesystemVerifierAction::ShouldWriteVerity() {
   return verifier_step_ == VerifierStep::kVerifyTargetHash &&
          install_plan_.write_verity &&
          (partition.hash_tree_size > 0 || partition.fec_size > 0);
-}
-
-void FilesystemVerifierAction::ReadVerityAndFooter() {
-  if (ShouldWriteVerity()) {
-    if (!verity_writer_->Finalize(partition_fd_, partition_fd_)) {
-      LOG(ERROR) << "Failed to write hashtree/FEC data.";
-      Cleanup(ErrorCode::kFilesystemVerifierError);
-      return;
-    }
-  }
-  // Since we handed our |read_fd_| to verity_writer_ during |Finalize()|
-  // call, fd's position could have been changed. Re-seek.
-  partition_fd_->Seek(filesystem_data_end_, SEEK_SET);
-  auto bytes_to_read = partition_size_ - filesystem_data_end_;
-  while (bytes_to_read > 0) {
-    const auto read_size = std::min<size_t>(buffer_.size(), bytes_to_read);
-    auto bytes_read = partition_fd_->Read(buffer_.data(), read_size);
-    if (bytes_read <= 0) {
-      PLOG(ERROR) << "Failed to read hash tree " << bytes_read;
-      Cleanup(ErrorCode::kFilesystemVerifierError);
-      return;
-    }
-    if (!hasher_->Update(buffer_.data(), bytes_read)) {
-      LOG(ERROR) << "Unable to update the hash.";
-      Cleanup(ErrorCode::kError);
-      return;
-    }
-    bytes_to_read -= bytes_read;
-  }
-  FinishPartitionHashing();
-}
-
-void FilesystemVerifierAction::ScheduleFileSystemRead() {
-  // We can only start reading anything past |hash_tree_offset| after we have
-  // already read all the data blocks that the hash tree covers. The same
-  // applies to FEC.
-
-  size_t bytes_to_read = std::min(static_cast<uint64_t>(buffer_.size()),
-                                  filesystem_data_end_ - offset_);
-  if (!bytes_to_read) {
-    ReadVerityAndFooter();
-    return;
-  }
-  partition_fd_->Seek(offset_, SEEK_SET);
-  auto bytes_read = partition_fd_->Read(buffer_.data(), bytes_to_read);
-  if (bytes_read < 0) {
-    LOG(ERROR) << "Unable to schedule an asynchronous read from the stream. "
-               << bytes_read;
-    Cleanup(ErrorCode::kError);
-  } else {
-    // We could just invoke |OnReadDoneCallback()|, it works. But |PostTask|
-    // is used so that users can cancel updates.
-    pending_task_id_ = brillo::MessageLoop::current()->PostTask(
-        base::Bind(&FilesystemVerifierAction::OnReadDone,
-                   base::Unretained(this),
-                   bytes_read));
-  }
-}
-
-void FilesystemVerifierAction::OnReadDone(size_t bytes_read) {
-  if (cancelled_) {
-    Cleanup(ErrorCode::kError);
-    return;
-  }
-  if (bytes_read == 0) {
-    LOG(ERROR) << "Failed to read the remaining " << partition_size_ - offset_
-               << " bytes from partition "
-               << install_plan_.partitions[partition_index_].name;
-    Cleanup(ErrorCode::kFilesystemVerifierError);
-    return;
-  }
-
-  if (!hasher_->Update(buffer_.data(), bytes_read)) {
-    LOG(ERROR) << "Unable to update the hash.";
-    Cleanup(ErrorCode::kError);
-    return;
-  }
-
-  // WE don't consider sizes of each partition. Every partition
-  // has the same length on progress bar.
-  // TODO(zhangkelvin) Take sizes of each partition into account
-
-  UpdateProgress(
-      (static_cast<double>(offset_) / partition_size_ + partition_index_) /
-      install_plan_.partitions.size());
-  if (ShouldWriteVerity()) {
-    if (!verity_writer_->Update(offset_, buffer_.data(), bytes_read)) {
-      LOG(ERROR) << "Unable to update verity";
-      Cleanup(ErrorCode::kVerityCalculationError);
-      return;
-    }
-  }
-
-  offset_ += bytes_read;
-  if (offset_ == filesystem_data_end_) {
-    ReadVerityAndFooter();
-    return;
-  }
-
-  ScheduleFileSystemRead();
 }
 
 void FilesystemVerifierAction::FinishPartitionHashing() {
@@ -447,6 +494,7 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
   hasher_.reset();
   buffer_.clear();
   if (partition_fd_) {
+    partition_fd_->Close();
     partition_fd_.reset();
   }
   StartPartitionHashing();
