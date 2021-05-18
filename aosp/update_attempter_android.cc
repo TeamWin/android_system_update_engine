@@ -364,6 +364,12 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
   LOG(INFO) << "Attempting to reset state from "
             << UpdateStatusToString(status_) << " to UpdateStatus::IDLE";
 
+  if (apex_handler_android_ != nullptr) {
+    LOG(INFO) << "Cleaning up reserved space for compressed APEX (if any)";
+    std::vector<ApexInfo> apex_infos_blank;
+    apex_handler_android_->AllocateSpace(apex_infos_blank);
+  }
+
   switch (status_) {
     case UpdateStatus::IDLE: {
       if (!boot_control_->GetDynamicPartitionControl()->ResetUpdate(prefs_)) {
