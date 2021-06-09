@@ -817,6 +817,7 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
   }
 
 #ifndef TARGET_ENFORCE_AB_OTA_PARTITION_LIST
+  LOG(INFO) << "updater_engine not defined";
   for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
     auto group_name_suffix = group.name() + target_suffix;
     if (!builder->AddGroup(group_name_suffix, group.size())) {
@@ -857,6 +858,7 @@ bool DynamicPartitionControlAndroid::UpdatePartitionMetadata(
     }
   }
 #else
+  LOG(INFO) << "updater_engine defined";
   for (const auto& group : manifest.dynamic_partition_metadata().groups()) {
     auto group_name_suffix = group.name() + target_suffix;
     for (const auto& partition_name : group.partition_names()) {
