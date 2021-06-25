@@ -147,6 +147,7 @@ cc_defaults {
 cc_library_static {
     name: "update_metadata-protos",
     host_supported: true,
+    ramdisk_available: true,
     recovery_available: true,
 
     srcs: ["update_engine/update_metadata.proto"],
