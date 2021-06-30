@@ -485,6 +485,9 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
   // However, we have saved the flag in the snapshot report.
   bool vab_compression_used = report.compression_enabled();
 
+  auto target_build_fingerprint =
+      android::base::GetProperty("ro.build.fingerprint", "");
+
   LOG(INFO) << "Reporting merge stats: "
             << android::snapshot::UpdateState_Name(report.state()) << " in "
             << passed_ms.count() << "ms (resumed " << report.resume_count()
@@ -502,7 +505,9 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
                              report.estimated_cow_size_bytes(),
                              report.boot_complete_time_ms(),
                              report.boot_complete_to_merge_start_time_ms(),
-                             static_cast<int32_t>(report.merge_failure_code()));
+                             static_cast<int32_t>(report.merge_failure_code()),
+                             report.source_build_fingerprint().c_str(),
+                             target_build_fingerprint.c_str());
 #endif
 }
 
