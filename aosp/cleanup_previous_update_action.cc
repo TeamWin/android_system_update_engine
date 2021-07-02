@@ -409,6 +409,14 @@ void CleanupPreviousUpdateAction::InitiateMergeAndWait() {
   merge_stats_->set_boot_complete_to_merge_start_time_ms(
       merge_start_time.count() - merge_stats_->boot_complete_time_ms());
 
+  auto source_build_fingerprint = snapshot_->ReadSourceBuildFingerprint();
+  merge_stats_->set_source_build_fingerprint(source_build_fingerprint);
+
+  if (!merge_stats_->WriteState()) {
+    LOG(ERROR) << "Failed to write merge stats; record may be unreliable if "
+                  "merge is interrupted.";
+  }
+
   if (snapshot_->InitiateMerge()) {
     WaitForMergeOrSchedule();
     return;
