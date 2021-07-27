@@ -358,8 +358,10 @@ void FilesystemVerifierAction::StartPartitionHashing() {
 
   offset_ = 0;
   filesystem_data_end_ = partition_size_;
-  CHECK_LE(partition.hash_tree_offset, partition.fec_offset)
-      << " Hash tree is expected to come before FEC data";
+  if (partition.fec_offset > 0) {
+    CHECK_LE(partition.hash_tree_offset, partition.fec_offset)
+        << " Hash tree is expected to come before FEC data";
+  }
   if (partition.hash_tree_offset != 0) {
     filesystem_data_end_ = partition.hash_tree_offset;
   } else if (partition.fec_offset != 0) {
