@@ -837,14 +837,22 @@ bool DynamicPartitionControlAndroid::CheckSuperPartitionAllocatableSpace(
   return true;
 }
 
+static bool IsIncrementalUpdate(const DeltaArchiveManifest& manifest) {
+  const auto& partitions = manifest.partitions();
+  return std::any_of(partitions.begin(), partitions.end(), [](const auto& p) {
+    return p.has_old_partition_info();
+  });
+}
+
 bool DynamicPartitionControlAndroid::PrepareSnapshotPartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest,
     uint64_t* required_size) {
   if (IsRecovery()) {
-    return false;
-  }
+    if (!IsIncrementalUpdate(manifest)) {
+      return false;
+  }}
   TEST_AND_RETURN_FALSE(ExpectMetadataMounted());
 
   std::string device_dir_str;
@@ -1116,13 +1124,6 @@ bool DynamicPartitionControlAndroid::IsRecovery() {
   return kIsRecovery;
 }
 
-static bool IsIncrementalUpdate(const DeltaArchiveManifest& manifest) {
-  const auto& partitions = manifest.partitions();
-  return std::any_of(partitions.begin(), partitions.end(), [](const auto& p) {
-    return p.has_old_partition_info();
-  });
-}
-
 bool DynamicPartitionControlAndroid::DeleteSourcePartitions(
     MetadataBuilder* builder,
     uint32_t source_slot,
@@ -1193,7 +1194,24 @@ bool DynamicPartitionControlAndroid::ExpectMetadataMounted() {
   // Intentionally not checking |metadata_device_| in Android mode.
   // /metadata should always be mounted in Android mode. If it isn't, let caller
   // fails when calling into SnapshotManager.
-  if (!IsRecovery()) {
+  if (!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+IsRecovery()) {
     return true;
   }
   // In recovery mode, explicitly check |metadata_device_|.
