@@ -921,14 +921,22 @@ bool DynamicPartitionControlAndroid::CheckSuperPartitionAllocatableSpace(
   return true;
 }
 
+static bool IsIncrementalUpdate(const DeltaArchiveManifest& manifest) {
+  const auto& partitions = manifest.partitions();
+  return std::any_of(partitions.begin(), partitions.end(), [](const auto& p) {
+    return p.has_old_partition_info();
+  });
+}
+
 bool DynamicPartitionControlAndroid::PrepareSnapshotPartitionsForUpdate(
     uint32_t source_slot,
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest,
     uint64_t* required_size) {
   if (IsRecovery()) {
-    return false;
-  }
+    if (!IsIncrementalUpdate(manifest)) {
+      return false;
+  }}
   TEST_AND_RETURN_FALSE(ExpectMetadataMounted());
 
   std::string device_dir_str;
@@ -1233,13 +1241,6 @@ void DynamicPartitionControlAndroid::set_fake_mapped_devices(
 
 bool DynamicPartitionControlAndroid::IsRecovery() {
   return constants::kIsRecovery;
-}
-
-static bool IsIncrementalUpdate(const DeltaArchiveManifest& manifest) {
-  const auto& partitions = manifest.partitions();
-  return std::any_of(partitions.begin(), partitions.end(), [](const auto& p) {
-    return p.has_old_partition_info();
-  });
 }
 
 bool DynamicPartitionControlAndroid::DeleteSourcePartitions(
