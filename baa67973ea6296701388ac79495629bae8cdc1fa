@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c9baa29e_64b6bfab",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2021-09-03T19:34:45Z",
+      "side": 1,
+      "message": "Now I can flash an incremental OTA in TWRP.",
+      "revId": "baa67973ea6296701388ac79495629bae8cdc1fa",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
+}
