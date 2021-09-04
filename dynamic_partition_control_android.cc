@@ -1194,24 +1194,7 @@ bool DynamicPartitionControlAndroid::ExpectMetadataMounted() {
   // Intentionally not checking |metadata_device_| in Android mode.
   // /metadata should always be mounted in Android mode. If it isn't, let caller
   // fails when calling into SnapshotManager.
-  if (!
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-IsRecovery()) {
+  if (!IsRecovery()) {
     return true;
   }
   // In recovery mode, explicitly check |metadata_device_|.
