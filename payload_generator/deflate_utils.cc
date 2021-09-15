@@ -312,7 +312,7 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
       // .zvoice files may eventually move out of rootfs. If that happens,
       // remove ".zvoice" (crbug.com/782918).
       bool is_zip = IsFileExtensions(
-          file.name, {".apk", ".zip", ".jar", ".zvoice", ".apex"});
+          file.name, {".apk", ".zip", ".jar", ".zvoice", ".apex", "capex"});
       bool is_gzip = IsFileExtensions(file.name, {".gz", ".gzip", ".tgz"});
       if (is_zip || is_gzip) {
         brillo::Blob data;
