@@ -382,9 +382,9 @@ MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 
   // The payload metadata is deemed valid, it's safe to parse the protobuf.
   if (!payload_metadata_.GetManifest(payload, &manifest_)) {
-    LOG(ERROR) << "Unable to parse manifest in update file.";
+    LOG(WARNING) << "Unable to parse manifest in update file.";
     *error = ErrorCode::kDownloadManifestParseError;
-    return MetadataParseResult::kError;
+    return MetadataParseResult::kSuccess;
   }
 
   manifest_parsed_ = true;
