@@ -1,4 +1,22 @@
 {
   "pushCert": "certificate version 0.1\npusher 9A65CD26718A4E9F 1639013963 -0500\npushee ssh://gerrit.twrp.me:29418/android_system_update_engine\nnonce 1639013968-E2DF56791CA0745A34ADB7B60660E9CE6634B3C6\n\n0000000000000000000000000000000000000000 4bbe0f1a43e589c7e19dbb94a6f767abce29dadf refs/for/android-11\n-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEEqRr5EFtQo04uAf5smmXNJnGKTp8FAmGxXksACgkQmmXNJnGK\nTp9tLxAAgKj7ACNIXxC8zTX+A/KsTrbP1UbPQatWwfkKDZOdq++q/gm51vbDNZ2a\nRgkgcdCJ/oMRe47BuFDPKrZMtk+Oau3wXEx+RtjPudfLZXtVMbOX73zmB2tsty2B\nTNRqS0Y6K1Yg2vdB0vW3a5RHj28DrZM4bu6pkbl3cy2IoKGtaBM/Tv34zYP3mMqo\nq3vKDW0uHXyeEJUlhqr49+AckD3FfwTpCPaEdZlvoQY6glDDhoE2t9w1/2jpKEm7\nVnf07nOZWw9jVJudB+WkLC8LZkxDX7bwsW2sCdr/aJGKx9+CMhXERRA97m7bkCa4\ncPCrzPi7gFgqATuFZRbRPYr1Q96cVhOn/VfnDdJ1z0thdABPTJ6+evZdO1c8sonB\nEMPv62Vd0pTf18q58JNwPwbxgsXPwQA0slJBFPN8IU5IfpuxVL8dNfTaVFvM4rRU\nT9Yf+d0vD7SH1KppS/L+NhGK4bjIHzskmYBH0XpQRfzIzHUhUKj+JP8p8/0mU4Yp\nB6u9rMIKNmizSA/ppDBd/FdZwInOgpDgV496LZ/Ng/0JGwcl8VwgPwFZHc4OBlfN\ntqvIT5fEEzEsAh0cCHZoUEFg6ya67a5F340jHjXV+HAECFQkNfOZwgi974K1+FF5\nixt3EpYm37GJI8I9gjQOH/Vb6BUkw4QpZDahiH+alsG+fCASyMs\u003d\n\u003dMREC\n-----END PGP SIGNATURE-----\n",
-  "comments": []
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0b0beb00_939f5c66",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2021-12-09T01:40:59Z",
+      "side": 1,
+      "message": "Need this on ZF8 to flash A12 incremental OTA zips.",
+      "revId": "4bbe0f1a43e589c7e19dbb94a6f767abce29dadf",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
 }
