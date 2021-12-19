@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "492fae43_c019c200",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 5
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2021-12-19T19:07:02Z",
+      "side": 1,
+      "message": "I haven\u0027t tested whether this negatively impacts my devices, but I think everyone will have to confirm that before this is merged.",
+      "revId": "b8833537c8a760a04e50b60bc969b5eb8a4e325f",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "7c73f393_f57d9905",
+        "filename": "payload_consumer/filesystem_verifier_action.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 64,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2021-12-19T19:07:02Z",
+      "side": 1,
+      "message": "why the extra space added here?",
+      "revId": "b8833537c8a760a04e50b60bc969b5eb8a4e325f",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "176e8ef6_7d032ed7",
+        "filename": "payload_consumer/filesystem_verifier_action.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 142,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2021-12-19T19:07:02Z",
+      "side": 1,
+      "message": "Do we need two blank lines here?",
+      "revId": "b8833537c8a760a04e50b60bc969b5eb8a4e325f",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
+}
