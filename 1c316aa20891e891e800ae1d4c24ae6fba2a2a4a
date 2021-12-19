@@ -36,6 +36,24 @@
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "1501f548_fba12725",
+        "filename": "dynamic_partition_control_android.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 1054,
+      "author": {
+        "id": 1
+      },
+      "writtenOn": "2021-12-19T17:55:54Z",
+      "side": 1,
+      "message": "Can you remove any whitespace in red in all the files? Thanks!",
+      "parentUuid": "920d9183_b77d3116",
+      "revId": "1c316aa20891e891e800ae1d4c24ae6fba2a2a4a",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "9796ae4e_73c3e848",
