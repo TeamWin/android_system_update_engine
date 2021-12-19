@@ -51,6 +51,42 @@
       "message": "Last thought, it probably shouldn\u0027t skip verifying the lp5 images when flashed, it should just verify them against the xbl partitions where they were flashed.",
       "revId": "8cc8660f5ce7d8b59e594fb57703aeadec2eddd5",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "d0a5fabe_d5f7aa46",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 799
+      },
+      "writtenOn": "2021-12-19T18:31:15Z",
+      "side": 1,
+      "message": "Thanks for the comment. I will update them. \nSkipping flashing require more modifications and this mimic the behaviour of the oneplus update_engine. It flash the LPDDR5 images to /dev/null for LPDDR4X devices.",
+      "parentUuid": "eaf796f0_41f5a6a8",
+      "revId": "8cc8660f5ce7d8b59e594fb57703aeadec2eddd5",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d7673ec9_4397c066",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 799
+      },
+      "writtenOn": "2021-12-19T18:31:15Z",
+      "side": 1,
+      "message": "I think it already do exactly that. For LPDDR5X devices it just skip verification of the normal xbl imaged but it verify the lp5 images against the to the ordinary xbl partitions.",
+      "parentUuid": "0f8561d3_800ae643",
+      "revId": "8cc8660f5ce7d8b59e594fb57703aeadec2eddd5",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
