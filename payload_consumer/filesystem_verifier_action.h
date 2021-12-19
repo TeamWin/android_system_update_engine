@@ -68,6 +68,16 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();
 
+
+  // Used to check the device ram type is LPDDRX4 or LPDDR5
+  // by reading the value of ro.boot.ddr_type
+  // will default to false if prop is missing
+  bool IsDDR5();
+
+  // Used to indicated if specific LPDRX images exist in the payload
+  // Used in some Oneplus models (Oneplus 8T and Oneplus 9R) that can have either LPDDRX4 or LPDDR5 ram
+  bool xbllp5PartitionsExist = false;
+
   // Schedules the asynchronous read of the filesystem.
   void ScheduleRead();
 
