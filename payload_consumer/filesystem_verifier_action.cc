@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <string>
 
+#include <android-base/properties.h>
 #include <base/bind.h>
 #include <brillo/data_encoding.h>
 #include <brillo/streams/file_stream.h>
@@ -33,8 +34,16 @@
 
 using brillo::data_encoding::Base64Encode;
 using std::string;
+using android::base::GetBoolProperty;
+
 
 namespace chromeos_update_engine {
+
+constexpr char kIsDDR5[] = "ro.boot.ddr_type";
+//Check if device is LPDDR4X or LPDDR5X
+bool FilesystemVerifierAction::IsDDR5() {
+  return GetBoolProperty(kIsDDR5, false);
+}
 
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
@@ -50,6 +59,7 @@ void FilesystemVerifierAction::PerformAction() {
   }
   install_plan_ = GetInputObject();
 
+
   if (install_plan_.partitions.empty()) {
     LOG(INFO) << "No partitions to verify.";
     if (HasOutputPipe())
@@ -58,6 +68,16 @@ void FilesystemVerifierAction::PerformAction() {
     return;
   }
 
+  // Mimic the functionality of the Oneplus update_engine to handle
+  // cases when the OTA payload contain xbl partition for both LPDR4X and
+  // LPDDR5X only current known cases are Oneplus 8T and Oneplus 9R
+  // These payloads contain two extra partitions xbl_lp5 and xbl_config_lp5
+  for (size_t partitionIndex = 0; partitionIndex < install_plan_.partitions.size(); partitionIndex++) {
+    if (install_plan_.partitions[partitionIndex].name == "xbl_lp5" || install_plan_.partitions[partitionIndex].name == "xbl_lp5_config") {
+        xbllp5PartitionsExist = true;
+        break;
+    }
+  }
   StartPartitionHashing();
   abort_action_completer.set_should_complete(false);
 }
@@ -116,7 +136,33 @@ void FilesystemVerifierAction::StartPartitionHashing() {
 
   LOG(INFO) << "Hashing partition " << partition_index_ << " ("
             << partition.name << ") on device " << part_path;
-
+  
+  
+  // Mimic the functionality of the Oneplus update_engine to handle
+  // cases when the OTA payload contain xbl partition for both LPDR4X and
+  // LPDDR5X only current known cases are Oneplus 8T and Oneplus 9R
+  if (xbllp5PartitionsExist == true) {
+    // Skip hash check for regular xblp and xbl_config partitions if 
+    // The devices is a LPDDR5X device and LPDDR4X specfic partions are included in the payload
+      if (FilesystemVerifierAction::IsDDR5() &&
+          (partition.name == "xbl_config" || partition.name == "xbl")) {
+            LOG(INFO) << "Skip hash verification" << partition_index_ << " for ("
+                    << partition.name << ") because current system is LPDDR5X and LPDDR5X specific xbl partitions (lp5) exists in payload";
+          partition_index_++;
+          StartPartitionHashing();
+          return;
+        }
+      //Skip hash checking on LPDDR5X specific partitions if they are included in the payload and current device is LPDDR4X
+      else if (!FilesystemVerifierAction::IsDDR5() &&
+          (partition.name == "xbl_config_lp5" || partition.name == "xbl_lp5"))
+      {
+        LOG(INFO) << "Skip hash verification" << partition_index_ << " for ("
+                  << partition.name << ") because current system is non LPDDR5X";
+        partition_index_++;
+        StartPartitionHashing();
+        return;
+      }
+  }  
   brillo::ErrorPtr error;
   src_stream_ =
       brillo::FileStream::Open(base::FilePath(part_path),
