@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "e22f1e6c_dd7f027a",
+        "filename": "dynamic_partition_control_android.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 1054,
+      "author": {
+        "id": 1
+      },
+      "writtenOn": "2021-12-19T17:42:33Z",
+      "side": 1,
+      "message": "Please remove whitespace",
+      "revId": "1c316aa20891e891e800ae1d4c24ae6fba2a2a4a",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9796ae4e_73c3e848",
+        "filename": "payload_consumer/filesystem_verifier_action.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 72,
+      "author": {
+        "id": 1
+      },
+      "writtenOn": "2021-12-19T17:42:33Z",
+      "side": 1,
+      "message": "Please remove extra whitespace.",
+      "revId": "1c316aa20891e891e800ae1d4c24ae6fba2a2a4a",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
+}
