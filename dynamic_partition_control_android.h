@@ -175,6 +175,10 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
  private:
   friend class DynamicPartitionControlAndroidTest;
+  // Used to check the device ram type is LPDDRX4 or LPDDR5
+  // by reading the value of ro.boot.ddr_type
+  // will default to false if prop is missing
+  bool IsDDR5();
 
   void UnmapAllPartitions();
   bool MapPartitionInternal(const std::string& super_device,
