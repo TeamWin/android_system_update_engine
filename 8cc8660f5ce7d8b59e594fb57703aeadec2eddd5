@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "95b33168_ddd072a0",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 361
+      },
+      "writtenOn": "2021-12-19T18:07:05Z",
+      "side": 1,
+      "message": "I tried to edit in the web interface to make the message more accurate, but it made me the committer, sorry, uhh, hopefully someone can fix that!\n\nMy only thought was that instead of flashing to /dev/null it should just skip the flashing when appropriate.",
+      "revId": "8cc8660f5ce7d8b59e594fb57703aeadec2eddd5",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
+}
