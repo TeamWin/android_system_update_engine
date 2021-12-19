@@ -52,6 +52,24 @@
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "dd8df3c3_2c1fe629",
+        "filename": "payload_consumer/filesystem_verifier_action.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 64,
+      "author": {
+        "id": 799
+      },
+      "writtenOn": "2021-12-19T19:34:14Z",
+      "side": 1,
+      "message": "Fixed",
+      "parentUuid": "7c73f393_f57d9905",
+      "revId": "b8833537c8a760a04e50b60bc969b5eb8a4e325f",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "176e8ef6_7d032ed7",
@@ -65,6 +83,24 @@
       "writtenOn": "2021-12-19T19:07:02Z",
       "side": 1,
       "message": "Do we need two blank lines here?",
+      "revId": "b8833537c8a760a04e50b60bc969b5eb8a4e325f",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6ff82699_d422431b",
+        "filename": "payload_consumer/filesystem_verifier_action.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 142,
+      "author": {
+        "id": 799
+      },
+      "writtenOn": "2021-12-19T19:34:14Z",
+      "side": 1,
+      "message": "Fixed",
+      "parentUuid": "176e8ef6_7d032ed7",
       "revId": "b8833537c8a760a04e50b60bc969b5eb8a4e325f",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
