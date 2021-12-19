@@ -87,6 +87,42 @@
       "parentUuid": "0f8561d3_800ae643",
       "revId": "8cc8660f5ce7d8b59e594fb57703aeadec2eddd5",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4aff3d1d_8f16cda9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 361
+      },
+      "writtenOn": "2021-12-19T19:12:31Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "d0a5fabe_d5f7aa46",
+      "revId": "8cc8660f5ce7d8b59e594fb57703aeadec2eddd5",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "5897f98f_67a32763",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 361
+      },
+      "writtenOn": "2021-12-19T19:12:31Z",
+      "side": 1,
+      "message": "Whoops, unresolved. Sorry, haven\u0027t figured out Gerrit at all. ;(",
+      "parentUuid": "0f8561d3_800ae643",
+      "revId": "8cc8660f5ce7d8b59e594fb57703aeadec2eddd5",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
