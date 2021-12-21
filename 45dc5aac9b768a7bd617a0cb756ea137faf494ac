@@ -16,6 +16,23 @@
       "message": "fix",
       "revId": "45dc5aac9b768a7bd617a0cb756ea137faf494ac",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "be72fdff_a931e41d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 799
+      },
+      "writtenOn": "2021-12-21T08:01:56Z",
+      "side": 1,
+      "message": "Confirmed working properly on my LPDDR4X KB2003 and BillGloss LPDDR5 device. \nSomeone else should confirm that this do not cause issue with other devices, even though it shouldn\u0027t. ",
+      "revId": "45dc5aac9b768a7bd617a0cb756ea137faf494ac",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
