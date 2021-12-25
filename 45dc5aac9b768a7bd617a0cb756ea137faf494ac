@@ -33,6 +33,23 @@
       "message": "Confirmed working properly on my LPDDR4X KB2003 and BillGloss LPDDR5 device. \nSomeone else should confirm that this do not cause issue with other devices, even though it shouldn\u0027t. ",
       "revId": "45dc5aac9b768a7bd617a0cb756ea137faf494ac",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e00df48e_59696bab",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 689
+      },
+      "writtenOn": "2021-12-25T12:29:40Z",
+      "side": 1,
+      "message": "Tested on KB2001 for OOS to OOS flashing, OOS to custom ROM flashing and custom ROM to OOS flashing. Works fine (on both LPDDR4X and LPDDR5)",
+      "revId": "45dc5aac9b768a7bd617a0cb756ea137faf494ac",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
