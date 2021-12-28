@@ -67,6 +67,23 @@
       "message": "Can anyone test a commit with this patch cherry picked on a non 8T device, just to confirm that this patch do not negatively impact any other device?",
       "revId": "45dc5aac9b768a7bd617a0cb756ea137faf494ac",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f5c95d75_813c5eaa",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1
+      },
+      "writtenOn": "2021-12-28T18:12:55Z",
+      "side": 1,
+      "message": "This has no negative impact installing lineage-18.1 on crosshatch. If no issues are reported I plan on merging this weekend.",
+      "revId": "45dc5aac9b768a7bd617a0cb756ea137faf494ac",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
