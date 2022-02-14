@@ -16,6 +16,23 @@
       "message": "Tested successfully on Xiaomi Poco F3 / Xiaomi Mi 11X / Redmi K40",
       "revId": "05dfcc32c1071960e174d4a61541178a28b5c392",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "7d8b91d2_a100c031",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2022-02-14T22:03:57Z",
+      "side": 1,
+      "message": "Please fix commit message. First line is too long.",
+      "revId": "05dfcc32c1071960e174d4a61541178a28b5c392",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
