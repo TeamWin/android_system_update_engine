@@ -33,6 +33,24 @@
       "message": "Please fix commit message. First line is too long.",
       "revId": "05dfcc32c1071960e174d4a61541178a28b5c392",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2d392d8c_6664f249",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 487
+      },
+      "writtenOn": "2022-02-15T18:47:40Z",
+      "side": 1,
+      "message": "Done.",
+      "parentUuid": "7d8b91d2_a100c031",
+      "revId": "05dfcc32c1071960e174d4a61541178a28b5c392",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
