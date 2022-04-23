@@ -1222,7 +1222,7 @@ ErrorCode DeltaPerformer::CheckTimestampError() const {
   }
 
   // For non-partial updates, check max_timestamp first.
-  if (manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
+  if (hardware_->IsOfficialBuild() && manifest_.max_timestamp() < hardware_->GetBuildTimestamp()) {
     LOG(ERROR) << "The current OS build timestamp ("
                << hardware_->GetBuildTimestamp()
                << ") is newer than the maximum timestamp in the manifest ("
