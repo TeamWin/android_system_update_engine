@@ -1134,9 +1134,6 @@ ErrorCode IsTimestampNewer(const std::string_view old_version,
   if (!ParseTimestamp(new_version, &new_ver)) {
     return ErrorCode::kDownloadManifestParseError;
   }
-  if (old_ver > new_ver) {
-    return ErrorCode::kPayloadTimestampError;
-  }
   return ErrorCode::kSuccess;
 }
 
