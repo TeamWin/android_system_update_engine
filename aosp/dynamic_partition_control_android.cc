@@ -99,6 +99,52 @@ DynamicPartitionControlAndroid::~DynamicPartitionControlAndroid() {
   Cleanup();
 }
 
+
+//bool TWFunc::Path_Exists(string Path)
+bool DynamicPartitionControlAndroid::Path_Exists(std::string Path) {
+	struct stat st;
+	return stat(Path.c_str(), &st) == 0;
+}
+
+//int TWFunc::read_file(string fn, string& results) 
+int DynamicPartitionControlAndroid::read_file(std::string fn, std::string& results) {
+	std::ifstream file;
+	file.open(fn.c_str(), std::ios::in);
+
+	if (file.is_open()) {
+		std::string line;
+		while (std::getline(file, line)) {
+			results += line;
+		}
+		file.close();
+		return 0;
+	}
+	
+	LOG(INFO) << "Cannot find file" << fn.c_str() << "\n";
+	return -1;
+}
+// OOS11 used ro.boot.ddr_type prop (0 = LPDDR4X; 1= LPDDR5)
+constexpr char kIsDDR5[] = "ro.boot.ddr_type";
+// OOS12 used /proc/devinfo/ddr_type (Device version: DDR4; Device version: DDR5)
+const std::string kDDRType = "/proc/devinfo/ddr_type";
+// Check if device is LPDDR4X or LPDDR5 (Oneplus8T/Oneplus9R)
+bool DynamicPartitionControlAndroid::IsDDR5() {
+	if (Path_Exists(kDDRType)) {
+		std::string ddr_type;
+		if(read_file(kDDRType, ddr_type) != -1) {
+			std::string ddr5 = "DDR5";
+			std::string::size_type i = ddr_type.find(ddr5);
+			if (i != std::string::npos) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+	}	
+	return GetBoolProperty(kIsDDR5, false);
+}
+
 static FeatureFlag GetFeatureFlag(const char* enable_prop,
                                   const char* retrofit_prop) {
   // Default retrofit to false if retrofit_prop is empty.
@@ -1149,6 +1195,35 @@ DynamicPartitionControlAndroid::GetPartitionDevice(
   }
   // Try static partitions.
   auto static_path = GetStaticDevicePath(device_dir, partition_name_suffix);
+  
+  // Mimic the functionality of the Oneplus update_engine to handle
+  // cases when the OTA payload contain xbl and xbl_config images for both LPDR4X and LPDDR5
+  // only current known cases are Oneplus 8T and Oneplus 9R
+  // these payloads contain two extra LPDDR5 specifc images xbl_lp5 and xbl_config_lp5
+  if (partition_name == "xbl_lp5" || partition_name == "xbl_config_lp5") {
+	  // if (!DDR_type_determined) {
+		   // LOG(ERROR) << "The payload contain both ddr4 and ddr5 images but the ddr type of the device couldn't be determined with certainty.";
+			// return {};
+      // Set target of xbl_lp5 image to regular xbl partitions if device have LPDDR5
+      if (DynamicPartitionControlAndroid::IsDDR5()) {
+	    LOG(INFO) << "DDR type is: DDR5 ";
+        std::string lp5 ="_lp5";
+        std::string::size_type i = partition_name.find(lp5);
+        std::string target_partition_name = partition_name;
+        if (i != std::string::npos) {
+            target_partition_name.erase(i,lp5.length());
+        }
+        const auto& partition_new_name_suffix =target_partition_name + SlotSuffixForSlotNumber(slot);
+        static_path = device_dir.Append(partition_new_name_suffix).value();
+      }
+      else {
+		  LOG(INFO) << "DDR type is: DDR4 ";
+          // Set target for xbl_lp5 images to /dev/null if device have LPDDR4X ram
+          static_path = base::FilePath("/dev/null").value();
+        }
+  }
+  
+  
   if (!DeviceExists(static_path)) {
     LOG(ERROR) << "Device file " << static_path << " does not exist.";
     return {};

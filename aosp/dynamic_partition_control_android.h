@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_AOSP_DYNAMIC_PARTITION_CONTROL_ANDROID_H_
 #define UPDATE_ENGINE_AOSP_DYNAMIC_PARTITION_CONTROL_ANDROID_H_
 
+#include <fstream>
 #include <memory>
 #include <set>
 #include <string>
@@ -233,6 +234,14 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
  private:
   friend class DynamicPartitionControlAndroidTest;
   friend class SnapshotPartitionTestP;
+  // Used to check the device ram type is LPDDRX4 or LPDDR5
+  // by reading the value of ro.boot.ddr_type
+  // will default to false if prop is missing
+  bool IsDDR5();
+  int read_file(std::string fn, std::string& results);
+  bool Path_Exists(std::string Path);
+  
+  // bool DDR_type_determined = false;
 
   std::optional<base::FilePath> GetSuperDevice();
 

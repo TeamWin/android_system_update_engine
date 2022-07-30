@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <fstream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -102,7 +103,18 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Starts the hashing of the current partition. If there aren't any partitions
   // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();
+  
+  // Used to check the device ram type is LPDDRX4 or LPDDR5
+  // by reading the value of ro.boot.ddr_type
+  // will default to false if prop is missing
+  bool IsDDR5();
+  int read_file(std::string fn, std::string& results);
+  bool Path_Exists(std::string Path);
 
+  // Used to indicated if specific LPDRX images exist in the payload
+  // Used in some Oneplus models (Oneplus 8T and Oneplus 9R) that can have either LPDDRX4 or LPDDR5 ram
+  bool xbllp5PartitionsExist = false;
+  
   const std::string& GetPartitionPath() const;
 
   bool IsVABC(const InstallPlan::Partition& partition) const;

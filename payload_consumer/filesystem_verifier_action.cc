@@ -21,13 +21,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
 #include <string>
 #include <utility>
 
+#include <android-base/properties.h>
 #include <base/bind.h>
 #include <base/strings/string_util.h>
 #include <brillo/data_encoding.h>
@@ -42,6 +42,8 @@
 
 using brillo::data_encoding::Base64Encode;
 using std::string;
+using android::base::GetBoolProperty;
+
 
 // On a partition with verity enabled, we expect to see the following format:
 // ===================================================
@@ -76,6 +78,51 @@ using std::string;
 
 namespace chromeos_update_engine {
 
+//bool TWFunc::Path_Exists(string Path)
+bool FilesystemVerifierAction::Path_Exists(std::string Path) {
+	struct stat st;
+	return stat(Path.c_str(), &st) == 0;
+}
+
+//int TWFunc::read_file(string fn, string& results) 
+int FilesystemVerifierAction::read_file(std::string fn, std::string& results) {
+	std::ifstream file;
+	file.open(fn.c_str(), std::ios::in);
+
+	if (file.is_open()) {
+		std::string line;
+		while (std::getline(file, line)) {
+			results += line;
+		}
+		file.close();
+		return 0;
+	}
+	
+	LOG(INFO) << "Cannot find file" << fn.c_str() << "\n";
+	return -1;
+}
+// OOS11 used ro.boot.ddr_type prop (0 = LPDDR4X; 1= LPDDR5)
+constexpr char kIsDDR5[] = "ro.boot.ddr_type";
+// OOS12 used /proc/devinfo/ddr_type (Device version: DDR4; Device version: DDR5)
+const std::string kDDRType = "/proc/devinfo/ddr_type";
+// Check if device is LPDDR4X or LPDDR5 (Oneplus8T/Oneplus9R)
+bool FilesystemVerifierAction::IsDDR5() {
+	if (Path_Exists(kDDRType)) {
+		std::string ddr_type;
+		if(read_file(kDDRType, ddr_type) != -1) {
+			std::string ddr5 = "DDR5";
+			std::string::size_type i = ddr_type.find(ddr5);
+			if (i != std::string::npos) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+	}	
+	return GetBoolProperty(kIsDDR5, false);
+}
+
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
 constexpr float kVerityProgressPercent = 0.6;
@@ -99,6 +146,18 @@ void FilesystemVerifierAction::PerformAction() {
     return;
   }
   install_plan_.Dump();
+  
+  // Mimic the functionality of the Oneplus update_engine to handle
+  // cases when the OTA payload contain xbl and xbl_config images for both
+  // LPDR4X and LPDDR5 only current known cases are Oneplus 8T and Oneplus 9R
+  // these payloads contain two extra LPDDR5 specifc images xbl_lp5 and xbl_config_lp5
+  for (size_t partitionIndex = 0; partitionIndex < install_plan_.partitions.size(); partitionIndex++) {
+    if (install_plan_.partitions[partitionIndex].name == "xbl_lp5" || install_plan_.partitions[partitionIndex].name == "xbl_lp5_config") {
+        xbllp5PartitionsExist = true;
+        break;
+    }
+  }
+  
   StartPartitionHashing();
   abort_action_completer.set_should_complete(false);
 }
@@ -329,6 +388,7 @@ void FilesystemVerifierAction::StartPartitionHashing() {
 
   LOG(INFO) << "Hashing partition " << partition_index_ << " ("
             << partition.name << ") on device " << part_path;
+			
   auto success = false;
   if (IsVABC(partition)) {
     success = InitializeFdVABC(ShouldWriteVerity());
@@ -344,9 +404,37 @@ void FilesystemVerifierAction::StartPartitionHashing() {
       LOG(ERROR) << "Cannot hash partition " << partition_index_ << " ("
                  << partition.name
                  << ") because its device path cannot be determined.";
-      Cleanup(ErrorCode::kFilesystemVerifierError);
+      Cleanup(ErrorCode::kFilesystemVerifierError); 
       return;
     }
+	
+  // Mimic the functionality of the Oneplus update_engine to handle
+  // cases when the OTA payload contain xbl and xbl_config images for both
+  // LPDDR4X and LPDDR5 devices only current known cases are Oneplus 8T and Oneplus 9R
+  // the seperate LPDDR5 images are named xbl_lp5 and xbl_config_lp5
+  if (xbllp5PartitionsExist == true) {
+    // Skip hash check for regular xbl and xbl_config partitions if 
+    // The devices have LPDDR5 ram and LPDDR5 specfic partions are included in the payload
+      if (FilesystemVerifierAction::IsDDR5() &&
+          (partition.name == "xbl_config" || partition.name == "xbl")) {
+            LOG(INFO) << "Skip hash verification " << partition_index_ << " for ("
+                    << partition.name << ") because current system is LPDDR5 and LPDDR5 specific xbl_lp5 images exists in payload";
+          partition_index_++;
+          StartPartitionHashing();
+          return;
+        }
+      //Skip hash checking on LPDDR5 specific images if they are included in the payload and current device have LPDDR4X ram
+      else if (!FilesystemVerifierAction::IsDDR5() &&
+          (partition.name == "xbl_config_lp5" || partition.name == "xbl_lp5"))
+      {
+        LOG(INFO) << "Skip hash verification " << partition_index_ << " for ("
+                  << partition.name << ") because current system is non LPDDR5";
+        partition_index_++;
+        StartPartitionHashing();
+        return;
+      }
+  }
+	  
     success = InitializeFd(part_path);
   }
   if (!success) {
