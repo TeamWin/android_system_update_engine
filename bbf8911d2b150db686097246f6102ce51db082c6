@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "ce38f181_71db24e0",
+        "filename": "aosp/dynamic_partition_control_android.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 240,
+      "author": {
+        "id": 799
+      },
+      "writtenOn": "2022-07-30T21:51:11Z",
+      "side": 1,
+      "message": "The read_file and Path_Exist is copied straight over from the twrp-functions in android_bootable_recovery. It would make more sense to refactor all 3 of these functions to a seperate file and import them in all places where they are needed.",
+      "revId": "bbf8911d2b150db686097246f6102ce51db082c6",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
+}
