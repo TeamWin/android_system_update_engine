@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c689c7b6_e14877f7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 144
+      },
+      "writtenOn": "2022-11-20T12:36:07Z",
+      "side": 1,
+      "message": "Needed for Zenfone6 if you\u0027re on Custom ROMs (A12, A13) and want to back to official FW",
+      "revId": "e003ae5aef15678d2e5258b4ae38322c9bba5666",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
+}
