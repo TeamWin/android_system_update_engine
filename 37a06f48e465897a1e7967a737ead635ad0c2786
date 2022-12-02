@@ -1,4 +1,22 @@
 {
   "pushCert": "certificate version 0.1\npusher 1F5A13F735F72322 1669942112 -0500\npushee ssh://gerrit.twrp.me:29418/android_system_update_engine\nnonce 1669942112-C511BCA0AD1E8083C977387DEBD46537C487BCF1\n\n0000000000000000000000000000000000000000 37a06f48e465897a1e7967a737ead635ad0c2786 refs/for/android-12.1\n-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8Y8VaNp/zKXnXxPsH1oT9zX3IyIFAmOJS2AACgkQH1oT9zX3\nIyLfSRAAkghhZwLv4nfOs7hOYTp3ns08HNd9TbdmMcGzBDY2Bswyqxv5kekqoUpJ\nGl8wCOEioi6jJHdu2ang69MpvoO7Vta7zSLi08yuit+18PmUMRJZZgQu8nBg/BZ8\nkumuRVqCaTbZXTmE4+otFiN7aFYA5TuwpKL+YIcnv5OC0TL0ZveotAP5o7AKyK5C\nwiYfAX2TGz/GM9duP+qVllJkBpzQn3zALpzJC+uVBkcQ2aENPYHl/CJeWKOi2G93\nGbMt++3KVNgZTGGcDweqrZE9y1ZJwC9G0tYvKztT+Qv1CHMMl/5JT+xeNWZgVNws\n94a6gxPxnYOkzPQec8KgY+4EjFvFm2ssyvqHceThKSFa5nim4FY7RJPJG054Lgxa\n0rEtj4DC8P2M9DsUN5m5ibs5KhK6LsQSzN8Oocn3V0f0lfEGZd8CLzgPJqA/B+5b\niQnMbUxk1sS087PNe+rzGFlcFFgC1ysqjx5Funeb9Gp5+vIaFh0OiLuV8U1PwCLq\nQQbCBP/wt4kP2J+7WmtNsdBDxcvXjHEtGlbwnMqXi4KSQLckgwn6bHKQklqEXGRf\nrzb1e6yiSL2bUChvAHNVEz54vvg8ZFDtb2xC0gKx6XATHchvSnSwALM8VRw3Wl1t\ns5XS9F0shk51X9LKfMsWAQJ/Ev8i41UAd4GLNYh4JhXVcaxLENI\u003d\n\u003dxeyc\n-----END PGP SIGNATURE-----\n",
-  "comments": []
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ae09189d_352f5c33",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2022-12-02T00:50:40Z",
+      "side": 1,
+      "message": "Need this for flashing OTA zips",
+      "revId": "37a06f48e465897a1e7967a737ead635ad0c2786",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
 }
