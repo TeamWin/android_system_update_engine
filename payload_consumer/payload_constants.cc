@@ -36,8 +36,7 @@ const uint32_t kVerityMinorPayloadVersion = 6;
 const uint32_t kPartialUpdateMinorPayloadVersion = 7;
 
 const uint32_t kMinSupportedMinorPayloadVersion = kSourceMinorPayloadVersion;
-const uint32_t kMaxSupportedMinorPayloadVersion =
-    kPartialUpdateMinorPayloadVersion;
+const uint32_t kMaxSupportedMinorPayloadVersion = 8;
 
 const uint64_t kMaxPayloadHeaderSize = 24;
 
