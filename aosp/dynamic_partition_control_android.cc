@@ -1262,28 +1262,11 @@ bool DynamicPartitionControlAndroid::IsRecovery() {
   return constants::kIsRecovery;
 }
 
-static bool IsIncrementalUpdate(const DeltaArchiveManifest& manifest) {
-  const auto& partitions = manifest.partitions();
-  return std::any_of(partitions.begin(), partitions.end(), [](const auto& p) {
-    return p.has_old_partition_info();
-  });
-}
-
 bool DynamicPartitionControlAndroid::DeleteSourcePartitions(
     MetadataBuilder* builder,
     uint32_t source_slot,
     const DeltaArchiveManifest& manifest) {
   TEST_AND_RETURN_FALSE(IsRecovery());
-
-  if (IsIncrementalUpdate(manifest)) {
-    LOG(ERROR) << "Cannot sideload incremental OTA because snapshots cannot "
-               << "be created.";
-    if (GetVirtualAbFeatureFlag().IsLaunch()) {
-      LOG(ERROR) << "Sideloading incremental updates on devices launches "
-                 << " Virtual A/B is not supported.";
-    }
-    return false;
-  }
 
   LOG(INFO) << "Will overwrite existing partitions. Slot "
             << BootControlInterface::SlotName(source_slot)
