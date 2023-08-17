@@ -1,4 +1,22 @@
 {
   "pushCert": "certificate version 0.1\npusher 1F5A13F735F72322 1692042832 -0400\npushee ssh://gerrit.twrp.me:29418/android_system_update_engine\nnonce 1692042832-ADCB8BFCCDA577DB17CDBF33C2555C49EDE0A577\n\n0000000000000000000000000000000000000000 fb0d3a562d505725cbc9445dcc77cd36a1629886 refs/for/android-12.1\n-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8Y8VaNp/zKXnXxPsH1oT9zX3IyIFAmTahlAACgkQH1oT9zX3\nIyIGhA/+JA1+bXKEkPTRHZy4GqyEsKFLkLJMYSEcxoNI4xdysdKXHxhs8h5mhY1b\nMNLdoFLga/CLf6L25vlZ8ChmQjIJThffOazYefvx7kzvj6C48Gdy6Igd8CMLvu6b\nln/V/0aytVlPy7LntCwa5vO2IeK2dZVs174lACHHC1YTKhSs5E8XiRayN+Uf99oS\nF+AYdXh2kD/wsGXV3Wgjivy2pvlh5/s6nQQe2oOHx8QsbeqD3x+slruFZIqLM5vv\nXLuiK6vnJQNqL+cH5Ue2rkgfeh0R7uwCc1vbOAFhKV0ngfQ5+xl3FsRta8fQ2LWD\nQSDVBwoNW4K/Xpww3PXFMzbi+aWS5pywXoS3lXnqbnaRONkuwiD6heGIrppRYL9j\n/Cw/WZ6s7ttljEcUTgClI8QEXpTTw5B3LcMGHWqo0ax0hjzALDVU8VVebzmZusvy\nGP+Qu/PLxLJA/eoV+pmT604GW+ZATwxQSS6h2s8OIo4Sx26cvWmuRg4rN77M/Te7\njUiZMvymDSRdej7f6Ai4dV+sXvC9yHBRRUm72lrslF9f9X6L2E0aF6hyFtmV+rNs\n8hyVslpMtU9jrZBzSPFSa9NzyWgfOJsSmrmjluDTTWVljC2tdFN51JYUzyVa63/y\nTtCoso0nYVdhinIYn1yehqWKlyIkpaPH42FZ4omcKouBpuLixus\u003d\n\u003dELPi\n-----END PGP SIGNATURE-----\n",
-  "comments": []
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2a7c6d79_ac7ef95f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2023-08-17T16:30:27Z",
+      "side": 1,
+      "message": "This should allow flashing or A13 zips",
+      "revId": "fb0d3a562d505725cbc9445dcc77cd36a1629886",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
 }
