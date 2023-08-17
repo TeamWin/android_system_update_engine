@@ -1,4 +1,22 @@
 {
   "pushCert": "certificate version 0.1\npusher 1F5A13F735F72322 1692042877 -0400\npushee ssh://gerrit.twrp.me:29418/android_system_update_engine\nnonce 1692042877-8F2ACCB3D832C474E4A0709DC2BF8F3AE5FF5A96\n\n0000000000000000000000000000000000000000 7e30384fbbcbdaf01920498b9bf2b0792047d09f refs/for/android-12.1\n-----BEGIN PGP SIGNATURE-----\n\niQIzBAABCgAdFiEE8Y8VaNp/zKXnXxPsH1oT9zX3IyIFAmTahn0ACgkQH1oT9zX3\nIyKccw/9FBXjneRi3yqf6Frr233gKZcrUHtDaDnkQVBpPPuhLfw2VX22hj66RuBJ\nAgKfCBm1XPT+bJzQxA5e7rKW79Nd8tOsrXnCzHClocgc/gJyJXANnXGtCZ5ltx9M\n9kKpzUFVE5ThyeSI22nKVhWfjzfn93OI9BtHy0siAnkizYWUQT3OGvZr86P4D3cW\naZS2s+BZKX870KRkLFtu7hJLhUQkgLmevyaBbhegVtiN5qwMmIclIz8Xer/pwKuz\n7Ta1wDqkyHdk7D26tsdP8rv7TvSPeWwUjG9ZCFKOWIYA/YZWwIRMdyljaPlkSN1F\nDx3k/JgJeCLQeVMniCMX+EG7YBlY4EZ8asCHfJnOYa96hfIfxSkEZKPZQf9EWypG\n9rLz6kfE4mNFxo4kxn8Bqst59SF3iVzc+jUPMxchhbWXsestwVeHo2UgfqXtAwj2\nGz5qYEhuu6VhrByW0PD7SyZrvEmRG00pdmwM4t6O4Xh0E70cMqRsX7Y0qYodJlN4\nn6Kb32OmKMflmpwIW+xLrvUr2yF6WcoTGzkAfTfm1MN+dOS1g/qwaAnzny0hUfv0\nYjmFeX8AZmpH192QTWKFcoM6Ic7dsRImMhGRArHkiHAC8HXJXqCddnBAhBBO/l4G\nRnqfFiOe1WuHPzDHpaRYwU5Ht9VwXgkeH9/ByoRXBC9Mma4WrUM\u003d\n\u003dO/IS\n-----END PGP SIGNATURE-----\n",
-  "comments": []
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "62d6473c_8605a184",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2023-08-17T16:31:36Z",
+      "side": 1,
+      "message": "This should allow flashing of A13 incremental update zips",
+      "revId": "7e30384fbbcbdaf01920498b9bf2b0792047d09f",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
 }
