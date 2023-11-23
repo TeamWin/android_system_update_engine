@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2cc50c8b_8455032f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2023-11-23T21:25:31Z",
+      "side": 1,
+      "message": "Please update commit message so first line is 50 characters or less",
+      "revId": "5910001939f55315169b0425c4dbb51e70f00ab2",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "0be2a916_bca50675",
+        "filename": "payload_consumer/delta_performer.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 665,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2023-11-23T21:25:31Z",
+      "side": 1,
+      "message": "whitespace",
+      "revId": "5910001939f55315169b0425c4dbb51e70f00ab2",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    }
+  ]
+}
