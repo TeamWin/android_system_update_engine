@@ -70,8 +70,6 @@ bool PartitionUpdateGeneratorAndroid::
                                           &is_source_dynamic));
     bool is_target_dynamic = false;
     std::string target_device;
-    TEST_AND_RETURN_FALSE(boot_control_->GetPartitionDevice(
-        partition_name, target_slot, true, &target_device, &is_target_dynamic));
 
     if (is_source_dynamic || is_target_dynamic) {
       if (is_source_dynamic != is_target_dynamic) {
