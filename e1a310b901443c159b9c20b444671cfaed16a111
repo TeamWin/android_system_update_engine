@@ -16,6 +16,23 @@
       "message": "works on OnePlus 10 pro to flash stock otas \nAndroid-13 dynamic partitions",
       "revId": "e1a310b901443c159b9c20b444671cfaed16a111",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "3d34df42_b66f3db8",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 823
+      },
+      "writtenOn": "2023-11-24T11:20:20Z",
+      "side": 1,
+      "message": "Lost my_company and my_preload two logical partitions and not boot after flash stock OTA, tested on OnePlus 9RT Android 14",
+      "revId": "e1a310b901443c159b9c20b444671cfaed16a111",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
