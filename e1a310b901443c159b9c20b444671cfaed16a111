@@ -33,6 +33,24 @@
       "message": "Lost my_company and my_preload two logical partitions and not boot after flash stock OTA, tested on OnePlus 9RT Android 14",
       "revId": "e1a310b901443c159b9c20b444671cfaed16a111",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "0c3a7252_09854747",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 139
+      },
+      "writtenOn": "2023-11-25T18:34:46Z",
+      "side": 1,
+      "message": "I\u0027m abandoning this patch as bypass checks can be done locally to support older OnePlus devices to avoid any issues. Try https://gerrit.twrp.me/c/android_system_update_engine/+/6949",
+      "parentUuid": "3d34df42_b66f3db8",
+      "revId": "e1a310b901443c159b9c20b444671cfaed16a111",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
