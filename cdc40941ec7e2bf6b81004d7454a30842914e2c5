@@ -16,6 +16,23 @@
       "message": "Allows installing stock otas OnePlus 10 pro android 13",
       "revId": "cdc40941ec7e2bf6b81004d7454a30842914e2c5",
       "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "abc9f248_718ac96d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32
+      },
+      "writtenOn": "2024-01-30T00:49:44Z",
+      "side": 1,
+      "message": "Doesn\u0027t cause any issues for me, and allows my install to get further, even though it fails due to a hash error in the end.",
+      "revId": "cdc40941ec7e2bf6b81004d7454a30842914e2c5",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833"
     }
   ]
 }
