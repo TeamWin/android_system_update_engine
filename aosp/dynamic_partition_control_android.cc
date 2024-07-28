@@ -887,6 +887,12 @@ bool DynamicPartitionControlAndroid::CheckSuperPartitionAllocatableSpace(
   }
 
   uint64_t full_space = builder->AllocatableSpace();
+  uint64_t new_size = full_space;
+  std::string new_size_prop = android::base::GetProperty("ro.dynamic.full_size", "");
+  if (!new_size_prop.empty() && (std::istringstream(new_size_prop) >> new_size) && new_size > full_space) {
+	LOG(INFO) << "DEBUG - replacing: " << full_space << " with: " << new_size;
+	full_space = new_size;
+  }
   uint64_t half_space = full_space / 2;
   constexpr const char* fmt =
       "The maximum size of all groups for the target slot (%" PRIu64
